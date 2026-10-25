@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Трек к ШАДу</title>
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect x=%274%27 y=%274%27 width=%2724%27 height=%2724%27 rx=%276%27 fill=%27%232238B8%27/%3E%3Cpath d=%27M10 17l4 4 8-9%27 stroke=%27white%27 stroke-width=%273%27 fill=%27none%27/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Unbounded:wght@500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+<!-- облако и вход по коду общие с БиоВиз -->
+<script src="../bioviz/x/cloud.js"></script>
+</head>
+<body>
+<header class="top" id="top">
+  <div class="wrap">
+    <div class="brand"><b>Трек к ШАДу</b><span id="brandSub">вышмат</span></div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-plan" aria-selected="true" data-tab="plan">Расписание</button>
+      <button class="tab" role="tab" id="tab-stats" aria-selected="false" data-tab="stats">Прогресс</button>
+    </div>
+    <div class="sync" id="sync"><i></i><span>Подключаюсь к хранилищу…</span>
+      <button class="link-btn" id="loginBtn" type="button" hidden>Войти</button><button class="link-btn" id="logoutBtn" type="button" hidden>Выйти</button></div>
+    <form class="login" id="login" hidden>
+      <label for="code">Код учителя</label>
+      <input id="code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="T-XXXX-XXXX-XXXX-XXXX">
+      <button class="btn primary" type="submit">Войти</button>
+      <span class="login-msg" id="loginMsg" aria-live="polite"></span>
+    </form>
+  </div>
+</header>
+
+<main>
+  <section id="view-plan">
+    <div class="wrap summary">
+      <div class="hero">
+        <div>
+          <div class="big" id="bigDone">0</div>
+          <div class="big-cap">вебов закрыто полностью: веб, ДЗ и разбор ошибок</div>
+        </div>
+        <div class="kpis">
+          <div class="kpi"><b id="kPct">0%</b><span>пройдено</span></div>
+          <div class="kpi warn"><b id="kLate">0</b><span>отстаю</span></div>
+          <div class="kpi"><b id="kHours">0 ч</b><span>осталось</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="tape" id="tape" aria-label="Все вебы по порядку"></div>
+      </div>
+      <div class="legend" id="legend"></div>
+      <button class="next" id="next"></button>
+    </div>
+    <div class="wrap toolbar" id="toolbar">
+      <div class="chips" id="fStatus"></div>
+      <div class="chips" id="fCourse"></div>
+      <button class="today-btn" id="toToday">К текущей неделе ↓</button>
+    </div>
+    <div class="wrap weeks" id="weeks"></div>
+  </section>
+
+  <section id="view-stats" hidden>
+    <div class="wrap stats" id="stats"></div>
+  </section>
+</main>
+
+<div class="scrim" id="scrim" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="shTitle" id="sheet"></div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -4,6 +4,10 @@
 
 Сайт: https://kopejkingeorgij09-web.github.io/BioVision/
 
+## Ещё в репозитории
+
+- `shad/` — «Трек к ШАДу», личный трекер вебов Профиматики: https://kopejkingeorgij09-web.github.io/BioVision/shad/
+
 ## Как устроено
 
 Сайт статический, без сборки: открой `index.html`, и всё работает.

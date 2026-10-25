@@ -1,0 +1,310 @@
+<!doctype html><html lang="ru"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><title>БиоВиз</title>
+<meta name="description" content="Интерактивный атлас по биологии: клетка, процессы, микроскоп, тренажёр и конспекты.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2714%27 fill=%27%232F8A3B%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%275%27 fill=%27%23F1F6F2%27/%3E%3C/svg%3E">
+<script src="bioviz/x/cloud.js"></script>
+</head><body>
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F1F6F2">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+/* Layout: шапка с темами + Биовиз во всю ширину (своё меню «предметное стекло» слева, сцена и конспект справа) */
+:root{
+  --bg:#F1F6F2;--card:#FFFFFF;--ink:#0E4A38;--text:#16231E;--muted:#58695F;--line:#D2E1D7;--soft:#E7F0EA;
+  --accent:#C2366B;--bio:#2F8A3B;--chem:#B5701A;--math:#5B3FA8;--phys:#1F6FA8;--eng:#0E8A8F;--other:#6B7A73;--focus:#2C7BE5;
+  --hex:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50V16L28 0l28 16v34L28 66v34M28 0v0' fill='none' stroke='%23D6E6DB' stroke-width='1'/%3E%3C/svg%3E");
+  --r-c:#3F78AD;--r-r:#D06F0A;--r-s:#0E8FA8;--r-e:#8E3FC8;--r-l:#B08000;
+  --agar1:#FBF3D2;--agar2:#EEDDA4;--agar3:#D9C27E;--rim:#C9D8CF;--sporec:#B08A3A;
+  --f:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --d:"Unbounded","Golos Text",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme]){
+  --r-c:#79AEE0;--r-r:#F3A04A;--r-s:#4FC8E0;--r-e:#C08AF0;--r-l:#F2C94C;
+  --agar1:#8A7742;--agar2:#5A4E2A;--agar3:#6E5F33;--rim:#3E564A;--sporec:#E6C878;
+  --bg:#0C1512;--card:#15241E;--ink:#7FD6A8;--text:#E3EEE8;--muted:#93A89F;--line:#25382F;--soft:#1A2A24;
+  --accent:#FF77A6;--bio:#6BCF77;--chem:#E8A85A;--math:#AF98FF;--phys:#6DB6EC;--eng:#43CFC8;--other:#9AAAA3;--focus:#7DB3FF;
+  --hex:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50V16L28 0l28 16v34L28 66v34' fill='none' stroke='%23172720' stroke-width='1'/%3E%3C/svg%3E");}}
+:root[data-theme="dark"],:root[data-theme="lumi"],:root[data-theme="amber"]{
+  --r-c:#79AEE0;--r-r:#F3A04A;--r-s:#4FC8E0;--r-e:#C08AF0;--r-l:#F2C94C;
+  --agar1:#8A7742;--agar2:#5A4E2A;--agar3:#6E5F33;--rim:#3E564A;--sporec:#E6C878;
+  --bg:#0C1512;--card:#15241E;--ink:#7FD6A8;--text:#E3EEE8;--muted:#93A89F;--line:#25382F;--soft:#1A2A24;
+  --accent:#FF77A6;--bio:#6BCF77;--chem:#E8A85A;--math:#AF98FF;--phys:#6DB6EC;--eng:#43CFC8;--other:#9AAAA3;--focus:#7DB3FF;
+  --hex:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50V16L28 0l28 16v34L28 66v34' fill='none' stroke='%23172720' stroke-width='1'/%3E%3C/svg%3E");}
+:root{color-scheme:light dark}
+:root[data-theme="light"]{color-scheme:light}:root[data-theme="dark"]{color-scheme:dark}
+/* v86 биологические темы: поверх светлого или тёмного набора меняются фон, карточки, чернила, акцент и узор */
+:root[data-theme="chloro"]{--bg:#EDF4E0;--card:#FDFFF7;--ink:#2F5D11;--text:#1B2611;--muted:#5D6B4C;--line:#D3E2BC;--soft:#E4EFD2;
+  --accent:#C2541E;--bio:#3E8A1F;--focus:#2C7BE5;--rim:#BFD39F;--agar1:#F6F5D2;--agar2:#E3E4A9;--agar3:#CACD80;
+  --hex:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Crect x='2' y='2' width='52' height='46' rx='9' fill='none' stroke='%23CFE3B4'/%3E%3Crect x='-26' y='52' width='52' height='46' rx='9' fill='none' stroke='%23CFE3B4'/%3E%3Crect x='30' y='52' width='52' height='46' rx='9' fill='none' stroke='%23CFE3B4'/%3E%3Cellipse cx='16' cy='17' rx='5' ry='3' fill='%23DCEBC4'/%3E%3Cellipse cx='37' cy='31' rx='5' ry='3' fill='%23DCEBC4'/%3E%3Cellipse cx='10' cy='72' rx='5' ry='3' fill='%23DCEBC4'/%3E%3Cellipse cx='46' cy='84' rx='5' ry='3' fill='%23DCEBC4'/%3E%3C/svg%3E");--sh1:0 1px 2px rgba(40,70,10,.06),0 8px 20px -14px rgba(40,70,10,.25);--sh2:0 2px 4px rgba(40,70,10,.07),0 18px 32px -18px rgba(40,70,10,.34)}
+:root[data-theme="reef"]{--bg:#E9F5F6;--card:#FFFFFF;--ink:#0B5068;--text:#11262E;--muted:#4F6870;--line:#CBE2E6;--soft:#DFF0F2;
+  --accent:#E8573A;--bio:#13856F;--focus:#1E6FD9;--rim:#B6D6DC;--agar1:#FFF1DE;--agar2:#FBD9B8;--agar3:#EBB98F;
+  --hex:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cg fill='none' stroke='%23C3E2E6'%3E%3Ccircle cx='28' cy='25' r='15'/%3E%3Ccircle cx='28' cy='25' r='6'/%3E%3Cpath d='M28 10v9M28 31v9M13 25h9M34 25h9M17.4 14.4l6.4 6.4M32.2 29.2l6.4 6.4M17.4 35.6l6.4-6.4M32.2 20.8l6.4-6.4'/%3E%3Ccircle cx='0' cy='75' r='11'/%3E%3Ccircle cx='56' cy='75' r='11'/%3E%3Ccircle cx='0' cy='75' r='4'/%3E%3Ccircle cx='56' cy='75' r='4'/%3E%3C/g%3E%3Ccircle cx='28' cy='72' r='2' fill='%23C3E2E6'/%3E%3Ccircle cx='36' cy='80' r='1.4' fill='%23C3E2E6'/%3E%3C/svg%3E");--sh1:0 1px 2px rgba(8,60,80,.06),0 8px 20px -14px rgba(8,60,80,.25);--sh2:0 2px 4px rgba(8,60,80,.07),0 18px 32px -18px rgba(8,60,80,.34)}
+:root[data-theme="gram"]{--bg:#F5F1FA;--card:#FFFFFF;--ink:#4A2384;--text:#221830;--muted:#665B76;--line:#E0D6EE;--soft:#EEE7F6;
+  --accent:#D0386F;--bio:#2F8A3B;--focus:#5B3FD8;--rim:#D6C9E8;--agar1:#FBEFF3;--agar2:#F2D2DE;--agar3:#E0B1C3;
+  --hex:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cg fill='%23E5DAF3'%3E%3Ccircle cx='10' cy='12' r='4'/%3E%3Ccircle cx='18' cy='12' r='4'/%3E%3Ccircle cx='40' cy='60' r='4'/%3E%3Ccircle cx='46' cy='66' r='4'/%3E%3Ccircle cx='52' cy='72' r='4'/%3E%3C/g%3E%3Cg fill='%23F6D6E2'%3E%3Crect x='26' y='28' width='18' height='7' rx='3.5'/%3E%3Crect x='6' y='78' width='18' height='7' rx='3.5' transform='rotate%28-25 15 81%29'/%3E%3C/g%3E%3C/svg%3E");--sh1:0 1px 2px rgba(60,30,100,.06),0 8px 20px -14px rgba(60,30,100,.25);--sh2:0 2px 4px rgba(60,30,100,.07),0 18px 32px -18px rgba(60,30,100,.34)}
+:root[data-theme="lumi"]{--bg:#060C18;--card:#0D1829;--ink:#4FEBCB;--text:#E2ECF7;--muted:#8B9CB4;--line:#1C2C45;--soft:#122038;
+  --accent:#8C95FF;--bio:#4FE08A;--eng:#3FE0E8;--focus:#7DB3FF;--rim:#29405F;--agar1:#163A4A;--agar2:#0E2535;--agar3:#12303F;--sporec:#9CF5D8;
+  --hex:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cg fill='%2347E6C8'%3E%3Ccircle cx='9' cy='14' r='1.2' opacity='.35'/%3E%3Ccircle cx='40' cy='30' r='1.6' opacity='.22'/%3E%3Ccircle cx='22' cy='58' r='1' opacity='.4'/%3E%3Ccircle cx='48' cy='82' r='1.3' opacity='.3'/%3E%3Ccircle cx='6' cy='92' r='.9' opacity='.3'/%3E%3C/g%3E%3Cg fill='%237C8CFF'%3E%3Ccircle cx='30' cy='6' r='1' opacity='.3'/%3E%3Ccircle cx='14' cy='38' r='.8' opacity='.35'/%3E%3Ccircle cx='36' cy='70' r='1.1' opacity='.25'/%3E%3C/g%3E%3C/svg%3E")}
+:root[data-theme="amber"]{--bg:#1A1209;--card:#251A0E;--ink:#F2B53D;--text:#F4E9D6;--muted:#B8A385;--line:#3D2B15;--soft:#2E2111;
+  --accent:#FF8A5B;--bio:#9BD36A;--focus:#FFC56B;--rim:#5A4020;--agar1:#9A6A22;--agar2:#6A4815;--agar3:#7E5719;--sporec:#FFD98A;
+  --hex:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cg fill='none' stroke='%23432A10'%3E%3Ccircle cx='14' cy='20' r='6'/%3E%3Ccircle cx='42' cy='44' r='3.5'/%3E%3Ccircle cx='22' cy='74' r='9'/%3E%3Ccircle cx='48' cy='90' r='2.5'/%3E%3C/g%3E%3Ccircle cx='12' cy='18' r='1.4' fill='%23573817'/%3E%3Ccircle cx='19' cy='71' r='2' fill='%23573817'/%3E%3C/svg%3E")}
+:root[data-theme="chloro"],:root[data-theme="reef"],:root[data-theme="gram"]{color-scheme:light}
+:root[data-theme="lumi"],:root[data-theme="amber"]{color-scheme:dark}
+:root[data-theme="lumi"] .phx,:root[data-theme="lumi"] h1{text-shadow:0 0 18px color-mix(in srgb,var(--ink) 35%,transparent)}
+
+:root{color-scheme:light dark}
+:root[data-theme="light"]{color-scheme:light}:root[data-theme="dark"]{color-scheme:dark}
+:root{--p-ink:var(--ink)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;color:var(--text);font:16px/1.55 var(--f);background:var(--bg) var(--hex);background-size:42px 75px}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+button{font:inherit}
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:14px;padding-left:max(22px,env(safe-area-inset-left,0px));padding-right:max(22px,env(safe-area-inset-right,0px));max-width:min(1680px,100%);margin:0 auto}
+.logo{display:flex;align-items:center;gap:12px;color:var(--ink);min-width:0}
+.logo b{font:700 19px/1.1 var(--d);letter-spacing:-.2px}
+.logo b i{font-style:normal;color:var(--accent)}
+.logo span{display:block;font:500 13px var(--f);color:var(--muted);margin-top:2px}
+.lg{flex:none;width:44px;height:44px}
+.top-r{display:flex;align-items:center;gap:10px;flex:none}
+.thbtn{all:unset;box-sizing:border-box;flex:none;cursor:pointer;width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--muted);display:grid;place-items:center;transition:border-color .15s,color .15s}
+.thbtn:hover{border-color:var(--ink);color:var(--text)}
+.thbtn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.thbtn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;transition:transform .35s ease}
+.thbtn:active svg{transform:rotate(-30deg) scale(.9)}
+.thbtn[aria-expanded="true"]{border-color:var(--ink);color:var(--ink)}
+/* v86 меню тем */
+.thmenu{position:fixed;z-index:70;width:min(320px,calc(100vw - 16px));max-height:calc(100vh - 80px);overflow:auto;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:18px;box-shadow:var(--sh2);padding:8px}
+.thmenu[hidden]{display:none}
+.thmenu .thh{font:600 12px/1.2 var(--f);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:10px 10px 6px}
+.thopt{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:12px;width:100%;padding:8px 10px;border-radius:12px;cursor:pointer}
+.thopt:hover{background:var(--soft)}
+.thopt:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+.thopt .sw{flex:none;width:40px;height:40px;border-radius:12px;border:1px solid rgba(0,0,0,.12);display:grid;place-items:center;overflow:hidden;position:relative}
+.thopt .sw i{position:absolute;width:15px;height:15px;border-radius:50%;border:2px solid rgba(255,255,255,.85)}
+.thopt .sw i:nth-child(1){left:5px;top:6px}.thopt .sw i:nth-child(2){right:5px;bottom:6px}
+.thopt .tx{flex:1;min-width:0;display:flex;flex-direction:column}
+.thopt .tx b{font-weight:600;font-size:15px;line-height:1.25}
+.thopt .tx small{font-size:12.5px;line-height:1.3;color:var(--muted)}
+.thopt .ok{flex:none;width:20px;height:20px;color:var(--ink);visibility:hidden}
+.thopt[aria-checked="true"]{background:color-mix(in srgb,var(--ink) 8%,transparent)}
+.thopt[aria-checked="true"] .ok{visibility:visible}
+.thmenu hr{border:0;border-top:1px solid var(--line);margin:6px 8px}
+
+:root{--sh1:0 1px 2px rgba(16,40,30,.05),0 8px 20px -14px rgba(16,40,30,.22);--sh2:0 2px 4px rgba(16,40,30,.06),0 18px 32px -18px rgba(16,40,30,.32)}
+@media (prefers-color-scheme:dark){:root:not([data-theme]){--sh1:0 1px 2px rgba(0,0,0,.35),0 10px 22px -14px rgba(0,0,0,.7);--sh2:0 2px 4px rgba(0,0,0,.4),0 18px 32px -16px rgba(0,0,0,.8)}}
+:root[data-theme="dark"],:root[data-theme="lumi"],:root[data-theme="amber"]{--sh1:0 1px 2px rgba(0,0,0,.35),0 10px 22px -14px rgba(0,0,0,.7);--sh2:0 2px 4px rgba(0,0,0,.4),0 18px 32px -16px rgba(0,0,0,.8)}
+:root[data-theme="chloro"]{--sh1:0 1px 2px rgba(40,70,10,.06),0 8px 20px -14px rgba(40,70,10,.25);--sh2:0 2px 4px rgba(40,70,10,.07),0 18px 32px -18px rgba(40,70,10,.34)}
+:root[data-theme="reef"]{--sh1:0 1px 2px rgba(8,60,80,.06),0 8px 20px -14px rgba(8,60,80,.25);--sh2:0 2px 4px rgba(8,60,80,.07),0 18px 32px -18px rgba(8,60,80,.34)}
+:root[data-theme="gram"]{--sh1:0 1px 2px rgba(60,30,100,.06),0 8px 20px -14px rgba(60,30,100,.25);--sh2:0 2px 4px rgba(60,30,100,.07),0 18px 32px -18px rgba(60,30,100,.34)}
+
+.wrap{max-width:min(1680px,100%);margin:0 auto;padding-bottom:60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+#bvhost{display:block;min-width:0}
+body.bvfull .top{display:none}
+body.bvfull .wrap{max-width:none;padding-top:6px;padding-bottom:24px}
+@media(max-width:600px){.logo span{display:none}.lg{width:38px;height:38px}.thbtn{width:36px;height:36px;border-radius:50%}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+/* телефон: внизу панель быстрого доступа БиоВиза */
+@media (max-width:820px){.wrap{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}.ck{bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
+/* cookie: баннер согласия и настройки */
+.ck{position:fixed;z-index:90;left:50%;bottom:max(16px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(720px,calc(100vw - 24px));background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:20px;box-shadow:var(--sh2);padding:18px 20px;display:flex;flex-direction:column;gap:12px;animation:ckIn .35s ease}
+.ck[hidden]{display:none}
+@keyframes ckIn{from{opacity:0;transform:translate(-50%,14px)}}
+@media (prefers-reduced-motion:reduce){.ck{animation:none}}
+.ck-h{display:flex;gap:12px;align-items:flex-start}
+.ck-h svg{flex:none;width:34px;height:34px}
+.ck h2{margin:0 0 3px;font:600 16px/1.3 var(--d);color:var(--ink)}
+.ck p{margin:0;font-size:14px;line-height:1.5;color:var(--muted)}
+.ck-opts{display:flex;flex-direction:column;gap:8px}
+.ck-opts[hidden]{display:none}
+.ck-o{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--soft)}
+.ck-o input{flex:none;width:20px;height:20px;margin:2px 0 0;accent-color:var(--bio)}
+.ck-o b{display:block;font-size:14.5px;font-weight:600;color:var(--text)}
+.ck-o span{display:block;font-size:13px;line-height:1.45;color:var(--muted)}
+.ck-b{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.ck-b button{all:unset;box-sizing:border-box;cursor:pointer;min-height:42px;padding:10px 16px;border-radius:12px;font:600 14px var(--f);text-align:center;border:1px solid var(--line);color:var(--text);background:var(--card)}
+.ck-b button:hover{border-color:var(--ink)}
+.ck-b button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.ck-b .pri{background:var(--ink);border-color:var(--ink);color:var(--card)}
+.ck-b .pri:hover{filter:brightness(1.08)}
+@media(max-width:560px){.ck{padding:16px;border-radius:18px}.ck-b button{flex:1 1 140px}}
+
+</style>
+<header class="top">
+  <div class="logo">
+    <svg class="lg" viewBox="0 0 48 48" aria-hidden="true"><polygon points="24,3 42,13.5 42,34.5 24,45 6,34.5 6,13.5" fill="color-mix(in srgb,var(--ink) 10%,var(--card))" stroke="var(--ink)" stroke-width="2.2" stroke-linejoin="round"/><circle cx="20" cy="22" r="7.5" fill="color-mix(in srgb,var(--accent) 22%,var(--card))" stroke="var(--accent)" stroke-width="2"/><circle cx="21.5" cy="20.5" r="2.4" fill="var(--accent)"/><path d="M14 35q3-3 6 0t6 0 6 0" fill="none" stroke="var(--bio)" stroke-width="2" stroke-linecap="round"/><ellipse cx="32" cy="18" rx="3.6" ry="2.2" fill="none" stroke="var(--bio)" stroke-width="1.8" transform="rotate(-30 32 18)"/></svg>
+    <div><b>Био<i>Виз</i></b><span>визуализации, конспекты и банк задач по биологии</span></div>
+  </div>
+  <div class="top-r"><button id="ckbtn" class="thbtn" type="button" aria-label="Настройки cookie" title="Настройки cookie"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9 3 3 0 0 1-3.6-3.4A3 3 0 0 1 13.8 5 3 3 0 0 1 12 3z"/><circle cx="8.5" cy="10" r="1"/><circle cx="12.5" cy="15.5" r="1"/><circle cx="8" cy="15" r=".6"/><circle cx="16" cy="13" r=".6"/></svg></button><button id="thbtn" class="thbtn" type="button" aria-label="Тема оформления" title="Тема оформления" aria-haspopup="true" aria-expanded="false" aria-controls="thmenu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 2-2 0-1.4-1.3-1.7-1.3-3 0-1.1.9-2 2-2h2.1A4.2 4.2 0 0 0 21 9.8C21 6 17 3 12 3z"/><circle cx="7.6" cy="11.4" r="1.1"/><circle cx="10.4" cy="7.4" r="1.1"/><circle cx="15.2" cy="7.6" r="1.1"/></svg></button></div>
+</header>
+<div class="wrap"><div id="bvhost"></div></div>
+<div class="ck" id="ck" role="dialog" aria-modal="false" aria-labelledby="ckT" aria-describedby="ckD" hidden>
+  <div class="ck-h"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 5a19 19 0 1 0 19 19 6 6 0 0 1-7-6.5A6 6 0 0 1 28.5 11 6 6 0 0 1 24 5z" fill="color-mix(in srgb,var(--chem) 28%,var(--card))" stroke="var(--chem)" stroke-width="2.2" stroke-linejoin="round"/><circle cx="17" cy="20" r="2.4" fill="var(--chem)"/><circle cx="25" cy="31" r="2.4" fill="var(--chem)"/><circle cx="15.5" cy="30" r="1.5" fill="var(--chem)"/><circle cx="32" cy="26" r="1.5" fill="var(--chem)"/></svg>
+   <div><h2 id="ckT">БиоВиз использует cookie</h2><p id="ckD">Нужны, чтобы помнить ваш прогресс и узнавать вас при следующем визите: так ошибки, статистика и карточки не теряются, а учитель видит ваш прогресс в журнале. Выберите, что разрешить.</p></div></div>
+  <div class="ck-opts" id="ckOpts" hidden>
+   <label class="ck-o"><input type="checkbox" checked disabled><span><b>Необходимые</b><span>Ваш выбор по cookie, ответы, ошибки и карточки. Без них тренажёр не работает. Всегда включены.</span></span></label>
+   <label class="ck-o"><input type="checkbox" id="ckF"><span><b>Функциональные</b><span>Запоминают тему оформления и последний открытый раздел.</span></span></label>
+   <label class="ck-o"><input type="checkbox" id="ckA"><span><b>Идентификация и статистика</b><span>Постоянный ID посетителя, число визитов, даты первого и последнего входа, тип устройства. Если вы вошли по коду ученика, эти данные сохраняются в вашем профиле и видны учителю в журнале.</span></span></label>
+  </div>
+  <div class="ck-b"><button type="button" id="ckSet">Настроить</button><button type="button" id="ckMin">Только необходимые</button><button type="button" class="pri" id="ckAll">Принять все</button></div>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+/* ---------- cookie: согласие, ID посетителя, визиты ---------- */
+(function(){
+  const YEAR=365*864e5,VER=1;
+  const cGet=n=>{try{const m=document.cookie.match(new RegExp('(?:^|; )'+n+'=([^;]*)'));return m?decodeURIComponent(m[1]):null}catch(e){return null}};
+  const cSet=(n,v,ms)=>{try{document.cookie=n+'='+encodeURIComponent(v)+'; path=/; max-age='+Math.round(ms/1000)+'; SameSite=Lax'+(location.protocol==='https:'?'; Secure':'')}catch(e){}};
+  const cDel=n=>{try{document.cookie=n+'=; path=/; max-age=0; SameSite=Lax'+(location.protocol==='https:'?'; Secure':'')}catch(e){}};
+  const lGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
+  const lSet=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
+  // значение храним и в cookie, и в localStorage: если браузер не отдаёт cookie странице, выбор всё равно не потеряется
+  const get=k=>cGet(k)??lGet(k);
+  const put=(k,v)=>{if(v==null){cDel(k);lSet(k,null)}else{cSet(k,v,YEAR);lSet(k,v)}};
+  let consent=null;try{const c=JSON.parse(get('bv_consent')||'null');if(c&&c.v===VER)consent=c}catch(e){}
+  const subs=[];let visitor=null;
+  const rid=()=>{try{return crypto.randomUUID()}catch(e){return 'v-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10)}};
+  const device=()=>{const u=navigator.userAgent||'';const os=/iPhone|iPad|iPod/.test(u)?'iOS':/Android/.test(u)?'Android':/Mac OS X/.test(u)?'macOS':/Windows/.test(u)?'Windows':/Linux/.test(u)?'Linux':'другое';
+    const br=/YaBrowser/.test(u)?'Яндекс Браузер':/Edg\//.test(u)?'Edge':/OPR\//.test(u)?'Opera':/Firefox\//.test(u)?'Firefox':/Chrome\//.test(u)?'Chrome':/Safari\//.test(u)?'Safari':'браузер';
+    const t=/Mobi|iPhone|Android(?!.*Tablet)/.test(u)?'телефон':/iPad|Tablet/.test(u)?'планшет':'компьютер';return t+' · '+os+' · '+br};
+  function track(){
+    if(!consent||!consent.a){visitor=null;return}
+    let id=get('bv_vid');if(!id){id=rid()}put('bv_vid',id);
+    const now=Date.now(),first=+get('bv_first')||now,last=+get('bv_last')||0;let visits=+get('bv_visits')||0;
+    // новый визит — если с прошлой активности прошло больше 30 минут
+    let ss=null;try{ss=sessionStorage.getItem('bv_sess')}catch(e){}
+    if(!ss||now-last>30*6e4){visits++;try{sessionStorage.setItem('bv_sess','1')}catch(e){}}
+    put('bv_first',String(first));put('bv_last',String(now));put('bv_visits',String(visits));
+    visitor={id,first,last:now,prev:last||null,visits,device:device()}}
+  function wipe(){['bv_vid','bv_first','bv_last','bv_visits'].forEach(k=>put(k,null));visitor=null}
+  function save(f,a){const was=consent;consent={v:VER,n:1,f:f?1:0,a:a?1:0,t:Date.now()};put('bv_consent',JSON.stringify(consent));
+    if(!a)wipe();if(!f){lSet('theme:last',null)}track();hide();subs.forEach(fn=>{try{fn(consent,visitor,was)}catch(e){}})}
+  const ck=$('#ck'),opts=$('#ckOpts');
+  function show(detail){$('#ckF').checked=consent?!!consent.f:true;$('#ckA').checked=consent?!!consent.a:true;
+    opts.hidden=!detail;$('#ckSet').textContent=detail?'Сохранить выбор':'Настроить';ck.hidden=false;
+    setTimeout(()=>(detail?$('#ckF'):$('#ckAll')).focus({preventScroll:true}),0)}
+  function hide(){ck.hidden=true}
+  $('#ckAll').addEventListener('click',()=>save(1,1));
+  $('#ckMin').addEventListener('click',()=>save(0,0));
+  $('#ckSet').addEventListener('click',()=>{if(opts.hidden)show(true);else save($('#ckF').checked,$('#ckA').checked)});
+  $('#ckbtn').addEventListener('click',()=>ck.hidden?show(true):hide());
+  ck.addEventListener('keydown',e=>{if(e.key==='Escape'&&consent){e.preventDefault();hide()}});
+  track();
+  window.BV_CONSENT={
+    get:()=>consent,allows:k=>k==='n'?true:!!(consent&&consent[k]),visitor:()=>visitor,
+    open:()=>show(true),forget:()=>{wipe();if(consent&&consent.a){consent.a=0;put('bv_consent',JSON.stringify(consent));subs.forEach(fn=>{try{fn(consent,null)}catch(e){}})}},
+    on:fn=>{subs.push(fn)}};
+  if(!consent)setTimeout(()=>show(false),600);
+})();
+
+/* ---------- темы: те же, что на платформе; выбор запоминается в этом браузере ---------- */
+const THEMES=[
+  {id:'',n:'Как в системе',d:'Светлая днём, тёмная, если так настроено устройство',sw:['#F1F6F2','#0C1512','#2F8A3B','#7FD6A8'],half:1},
+  {id:'light',n:'Светлая',d:'Агар и зелень',eff:'light',sw:['#F1F6F2','#0E4A38','#C2366B']},
+  {id:'dark',n:'Тёмная',d:'Для вечера',eff:'dark',sw:['#0C1512','#7FD6A8','#FF77A6']},
+  {id:'chloro',n:'Хлорофилл',d:'Клетки листа с хлоропластами',eff:'light',sw:['#EDF4E0','#2F5D11','#C2541E'],bio:1},
+  {id:'reef',n:'Коралловый риф',d:'Морская вода, диатомеи и кораллы',eff:'light',sw:['#E9F5F6','#0B5068','#E8573A'],bio:1},
+  {id:'gram',n:'Окраска по Граму',d:'Кристаллический фиолетовый и сафранин',eff:'light',sw:['#F5F1FA','#4A2384','#D0386F'],bio:1},
+  {id:'lumi',n:'Биолюминесценция',d:'Светящийся планктон в ночном море',eff:'dark',sw:['#060C18','#4FEBCB','#8C95FF'],bio:1},
+  {id:'amber',n:'Янтарь',d:'Смола, в которой застыла древняя жизнь',eff:'dark',sw:['#1A1209','#F2B53D','#FF8A5B'],bio:1}];
+const thById=v=>THEMES.find(t=>t.id&&t.id===v);
+const thSys=()=>window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+const thGet=k=>{try{const v=localStorage.getItem(k);return thById(v)?v:null}catch(e){return null}};
+const thPut=(k,v)=>{try{if(v&&window.BV_CONSENT&&!BV_CONSENT.allows('f'))return;v?localStorage.setItem(k,v):localStorage.removeItem(k)}catch(e){}};
+function thApply(v){
+  const r=document.documentElement,t=thById(v);t?r.setAttribute('data-theme',v):r.removeAttribute('data-theme');
+  const eff=t?t.eff:thSys();r.setAttribute('data-eff',eff);
+  const h=$('#bvhost');if(h)h.setAttribute('data-theme',eff);
+  const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=getComputedStyle(r).getPropertyValue('--bg').trim()||m.content;
+  const b=$('#thbtn');if(b){const l='Тема оформления: '+(t?t.n:'как в системе');b.setAttribute('aria-label',l);b.title=l}
+  thMark()}
+function thSwatch(t){const s=t.sw;return `<span class="sw" style="background:${t.half?`linear-gradient(135deg,${s[0]} 50%,${s[1]} 50%)`:s[0]}"><i style="background:${t.half?s[2]:s[1]}"></i><i style="background:${t.half?s[3]:s[2]}"></i></span>`}
+function thMenu(){
+  let m=$('#thmenu');if(m)return m;
+  m=document.createElement('div');m.id='thmenu';m.className='thmenu';m.setAttribute('role','menu');m.setAttribute('aria-label','Тема оформления');m.hidden=true;
+  const opt=t=>`<button type="button" class="thopt" role="menuitemradio" aria-checked="false" data-th="${t.id}">${thSwatch(t)}<span class="tx"><b>${t.n}</b><small>${t.d}</small></span><svg class="ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>`;
+  m.innerHTML=`<div class="thh">Оформление</div>${THEMES.filter(t=>!t.bio).map(opt).join('')}<hr><div class="thh">Биологические темы</div>${THEMES.filter(t=>t.bio).map(opt).join('')}`;
+  m.addEventListener('click',e=>{const o=e.target.closest('.thopt');if(!o)return;const v=o.dataset.th||null;thApply(v);thPut('theme:last',v)});
+  m.addEventListener('keydown',e=>{const os=[...m.querySelectorAll('.thopt')],i=os.indexOf(document.activeElement);
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();os[(i+(e.key==='ArrowDown'?1:os.length-1))%os.length].focus()}
+    else if(e.key==='Escape'){e.preventDefault();thClose(true)}else if(e.key==='Tab')thClose(false)});
+  document.body.appendChild(m);thMark();return m}
+function thMark(){const m=$('#thmenu');if(!m)return;const v=document.documentElement.getAttribute('data-theme')||'';m.querySelectorAll('.thopt').forEach(o=>o.setAttribute('aria-checked',String(o.dataset.th===v)))}
+function thPlace(){const m=$('#thmenu'),b=$('#thbtn');if(!m||m.hidden||!b)return;const r=b.getBoundingClientRect();
+  m.style.top=Math.round(r.bottom+8)+'px';m.style.left=Math.round(Math.max(8,Math.min(innerWidth-m.offsetWidth-8,r.right-m.offsetWidth)))+'px'}
+function thOpen(){const m=thMenu();m.hidden=false;$('#thbtn').setAttribute('aria-expanded','true');thPlace();(m.querySelector('.thopt[aria-checked="true"]')||m.querySelector('.thopt')).focus({preventScroll:true})}
+function thClose(focus){const m=$('#thmenu');if(!m||m.hidden)return;m.hidden=true;$('#thbtn').setAttribute('aria-expanded','false');if(focus)$('#thbtn').focus()}
+document.addEventListener('pointerdown',e=>{const m=$('#thmenu');if(m&&!m.hidden&&!m.contains(e.target)&&!e.target.closest('#thbtn'))thClose(false)},true);
+addEventListener('resize',thPlace);addEventListener('scroll',thPlace,{passive:true});
+// если оформление уже задано снаружи (светлая или тёмная тема просмотрщика), а своего выбора ещё нет, берём его
+{const pre=document.documentElement.getAttribute('data-theme');thApply(thGet('theme:last')||(thById(pre)?pre:null))}
+new MutationObserver(()=>{const r=document.documentElement,t=thById(r.getAttribute('data-theme')),eff=t?t.eff:thSys();
+  if(r.getAttribute('data-eff')!==eff){r.setAttribute('data-eff',eff);const h=$('#bvhost');if(h)h.setAttribute('data-theme',eff)}thMark()})
+  .observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+if(window.matchMedia)matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(!document.documentElement.hasAttribute('data-theme'))thApply(null)});
+$('#thbtn').addEventListener('click',()=>{const m=$('#thmenu');m&&!m.hidden?thClose(false):thOpen()});
+
+/* ---------- Биовиз: разметка и стили в теневом DOM #bvhost, код в bioviz/bv.js, дополнения в bioviz/*.js ---------- */
+function bvFull(on,win){
+  const h=$('#bvhost');const was=document.body.classList.contains('bvfull');
+  document.body.classList.toggle('bvfull',on);h.classList.toggle('full',on);
+  try{if(on&&!was&&!win&&!document.fullscreenElement&&document.documentElement.requestFullscreen)document.documentElement.requestFullscreen({navigationUI:'hide'}).catch(()=>{});
+    else if(!on&&document.fullscreenElement)document.exitFullscreen().catch(()=>{})}catch(e){}
+  if(on!==was)window.scrollTo(0,0)}
+document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&document.body.classList.contains('bvfull'))bvFull(false)});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.body.classList.contains('bvfull')&&!document.fullscreenElement&&!document.querySelector('dialog[open]'))bvFull(false)});
+/* Надёжная загрузка: все файлы качаются параллельно (preload), выполняются строго по порядку.
+   К адресу добавляется версия, чтобы после обновления браузер не взял старый файл из кеша.
+   Упавший файл перезапрашивается; недогруженное дополнение не мешает запуску остальных. */
+const BV_VER='2026-10-25-gh1';
+const bvUrl=(src,r)=>src+'?v='+BV_VER+(r?'&r='+Date.now():'');
+/* попытка 1: с версией; 2: без параметров (если хостинг не понимает ?v=); 3+: с меткой против кеша */
+function bvScript(src,i){return new Promise((ok,no)=>{const e=document.createElement('script');e.src=i===1?src:bvUrl(src,i>1);e.async=false;
+  e.onload=()=>ok();e.onerror=()=>{e.remove();no(new Error('Не загрузился '+src))};document.head.appendChild(e)})}
+async function bvTry(src,tries){for(let i=0;i<tries;i++){try{await bvScript(src,i);return true}catch(e){console.warn(e.message);if(i<tries-1)await new Promise(r=>setTimeout(r,700*(i+1)))}}return false}
+function bvPreload(list){list.forEach(s=>{try{const l=document.createElement('link');l.rel='preload';l.as='script';l.href=bvUrl(s);document.head.appendChild(l)}catch(e){}})}
+// дополнения: старые разделы БиоВиза (главная, конспекты, карточки, профиль) и вузовские конспекты
+const BV_EXTRA=['glossary','vuz-cards','hub','ref','srs','me'].map(n=>'bioviz/x/'+n+'.js').concat(["bioviz/x/vuz-core.js", "bioviz/x/vuz-chem.js", "bioviz/x/vuz-tour.js", "bioviz/x/vuz-cell.js", "bioviz/x/vuz-energy.js", "bioviz/x/vuz-osmos.js", "bioviz/x/vuz-micro.js", "bioviz/x/deep-core.js", "bioviz/x/deep-tour.js", "bioviz/x/deep-cell1.js", "bioviz/x/deep-cell2.js", "bioviz/x/cell-new.js", "bioviz/x/cell-tasks.js", "bioviz/x/bact-virus.js", "bioviz/x/cyc-mit.js", "bioviz/x/cyc-mei.js", "bioviz/x/cyc-gam.js", "bioviz/x/elite.js","bioviz/x/microlab.js","bioviz/x/bioinf.js","bioviz/x/qs-refs.js","bioviz/x/qs.js","bioviz/x/qs2.js","bioviz/x/ask.js","bioviz/x/reader.js","bioviz/x/link.js","bioviz/x/ux.js","bioviz/x/progress.js"]);
+// настоящая цель события, даже если оно пришло из теневого DOM
+window.BV_ET=e=>(e&&e.composedPath&&e.composedPath()[0])||e.target;
+// разделы, у которых есть вкладка «Конспект с визуализациями» (кроме трёх исходных)
+window.BV_KDOCS={"mitosis": ["Визуализации", "Конспект с визуализациями"], "meiosis": ["Визуализации", "Конспект с визуализациями"], "cycles": ["Визуализации", "Конспект с визуализациями"], "energy": ["Визуализации", "Конспект с визуализациями"], "osmos": ["Визуализации", "Конспект с визуализациями"], "bact": ["Визуализации", "Конспект с визуализациями"], "microlab": ["Лаборатория", "Конспект с визуализациями"], "bioinf": ["Лаборатория", "Конспект с визуализациями"], "qs": ["Лаборатория", "Конспект с визуализациями"]};
+async function bvLoad(){
+  const h=$('#bvhost');
+  const root=h.shadowRoot||h.attachShadow({mode:'open'});
+  root.innerHTML=`<style>:host{display:block}.ld{display:flex;align-items:center;gap:14px;padding:48px 4px;color:var(--muted);font-size:15px}
+    .sp{width:26px;height:26px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--bio);animation:r .8s linear infinite}
+    @keyframes r{to{transform:rotate(1turn)}}button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:8px 14px;background:var(--ink);color:var(--card);font-weight:600}</style>
+    <div class="ld"><span class="sp"></span>Загружаю визуализации и банк задач…</div>`;
+  window.BVHOST={host:h,root,on:true,defer:true,top:()=>window.scrollTo(0,0),dlg:()=>!!document.querySelector('dialog[open]'),full:bvFull,
+    answer:a=>{try{BVHOST.afterAnswer&&BVHOST.afterAnswer(a)}catch(e){}},
+    // «Мои ошибки» в банке задач: всё, что решено неверно, во всех сборниках (считается по прогрессу в этом браузере)
+    bvErr:()=>{try{return window.BV&&BV.tasksPending?BV.tasksPending().map(x=>({src:x.src,id:x.id})):[]}catch(e){return []}}};
+  const ld=()=>root.querySelector('.ld');
+  const slow=setTimeout(()=>{const l=ld();if(l)l.insertAdjacentHTML('beforeend','<span style="display:block;width:100%;font-size:13.5px">Интернет медленный, ещё загружаю. Страница откроется сама.</span>')},9000);
+  const fail=msg=>{clearTimeout(slow);const l=ld();if(l){l.innerHTML=msg+' <button>Повторить</button>';l.querySelector('button').onclick=()=>location.reload()}};
+  const CORE=['bioviz/lib/three.min.js','bioviz/x/vuz-tasks.js','bioviz/x/qs-tasks.js','bioviz/bv.js'];
+  bvPreload(CORE.concat(BV_EXTRA));
+  const missed=[];
+  try{
+    if(!await bvTry(CORE[0],2))console.warn('3D-библиотека не загрузилась: 3D-модели покажут заглушку');
+    if(!await bvTry(CORE[1],3))missed.push('вузовские задачи');
+    if(!await bvTry(CORE[2],3))missed.push('задачи по микробной экологии');
+    if(!await bvTry(CORE[3],4)||!window.BV||!BV.start){fail('Не получилось загрузить БиоВиз. Проверьте интернет.');return}
+    for(const s of BV_EXTRA){if(!await bvTry(s,3))missed.push(s.replace(/^.*\//,''))}
+    clearTimeout(slow);
+    BV.start();
+    /* правки конспектов от владельца: грузятся после запуска и не задерживают его; если файл не загрузится, конспекты просто показываются без правок */
+    setTimeout(()=>{bvTry('bioviz/x/kedit-view.js',3).then(ok=>{if(!ok)console.warn('Правки конспектов не загрузились')})},0);
+    if(missed.length){const n=document.createElement('div');n.setAttribute('role','status');
+      n.style.cssText='position:fixed;z-index:95;left:50%;transform:translateX(-50%);bottom:max(16px,env(safe-area-inset-bottom,0px));max-width:calc(100vw - 24px);background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:14px;padding:10px 14px;box-shadow:var(--sh2);font-size:14px;display:flex;gap:10px;align-items:center';
+      n.innerHTML='Часть разделов не загрузилась ('+missed.length+'). <button style="all:unset;cursor:pointer;font-weight:700;color:var(--ink)">Обновить</button><button aria-label="Закрыть" style="all:unset;cursor:pointer;color:var(--muted);font-size:18px">×</button>';
+      const bs=n.querySelectorAll('button');bs[0].onclick=()=>location.reload();bs[1].onclick=()=>n.remove();document.body.appendChild(n);console.warn('Не загрузились:',missed)}
+  }catch(e){
+    console.error(e);fail('БиоВиз не запустился из-за ошибки. Обнови страницу; если не поможет, напиши учителю.');
+  }
+}
+bvLoad();
+</script>
+
+</body></html>

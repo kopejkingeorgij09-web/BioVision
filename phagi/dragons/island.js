@@ -57,13 +57,27 @@ function farmSprite(b,st,K,D){
   out.push(`<path d="M-62 2 L0 33 L62 2" stroke="#C9A86A" stroke-width="3" fill="none"/>`);
   return out.join('')}
 
+/* яйцо: крапинки цвета стихии будущего птенца, у неразвившегося серое */
+function eggSVG(x,y,eg,r){const G=root.DRG,W=root.DRAW;r=r||1;
+  let c1='#FFF6DE',c2='#C9A86A';
+  if(eg.viable){const ph=G.phenotype(eg.genome),k=ph.breath==='element'?ph.elements:[];c2=k.length?W.EL_COL[k[0]]:'#8C8F96';if(k[1])c1=W.EL_COL[k[1]]+'55'}else{c1='#D8D4CC';c2='#9A958C'}
+  return `<g transform="translate(${x} ${y}) scale(${r})"><ellipse cx="0" cy="0" rx="9" ry="12" fill="${c1}" stroke="#8A7650" stroke-width="1.4"/><circle cx="-3" cy="-4" r="2" fill="${c2}"/><circle cx="3" cy="2" r="2.4" fill="${c2}"/><circle cx="-2" cy="6" r="1.5" fill="${c2}"/></g>`}
+function nestSprite(b,st){const W=root.DRAW,G=root.DRG,out=[SPR.nest()];
+  if(b.pair){[b.pair.m,b.pair.f].forEach((id,k)=>{const d=st.dragons.find(x=>x.id===id);if(!d)return;
+    out.push(W.svg(G.phenotype(d.genome),{key:'n'+b.id+id,size:54,label:''}).replace('<svg class="dragon"',`<svg class="dragon drg-on" x="${k?2:-56}" y="-52"`))})}
+  return out.join('')}
+function hatchSprite(b){const out=[SPR.hatch()];
+  (b.slots||[]).forEach((eg,i)=>{const x=[-30,30,-10,14][i],y=[10,10,22,22][i];
+    out.push(`<ellipse cx="${x}" cy="${y+10}" rx="12" ry="5" fill="#B8925A"/>`);if(eg)out.push(eggSVG(x,y,eg))});
+  return out.join('')}
+
 /* строительные леса и полоска остатка */
 function scaffold(job,K,D){const k=Math.max(0,Math.min(1,(K-job.at+(job.skip||0)*D.SKIP_CARDS)/job.need));
   return `<g class="drg-scaf"><path d="M-40 6 L-40 -50 M40 6 L40 -50 M-40 -50 L40 -50 M-40 -22 L40 -22 M-40 -50 L40 -22 M40 -50 L-40 -22" stroke="#B5833F" stroke-width="3" fill="none"/>
     <rect x="-34" y="-74" width="68" height="9" rx="4.5" fill="rgba(0,0,0,.45)"/><rect x="-32" y="-72" width="${(64*k).toFixed(1)}" height="5" rx="2.5" fill="#7CD67A"/></g>`}
 
-function bubble(kind,txt,full){const bg=kind==='gold'?(full?'#F2C94C':'#FFF4C9'):kind==='food'?'#E6F7D9':'#FFFFFF';
-  const ic=kind==='gold'?'🪙':kind==='food'?'🌾':kind==='lock'?'🔒':'🔨';
+function bubble(kind,txt,full){const bg=kind==='gold'?(full?'#F2C94C':'#FFF4C9'):kind==='food'?'#E6F7D9':kind==='egg'?'#FFF0E0':'#FFFFFF';
+  const ic=kind==='gold'?'🪙':kind==='food'?'🌾':kind==='egg'?'🥚':kind==='baby'?'🐣':'🔨';
   return `<g class="drg-bub${full?' full':''}" transform="translate(0 -112)"><rect x="-30" y="-15" width="60" height="26" rx="13" fill="${bg}" stroke="rgba(0,0,0,.25)"/><text x="-17" y="4" font-size="13">${ic}</text><text x="6" y="4" font-size="12" font-weight="700" fill="#3A2A10" text-anchor="middle">${txt}</text></g>`}
 
 /* ---------- всё вместе ---------- */
@@ -104,7 +118,7 @@ function svg(st,opt){
     if(isSel)out.push(`<path d="M0 -34 L68 0 L0 34 L-68 0 Z" fill="none" stroke="var(--accent)" stroke-width="3" stroke-dasharray="6 4"/>`);
     if(b.build){out.push(scaffold(b.build,K,D))}
     else{
-      out.push(T.kind==='farm'?farmSprite(b,st,K,D):`<g transform="scale(1.22)">${(SPR[b.type]||SPR.nest)()}</g>`);
+      out.push(T.kind==='farm'?farmSprite(b,st,K,D):T.kind==='nest'?`<g transform="scale(1.22)">${nestSprite(b,st)}</g>`:T.kind==='hatch'?`<g transform="scale(1.22)">${hatchSprite(b)}</g>`:`<g transform="scale(1.22)">${(SPR[b.type]||SPR.nest)()}</g>`);
       if(T.kind==='hab'){
         const ds=st.dragons.filter(d=>d.home===b.id),pos=[[-40,6],[34,10],[-6,22],[48,-10]];
         ds.forEach((d,k)=>{const [dx,dy]=pos[k%4],s=W.svg(G.phenotype(d.genome),{key:key+b.id+d.id,size:62,label:''});
@@ -114,11 +128,13 @@ function svg(st,opt){
     if(!ro){
       if(job&&!D.ready(job,K))out.push(bubble('build',D.left(job,K)+' к.'));
       else if(T.kind==='hab'){const a=Math.floor(D.chestNow(st,b,K));if(a>=1)out.push(bubble('gold',a>=1000?Math.floor(a/100)/10+'к':a,a>=D.chestCap(b)))}
-      else if(T.kind==='farm'){const r=(b.plots||[]).filter(p=>p&&D.ready(p,K)).length;if(r)out.push(bubble('food','×'+r))}}
+      else if(T.kind==='farm'){const r=(b.plots||[]).filter(p=>p&&D.ready(p,K)).length;if(r)out.push(bubble('food','×'+r))}
+      else if(T.kind==='nest'&&b.pair){out.push(D.ready(b.pair,K)?bubble('egg','готово',true):bubble('egg',D.left(b.pair,K)+' к.'))}
+      else if(T.kind==='hatch'){const r=(b.slots||[]).filter(p=>p&&D.ready(p,K)).length;if(r)out.push(bubble('baby','×'+r,true))}}
     out.push(`</g>`)});
   out.push(`</svg>`);
   return out.join('')}
 
-const ISL={svg,P,VW,VH};
+const ISL={svg,P,VW,VH,eggSVG};
 if(typeof module!=='undefined'&&module.exports)module.exports=ISL;else root.ISL=ISL;
 })(typeof window!=='undefined'?window:globalThis);

@@ -10,6 +10,14 @@ const G=root.DRG||(typeof require!=='undefined'?require('./genetics.js'):null);
 /* ---------- каталог ---------- */
 const HAB_LV=[null,{cap:2,chest:300},{cap:3,chest:900,cost:500,need:20},{cap:4,chest:2500,cost:1800,need:40}];
 const FARM_LV=[null,{plots:2},{plots:3,cost:300,need:10},{plots:4,cost:1000,need:25}];
+const HATCH_LV=[null,{slots:2},{slots:3,cost:600,need:15},{slots:4,cost:1800,need:30}];
+/* скрещивание */
+const BREED_LV=3;                       /* родители не ниже 3-го уровня */
+const breedCost=(rm,rf)=>50*(1+rm+rf);
+const BREED_NEED=10;                    /* пара в Гнездовье: карточек до яйца */
+const HATCH_NEED=[8,14,22,32,45];       /* яйцо в Инкубаторе: карточек до вылупления по редкости */
+const DEAD_NEED=4;
+const PRED_TOL=0.03;                    /* прогноз верен, если ошибка не больше 3 процентных пунктов */
 const TYPES={
   F:{name:'Кальдера',kind:'hab',hosts:['F'],cost:150,need:10,unlock:1,price:250},
   W:{name:'Лагуна',kind:'hab',hosts:['W'],cost:150,need:10,unlock:1,price:250},
@@ -20,8 +28,8 @@ const TYPES={
   L:{name:'Храм рассвета',kind:'hab',hosts:['L'],cost:6000,gems:25,need:60,unlock:12},
   D:{name:'Обсидиановая башня',kind:'hab',hosts:['D'],cost:6000,gems:25,need:60,unlock:12},
   farm:{name:'Ферма',kind:'farm',cost:100,need:6,unlock:1},
-  nest:{name:'Гнездовье',kind:'nest',cost:500,need:20,unlock:4,soon:true},
-  hatch:{name:'Инкубатор',kind:'hatch',cost:400,need:15,unlock:4,soon:true}
+  nest:{name:'Гнездовье',kind:'nest',cost:400,need:15,unlock:3,max:1},
+  hatch:{name:'Инкубатор',kind:'hatch',cost:300,need:12,unlock:3,max:1}
 };
 const HAB_ORDER=['F','W','N','T','A','P','L','D'];
 const CROPS={
@@ -112,7 +120,7 @@ function normalize(s,K,inc){
   s.bld.forEach(b=>{
     /* момент готовности в часах острова: от него и считается сундук, даже если состояние сохранят позже */
     if(b.build&&ready(b.build,K)){const kc=doneAt(b.build);b.build=null;if(b.chest)b.chest={amt:0,k0:kc}}
-    if(b.up&&ready(b.up,K)){const kc=doneAt(b.up);if(b.chest)settleOne(s,b,kc);b.lvl=b.up.to;b.up=null;if(b.plots)while(b.plots.length<FARM_LV[b.lvl].plots)b.plots.push(null)}
+    if(b.up&&ready(b.up,K)){const kc=doneAt(b.up);if(b.chest)settleOne(s,b,kc);b.lvl=b.up.to;b.up=null;if(b.plots)while(b.plots.length<FARM_LV[b.lvl].plots)b.plots.push(null);if(b.slots)while(b.slots.length<HATCH_LV[b.lvl].slots)b.slots.push(null)}
   });
   const L=level(s);if(L>(s.credited.lvl||1)){s.bal.gems+=2*(L-(s.credited.lvl||1));s.credited.lvl=L}
   return s}
@@ -138,19 +146,20 @@ const ACTS={
     const L=level(s);if(L<t.unlock)return `Откроется на ${t.unlock}-м уровне острова`;
     if(t.kind==='hab'&&count(s,'hab')>=maxHabs(L))return 'На этом уровне больше сред обитания не построить';
     if(t.kind==='farm'&&count(s,'farm')>=maxFarms(L))return 'На этом уровне больше ферм не построить';
+    if(t.max&&count(s,t.kind)>=t.max)return `${t.name} на острове уже есть`;
     if(!canPlace(s,x,y))return 'Сюда не поставить';
     const e=pay(s,{gold:t.cost,gems:t.gems});if(e)return e;
     const id='b'+(s.bseq++);
     const b={id,type,x,y,lvl:1,build:{at:c.K,need:t.need,skip:0},up:null};
-    if(t.kind==='hab')b.chest={amt:0,k0:null};if(t.kind==='farm')b.plots=[null,null];
+    if(t.kind==='hab')b.chest={amt:0,k0:null};if(t.kind==='farm')b.plots=[null,null];if(t.kind==='hatch')b.slots=[null,null];if(t.kind==='nest')b.pair=null;
     s.bld.push(b);xp(s,t.cost/10);s.last=id},
   move(s,c,{id,x,y}){const b=B(s,id);if(!b)return 'Нет постройки';if(!canPlace(s,x,y,id))return 'Сюда не поставить';b.x=x;b.y=y},
   upgrade(s,c,{id}){const b=B(s,id);if(!b)return 'Нет постройки';if(b.build||b.up)return 'Уже строится';
-    const T=TYPES[b.type].kind==='hab'?HAB_LV:TYPES[b.type].kind==='farm'?FARM_LV:null;if(!T)return 'Не улучшается';
+    const T=lvTable(b.type);if(!T)return 'Не улучшается';
     const nx=T[b.lvl+1];if(!nx)return 'Уже максимальный уровень';
     const e=pay(s,{gold:nx.cost});if(e)return e;settle(s,c.K);b.up={at:c.K,need:nx.need,skip:0,to:b.lvl+1};xp(s,nx.cost/10)},
   speed(s,c,{id,plot}){const b=B(s,id);if(!b)return 'Нет постройки';
-    const job=plot!=null?(b.plots||[])[plot]:b.build||b.up;if(!job)return 'Нечего ускорять';
+    const job=plot!=null?(b.plots||b.slots||[])[plot]:b.build||b.up||(b.pair&&!b.build?b.pair:null);if(!job)return 'Нечего ускорять';
     const n=Math.ceil(left(job,c.K)/SKIP_CARDS);if(!n)return 'Уже готово';const e=pay(s,{gems:n});if(e)return e;job.skip=(job.skip||0)+n},
   collect(s,c,{id}){const b=B(s,id);if(!b||!b.chest)return 'Нет сундука';settle(s,c.K);const a=Math.floor(b.chest.amt);if(!a)return 'Сундук пуст';
     s.bal.gold+=a;b.chest.amt-=a;s.got={gold:a}},
@@ -176,9 +185,61 @@ const ACTS={
     s.dragons.push({id,name:NAMES[type][Math.floor(G.rng(c.uid+':n:'+id)()*NAMES[type].length)],born:c.today,genome,lvl:1,fed:0,home:home.id,from:'market'});xp(s,20);s.last=id},
   expand(s,c,{chunk}){if(s.land.includes(chunk))return 'Уже открыто';const cost=LAND_COST[chunk];if(!cost)return 'Этот участок не открыть';
     const e=pay(s,cost);if(e)return e;s.land.push(chunk);xp(s,50)},
+  /* скрещивание: яйцо считается сразу от генотипов родителей (мейоз, кроссинговер, мутации) с зерном,
+     поэтому одно и то же скрещивание нельзя «перебросить»; результат скрыт до вылупления */
+  breed(s,c,{id,mother,father,pred}){
+    const b=B(s,id);if(!b||b.type!=='nest')return 'Нужно Гнездовье';if(b.build)return 'Гнездовье ещё строится';if(b.pair)return 'Гнездовье занято';
+    const m=s.dragons.find(x=>x.id===mother),f=s.dragons.find(x=>x.id===father);
+    if(!m||!f)return 'Выберите обоих родителей';if(m.genome.sex!=='F'||f.genome.sex!=='M')return 'Нужны самка и самец';
+    if(m.lvl<BREED_LV||f.lvl<BREED_LV)return `Родители должны быть не ниже ${BREED_LV}-го уровня`;
+    const e=pay(s,{gold:breedCost(rarOf(m),rarOf(f))});if(e)return e;
+    const n=(s.eggs||0)+1;s.eggs=n;
+    const egg=G.breed(m.genome,f.genome,G.rng(c.uid+':egg:'+n));
+    const pr=judge(m,f,pred);
+    b.pair={m:m.id,f:f.id,at:c.K,need:pr&&pr.ok?Math.ceil(BREED_NEED/2):BREED_NEED,skip:0,n,egg,pred:pr};
+    if(pr&&pr.ok){s.bal.gems+=1;s.got={pred:pr}}else if(pr)s.got={pred:pr};
+    xp(s,15)},
+  egg(s,c,{id}){
+    const b=B(s,id);if(!b||!b.pair)return 'Яйца нет';if(!ready(b.pair,c.K))return 'Яйцо ещё не готово';
+    const h=s.bld.find(x=>x.type==='hatch'&&!x.build&&x.slots.some(z=>!z));if(!h)return 'Нужен Инкубатор со свободным местом';
+    const p=b.pair,ph=p.egg.viable?G.phenotype(p.egg.genome):null,i=h.slots.findIndex(z=>!z);
+    h.slots[i]={n:p.n,m:p.m,f:p.f,genome:p.egg.genome,viable:p.egg.viable,at:c.K,need:p.egg.viable?HATCH_NEED[G.rarity(ph)]:DEAD_NEED,skip:0,pred:p.pred||null};
+    b.pair=null;s.last=h.id},
+  hatch(s,c,{id,plot}){
+    const h=B(s,id),eg=h&&h.slots&&h.slots[plot];if(!eg)return 'Яйца нет';if(!ready(eg,c.K))return 'Ещё не вылупился';
+    s.log=s.log||[];
+    const rec={n:eg.n,m:eg.m,f:eg.f,d:c.today,pred:eg.pred||null};
+    if(!eg.viable){h.slots[plot]=null;rec.dead=true;s.log.push(rec);trimLog(s);s.got={dead:true};return}
+    const ph=G.phenotype(eg.genome),home=s.bld.find(b=>!b.build&&hosts(b.type,ph)&&s.dragons.filter(x=>x.home===b.id).length<habCap(b));
+    if(!home)return `Нет свободного места: нужна ${habNames(ph)}`;
+    settle(s,c.K);
+    const id2='d'+(s.seq++),mm=s.dragons.find(x=>x.id===eg.m),ff=s.dragons.find(x=>x.id===eg.f);
+    const gen=1+Math.max((mm&&mm.gen)||0,(ff&&ff.gen)||0);
+    s.dragons.push({id:id2,name:babyName(s,ph),born:c.today,genome:eg.genome,lvl:1,fed:0,home:home.id,parents:[eg.m,eg.f],gen,egg:eg.n});
+    h.slots[plot]=null;rec.child=id2;rec.ph=summary(ph);s.log.push(rec);trimLog(s);
+    xp(s,25+15*G.rarity(ph));s.last=id2;s.got={baby:id2}},
+  release(s,c,{dragon}){const i=s.dragons.findIndex(x=>x.id===dragon);if(i<0)return 'Нет дракона';
+    if(s.dragons.length<=2)return 'На острове должно остаться хотя бы два дракона';
+    if(s.bld.some(b=>b.pair&&(b.pair.m===dragon||b.pair.f===dragon)))return 'Дракон сейчас в Гнездовье';
+    settle(s,c.K);const d=s.dragons[i];s.dragons.splice(i,1);s.bal.gold+=50*(1+rarOf(d));s.got={gold:50*(1+rarOf(d))};
+    s.gone=(s.gone||[]).concat({id:d.id,name:d.name,genome:d.genome,parents:d.parents||null,gen:d.gen||0}).slice(-300)},
   rename(s,c,{dragon,name}){const d=s.dragons.find(x=>x.id===dragon);if(!d)return 'Нет дракона';const n=String(name||'').trim().slice(0,24);if(!n)return 'Пустое имя';d.name=n}
 };
 function streakMult(st){return 1+Math.min(20,st||0)*0.025}
+function lvTable(type){const k=TYPES[type].kind;return k==='hab'?HAB_LV:k==='farm'?FARM_LV:k==='hatch'?HATCH_LV:null}
+const trimLog=s=>{if(s.log.length>600)s.log=s.log.slice(-600)};
+const HAB_FOR={F:'Кальдера',W:'Лагуна',T:'Утёс',A:'Облачный шпиль',P:'Роща',L:'Храм рассвета',D:'Обсидиановая башня',smoke:'Пещера',dormant:'Пещера'};
+const habNames=ph=>[...new Set(dragonKeys(ph).map(k=>HAB_FOR[k]))].join(' или ');
+/* короткая запись фенотипа для журнала: по ней считаются расщепления */
+function summary(ph){return {sex:ph.sex,el:ph.breath==='element'?ph.elements.join('+'):ph.breath,c:ph.color,h:ph.horns?1:0,k:ph.mace?1:0,r:ph.crest,sw:ph.shortWings?1:0,span:ph.span,m:ph.metal?1:0,n:ph.night?1:0,g:ph.glow?1:0,sp:ph.spurs?1:0}}
+const BABY={F:['Искра','Жар','Пламя','Огонёк'],W:['Струя','Брызга','Прилив','Ручей'],T:['Камушек','Валун','Щебень'],A:['Ветерок','Пух','Смерч'],P:['Росток','Клевер','Папоротник'],L:['Заря','Луч'],D:['Мрак','Тень'],smoke:['Дымок','Пепел'],dormant:['Соня','Дрёма']};
+function babyName(s,ph){const k=dragonKeys(ph)[0],pool=BABY[k]||BABY.smoke,n=s.dragons.filter(d=>d.egg).length+(s.gone||[]).length;
+  const base=pool[n%pool.length],same=s.dragons.filter(d=>d.name===base||d.name.startsWith(base+' ')).length;return same?base+' '+(same+1):base}
+/* прогноз: доля потомков с выбранным признаком; проверяется по настоящим генотипам родителей */
+function judge(m,f,pred){
+  if(!pred||!pred.trait||pred.value==null||pred.p==null||isNaN(pred.p))return null;
+  const dist=G.dist(m.genome,f.genome,pred.trait),truth=dist[pred.value]||0,p=Math.max(0,Math.min(1,Number(pred.p)));
+  return {trait:pred.trait,value:String(pred.value),p,truth,ok:Math.abs(p-truth)<=PRED_TOL}}
 function apply(s,ctx,act){
   const fn=ACTS[act&&act.t];if(!fn)return {err:'Неизвестное действие'};
   const n=clone(s);delete n.got;delete n.lvup;delete n.last;
@@ -198,7 +259,7 @@ function marketGenome(type,seed){
   else{spec.M=pair(()=>r()<0.25?'M':'m');spec.N=pair(()=>r()<0.25?'n':'N')}
   return G.make(spec)}
 
-const DECO={TYPES,HAB_ORDER,HAB_LV,FARM_LV,CROPS,RAR_GOLD,SKIP_CARDS,GRID,CHUNK,START_LAND,LAND_COST,MILESTONES,FEEDS,RATION,
+const DECO={HATCH_LV,BREED_LV,breedCost,BREED_NEED,HATCH_NEED,PRED_TOL,lvTable,summary,habNames,TYPES,HAB_ORDER,HAB_LV,FARM_LV,CROPS,RAR_GOLD,SKIP_CARDS,GRID,CHUNK,START_LAND,LAND_COST,MILESTONES,FEEDS,RATION,
   xpFor,levelOf,maxHabs,maxFarms,maxDragonLv,feedCost,income,startState,hosts,dragonKeys,goldPerCard,rate,settle,chestNow,normalize,
   canPlace,chunkOf,apply,ready,left,level,count,streakMult,marketGenome,habCap,chestCap};
 if(typeof module!=='undefined'&&module.exports)module.exports=DECO;else root.DECO=DECO;

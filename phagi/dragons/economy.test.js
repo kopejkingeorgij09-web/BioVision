@@ -131,5 +131,59 @@ t('улучшение среды: больше мест и вместимост�
   assert.strictEqual(Math.round(s.bld[0].chest.amt),60,'во время улучшения сундук копил');
 });
 
+t('скрещивание: Гнездовье → яйцо → Инкубатор → птенец с родителями, журнал',()=>{
+  let s=E.normalize(E.startState(founders()),0,null);s.bal.gold=10000;s.bal.xp=E.xpFor(3);s=E.normalize(s,0,null);
+  s.dragons.forEach(d=>d.lvl=3);
+  s=ok(E.apply(s,ctx(0),{t:'build',type:'nest',x:2,y:5}));const nest=s.last;
+  assert.ok(E.apply(s,ctx(0),{t:'build',type:'nest',x:4,y:8}).err,'второе Гнездовье нельзя');
+  s=ok(E.apply(s,ctx(0),{t:'build',type:'hatch',x:4,y:8}));const hat=s.last;
+  s=E.normalize(s,20,null);
+  assert.ok(E.apply(s,ctx(20),{t:'breed',id:nest,mother:'d2',father:'d1'}).err,'перепутан пол');
+  const g0=s.bal.gold;
+  s=ok(E.apply(s,ctx(20),{t:'breed',id:nest,mother:'d1',father:'d2'}));
+  assert.strictEqual(g0-s.bal.gold,E.breedCost(0,0));
+  assert.ok(E.apply(s,ctx(25),{t:'egg',id:nest}).err,'рано');
+  s=ok(E.apply(s,ctx(30),{t:'egg',id:nest}));
+  const slot=s.bld.find(b=>b.id===hat).slots[0];assert.ok(slot&&slot.genome);
+  s=E.normalize(s,200,null);
+  const r=E.apply(s,ctx(200),{t:'hatch',id:hat,plot:0});
+  if(slot.viable){s=ok(r);const baby=s.dragons.find(d=>d.id===s.last);
+    assert.deepStrictEqual(baby.parents,['d1','d2']);assert.strictEqual(baby.gen,1);
+    assert.strictEqual(s.log.length,1);assert.strictEqual(s.log[0].child,baby.id);assert.ok(s.log[0].ph.el)}
+  else{s=ok(r);assert.ok(s.log[0].dead)}
+});
+
+t('скрещивание: генотип яйца с зерном, а без места птенец ждёт в Инкубаторе',()=>{
+  const mk=()=>{let s=E.normalize(E.startState(founders()),0,null);s.bal.gold=10000;s.bal.xp=E.xpFor(3);s=E.normalize(s,0,null);s.dragons.forEach(d=>d.lvl=3);
+    s=ok(E.apply(s,ctx(0),{t:'build',type:'nest',x:2,y:5}));s=ok(E.apply(s,ctx(0),{t:'build',type:'hatch',x:4,y:8}));return E.normalize(s,30,null)};
+  const a=ok(E.apply(mk(),ctx(30),{t:'breed',id:'b4',mother:'d1',father:'d2'})),b=ok(E.apply(mk(),ctx(30),{t:'breed',id:'b4',mother:'d1',father:'d2'}));
+  assert.deepStrictEqual(a.bld.find(x=>x.id==='b4').pair.egg,b.bld.find(x=>x.id==='b4').pair.egg);
+  /* птенец огня/воды F/W или F/e x W/W: занять обе среды, чтобы места не было */
+  let s=ok(E.apply(a,ctx(40),{t:'egg',id:'b4'}));s=E.normalize(s,300,null);
+  const eg=s.bld.find(x=>x.id==='b5').slots[0];
+  if(eg.viable){s.dragons.push({id:'x1',name:'x',genome:G.make({sex:'M',E:'F/W'}),lvl:1,fed:0,home:'b1'},{id:'x2',name:'y',genome:G.make({sex:'M',E:'W/W'}),lvl:1,fed:0,home:'b2'});
+    const r=E.apply(s,ctx(300),{t:'hatch',id:'b5',plot:0});assert.ok(r.err&&/Нет свободного места/.test(r.err),r.err)}
+});
+
+t('прогноз: верный ускоряет вдвое и даёт самоцвет, неверный ничего не отнимает',()=>{
+  let s=E.normalize(E.startState([{id:'d1',name:'a',genome:G.make({sex:'F',C:'C/c'})},{id:'d2',name:'b',genome:G.make({sex:'M',C:'C/c'})}]),0,null);
+  s.bal.gold=10000;s.bal.xp=E.xpFor(3);s=E.normalize(s,0,null);s.dragons.forEach(d=>d.lvl=3);
+  s=ok(E.apply(s,ctx(0),{t:'build',type:'nest',x:2,y:5}));s=E.normalize(s,20,null);const gm=s.bal.gems;
+  const r=E.apply(s,ctx(20),{t:'breed',id:'b4',mother:'d1',father:'d2',pred:{trait:'color',value:'pale',p:0.25}});const s2=ok(r);
+  assert.ok(r.s.got.pred.ok);assert.strictEqual(s2.bal.gems,gm+1);assert.strictEqual(s2.bld.find(x=>x.id==='b4').pair.need,Math.ceil(E.BREED_NEED/2));
+  const r2=E.apply(s,ctx(20),{t:'breed',id:'b4',mother:'d1',father:'d2',pred:{trait:'color',value:'pale',p:0.5}});const s3=ok(r2);
+  assert.ok(!r2.s.got.pred.ok);assert.strictEqual(Math.round(r2.s.got.pred.truth*100),25);assert.strictEqual(s3.bal.gems,gm);
+});
+
+t('потомство двух гетерозигот по окраске: около четверти бледных',()=>{
+  let s=E.normalize(E.startState([{id:'d1',name:'a',genome:G.make({sex:'F',C:'C/c'})},{id:'d2',name:'b',genome:G.make({sex:'M',C:'C/c'})}]),0,null);
+  s.bal.gold=1e7;s.bal.xp=E.xpFor(3);s=E.normalize(s,0,null);s.dragons.forEach(d=>d.lvl=3);
+  s=ok(E.apply(s,ctx(0),{t:'build',type:'nest',x:2,y:5}));s=ok(E.apply(s,ctx(0),{t:'build',type:'hatch',x:4,y:8}));
+  let K=30,pale=0,all=0;s=E.normalize(s,K,null);
+  for(let i=0;i<400;i++){s=ok(E.apply(s,ctx(K),{t:'breed',id:'b4',mother:'d1',father:'d2'}));K+=20;s=ok(E.apply(s,ctx(K),{t:'egg',id:'b4'}));
+    const eg=s.bld.find(x=>x.id==='b5').slots[0];all++;if(G.phenotype(eg.genome).color==='pale')pale++;s.bld.find(x=>x.id==='b5').slots[0]=null}
+  assert.ok(Math.abs(pale/all-0.25)<0.07,pale/all);
+});
+
 console.log(`\n${n-fails} из ${n} тестов прошли`);
 process.exit(fails?1:0);

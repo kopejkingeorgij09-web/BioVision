@@ -1,8 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-<rect width="512" height="512" fill="#0E4A38"/>
-<polygon points="256,96 394.6,176 394.6,336 256,416 117.4,336 117.4,176" fill="#13614A" stroke="#7FD6A8" stroke-width="18" stroke-linejoin="round"/>
-<circle cx="256" cy="256" r="88" fill="#F1F6F2"/>
-<circle cx="270" cy="236" r="34" fill="#C2366B"/>
-<circle cx="270" cy="236" r="13" fill="#F1F6F2" fill-opacity=".85"/>
-<path d="M198 302q19 -18 38 0t38 0t38 0" fill="none" stroke="#0E4A38" stroke-width="12" stroke-linecap="round"/>
+<rect width="512" height="512" fill="#15171B"/>
+<path d="M218 92h76l-38 54z" fill="#E0533A"/>
+<g stroke-width="34" stroke-linecap="round">
+<path d="M100 196h124M288 196h124M100 356h124M288 356h124" stroke="#F3F1EA"/>
+<path d="M138 226v100" stroke="#4FB97C"/>
+<path d="M190 226v100" stroke="#5B93F0"/>
+<path d="M322 226v100" stroke="#E8B43C"/>
+<path d="M374 226v100" stroke="#F0606F"/>
+</g>
 </svg>

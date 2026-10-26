@@ -3,7 +3,7 @@
    допиши строку в lectures и подними BV_VER в index.html. Подробно — content/README.md. */
 window.BV_COURSE={
   title:'Микробиология',
-  group:'Элитная группа',
+  group:'Геномное редактирование',
   /* Помощник: 'claude.ai' — вопрос с текстом раздела открывается в claude.ai, в аккаунте участника (сайту бесплатно);
      'server' — ответ прямо на сайте через функцию Supabase bv-ai (нужен оплаченный ключ Anthropic API в секретах Supabase). */
   ai:'claude.ai',

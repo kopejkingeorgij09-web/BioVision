@@ -38,7 +38,7 @@ function applyTheme(){
   const dark=pref==='dark'||(pref==='auto'&&mq.matches);
   host.dataset.theme=dark?'dark':'light';
   document.documentElement.dataset.theme=dark?'dark':'light';
-  const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=dark?'#101614':'#F5F6F2';
+  const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=dark?'#0F1215':'#F3F1EA';
   themeFns.forEach(f=>{try{f()}catch(e){}})}
 try{mq.addEventListener('change',applyTheme)}catch(e){}
 BV.theme={get:()=>store.get('theme','auto'),set:v=>{store.set('theme',v);applyTheme()},apply:applyTheme};

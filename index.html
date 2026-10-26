@@ -6,7 +6,7 @@
 <title>Микробиология · БиоВиз</title>
 <meta name="description" content="БиоВиз: конспекты лекций по микробиологии с интерактивными рисунками, лаборатория моделей и помощник для научной группы.">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#F5F6F2">
+<meta name="theme-color" content="#F3F1EA">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -16,20 +16,21 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{color-scheme:light;background:#F5F6F2}
-:root[data-theme="dark"]{color-scheme:dark;background:#101614}
-@media (prefers-color-scheme:dark){:root:not([data-theme]){color-scheme:dark;background:#101614}}
+:root{color-scheme:light;background:#F3F1EA}
+:root[data-theme="dark"]{color-scheme:dark;background:#0F1215}
+@media (prefers-color-scheme:dark){:root:not([data-theme]){color-scheme:dark;background:#0F1215}}
 body{margin:0;min-height:100vh;font-family:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:inherit}
 #bvhost{display:block;min-height:100vh}
-.boot{display:flex;align-items:center;gap:12px;padding:40px 24px;color:#5E6B65;font-size:15px}
-:root[data-theme="dark"] .boot{color:#97A69F}
-.boot i{width:22px;height:22px;border-radius:50%;border:3px solid #DFE4DE;border-top-color:#0F5D4A;animation:r .8s linear infinite}
+.boot{display:flex;align-items:center;gap:12px;padding:40px 24px;color:#5B5F66;font-size:15px}
+:root[data-theme="dark"] .boot{color:#9EA3A9}
+.boot i{width:22px;height:22px;border-radius:50%;border:3px solid #DCD8CC;border-top-color:#C63C25;animation:r .8s linear infinite}
 @keyframes r{to{transform:rotate(1turn)}}
-.boot button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:8px 14px;background:#0F5D4A;color:#fff;font-weight:600}
+.boot button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:8px 14px;background:#15171B;color:#fff;font-weight:600}
 </style>
 <script>
 /* тема до загрузки, чтобы страница не мигала белым */
-try{const t=JSON.parse(localStorage.getItem('bv2:theme')||'"auto"');const d=t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light'}catch(e){}
+try{const t=JSON.parse(localStorage.getItem('bv2:theme')||'"auto"'),s=JSON.parse(localStorage.getItem('bv2:style')||'"journal"');const d=t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';
+  const B={journal:['#F3F1EA','#0F1215'],gel:['#E8ECEF','#070B14'],fluo:['#F7F7FB','#04050A'],agar:['#F4E7C9','#1A140C'],term:['#FBFBF4','#0A0F0A'],blue:['#F7FAFF','#0D2B52']}[s];if(B)document.documentElement.style.background=B[d?1:0]}catch(e){}
 if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script>
 <script src="bioviz/x/cloud.js"></script>
@@ -40,7 +41,7 @@ if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWork
 /* Загрузка: файлы качаются параллельно, выполняются строго по порядку.
    К адресу добавляется версия: после обновления браузер не возьмёт старый файл из кеша.
    ПЕРЕД КАЖДЫМ PUSH поднимай BV_VER. */
-const BV_VER='2026-10-26-micro3';
+const BV_VER='2026-10-26-design2';
 const CORE=['bioviz/core/base.js','bioviz/core/konspekt.js','bioviz/core/vz.js','bioviz/core/lab.js','content/course.js'];
 const TAIL=['bioviz/core/app.js','bioviz/core/ai.js'];
 const url=(s,bust)=>s+'?v='+BV_VER+(bust?'&r='+Date.now():'');

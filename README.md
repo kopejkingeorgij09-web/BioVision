@@ -8,6 +8,10 @@
 
 - `shad/` — «Трек к ШАДу», личный трекер вебов Профиматики: https://kopejkingeorgij09-web.github.io/BioVision/shad/
 
+## Кто работает над сайтом
+
+Claude и ChatGPT вместе, через задачи и pull request в этом репозитории. Правила в `TEAMWORK.md`.
+
 ## Как устроено
 
 Сайт статический, без сборки: открой `index.html`, и всё работает.

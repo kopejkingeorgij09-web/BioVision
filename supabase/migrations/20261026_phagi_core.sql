@@ -252,3 +252,8 @@ grant execute on function public.ph_login(text), public.ph_get(text,text), publi
 
 -- uid учителя из старой платформы (не секрет: это просто идентификатор)
 insert into public.ph_admin(id, uid) values (1, 'u_a7f09iDQmUe0Pa3S8bZuYQ');
+
+-- после применения: фиксированный search_path у вспомогательных функций
+alter function public._ph_split(text) set search_path = public;
+alter function public._ph_lv(text) set search_path = public;
+alter function public._ph_merge(jsonb,jsonb) set search_path = public;

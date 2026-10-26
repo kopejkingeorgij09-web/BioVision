@@ -18,6 +18,7 @@ const STAGES = [
   {s:4, label:"Закрыт", desc:"Ошибки разобраны, тема понятна"}
 ];
 const MONTHS = ["янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек"];
+const MONTHS_FULL = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
 const WD = ["вс","пн","вт","ср","чт","пт","сб"];
 
 const $ = s => document.querySelector(s);
@@ -48,6 +49,15 @@ function weekStart(d){
   return new Date(t - shift*864e5).toISOString().slice(0,10);
 }
 function addDays(d, k){ const p = dparts(d); return new Date(Date.UTC(p.y,p.m-1,p.dd) + k*864e5).toISOString().slice(0,10); }
+// сколько дней от сегодня до даты: 0 сегодня, 1 завтра, -1 вчера
+function daysFrom(today, d){ const a = dparts(today), b = dparts(d); return Math.round((Date.UTC(b.y,b.m-1,b.dd) - Date.UTC(a.y,a.m-1,a.dd)) / 864e5); }
+function relLabel(k){
+  if (k === 0) return "сегодня";
+  if (k === 1) return "завтра";
+  if (k === 2) return "послезавтра";
+  if (k > 2 && k < 7) return `через ${k} ${k < 5 ? "дня" : "дней"}`;
+  return "";
+}
 function rangeLabel(ws){
   const we = addDays(ws, 6), a = dparts(ws), b = dparts(we);
   return a.m === b.m ? `${a.dd}–${b.dd} ${MONTHS[a.m-1]}` : `${a.dd} ${MONTHS[a.m-1]} – ${b.dd} ${MONTHS[b.m-1]}`;
@@ -135,7 +145,8 @@ function renderSummary(){
   const late1 = lateness(nextP, now);
   const s = st(nextP.n);
   const what = s < 2 ? "Смотреть веб" : s < 3 ? "Решить ДЗ" : "Разобрать ошибки";
-  const when = s < 2 ? `${fmtDay(nextP.w[0])} · ${nextP.w[1]}–${nextP.w[2]}` : `${fmtDay(nextP.h[0])} · ${nextP.h[1]}–${nextP.h[2]}`;
+  const slot = s < 2 ? nextP.w : nextP.h, rel = relLabel(daysFrom(todayStr, slot[0]));
+  const when = `${rel ? rel + ", " : ""}${fmtDay(slot[0])} · ${slot[1]}–${slot[2]}`;
   nx.style.setProperty("--cc", `var(--${nextP.c})`);
   nx.dataset.n = nextP.n;
   nx.innerHTML = `<span class="lbl">${late1 ? "Догнать" : "Дальше"}</span>
@@ -172,38 +183,56 @@ function passes(p, now){
 }
 
 function rowHTML(p, now, todayStr){
-  const s = st(p.n), l = lateness(p, now), d = dparts(p.w[0]);
+  const s = st(p.n), l = lateness(p, now), d = dparts(p.w[0]), hd = dparts(p.h[0]);
   const meter = [1,2,3,4].map(i => `<i class="${s>=i?"on":""}"></i>`).join("");
   const hwSame = p.h[0] === p.w[0];
-  const note = progress[p.n] && progress[p.n].note ? ` · заметка` : "";
+  const note = progress[p.n] && progress[p.n].note ? `<span class="slot note">заметка</span>` : "";
+  const k = daysFrom(todayStr, p.w[0]), rel = s < 2 ? relLabel(k) : "";
+  const past = k < 0 ? " past" : "";
   return `<button class="row" data-n="${p.n}" data-s="${s}" style="--cc:var(--${p.c})">
-    <span class="date${p.w[0]===todayStr?" today":""}"><b>${d.dd}</b><span>${WD[d.wd]}<em> · ${MONTHS[d.m-1]}</em></span></span>
+    <span class="date${k===0?" today":""}${past}"><span>${WD[d.wd]}</span><b>${d.dd}</b><span>${MONTHS[d.m-1]}</span></span>
     <span class="body">
-      <span class="tagline"><span class="num">${pad(p.n)}</span><span class="course">${COURSES[p.c].name}</span><span class="code">${p.code}</span></span>
+      <span class="tagline"><span class="num">${pad(p.n)}</span><span class="course">${COURSES[p.c].name}</span><span class="code">${p.code}</span>${rel ? `<span class="rel${k===0?" now":""}">${rel}</span>` : ""}</span>
       <span class="title">${esc(p.t)}</span>
-      <span class="meta">веб ${p.w[1]}–${p.w[2]}<span class="sep">·</span>ДЗ ${hwSame ? "" : WD[dparts(p.h[0]).wd]+" "}${p.h[1]}${note}</span>
+      <span class="slots"><span class="slot web"><i>веб</i>${p.w[1]}–${p.w[2]}</span><span class="slot hw"><i>ДЗ</i>${hwSame ? "" : `${WD[hd.wd]} ${hd.dd}${hd.m === d.m ? "" : " " + MONTHS[hd.m-1]}, `}${p.h[1]}–${p.h[2]}</span>${note}</span>
     </span>
     <span class="stat"><span class="meter" aria-hidden="true">${meter}</span>${l ? `<span class="late-tag">отстаю: ${l}</span>` : `<span class="slabel">${STAGES[s].label}</span>`}</span>
   </button>`;
 }
 
+// полоска пн–вс: заливка — день веба, точка — день ДЗ
+function weekStrip(ws, all, todayStr){
+  const days = [];
+  for (let i = 0; i < 7; i++){
+    const d = addDays(ws, i), p = dparts(d);
+    const w = all.find(x => x.w[0] === d), h = all.filter(x => x.h[0] === d);
+    const cls = ["day"]; if (w) cls.push("has-web"); if (d === todayStr) cls.push("today"); if (d < todayStr) cls.push("past");
+    const cc = w ? w.c : h.length ? h[0].c : "";
+    const what = [w ? `веб ${w.n}` : "", h.length ? `ДЗ ${h.map(x => x.n).join(", ")}` : ""].filter(Boolean).join(", ");
+    days.push(`<span class="${cls.join(" ")}"${cc ? ` style="--cc:var(--${cc})"` : ""} title="${fmtDay(d)}${what ? ": " + what : ""}"><span class="wd">${WD[p.wd]}</span><b>${p.dd}</b>${h.length ? '<i class="hw-dot"></i>' : ""}</span>`);
+  }
+  return `<div class="strip" aria-hidden="true">${days.join("")}</div>`;
+}
 function renderWeeks(){
   const now = Date.now(), todayStr = moscowToday(), curWs = weekStart(todayStr);
   const groups = new Map();
   PLAN.forEach(p => { if (!passes(p, now)) return; const ws = weekStart(p.w[0]); if (!groups.has(ws)) groups.set(ws, []); groups.get(ws).push(p); });
   const allWeeks = [...new Set(PLAN.map(p => weekStart(p.w[0])))];
-  let html = "", breakDone = false;
+  let html = `<p class="strip-key"><i class="k-web"></i>день веба<i class="k-hw"></i>день ДЗ<i class="k-today"></i>сегодня</p>`, breakDone = false, lastMonth = "";
   if (!groups.size){
     const msg = filterS === "late" ? "Ты идёшь по плану, догонять нечего." : filterS === "done" ? "Пока ни один веб не закрыт полностью. Нажми на веб и отметь, сколько сделано." : "По этому фильтру вебов нет.";
     $("#weeks").innerHTML = `<div class="empty">${msg}</div>`; return;
   }
   for (const [ws, items] of groups){
     if (!breakDone && ws > BREAK.after){ html += `<div class="break"><b>${BREAK.label}</b><span class="mono">${BREAK.range}</span></div>`; breakDone = true; }
+    const mk = items[0].w[0].slice(0,7);
+    if (mk !== lastMonth){ const m = dparts(items[0].w[0]); html += `<h2 class="month">${MONTHS_FULL[m.m-1]}<span>${m.y}</span></h2>`; lastMonth = mk; }
     const idx = allWeeks.indexOf(ws) + 1;
     const all = PLAN.filter(p => weekStart(p.w[0]) === ws);
     const wd = all.filter(p => st(p.n) === 4).length;
     html += `<section class="week${ws===curWs?" current":""}" data-ws="${ws}">
       <div class="week-h"><h3>Неделя ${idx}</h3><span class="rng">${rangeLabel(ws)}</span><span class="wp">${wd}/${all.length} закрыто</span></div>
+      ${weekStrip(ws, all, todayStr)}
       <div class="list">${items.map(p => rowHTML(p, now, todayStr)).join("")}</div></section>`;
   }
   $("#weeks").innerHTML = html;

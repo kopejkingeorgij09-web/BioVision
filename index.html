@@ -2,6 +2,7 @@
 <meta name="description" content="Интерактивный атлас по биологии: клетка, процессы, микроскоп, тренажёр и конспекты.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2714%27 fill=%27%232F8A3B%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%275%27 fill=%27%23F1F6F2%27/%3E%3C/svg%3E">
 <script src="bioviz/x/cloud.js"></script>
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><script>if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))</script>
 </head><body>
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#F1F6F2">
@@ -256,7 +257,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.body.class
 /* Надёжная загрузка: все файлы качаются параллельно (preload), выполняются строго по порядку.
    К адресу добавляется версия, чтобы после обновления браузер не взял старый файл из кеша.
    Упавший файл перезапрашивается; недогруженное дополнение не мешает запуску остальных. */
-const BV_VER='2026-10-25-gh1';
+const BV_VER='2026-10-26-pwa1';
 const bvUrl=(src,r)=>src+'?v='+BV_VER+(r?'&r='+Date.now():'');
 /* попытка 1: с версией; 2: без параметров (если хостинг не понимает ?v=); 3+: с меткой против кеша */
 function bvScript(src,i){return new Promise((ok,no)=>{const e=document.createElement('script');e.src=i===1?src:bvUrl(src,i>1);e.async=false;

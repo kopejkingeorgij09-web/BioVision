@@ -25,6 +25,12 @@ const CSS=`
 .ai-m.a code{font-family:var(--font-mono);font-size:.92em;background:var(--surface-2);padding:1px 5px;border-radius:5px}
 .ai-m.a h4{font-size:15px;margin:10px 0 4px}
 .ai-m.err{color:var(--bad);font-size:14px}
+.ai-m.a a{color:var(--ui);text-underline-offset:2px}
+.ai-st{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13.5px;margin:0 0 6px}
+.ai-src{margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;font-size:13.5px;line-height:1.45}
+.ai-src b{display:block;font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.ai-src ol{margin:0;padding-left:18px}.ai-src li{margin:3px 0}
+.ai-src small{color:var(--muted)}
 .ai-m.wait:after{content:"";display:inline-block;width:8px;height:8px;margin-left:4px;border-radius:50%;background:var(--ui);animation:aip 1s infinite}
 @keyframes aip{50%{opacity:.2}}
 .ai-empty{color:var(--muted);font-size:14.5px;display:flex;flex-direction:column;gap:10px}
@@ -71,9 +77,10 @@ function context(){const r=BV.app&&BV.app.route;if(!r)return null;
   return null}
 
 /* ---------- отрисовка ---------- */
-function md(s){/* короткий и безопасный разбор ответа: абзацы, списки, **жирный**, `код` */
+function md(s){/* короткий и безопасный разбор ответа: абзацы, списки, **жирный**, *курсив*, `код`, [ссылка](https://…) */
   const lines=esc(s).split('\n');let out='',list=null;
-  const inl=t=>t.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/`([^`]+)`/g,'<code>$1</code>');
+  const inl=t=>t.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/(^|[^*\w])\*([^*\s][^*]*?)\*(?![*\w])/g,'$1<i>$2</i>').replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
   const close=()=>{if(list){out+=`</${list}>`;list=null}};
   let para=[];const flush=()=>{if(para.length){out+=`<p>${inl(para.join('<br>'))}</p>`;para=[]}};
   for(const l of lines){let m;
@@ -83,6 +90,9 @@ function md(s){/* короткий и безопасный разбор отве
     if((m=l.match(/^\s*\d+[.)]\s+(.*)/))){flush();if(list!=='ol'){close();out+='<ol>';list='ol'}out+=`<li>${inl(m[1])}</li>`;continue}
     close();para.push(l)}
   flush();close();return out}
+/* источники, найденные поиском: только http(s), подпись — заголовок страницы и сайт */
+const host=u=>{try{return new URL(u).hostname.replace(/^www\./,'')}catch(e){return ''}};
+const srcList=src=>(src&&src.length)?`<div class="ai-src"><b>Источники</b><ol>${src.filter(x=>/^https?:\/\//.test(x.url)).map(x=>`<li><a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.title||host(x.url))}</a>${x.title?` <small>${esc(host(x.url))}</small>`:''}</li>`).join('')}</ol></div>`:'';
 
 function draw(){const body=$('.ai-body',box);const ctx=context();
   const cx=$('.ai-ctx',box);cx.hidden=false;$('span',cx).textContent=ctx?'Контекст: '+ctx.label:'Контекст: весь курс';
@@ -94,7 +104,7 @@ function draw(){const body=$('.ai-body',box);const ctx=context();
   body.style.cssText='flex:1;display:flex;flex-direction:column;min-height:0';
   body.innerHTML=`<div class="ai-log" aria-live="polite"></div>
     <form class="ai-f"><textarea rows="1" placeholder="Спроси о материале…" aria-label="Вопрос помощнику"></textarea><button class="btn" aria-label="Отправить">↑</button></form>
-    <p class="ai-note">Отвечает Claude по материалам курса. Проверяй цифры и факты по источникам лекции.</p>`;
+    <p class="ai-note">Отвечает Claude по материалам курса и научным сайтам. Проверяй цифры по ссылкам.</p>`;
   drawLog();
   const f=$('.ai-f',body),ta=$('textarea',f);
   ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(160,ta.scrollHeight)+'px'});
@@ -104,27 +114,30 @@ function drawLog(){const lg=$('.ai-log',box);if(!lg)return;
   if(!log.length){const ctx=context();const sug=ctx&&ctx.section?[`Объясни простыми словами, о чём ${ctx.section}`,'Какие здесь ключевые термины и как они связаны?','Задай мне три вопроса на понимание этого раздела']:['О чём лекция 1 в трёх предложениях?','Чем олиготрофы отличаются от копиотрофов?','Как устроен мотор бактериального жгутика?'];
     lg.innerHTML=`<div class="ai-empty"><b>О чём спросить?</b><span>Помощник видит, какой раздел у тебя открыт. Можно выделить фразу в конспекте и нажать «Спросить».</span><div class="ai-sug">${sug.map(s=>`<button type="button">${esc(s)}</button>`).join('')}</div></div>`;
     $$('.ai-sug button',lg).forEach(b=>b.addEventListener('click',()=>ask(b.textContent)));return}
-  lg.innerHTML=log.map(m=>m.role==='user'?`<div class="ai-m u">${esc(m.content)}</div>`:`<div class="ai-m a">${md(m.content)}</div>`).join('');
+  lg.innerHTML=log.map(m=>m.role==='user'?`<div class="ai-m u">${esc(m.content)}</div>`:`<div class="ai-m a">${md(m.content)}${srcList(m.src)}</div>`).join('');
   lg.scrollTop=lg.scrollHeight}
 
 /* ---------- запрос ---------- */
 async function ask(q){if(busy)return;busy=true;
   log.push({role:'user',content:q});const msgs=log.slice(-16);drawLog();
   const lg=$('.ai-log',box);const out=document.createElement('div');out.className='ai-m a wait';lg.appendChild(out);lg.scrollTop=lg.scrollHeight;
-  let text='';
+  let text='',status='',src=[];
+  const paint=()=>{out.classList.toggle('wait',!text);out.innerHTML=(status?`<p class="ai-st">${esc(status)}</p>`:'')+md(text)+srcList(src);lg.scrollTop=lg.scrollHeight};
   try{const ctx=context();
     const r=await fetch(ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({code:(()=>{try{return localStorage.getItem('bv_code')||''}catch(e){return ''}})(),messages:msgs,
+      body:JSON.stringify({code:(()=>{try{return localStorage.getItem('bv_code')||''}catch(e){return ''}})(),messages:msgs.map(m=>({role:m.role,content:m.content})),
         context:ctx?{lecture:ctx.lecture,section:ctx.section,text:ctx.text,toc:ctx.toc||''}:null,course:C.title})});
     if(!r.ok||!r.body){let m='Помощник сейчас недоступен.';try{const j=await r.json();if(j&&j.error)m=j.error}catch(e){}throw new Error(m)}
     const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
     for(;;){const {value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});
       let i;while((i=buf.indexOf('\n\n'))>=0){const chunk=buf.slice(0,i);buf=buf.slice(i+2);
         const line=chunk.split('\n').find(l=>l.startsWith('data: '));if(!line)continue;let ev;try{ev=JSON.parse(line.slice(6))}catch(e){continue}
-        if(ev.t){text+=ev.t;out.classList.remove('wait');out.innerHTML=md(text);lg.scrollTop=lg.scrollHeight}
+        if(ev.s){status=ev.s;paint()}
+        if(ev.t){text+=ev.t;status='';paint()}
+        if(ev.src){src=ev.src;paint()}
         if(ev.error)throw new Error(ev.error)}}
     if(!text)throw new Error('Пустой ответ. Попробуй переформулировать вопрос.');
-    log.push({role:'assistant',content:text});save()}
+    log.push(src.length?{role:'assistant',content:text,src}:{role:'assistant',content:text});save()}
   catch(e){out.className='ai-m err';out.textContent=e.message||'Не получилось получить ответ.';
     if(!text)log.pop()}
   finally{busy=false;if(text)drawLog()}}

@@ -14,13 +14,33 @@ const ORIGINS = [
 const MAX_MESSAGES = 16;
 const MAX_CHARS = 4000; // на одно сообщение
 const MAX_CONTEXT = 14000; // текст открытого раздела
+const MAX_SEARCHES = 3; // поисков на один ответ
+// Поиск только по проверенным научным сайтам (поддомены входят автоматически).
+const SOURCES = [
+  "ncbi.nlm.nih.gov", // PubMed, PMC, NCBI Bookshelf
+  "journals.asm.org",
+  "microbiologyresearch.org",
+  "nature.com",
+  "science.org",
+  "cell.com",
+  "sciencedirect.com",
+  "onlinelibrary.wiley.com",
+  "academic.oup.com",
+  "annualreviews.org",
+  "frontiersin.org",
+  "plos.org",
+  "biorxiv.org",
+  "cdc.gov",
+  "who.int",
+];
 
 const SYSTEM = `Ты помощник научной группы по микробиологии на платформе БиоВиз. Отвечаешь по-русски.
 Участники — сильные школьники и студенты, которые готовятся к олимпиадам и вузовскому уровню.
 Опирайся прежде всего на конспект лекции, который передан ниже как контекст. Если в конспекте ответа нет, отвечай по общепринятым учебникам (Нетрусов, Котова «Микробиология»; Мадиган «Brock Biology of Microorganisms»; Альбертс) и прямо скажи, что это выходит за рамки конспекта.
 Не выдумывай чисел, авторов и ссылок. Если не уверен, так и скажи.
 Пиши живым языком, коротко и по делу: сначала суть, потом детали. Формулы записывай текстом. Можно использовать короткие списки, **выделение** и \`код\`.
-Если просят решить задачу из самопроверки, сначала дай наводящий вопрос или подсказку, а полный разбор давай, когда попросят.`;
+Если просят решить задачу из самопроверки, сначала дай наводящий вопрос или подсказку, а полный разбор давай, когда попросят.
+У тебя есть веб-поиск по научным сайтам (PubMed, журналы ASM, Nature и другие). Ищи, когда вопрос выходит за рамки конспекта, когда нужны свежие данные или когда просят источник. На вопросы, ответ на которые есть в конспекте, отвечай без поиска. Найденное подкрепляй ссылками и не приписывай статьям того, чего в них нет.`;
 
 function cors(origin: string | null) {
   const allow = origin && ORIGINS.includes(origin) ? origin : ORIGINS[0];
@@ -104,14 +124,28 @@ Deno.serve(async (req) => {
             { type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } },
             { type: "text", text: `Участник: ${who.name || "без имени"}.\n\n${material}` },
           ],
+          tools: [{ type: "web_search_20250305", name: "web_search", max_uses: MAX_SEARCHES, allowed_domains: SOURCES }],
           messages,
         });
+        const src = new Map<string, string>(); // url → заголовок
         for await (const ev of s) {
-          if (ev.type === "content_block_delta" && ev.delta.type === "text_delta") send(controller, { t: ev.delta.text });
+          if (ev.type === "content_block_start" && ev.content_block.type === "server_tool_use") {
+            send(controller, { s: "Ищу в научных источниках…" });
+          } else if (ev.type === "content_block_delta" && ev.delta.type === "text_delta") {
+            send(controller, { t: ev.delta.text });
+          } else if (ev.type === "content_block_delta" && ev.delta.type === "citations_delta") {
+            const c = ev.delta.citation;
+            if (c.type === "web_search_result_location" && !src.has(c.url)) {
+              src.set(c.url, c.title || "");
+              send(controller, { src: [...src].map(([url, title]) => ({ url, title })) });
+            }
+          }
         }
         const final = await s.finalMessage();
         if (final.stop_reason === "refusal") {
           send(controller, { error: "На этот вопрос помощник ответить не может. Попробуй сформулировать иначе." });
+        } else if (final.stop_reason === "pause_turn") {
+          send(controller, { t: "\n\n(Поиск затянулся, ответ неполный. Задай вопрос ещё раз или уточни его.)" });
         } else if (final.stop_reason === "max_tokens") {
           send(controller, { t: "\n\n(Ответ получился слишком длинным и оборван. Попроси продолжить.)" });
         }

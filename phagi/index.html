@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<script src="cloud.js?v=1"></script>
+<script src="cloud.js?v=2"></script>
 <meta charset="utf-8">
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -2906,15 +2906,16 @@ function peopleHTML(){
   ${S.people.length>1?(()=>{const on=ASG().includes(p.id);return `<div class="row" style="margin-top:10px;gap:6px"><span class="muted small">Может задавать другим задания и карточки:</span><button class="btn ${on?'':'ghost '}sm" data-act="asgr" data-uid="${p.id}" aria-pressed="${on}">${on?'✓ Да':'Нет'}</button></div>`})():''}
   ${S.people.length>1?`<div class="row" style="margin-top:10px;gap:6px"><span class="muted small">Видит чашку Петри:</span>${S.people.filter(q=>q.id!==p.id).map(q=>{const on=!!(S.peek[p.id]||{})[q.id];return `<button class="btn ${on?'':'ghost '}sm" data-act="peek" data-v="${p.id}" data-s="${q.id}" aria-pressed="${on}">${on?'✓ ':''}${esc(q.label)}</button>`}).join('')}</div>`:''}</section>`).join(''):`<div class="empty" style="margin-bottom:16px">Пока никто не присоединился.</div>`}
   <section class="sheet"><h2>Как пригласить ученицу</h2>
-  <p>Нажмите «Поделиться» в правом верхнем углу страницы, впишите почту ученицы и выдайте доступ «Редактор». Публичную ссылку не включайте: при ней приглашённые по почте теряют право сдавать работы.</p>
-  <p class="muted small">Ученица откроет приглашение, войдёт в аккаунт Claude, введёт имя и появится здесь. Ответы, карточки и отметки одной ученицы другая не видит. Чужую чашку Петри ученица видит, только если вы отметили её выше, и только для просмотра.</p></section>`;
+  <p>Нажмите «Коды учениц», впишите имя и выдайте код вида FAG-XXXX-XXXX. Отправьте ученице ссылку на платформу и этот код: она введёт его на экране входа.</p>
+  <p><button type="button" class="btn sm" onclick="window.PHCLOUD&&PHCLOUD.codes()">Коды учениц</button></p>
+  <p class="muted small">При первом входе ученица введёт имя и появится здесь. Код можно удалить в том же окне, тогда войти им больше нельзя, а прогресс остаётся. Ответы, карточки и отметки одной ученицы другая не видит. Чужую чашку Петри ученица видит, только если вы отметили её выше, и только для просмотра.</p></section>`;
 }
 
 function mainHTML(){
   switch(S.mode){
     case 'loading':return `<div class="empty">Загружаю класс…</div>`;
-    case 'nodb':return `<div class="empty">Эта страница работает только на claude.ai, когда вы вошли в аккаунт. Откройте ссылку из приглашения.</div>`;
-    case 'noid':return `<div class="empty">Не получилось узнать, кто вы. Войдите в аккаунт Claude и откройте ссылку ещё раз.</div>`;
+    case 'nodb':return `<div class="empty">Не получилось связаться с облаком. Проверьте интернет и обновите страницу.</div>`;
+    case 'noid':return `<div class="empty">Не получилось узнать, кто вы. Нажмите «Выйти» и введите код ещё раз.</div>`;
   }
   if(S.mode==='student'&&!S.joined)return `<section class="sheet" style="max-width:460px"><h1 style="font:700 22px var(--d);color:var(--ink);margin-bottom:8px">Добро пожаловать</h1>
     <p class="muted">Напиши, как тебя зовут, чтобы учитель понимал, чья работа.</p>

@@ -250,8 +250,8 @@ grant execute on function public.ph_login(text), public.ph_get(text,text), publi
   public.ph_sync(text,text[],text[],timestamptz), public.ph_profiles(text,text[]), public.ph_codes(text),
   public.ph_code_new(text,text), public.ph_code_delete(text,text) to anon, authenticated;
 
--- uid учителя из старой платформы (не секрет: это просто идентификатор)
-insert into public.ph_admin(id, uid) values (1, 'u_a7f09iDQmUe0Pa3S8bZuYQ');
+-- uid учителя: отдельный, не совпадает ни с одной ученицей (u_a7f09… это «Георгий»-ученик со своим кодом)
+insert into public.ph_admin(id, uid) values (1, 'u_teacher_owner');
 
 -- после применения: фиксированный search_path у вспомогательных функций
 alter function public._ph_split(text) set search_path = public;

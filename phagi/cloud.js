@@ -191,7 +191,7 @@ const gate=ready.then(m=>{if(m)return m;
   return new Promise(()=>{})});
 gate.then(()=>{const go=()=>bar();document.readyState==='loading'?document.addEventListener('DOMContentLoaded',go):go()});
 
-window.PHCLOUD={rpc,get me(){return me},sync};
+window.PHCLOUD={rpc,get me(){return me},sync,codes:()=>me&&me.isOwner&&codes()};
 window.claude={use:async name=>{await gate;
   if(name==='db')return db;
   if(name==='user')return user;

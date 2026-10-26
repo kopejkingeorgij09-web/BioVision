@@ -5,7 +5,7 @@
 // Разворачивается с verify_jwt = false: вход проверяется по коду группы через bv_login.
 import Anthropic from "npm:@anthropic-ai/sdk";
 
-const MODEL = "claude-opus-5-5";
+const MODEL = "claude-haiku-5-5"; // быстрая и недорогая модель; для сложных вопросов можно поставить claude-sonnet-5-5
 const ORIGINS = [
   "https://kopejkingeorgij09-web.github.io",
   "http://localhost:8000",
@@ -96,21 +96,16 @@ Deno.serve(async (req) => {
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        // Параметры собраны отдельно: fallbacks — бета-поле, его может не быть в типах установленной версии SDK.
-        const params = {
+        const s = client.messages.stream({
           model: MODEL,
           max_tokens: 16000,
           output_config: { effort: "medium" },
-          betas: ["server-side-fallback-2026-07-01"],
-          fallbacks: "default",
           system: [
             { type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } },
             { type: "text", text: `Участник: ${who.name || "без имени"}.\n\n${material}` },
           ],
           messages,
-        };
-        // deno-lint-ignore no-explicit-any
-        const s = client.beta.messages.stream(params as any);
+        });
         for await (const ev of s) {
           if (ev.type === "content_block_delta" && ev.delta.type === "text_delta") send(controller, { t: ev.delta.text });
         }

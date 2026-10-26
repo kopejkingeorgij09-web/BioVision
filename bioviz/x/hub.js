@@ -213,17 +213,18 @@ function search(){const raw=$('#srchIn').value.trim(),q=norm(raw),M=mods(),QS=BV
   const words=q.split(/\s+/).filter(Boolean);const has=s=>words.every(w=>norm(s).includes(w));
   const mm=q?M.filter(m=>has(m.name+' '+m.desc+' '+m.group+' '+(($('#m-'+m.id)||{}).textContent||'').slice(0,4000))):M.slice(0,8);
   const qq=q.length>1?QS.filter(x=>has(x.q+' '+x.a)).slice(0,10):[];
-  const aa=q.length>1&&BV.konspList?BV.konspList().flatMap(d=>d.secs.map(s=>({m:d.m,s:s[0],no:s[1],title:s[2],doc:d.title}))).filter(a=>has(a.title+' '+a.doc)).slice(0,8):[];
+  /* конспекты: по названию раздела и по полному тексту (BV.konspFind из ref.js); если её нет, только по названиям */
+  const aa=q.length>1&&BV.konspList?(BV.konspFind?BV.konspFind(raw).map(a=>({...a,raw})):BV.konspList().flatMap(d=>d.secs.map(s=>({m:d.m,s:s[0],no:s[1],title:s[2],doc:d.title}))).filter(a=>has(a.title+' '+a.doc))).slice(0,8):[];
   const tt=[];
   const M8=mm.slice(0,8);items=[...M8.map(m=>({k:'m',m})),...tt.map(t=>({k:'t',t})),...aa.map(a=>({k:'a',a})),...qq.map(x=>({k:'q',x}))];sel=0;let base=M8.length;
   $('#srchRes').innerHTML=(mm.length?`<h4>Разделы</h4>`+mm.slice(0,8).map((m,i)=>`<button class="sr" data-i="${i}"><b>${hl(m.name,q)}</b><span>${esc(m.group)} · ${esc(m.desc)}</span></button>`).join(''):'')+
    (tt.length?`<h4>Термины</h4>`+tt.map((t,i)=>`<button class="sr" data-i="${base+i}"><b>${hl(t.k,words[0]||'')}</b><span>${esc(t.d)}</span></button>`).join(''):'')+
-   (aa.length?`<h4>Конспекты</h4>`+aa.map((a,i)=>`<button class="sr" data-i="${base+tt.length+i}"><b>${hl(a.title,words[0]||'')}</b><span>§ ${a.no} · ${esc(a.doc)}</span></button>`).join(''):'')+
+   (aa.length?`<h4>Конспекты</h4>`+aa.map((a,i)=>`<button class="sr" data-i="${base+tt.length+i}"><b>${hl(a.title,words[0]||'')}</b><span>${a.no!==''&&a.no!=null?'§ '+a.no+' · ':''}${esc(a.doc)}${a.snip?'<br>'+hl(a.snip,words[0]||''):''}</span></button>`).join(''):'')+
    (qq.length?`<h4>Вопросы тренажёра</h4>`+qq.map((x,i)=>`<button class="sr" data-i="${base+tt.length+aa.length+i}"><b>${hl(x.q,words[0]||'')}</b><span>${esc(tn[x.t]||'')} · ответ откроется после попытки</span></button>`).join(''):'')+
    (!mm.length&&!qq.length&&!aa.length&&!tt.length?`<p class="msg" style="padding:12px">Ничего не нашлось. Попробуйте другое слово.</p>`:'');
   mark();$$('#srchRes .sr').forEach(b=>b.addEventListener('click',()=>choose(+b.dataset.i)))}
 function mark(){$$('#srchRes .sr').forEach(b=>b.setAttribute('aria-selected',+b.dataset.i===sel));const b=$(`#srchRes .sr[data-i="${sel}"]`);if(b)b.scrollIntoView({block:'nearest'})}
-function choose(i){const it=items[i];if(!it)return;closeSearch();if(it.k==='m')open(it.m.id);else if(it.k==='a')(BV.UX?BV.UX.openDoc(it.a.m,it.a.s):BV.konspOpen(it.a.m,it.a.s));else BV.quizOpen({mode:'train',q:it.x})}
+function choose(i){const it=items[i];if(!it)return;closeSearch();if(it.k==='m')open(it.m.id);else if(it.k==='a'){(BV.UX?BV.UX.openDoc(it.a.m,it.a.s):BV.konspOpen(it.a.m,it.a.s));if(it.a.snip&&BV.konspHit)BV.konspHit(it.a.m,it.a.s,it.a.raw)}else BV.quizOpen({mode:'train',q:it.x})}
 function openSearch(){$('#srch').hidden=false;$('#srchIn').value='';search();setTimeout(()=>$('#srchIn').focus(),0)}
 function closeSearch(){$('#srch').hidden=true}
 BV.openSearch=openSearch;

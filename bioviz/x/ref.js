@@ -54,7 +54,10 @@ const CSS=`
 .kh-empty{color:var(--muted);padding:12px 2px}
 .kh-soon{border:1.5px dashed var(--line);border-radius:20px;padding:22px;color:var(--muted);font-size:14px;display:flex;flex-direction:column;gap:6px;justify-content:center;min-height:180px}
 .kh-soon b{color:var(--ink);font-size:15px}
-mark.kh{background:var(--eosin-soft);color:inherit;border-radius:3px;padding:0 1px}
+mark.kh,mark.kh-hit{background:var(--eosin-soft);color:inherit;border-radius:3px;padding:0 1px}
+mark.kh-hit{outline:2px solid var(--eosin);transition:outline-color 1s,background-color 1s}
+mark.kh-hit.off{outline-color:transparent;background:transparent}
+.kh-secs .kh-snip{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
 `;
 const st=document.createElement('style');st.textContent=CSS;BVHOST.root.appendChild(st);
 
@@ -67,7 +70,10 @@ $('main').insertAdjacentHTML('beforeend',`<section class="module" id="m-ref" hid
 
 const modName=id=>{const b=$(`.nav-item[data-go="${id}"]`);return b?b.childNodes[0].textContent.trim():id};
 const modGroup=id=>{let g=$(`.nav-item[data-go="${id}"]`);g=g&&g.previousElementSibling;while(g&&!g.classList.contains('nav-group'))g=g.previousElementSibling;return g?g.textContent.trim():''};
-const docs=()=>ORDER.filter(m=>D[m]&&D[m].title&&$('#m-'+m)).map(m=>{const d=D[m];const secs=d.secs.slice().sort((a,b)=>a[1]-b[1]);return{m,...d,secs,name:modName(m),group:modGroup(m),vuz:secs.some(s=>/вуз/i.test(s[2]))||/вуз/i.test(d.kick||'')||m==='energy'||m==='osmos'}});
+/* разделы берём из реестра конспектов BV.KR: туда попадают и разделы, вставленные через BV.DEEP.insert,
+   которых нет в перехвате K.doc/K.sec; порядок в реестре совпадает с порядком в конспекте */
+const krSecs=m=>{const k=(BV.KR||{})[m];return k&&k.sections&&k.sections.length?k.sections.map(s=>[s.id,s.no??'',s.t]):null};
+const docs=()=>ORDER.filter(m=>D[m]&&D[m].title&&$('#m-'+m)).map(m=>{const d=D[m];const secs=krSecs(m)||d.secs.slice().sort((a,b)=>a[1]-b[1]);return{m,...d,secs,name:modName(m),group:modGroup(m),vuz:secs.some(s=>/вуз/i.test(s[2]))||/вуз/i.test(d.kick||'')||m==='energy'||m==='osmos'}});
 
 /* обложки: простые узнаваемые мотивы в тонах темы */
 const ART={
@@ -80,12 +86,41 @@ const band=m=>`<svg viewBox="0 0 480 92" preserveAspectRatio="xMaxYMid slice" ar
 
 let q='';
 const norm=s=>String(s).toLowerCase().replace(/ё/g,'е');
+
+/* полнотекстовый поиск: текст каждого раздела берём из его html() один раз и кешируем */
+let TX=null;
+const unhtml=h=>{const t=document.createElement('template');t.innerHTML=String(h).replace(/<(script|style|svg)[\s\S]*?<\/\1>/gi,' ');return (t.content.textContent||'').replace(/\s+/g,' ').trim()};
+function textIndex(){if(TX)return TX;TX={};
+ Object.entries(BV.KR||{}).forEach(([m,k])=>{TX[m]={};(k.sections||[]).forEach(s=>{let h='';try{h=typeof s.html==='function'?s.html():s.html||''}catch(e){}TX[m][s.id]=unhtml(h)})});
+ return TX}
+/* q уже нормализован; возвращает отрывок вокруг первого совпадения или null */
+function snip(m,id,q){const t=(textIndex()[m]||{})[id];if(!t)return null;const i=norm(t).indexOf(q);if(i<0)return null;
+ const a=Math.max(0,i-50),b=Math.min(t.length,i+q.length+70);return (a?'…':'')+t.slice(a,b)+(b<t.length?'…':'')}
+/* все разделы, где встречается q: в названии или в тексте */
+function find(raw){const qq=norm(String(raw).trim());if(qq.length<2)return [];const out=[];
+ docs().forEach(d=>d.secs.forEach(s=>{const inT=norm(s[2]).includes(qq),sn=inT?null:snip(d.m,s[0],qq);
+  if(inT||sn)out.push({m:d.m,s:s[0],no:s[1],title:s[2],doc:d.title,snip:sn})}));
+ return out}
+/* после открытия раздела находим совпадение в тексте, подсвечиваем и прокручиваем к нему */
+function hitText(m,s,raw){const qq=norm(String(raw||'').trim());if(qq.length<2)return;let n=0;
+ const go=()=>{const mod=$('#m-'+m),root=mod&&(s&&$('#k-'+s,mod)||$('.k-doc:not([hidden])',mod));
+  if(root&&root.offsetParent){const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let node;
+   while((node=w.nextNode())){const i=norm(node.data).indexOf(qq);if(i<0||!node.parentElement||!node.parentElement.offsetParent)continue;
+    const r=document.createRange();r.setStart(node,i);r.setEnd(node,i+qq.length);const mk=document.createElement('mark');mk.className='kh-hit';
+    try{r.surroundContents(mk)}catch(e){return}
+    /* openDoc сам докручивает к началу раздела ещё ~1 с, поэтому повторяем прокрутку к находке */
+    [0,600,1300].forEach(t=>setTimeout(()=>{if(mk.isConnected)mk.scrollIntoView({block:'center'})},t));
+    setTimeout(()=>mk.classList.add('off'),3500);setTimeout(()=>{if(mk.parentNode)mk.replaceWith(...mk.childNodes)},4600);return}}
+  if(++n<40)setTimeout(go,80)};
+ setTimeout(go,120)}
 const hl=t=>{if(!q)return esc(t);const i=norm(t).indexOf(q);return i<0?esc(t):esc(t.slice(0,i))+'<mark class="kh">'+esc(t.slice(i,i+q.length))+'</mark>'+esc(t.slice(i+q.length))};
 
 function render(){
  const all=docs(),secTot=all.reduce((a,d)=>a+d.secs.length,0);
  $('#khLead').textContent=`${all.length} ${pl(all.length,'конспект','конспекта','конспектов')}, ${secTot} ${pl(secTot,'раздел','раздела','разделов')}. Теория с интерактивными рисунками, задания с разбором и вузовские вставки. Откройте конспект целиком или сразу нужный раздел.`;
- const L=all.map(d=>{if(!q)return{...d,open:false};const hitDoc=norm(d.title+' '+d.lead+' '+d.name).includes(q);const secs=d.secs.filter(s=>norm(s[2]).includes(q));return hitDoc||secs.length?{...d,secs:hitDoc?d.secs:secs,open:!!secs.length}:null}).filter(Boolean);
+ const L=all.map(d=>{if(!q)return{...d,open:false};const hitDoc=norm(d.title+' '+d.lead+' '+d.name).includes(q);
+  const secs=d.secs.filter(s=>norm(s[2]).includes(q)||(q.length>1&&(s[3]=snip(d.m,s[0],q)))).map(s=>s.slice());d.secs.forEach(s=>{s.length=3});
+  return hitDoc||secs.length?{...d,secs:secs.length?secs:d.secs,open:!!secs.length}:null}).filter(Boolean);
  const last=store.get('khLast',null),ld=last&&all.find(d=>d.m===last.m),ls=ld&&last.s&&ld.secs.find(s=>s[0]===last.s);
  $('#khBody').innerHTML=`<div style="display:flex;flex-direction:column;gap:16px">
   ${ld&&!q?`<button class="kh-cont" data-o="${ld.m}" data-s="${ls?ls[0]:''}"><span><small>Продолжить</small><b>${esc(ld.title)}</b><br><span>${ls?'§ '+ls[1]+'. '+esc(ls[2]):'с начала конспекта'}</span></span><span class="ar" aria-hidden="true">→</span></button>`:''}
@@ -93,13 +128,13 @@ function render(){
   <div class="kh-grid">${L.map(card).join('')}${!q?`<div class="kh-soon"><b>Скоро здесь будет больше</b>Новые конспекты появятся в этом разделе автоматически, как только их добавят к любой теме.</div>`:''}</div>
   ${!L.length?`<p class="kh-empty">По запросу «${esc(q)}» ничего не нашлось.</p>`:''}</div>`;
  const inp=$('#khQ');inp.addEventListener('input',()=>{q=norm(inp.value.trim());clearTimeout(render.t);render.t=setTimeout(()=>{render();const i=$('#khQ');i.focus();i.setSelectionRange(i.value.length,i.value.length)},200)});
- $$('#khBody [data-o]').forEach(b=>b.addEventListener('click',()=>openDoc(b.dataset.o,b.dataset.s||null)));
+ $$('#khBody [data-o]').forEach(b=>b.addEventListener('click',()=>{openDoc(b.dataset.o,b.dataset.s||null);if(q&&b.dataset.s)hitText(b.dataset.o,b.dataset.s,q)}));
 }
 function card(d){return `<article class="kh-card"><button class="kh-band" data-o="${d.m}" aria-label="Открыть конспект «${esc(d.title)}»">${band(d.m)}</button>
  <div class="kh-body"><div class="kh-meta"><span class="kh-tag" title="${esc(d.group)}">${esc(d.name)}</span>${d.vuz?'<span class="kh-tag v">вуз</span>':''}<span class="kh-tag">${d.secs.length} ${pl(d.secs.length,'раздел','раздела','разделов')}</span></div>
  <h3>${hl(d.title)}</h3><p>${hl(d.lead||'')}</p>
  <div class="kh-acts"><button class="btn" data-o="${d.m}">Открыть конспект</button><button class="btn ghost" data-viz="${d.m}" title="Интерактивные модели этого раздела без текста">Визуализации</button></div>
- <details class="kh-secs"${d.open?' open':''}><summary>Содержание</summary><ol>${d.secs.map(s=>`<li><button class="${/вуз/i.test(s[2])?'v':''}" data-o="${d.m}" data-s="${s[0]}"><i>${s[1]}</i><span>${hl(s[2])}</span></button></li>`).join('')}</ol></details></div></article>`}
+ <details class="kh-secs"${d.open?' open':''}><summary>${d.open?'Найдено в разделах':'Содержание'}</summary><ol>${d.secs.map(s=>`<li><button class="${/вуз/i.test(s[2])?'v':''}" data-o="${d.m}" data-s="${s[0]}"><i>${s[1]}</i><span>${hl(s[2])}${s[3]?`<span class="kh-snip">${hl(s[3])}</span>`:''}</span></button></li>`).join('')}</ol></details></div></article>`}
 function pl(n,a,b,c){const m=n%10,h=n%100;return m===1&&h!==11?a:m>=2&&m<=4&&(h<10||h>=20)?b:c}
 
 /* открыть раздел в режиме «Конспект с визуализациями» и при необходимости прокрутить к параграфу */
@@ -110,7 +145,7 @@ function openDoc(m,s){store.set('khLast',{m,s});BV.go(m);try{history.replaceStat
 function openViz(m){BV.go(m);try{history.replaceState(null,'','#'+m)}catch(e){}const mod=$('#m-'+m);const sw=mod&&$('.k-switch button[data-m="viz"]',mod);if(sw&&sw.getAttribute('aria-pressed')!=='true')sw.click();window.scrollTo({top:0})}
 BVHOST.root.addEventListener('click',e=>{const b=BV_ET(e).closest&&BV_ET(e).closest('#m-ref [data-viz]');if(b)openViz(b.dataset.viz)});
 
-BV.konspOpen=openDoc;BV.konspList=docs;
+BV.konspOpen=openDoc;BV.konspList=docs;BV.konspFind=find;BV.konspHit=hitText;
 /* старые вызовы справочника ведут в конспекты */
 BV.refOpen=()=>{BV.go('ref');try{history.replaceState(null,'','#ref')}catch(e){}window.scrollTo({top:0})};
 hooks.ref={show:render};

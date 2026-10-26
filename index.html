@@ -256,7 +256,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.body.class
 /* Надёжная загрузка: все файлы качаются параллельно (preload), выполняются строго по порядку.
    К адресу добавляется версия, чтобы после обновления браузер не взял старый файл из кеша.
    Упавший файл перезапрашивается; недогруженное дополнение не мешает запуску остальных. */
-const BV_VER='2026-10-25-gh1';
+const BV_VER='2026-10-26-gh1';
 const bvUrl=(src,r)=>src+'?v='+BV_VER+(r?'&r='+Date.now():'');
 /* попытка 1: с версией; 2: без параметров (если хостинг не понимает ?v=); 3+: с меткой против кеша */
 function bvScript(src,i){return new Promise((ok,no)=>{const e=document.createElement('script');e.src=i===1?src:bvUrl(src,i>1);e.async=false;

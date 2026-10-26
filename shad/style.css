@@ -283,3 +283,6 @@ textarea{width:100%;min-height:76px;resize:vertical;border:1px solid var(--rule)
 .login input{flex:1;min-width:180px;border:1px solid var(--rule);border-radius:10px;padding:9px 12px;font:500 14px var(--f-mono);background:var(--paper);color:var(--ink);text-transform:uppercase}
 .login-msg{font-size:12.5px;color:var(--pen);width:100%}
 @media (max-width:600px){.sync .link-btn{font-size:12px}}
+
+/* телефон: тап по карточке не выделяет текст и не мигает синим */
+button,.row,.cell,.chip,.tab,.opt,.day{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}

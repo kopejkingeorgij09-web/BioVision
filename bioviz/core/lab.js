@@ -1,6 +1,6 @@
-/* Элитная группа: разделы «Микробиологическая лаборатория» и «Биоинформатика».
-   Каждый раздел = вкладка «Лаборатория» (интерактивные модели без текста) + «Конспект с визуализациями».
-   Один и тот же рисунок можно показать в обеих вкладках: BV.EL.fig(build) вызывает build(суффикс) дважды. */
+/* Лаборатория: интерактивные модели без длинного текста, каждая в своей карточке.
+   Один и тот же рисунок можно показать и в лаборатории, и в конспекте: BV.EL.fig(build) вызывает build(суффикс) дважды.
+   Страницу лаборатории собирает BV.EL.lab(boxId, {intro, list}); подключение — в content/course.js. */
 (function(){
 const {$,$$}=BV,K=BV.K,R=BVHOST.root;
 /* перехват K.init: обработчики рисунков нужны и во вкладке «Лаборатория» */
@@ -18,8 +18,8 @@ const CSS=`
 .el-card .kf{margin:4px 0 6px}
 .el-lab .kf-zoom{display:none}
 .el-more{display:flex;flex-wrap:wrap;gap:8px;padding:2px 0 12px}
-.el-more button{all:unset;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--hema);border:1px solid var(--line);border-radius:999px;padding:5px 12px}
-.el-more button:hover{border-color:var(--hema)}
+.el-more a{font-size:13.5px;font-weight:600;color:var(--ui);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:6px 13px}
+.el-more a:hover{border-color:var(--ui)}
 .el-intro{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
 .el-intro div{border:1px solid var(--line);background:var(--surface);border-radius:16px;padding:12px 14px;font-size:13.5px;color:var(--muted);line-height:1.45}
 .el-intro b{display:block;color:var(--ink);font-size:14.5px;margin-bottom:2px}
@@ -43,18 +43,13 @@ const CSS=`
 `;
 const st=document.createElement('style');st.textContent=CSS;R.appendChild(st);
 
-/* меню: группа «Элитная группа» после «Теории» */
-{const after=$('.nav-item[data-go="cards"]')||$('.nav-item[data-go="ref"]');
- const html=`<p class="nav-group" id="navElite">Элитная группа</p><button class="nav-item" data-go="microlab">Микробиологическая лаборатория <span class="new">новое</span></button><button class="nav-item" data-go="bioinf">Биоинформатика <span class="new">новое</span></button>`;
- if(after)after.insertAdjacentHTML('afterend',html);else $('.nav').insertAdjacentHTML('beforeend',html)}
-
 /* рисунок, который живёт и в конспекте, и в лаборатории */
 const FIG={};
 function fig(name,build){FIG[name]={doc:build(''),lab:build('L'),id:name};return FIG[name].doc}
 function lab(boxId,items){const box=$('#'+boxId);if(!box)return;
-  box.innerHTML=(items.intro||'')+items.list.map((it,i)=>`<section class="el-card" style="--c:${it.c||'var(--hema)'}"><header><i>${i+1}</i><div><h2>${it.t}</h2><p>${it.p}</p></div></header>${FIG[it.f].lab}${it.doc?`<div class="el-more"><button data-doc="${it.doc[0]}" data-sec="${it.doc[1]||''}">Теория к этой модели →</button></div>`:''}</section>`).join('');
+  box.innerHTML=(items.intro||'')+items.list.map((it,i)=>`<section class="el-card" id="lab-${it.f}" style="--c:${it.c||'var(--hema)'}"><header><i>${i+1}</i><div><h2>${it.t}</h2><p>${it.p}</p></div></header>${FIG[it.f].lab}${it.doc?`<div class="el-more"><a href="#/${it.doc[0]}${it.doc[1]?'/'+it.doc[1]:''}">${it.doc[2]||'Теория к этой модели'} →</a></div>`:''}</section>`).join('');
   items.list.forEach(it=>{const id=it.f+'L',f=$('#f-'+id,box),fn=H[id];if(f&&fn){try{fn(f,f.querySelector('.kf-st>svg'))}catch(e){console.error('Лаборатория',id,e)}}});
-  $$('[data-doc]',box).forEach(b=>b.addEventListener('click',()=>{const m=b.dataset.doc,s=b.dataset.sec||null;if(BV.UX&&BV.UX.openDoc)BV.UX.openDoc(m,s);else if(BV.konspOpen)BV.konspOpen(m,s)}))}
+}
 /* генетический код и работа с последовательностями — общие для CRISPR и биоинформатики */
 const NT='TCAG',AA='FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG',CODE={};
 for(let i=0;i<4;i++)for(let j=0;j<4;j++)for(let k=0;k<4;k++)CODE[NT[i]+NT[j]+NT[k]]=AA[16*i+4*j+k];

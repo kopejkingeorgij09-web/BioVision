@@ -1,14 +1,7 @@
-/* Вузовский уровень БиоВиза: общие стили, помощники для рисунков и реестр дополнений.
-
-   КАК НАРАЩИВАТЬ ТЕОРИЮ
-   1. Новый раздел в существующий конспект (tour, cell, chem, energy, osmos):
-        BV.VZ.sec('chem', {id:'my', no:14, t:'Название', sub:[['k-my1','Подраздел']], html:()=>`...`});
-      Внутри html доступны все блоки конспекта: K.fig, K.tbl, K.box, K.ex, K.trap, K.ol, K.deep,
-      K.choice, K.match, K.seq, K.open, а также VZ.box (рамка «Вузовский уровень») и VZ.src (ссылка на источник).
-   2. Интерактивный рисунок: K.fig({id:'vzX', vb:[1000,440], svg:'<g class="vzx"></g>', ctl:K.rng(...), after:'<div class="k-steptx"></div>'})
-      и обработчик BV.K.init('vzX',(fig,svg)=>{...}). Рисунок рисуется на светлом поле в обеих темах.
-   3. Целый новый конспект у любого раздела: BV.VZ.doc('id', {kick,title,lead,intro,end}) + разделы через BV.VZ.sec,
-      затем добавить 'id' в vuz_cfg.json (kdocs) — тогда у раздела появится вкладка «Конспект с визуализациями». */
+/* Помощники для рисунков в конспектах и лаборатории: общие стили, палитра VZ.C и функции рисования
+   (t, ln, dot, rect, path, arrow, axes, curve, num).
+   VZ.doc(id,{kick,title,lead,intro,end}) и VZ.sec(id,{id,no,t,sub,html}) — короткие имена для BV.K.doc и BV.K.sec.
+   Как собрать лекцию из этих блоков, написано в content/README.md, рабочий образец в content/lectures/_shablon.js. */
 (function(){
 const K=BV.K,VZ=BV.VZ={};
 const CSS=`

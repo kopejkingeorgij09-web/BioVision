@@ -223,6 +223,7 @@ C.labs.forEach(B=>{const s=page('pg-lab-'+B.id);
   pages['lab:'+B.id]=s});
 const home=pages.home=page('pg-home');
 const me=pages.me=page('pg-me');
+const NOTE=()=>`<p class="note">На этом устройстве хранятся код входа, тема оформления и место, где ты остановился в лекции. ${C.ai==='server'?'Разговор с помощником живёт до закрытия вкладки, вопросы уходят на сервер группы и дальше в Claude вместе с текстом открытого раздела.':'Вопросы помощнику уходят прямо в claude.ai, в твой аккаунт, вместе с текстом открытого раздела. Сайт их не хранит.'}</p>`;
 
 /* ---------- прогресс чтения ---------- */
 const secsOf=id=>((BV.KR||{})[id]||{}).sections||[];
@@ -244,15 +245,15 @@ function renderHome(){
      return `<li><a class="row" href="#/l/${L.n}"><span class="no">${String(L.n).padStart(2,'0')}</span><span><b>${esc(L.title)}</b><small>${fmtDate(L.date)} · ${p.total} разделов</small><span class="ab">${esc(L.about)}</span></span>
        <span class="pr">${p.done?`${p.done} из ${p.total}`:'не начата'}<span class="bar-p"><i style="width:${p.total?Math.round(p.done/p.total*100):0}%"></i></span></span></a></li>`}).join('')}</ol></section>
    <section class="blk" aria-labelledby="hLab"><h2 id="hLab">Лаборатория</h2><ul class="rows">${C.labs.map(B=>`<li><a class="row" href="#/lab/${esc(B.id)}"><span class="no">${ic('lab')}</span><span><b>${esc(B.title)}</b><span class="ab">${esc(B.about)}</span><span class="tags">${(B.models||[]).map(m=>`<span>${esc(m)}</span>`).join('')}</span></span><span class="pr">${ic('arrow')}</span></a></li>`).join('')}</ul></section>
-   <section class="blk" aria-labelledby="hAsk"><h2 id="hAsk">Помощник</h2><div class="askcard">${ic('ai')}<span><b>Вопрос по материалу</b><p>Объяснит непонятное место, разберёт задачу из лекции, подскажет, что почитать. Нужен код группы.</p></span><button type="button" class="btn" data-ask>Открыть помощника</button></div></section>`}
+   <section class="blk" aria-labelledby="hAsk"><h2 id="hAsk">Помощник</h2><div class="askcard">${ic('ai')}<span><b>Вопрос по материалу</b><p>Объяснит непонятное место, разберёт задачу из лекции, подскажет, что почитать. ${C.ai==='server'?'Нужен код группы.':'Ответ откроется в claude.ai, в твоём аккаунте.'}</p></span><button type="button" class="btn" data-ask>Открыть помощника</button></div></section>`}
 
 /* ---------- профиль и вход ---------- */
 const A=window.BVAUTH;
 async function renderMe(){
   if(!A){me.innerHTML='<p class="msg">Облако не загрузилось. Обнови страницу.</p>';return}
   await A.ready;const u=A.me;
-  if(!u){me.innerHTML=`<header class="hero"><p class="eyebrow">Профиль</p><h1>Вход</h1><p class="lead">Код выдаёт руководитель группы. С кодом работает помощник, без кода конспекты и лаборатория открыты всем.</p></header>
-    <form class="card" id="meForm"><h2>Код группы</h2><div class="field"><input id="meCode" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="BIO-XXXX-XXXX" aria-label="Код"><button class="btn">Войти</button></div><p class="msg" id="meMsg" role="status"></p></form><p class="note">На этом устройстве хранятся код входа, тема оформления и место, где ты остановился в лекции. Разговор с помощником живёт до закрытия вкладки, вопросы уходят на сервер группы и дальше в Claude вместе с текстом открытого раздела.</p>`;
+  if(!u){me.innerHTML=`<header class="hero"><p class="eyebrow">Профиль</p><h1>Вход</h1><p class="lead">${C.ai==='server'?'Код выдаёт руководитель группы. С кодом работает помощник, без кода конспекты и лаборатория открыты всем.':'Вход нужен руководителю группы. Конспекты, лаборатория и помощник открыты без кода.'}</p></header>
+    <form class="card" id="meForm"><h2>Код группы</h2><div class="field"><input id="meCode" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="BIO-XXXX-XXXX" aria-label="Код"><button class="btn">Войти</button></div><p class="msg" id="meMsg" role="status"></p></form>${NOTE()}`;
     $('#meForm').addEventListener('submit',async e=>{e.preventDefault();const m=$('#meMsg');m.className='msg';m.textContent='Проверяю…';
       try{await A.login($('#meCode').value);syncWho();renderMe()}catch(er){m.className='msg err';m.textContent=er.message}});
     return}
@@ -261,7 +262,7 @@ async function renderMe(){
    ${admin?`<section class="card"><h2>Коды группы</h2><p>Каждому участнику свой код. Удалённый код перестаёт работать сразу.</p>
      <form class="field" id="cNew"><input class="plain" id="cName" placeholder="Имя участника" aria-label="Имя участника"><button class="btn">Выдать код</button></form>
      <p class="msg" id="cMsg" role="status"></p><ul class="codes" id="cList"><li class="msg">Загружаю…</li></ul></section>`:''}
-   <div><button type="button" class="btn ghost" id="meOut">Выйти</button></div><p class="note">На этом устройстве хранятся код входа, тема оформления и место, где ты остановился в лекции. Разговор с помощником живёт до закрытия вкладки, вопросы уходят на сервер группы и дальше в Claude вместе с текстом открытого раздела.</p>`;
+   <div><button type="button" class="btn ghost" id="meOut">Выйти</button></div>${NOTE()}`;
   $('#meOut').addEventListener('click',()=>{A.logout();syncWho();renderMe()});
   if(admin){
     const draw=async()=>{const ul=$('#cList');try{const L=await A.codes()||[];

@@ -1,10 +1,13 @@
-/* ИИ-помощник на сайте. Панель справа (на телефоне во весь экран), вопрос уходит в функцию Supabase bv-ai,
-   она проверяет код участника и спрашивает Claude. Ключ Anthropic лежит только на сервере, в секретах Supabase.
+/* ИИ-помощник. Панель справа (на телефоне во весь экран). Режим задаётся в content/course.js (поле ai):
+   'claude.ai' — вопрос вместе с текстом открытого раздела открывается в claude.ai в новой вкладке, в аккаунте участника;
+   'server' — вопрос уходит в функцию Supabase bv-ai, она проверяет код участника и спрашивает Claude.
+   Ключ Anthropic лежит только на сервере, в секретах Supabase.
    Помощник видит, какая лекция и какой раздел открыты, и получает текст этого раздела как контекст.
    Выделенный в конспекте текст можно отправить кнопкой «Спросить». */
 (function(){
 const {$,$$,esc,store}=BV,R=BVHOST.root,A=window.BVAUTH,C=window.BV_COURSE;
 const ENDPOINT=(window.BV_AI_URL||'https://zonrkvsibojyalhnqutd.supabase.co/functions/v1/bv-ai');
+const SERVER=C.ai==='server';
 
 const CSS=`
 .ai{position:fixed;z-index:80;top:var(--barh);right:0;bottom:0;width:min(440px,100vw);display:flex;flex-direction:column;background:var(--card);border-left:1px solid var(--line);box-shadow:-20px 0 50px -30px rgba(0,0,0,.35);transform:translateX(102%);transition:transform .22s ease;visibility:hidden}
@@ -96,7 +99,7 @@ const srcList=src=>(src&&src.length)?`<div class="ai-src"><b>Источники<
 
 function draw(){const body=$('.ai-body',box);const ctx=context();
   const cx=$('.ai-ctx',box);cx.hidden=false;$('span',cx).textContent=ctx?'Контекст: '+ctx.label:'Контекст: весь курс';
-  if(!A||!A.me){body.innerHTML=`<form class="ai-login"><b>Нужен код группы</b><span>Помощник работает для участников группы. Код выдаёт руководитель.</span>
+  if(SERVER&&(!A||!A.me)){body.innerHTML=`<form class="ai-login"><b>Нужен код группы</b><span>Помощник работает для участников группы. Код выдаёт руководитель.</span>
       <div class="field"><input name="c" autocomplete="off" spellcheck="false" placeholder="BIO-XXXX-XXXX" aria-label="Код группы"><button class="btn">Войти</button></div><span class="msg" role="status"></span></form>`;
     const f=$('form',body);f.addEventListener('submit',async e=>{e.preventDefault();const m=$('.msg',f);m.className='msg';m.textContent='Проверяю…';
       try{await A.login(f.c.value);draw();const w=$('.who span');if(w)w.textContent=A.me.name||'Профиль'}catch(er){m.className='msg err';m.textContent=er.message}});
@@ -104,17 +107,17 @@ function draw(){const body=$('.ai-body',box);const ctx=context();
   body.style.cssText='flex:1;display:flex;flex-direction:column;min-height:0';
   body.innerHTML=`<div class="ai-log" aria-live="polite"></div>
     <form class="ai-f"><textarea rows="1" placeholder="Спроси о материале…" aria-label="Вопрос помощнику"></textarea><button class="btn" aria-label="Отправить">↑</button></form>
-    <p class="ai-note">Отвечает Claude по материалам курса и научным сайтам. Проверяй цифры по ссылкам.</p>`;
+    <p class="ai-note">${SERVER?'Отвечает Claude по материалам курса и научным сайтам. Проверяй цифры по ссылкам.':'Ответ откроется на claude.ai в новой вкладке, в твоём аккаунте. Подойдёт и бесплатный.'}</p>`;
   drawLog();
   const f=$('.ai-f',body),ta=$('textarea',f);
   ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(160,ta.scrollHeight)+'px'});
   ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();f.requestSubmit()}});
-  f.addEventListener('submit',e=>{e.preventDefault();const q=ta.value.trim();if(!q||busy)return;ta.value='';ta.style.height='auto';ask(q)})}
+  f.addEventListener('submit',e=>{e.preventDefault();const q=ta.value.trim();if(!q||busy)return;ta.value='';ta.style.height='auto';(SERVER?ask:handoff)(q)})}
 function drawLog(){const lg=$('.ai-log',box);if(!lg)return;
   if(!log.length){const ctx=context();const sug=ctx&&ctx.section?[`Объясни простыми словами, о чём ${ctx.section}`,'Какие здесь ключевые термины и как они связаны?','Задай мне три вопроса на понимание этого раздела']:['О чём лекция 1 в трёх предложениях?','Чем олиготрофы отличаются от копиотрофов?','Как устроен мотор бактериального жгутика?'];
-    lg.innerHTML=`<div class="ai-empty"><b>О чём спросить?</b><span>Помощник видит, какой раздел у тебя открыт. Можно выделить фразу в конспекте и нажать «Спросить».</span><div class="ai-sug">${sug.map(s=>`<button type="button">${esc(s)}</button>`).join('')}</div></div>`;
-    $$('.ai-sug button',lg).forEach(b=>b.addEventListener('click',()=>ask(b.textContent)));return}
-  lg.innerHTML=log.map(m=>m.role==='user'?`<div class="ai-m u">${esc(m.content)}</div>`:`<div class="ai-m a">${md(m.content)}${srcList(m.src)}</div>`).join('');
+    lg.innerHTML=`<div class="ai-empty"><b>О чём спросить?</b><span>${SERVER?'Помощник видит, какой раздел у тебя открыт.':'Вопрос уйдёт в Claude вместе с текстом раздела, который у тебя открыт.'} Можно выделить фразу в конспекте и нажать «Спросить».</span><div class="ai-sug">${sug.map(s=>`<button type="button">${esc(s)}</button>`).join('')}</div></div>`;
+    $$('.ai-sug button',lg).forEach(b=>b.addEventListener('click',()=>(SERVER?ask:handoff)(b.textContent)));return}
+  lg.innerHTML=log.map(m=>m.role==='user'?`<div class="ai-m u">${esc(m.content)}</div>`:`<div class="ai-m a">${md(m.content)}${srcList(m.src)}${m.link&&m.link.startsWith(CLAUDE)?`<p><a href="${esc(m.link)}" target="_blank" rel="noopener">Открыть ещё раз</a></p>`:''}</div>`).join('');
   lg.scrollTop=lg.scrollHeight}
 
 /* ---------- запрос ---------- */
@@ -141,6 +144,21 @@ async function ask(q){if(busy)return;busy=true;
   catch(e){out.className='ai-m err';out.textContent=e.message||'Не получилось получить ответ.';
     if(!text)log.pop()}
   finally{busy=false;if(text)drawLog()}}
+
+/* ---------- режим claude.ai: вопрос с контекстом в новой вкладке ---------- */
+const CLAUDE='https://claude.ai/new?q=';
+const QMAX=1200; // столько текста раздела влезает в адрес; полный текст уходит в буфер обмена
+function prompt(q,full){const ctx=context();
+  const head=`Я изучаю курс «${C.title}» (${C.group}).`+(ctx&&ctx.lecture?` Открыта ${ctx.lecture}${ctx.section?', раздел '+ctx.section:''}.`:'');
+  let text=ctx&&ctx.text||'';if(!full&&text.length>QMAX)text=text.slice(0,QMAX)+'…';
+  return head+(text?`\n\nТекст раздела:\n"""\n${text}\n"""`:'')+`\n\nМой вопрос: ${q}\n\nОтвечай по-русски, опирайся на текст раздела. Если в нём ответа нет, скажи об этом и назови надёжный источник (учебник или статью).`}
+function handoff(q){const url=CLAUDE+encodeURIComponent(prompt(q,false));
+  window.open(url,'_blank','noopener');
+  const ctx=context(),long=!!(ctx&&ctx.text&&ctx.text.length>QMAX);
+  const a={role:'assistant',link:url,content:'Вопрос открыт в Claude в новой вкладке.'+(long?' Раздел длинный, поэтому в вопрос вошло только его начало.':'')};
+  log.push({role:'user',content:q},a);save();drawLog();
+  /* полный текст раздела кладём в буфер, чтобы его можно было вставить в чат; сообщаем, только если получилось */
+  if(long)try{navigator.clipboard.writeText(prompt(q,true)).then(()=>{a.content+=' Полный текст с вопросом скопирован: если Claude не хватит контекста, вставь его в чат.';save();drawLog()},()=>{})}catch(e){}}
 
 /* ---------- открыть / закрыть ---------- */
 function setNav(on){$$('[data-nav="ai"]').forEach(b=>b.setAttribute('aria-expanded',String(on)))}

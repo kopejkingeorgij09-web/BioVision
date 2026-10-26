@@ -954,6 +954,13 @@ nav button .nl{flex:1}
 nav:empty{display:none}
 /* search */
 .top-r{display:flex;align-items:center;gap:14px;flex:none}
+/* учитель и ученик в одном аккаунте: переключатель режима в шапке */
+.rolesw{display:flex;flex:none;padding:3px;border-radius:12px;border:1px solid var(--line);background:var(--card)}
+.rolesw button{all:unset;box-sizing:border-box;cursor:pointer;height:32px;padding:0 12px;border-radius:9px;font-size:13.5px;font-weight:600;color:var(--muted);display:grid;place-items:center;white-space:nowrap}
+.rolesw button:hover{color:var(--text)}
+.rolesw button[aria-pressed="true"]{background:var(--ink);color:var(--card)}
+.rolesw button:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+.rolesw.busy{opacity:.6;pointer-events:none}
 .srbtn{all:unset;box-sizing:border-box;flex:none;cursor:pointer;display:flex;align-items:center;gap:9px;height:40px;padding:0 8px 0 12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--muted);font-size:14px;min-width:230px;transition:border-color .15s,color .15s}
 .srbtn:hover{border-color:var(--ink);color:var(--text)}
 .srbtn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
@@ -1225,7 +1232,9 @@ body.bvfull #bvhost{grid-column:1}
 #main.vin>*{animation:pagein .22s ease-out both}
 @media (prefers-reduced-motion:reduce){#main.vin>*{animation:none}}
 /* компактная шапка на телефоне */
-@media(max-width:600px){.logo{gap:8px;min-width:0}.logo b{font-size:15px;line-height:1.15}.logo span{display:none}.phx{width:42px;height:42px}#who{font-size:13px;max-width:28vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+@media(max-width:600px){.logo{gap:8px;min-width:0}.logo b{font-size:15px;line-height:1.15}.logo span{display:none}.phx{width:42px;height:42px}#who{font-size:13px;max-width:28vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rolesw{padding:2px;border-radius:999px}.rolesw button{height:30px;padding:0 10px;border-radius:999px;font-size:12.5px;gap:4px;grid-auto-flow:column}
+  .rolesw button[aria-pressed="false"]{display:none}.rolesw button[aria-pressed="true"]::after{content:"⇄";font-size:13px;opacity:.75}}
 /* рабочие тетради */
 body.nbfull .top,body.nbfull #nav{display:none}
 body.nbfull .wrap{grid-template-columns:minmax(0,1fr);max-width:none;padding-top:0;padding-bottom:40px}
@@ -1468,7 +1477,7 @@ nav button{transition:background .15s,color .15s}
     <svg class="phx" viewBox="0 0 100 100" width="62" height="62" aria-hidden="true"><defs><linearGradient id="phh" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:color-mix(in srgb,var(--ink) 55%,var(--card))"/><stop offset="1" style="stop-color:var(--ink)"/></linearGradient></defs><g transform="translate(50 86) rotate(0) scale(1.55)" opacity="1">  <path d="M5 -1.5 L14 -4 L19 6 M-5 -1.5 L-14 -4 L-19 6 M3 -1 L9 6 M-3 -1 L-9 6" fill="none" stroke="var(--ink)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>  <rect x="-2.5" y="-23" width="5" height="20" rx="1.2" fill="var(--ink)"/><path d="M-2.5 -5.5H2.5M-2.5 -8H2.5M-2.5 -10.5H2.5M-2.5 -13H2.5M-2.5 -15.5H2.5M-2.5 -18H2.5M-2.5 -20.5H2.5" stroke="var(--card)" stroke-opacity=".45" stroke-width=".8"/>  <rect x="-7.5" y="-3.2" width="15" height="3.2" rx="1.2" fill="var(--ink)"/><rect x="-4.5" y="-26" width="9" height="3.2" rx="1" fill="var(--ink)"/>  <polygon points="0,-50 10.4,-44 10.4,-32 0,-26 -10.4,-32 -10.4,-44" fill="url(#phh)" fill-opacity="1" stroke="var(--ink)" stroke-width="1.6" stroke-linejoin="round"/>  <path d="M0 -38L0 -50M0 -38L10.4 -32M0 -38L-10.4 -32" stroke="var(--card)" stroke-opacity="0.5" stroke-width=".9"/>  <path d="M-5 -40q2.5 -3 5 0t5 0M-5 -35q2.5 -3 5 0t5 0" fill="none" stroke="var(--accent)" stroke-opacity="0.9" stroke-width="1.2" stroke-linecap="round"/></g></svg>
     <div><b>Фаги естественных наук</b><span>биология, химия, математика</span></div>
   </div>
-  <div class="top-r"><button id="srbtn" class="srbtn" type="button" hidden aria-label="Поиск" aria-keyshortcuts="Control+K"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg><span>Поиск</span><kbd>Ctrl K</kbd></button><button id="thbtn" class="thbtn" type="button" aria-label="Тема оформления" title="Тема оформления" aria-haspopup="true" aria-expanded="false" aria-controls="thmenu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 2-2 0-1.4-1.3-1.7-1.3-3 0-1.1.9-2 2-2h2.1A4.2 4.2 0 0 0 21 9.8C21 6 17 3 12 3z"/><circle cx="7.6" cy="11.4" r="1.1"/><circle cx="10.4" cy="7.4" r="1.1"/><circle cx="15.2" cy="7.6" r="1.1"/></svg></button><div id="who"></div></div>
+  <div class="top-r"><button id="srbtn" class="srbtn" type="button" hidden aria-label="Поиск" aria-keyshortcuts="Control+K"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg><span>Поиск</span><kbd>Ctrl K</kbd></button><button id="thbtn" class="thbtn" type="button" aria-label="Тема оформления" title="Тема оформления" aria-haspopup="true" aria-expanded="false" aria-controls="thmenu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 2-2 0-1.4-1.3-1.7-1.3-3 0-1.1.9-2 2-2h2.1A4.2 4.2 0 0 0 21 9.8C21 6 17 3 12 3z"/><circle cx="7.6" cy="11.4" r="1.1"/><circle cx="10.4" cy="7.4" r="1.1"/><circle cx="15.2" cy="7.6" r="1.1"/></svg></button><div id="rolesw" class="rolesw" role="group" aria-label="Режим" hidden><button type="button" data-role="teacher">Учитель</button><button type="button" data-role="student">Ученик</button></div><div id="who"></div></div>
 </header>
 <div class="wrap"><nav id="nav" aria-label="Разделы"></nav><main id="main"></main><div id="bvhost" hidden></div></div>
 <dialog id="bt" aria-label="Бой"><div class="vw-h"><b id="btt" class="grow"></b><button class="btn ghost sm" data-bt="speed">×2</button><button class="btn ghost sm" data-bt="skip">Пропустить</button><button class="btn sm" data-bt="close">Закрыть</button></div><div id="btbody"></div></dialog>
@@ -2959,7 +2968,8 @@ function patchMain(M,html){
 function draw(soft){
   const a=document.activeElement,aid=a&&a.id;let ss,se;try{ss=a.selectionStart;se=a.selectionEnd}catch{}
   const sy=window.scrollY;
-  $('#who').textContent=T()?'Учитель':(S.mode==='student'&&S.joined?S.myLabel:'');
+  $('#who').textContent=S.dual?'':T()?'Учитель':(S.mode==='student'&&S.joined?S.myLabel:'');
+  const rs=$('#rolesw');rs.hidden=!S.dual;if(S.dual)rs.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.role===S.mode)));
   $('#srbtn').hidden=!(T()||(S.mode==='student'&&S.joined));
   document.body.classList.toggle('rvmode',S.view==='review');
   bvSync();owlSync();
@@ -5393,6 +5403,20 @@ Object.assign(actions,{
     await S.db.doc(`track/${uid}/items/${x.id}`).update({stage:next,updatedAt:now()});toast('Этап: '+TK_ST[next].toLowerCase())}
 });
 
+/* режим владельца: «Учитель» или «Ученик». Смена режима сохраняет несохранённый прогресс и перезагружает страницу,
+   потому что подписки на данные у учителя и ученика разные */
+const ROLE_K='ph_role';
+function roleGet(){try{return localStorage.getItem(ROLE_K)||''}catch{return ''}}
+async function roleSet(r){if(!S.dual||r===S.mode)return;const sw=$('#rolesw');sw.classList.add('busy');
+  try{if(draftTask)draftSave()}catch{}
+  if(dirty.size||streakDirty)flush();
+  try{await Promise.race([chain,new Promise(f=>setTimeout(f,4000))])}catch{}
+  try{localStorage.setItem(ROLE_K,r)}catch{}
+  location.reload()}
+$('#rolesw').addEventListener('click',e=>{const b=e.target.closest('button[data-role]');if(!b)return;
+  /* на телефоне видна только кнопка текущего режима: нажатие переключает на другой */
+  roleSet(b.dataset.role===S.mode?(T()?'student':'teacher'):b.dataset.role)});
+
 (async()=>{
   render();
   if(!window.claude||!window.claude.use){S.mode='nodb';return render()}
@@ -5404,7 +5428,9 @@ Object.assign(actions,{
   claude.use('downloads').then(d=>{S.dl=d||null}).catch(()=>{S.dl=null});
   claude.use('sample').then(s=>{S.sample=s||null;if(S.view==='review')render()}).catch(()=>{S.sample=null});
   if(!S.me.isOwner&&!S.me.id){S.mode='noid';return render()}
-  S.mode=S.me.isOwner?'teacher':'student';
+  /* учитель и его ученический профиль это один аккаунт: режим выбирается переключателем в шапке */
+  S.dual=!!S.me.isOwner;
+  S.mode=S.me.isOwner&&roleGet()!=='student'?'teacher':'student';
   subscribe();render();
   loadScript('https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js').then(()=>{KX=window.katex||null;render()}).catch(()=>{});
 })();

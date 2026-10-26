@@ -2,8 +2,8 @@
 <html lang="ru">
 <head>
 <script src="cloud.js?v=2"></script>
-<link rel="stylesheet" href="dragons/dragons.css?v=1">
-<script src="dragons/genetics.js?v=1"></script><script src="dragons/draw.js?v=1"></script><script src="dragons/ui.js?v=1"></script>
+<link rel="stylesheet" href="dragons/dragons.css?v=2">
+<script src="dragons/genetics.js?v=2"></script><script src="dragons/draw.js?v=2"></script><script src="dragons/economy.js?v=2"></script><script src="dragons/island.js?v=2"></script><script src="dragons/ui.js?v=2"></script>
 <meta charset="utf-8">
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1953,7 +1953,7 @@ function navHTML(){
   const items=T()
     ?[['home','Главная',pending().length],['cal','Расписание'],['track','Трекер'],['tasks','Задания'],['cards','Карточки'],['nbs','Тетради'],['arena','Арена'],['bio','Биовиз'],['journal','Журнал'],['people','Ученицы']]
     :[['home','Главная'],['cal','Расписание'],['track','Трекер',tkLate(meId())],['tasks','Задания',myTasks().filter(t=>!inNb(t)&&['todo','late'].includes(status(t,meId()).k)).length],['cards','Карточки',dueCards],['nbs','Тетради',nbBadge()],['arena','Арена'],['bio','Биовиз'],['marks','Журнал',errPile(meId()).length+bvPile(meId()).length]];
-  const cur=S.view==='task'?'tasks':['deck','review','stview'].includes(S.view)?'cards':S.view==='fix'?'marks':S.view==='arview'?'arena':S.view==='nb'?'nbs':S.view;
+  const cur=S.view==='task'?'tasks':['deck','review','stview','island'].includes(S.view)?'cards':S.view==='fix'?'marks':S.view==='arview'?'arena':S.view==='nb'?'nbs':S.view;
   const kb=/Mac|iPhone|iPad/.test(navigator.platform||'')?'⌥':'Alt+';
   return items.map(([v,l,n],i)=>`<button data-act="go" data-v="${v}" aria-current="${cur===v}" aria-label="${l}${n?`, ${n}`:''}" title="${l}${i<9?` (${kb}${i+1})`:''}"><span class="ni" aria-hidden="true"><svg viewBox="0 0 24 24">${IC[v]}</svg></span><span class="nl">${l}</span>${n?`<span class="badge">${n}</span>`:''}</button>`).join('');
 }
@@ -2934,7 +2934,7 @@ function mainHTML(){
     <p class="muted">Напиши, как тебя зовут, чтобы учитель понимал, чья работа.</p>
     <label>Имя<input id="joinname" maxlength="40" value="${esc(val('joinname'))}" autocomplete="given-name"></label>
     <button class="btn" data-act="join">Войти в класс</button></section>`;
-  const html=({home:homeHTML,cal:calHTML,tasks:tasksHTML,task:taskHTML,cards:cardsHTML,deck:deckHTML,review:reviewHTML,stview:stViewHTML,journal:journalHTML,marks:marksHTML,fix:fixHTML,people:peopleHTML,arena:arenaHTML,arview:arviewHTML,bio:bioHTML,nbs:nbsHTML,nb:nbHTML,track:trackHTML}[S.view]||homeHTML)();
+  const html=({home:homeHTML,cal:calHTML,tasks:tasksHTML,task:taskHTML,cards:cardsHTML,deck:deckHTML,review:reviewHTML,stview:stViewHTML,journal:journalHTML,marks:marksHTML,fix:fixHTML,people:peopleHTML,arena:arenaHTML,arview:arviewHTML,island:DRGUI.islandView,bio:bioHTML,nbs:nbsHTML,nb:nbHTML,track:trackHTML}[S.view]||homeHTML)();
   const c=PHC[S.view];
   return c&&IC[S.view]?html.replace('<div class="page-h"><h1>',`<div class="page-h"><h1><span class="phi" style="--c:${c}" aria-hidden="true"><svg viewBox="0 0 24 24">${IC[S.view]}</svg></span>`):html;
 }

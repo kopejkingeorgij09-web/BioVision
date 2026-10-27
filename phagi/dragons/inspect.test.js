@@ -136,4 +136,20 @@ t('паспорт: у дракона с острова строки подпис
     else{assert.deepStrictEqual(z.rows.map(r=>r[0]),['Z от матери','Z от отца']);assert.deepStrictEqual(z.rows[0][1],['M','N'])}}
   assert.deepStrictEqual(block(I.genoModel(fa),'A3').rows.map(r=>r[0]),['1-я','2-я'])});
 
+t('паспорт: краткий ответ есть для каждого гена у самца и самки, гаметы из движка с кроссоверными, место отсутствующей части',()=>{
+  const gs=[mk({}),fem({}),mk({S:'s/s'}),mk({E:'e/e',H:'h/h',R:'R2/R2',Wg:'Wg/+',N:'n/n',C:'Cb/c'}),fem({Sp:'sp',G:'g',N:'N',M:'m'})];
+  gs.forEach(g=>{const ph=D.phenotype(g);Object.keys(D.LOCI).forEach(l=>{const b=I.BRIEF[l](g,ph);assert.ok(typeof b==='string'&&b.length>8&&!/undefined|NaN/.test(b),l+': '+b)})});
+  assert.ok(/кодоминантны/.test(I.BRIEF.E(mk({E:'F/W'}),D.phenotype(mk({E:'F/W'})))));
+  assert.ok(/гасит/.test(I.BRIEF.E(mk({S:'s/s'}),D.phenotype(mk({S:'s/s'})))));
+  const g=mk({H:'H/h',K:'K/k'}),G=I.gametesOf(g,'A3');
+  assert.ok(Math.abs(G.reduce((a,x)=>a+x.p,0)-1)<1e-9);
+  const hk=x=>x.h.slice(0,2).join('');const by={};G.forEach(x=>by[hk(x)]=(by[hk(x)]||0)+x.p);
+  assert.ok(Math.abs(by.HK-0.41)<1e-9&&Math.abs(by.hk-0.41)<1e-9&&Math.abs(by.Hk-0.09)<1e-9&&Math.abs(by.hK-0.09)<1e-9,JSON.stringify(by));
+  assert.ok(G.filter(x=>x.rec).every(x=>hk(x)==='Hk'||hk(x)==='hK'||x.h[2]!==g.A3[0][2]||x.h[2]!==g.A3[1][2]));
+  const f=I.gametesOf(fem({}),'Z');assert.deepStrictEqual(f.map(x=>[x.chr,x.p]),[['Z',0.5],['W',0.5]]);
+  assert.strictEqual(I.gametesOf(mk({}),'mt').length,0);assert.strictEqual(I.gametesOf(fem({}),'mt')[0].p,1);
+  assert.strictEqual(I.spotOf('horns',['body','head','legs']),'head');assert.strictEqual(I.spotOf('mace',['body','head']),'body');
+  assert.strictEqual(I.spotOf('spurs',['body','legs']),'legs');
+  Object.values(I.EX).filter(Boolean).forEach(e=>e.src.forEach(k=>assert.ok(I.SOURCES[k],k)))});
+
 console.log(`\n${n-fails}/${n} тестов прошли`);if(fails)process.exit(1);

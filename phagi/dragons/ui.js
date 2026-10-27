@@ -330,7 +330,9 @@ new MutationObserver(()=>{
   const fs=!!document.querySelector('.drg-map.full'),b=document.body;if(!b)return;
   if(b.classList.contains('drg-fs')!==fs)b.classList.toggle('drg-fs',fs);
   const iv=!!document.querySelector('.drg-map');if(b.classList.contains('drg-islv')!==iv)b.classList.toggle('drg-islv',iv);
-  if(fs)camApply()}).observe(document.documentElement,{childList:true,subtree:true});
+  if(fs)camApply();
+  /* живой остров: драконы из рисунка A поверх острова (live.js), состояние берётся то же, что у рисунка острова */
+  if(window.DRLIVE)DRLIVE.scan(()=>{const x=stateOf(S.drgUid||meId());return x&&x.st})}).observe(document.documentElement,{childList:true,subtree:true});
 
 /* ---------- осмотр дракона (inspect.js): данные для сцены и кормление оттуда ---------- */
 function inspInfo(uid,id){

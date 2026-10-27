@@ -121,12 +121,18 @@ function eggSVG(x,y,eg,r){const G=root.DRG,W=root.DRAW;r=r||1;
   let c1='#FFF6DE',c2='#C9A86A';
   if(eg.viable){const ph=G.phenotype(eg.genome),k=ph.breath==='element'?ph.elements:[];c2=k.length?W.EL_COL[k[0]]:'#8C8F96';if(k[1])c1=W.EL_COL[k[1]]+'55'}else{c1='#D8D4CC';c2='#9A958C'}
   return `<g transform="translate(${x} ${y}) scale(${r})"><ellipse cx="0" cy="0" rx="9" ry="12" fill="${c1}" stroke="#8A7650" stroke-width="1.4"/><circle cx="-3" cy="-4" r="2" fill="${c2}"/><circle cx="3" cy="2" r="2.4" fill="${c2}"/><circle cx="-2" cy="6" r="1.5" fill="${c2}"/><ellipse cx="-3" cy="-6" rx="2" ry="3" fill="#fff" opacity=".5"/></g>`}
-/* дракон на острове: нажатие открывает осмотр (inspect.js); прозрачный овал — зона нажатия, сам рисунок нажатия пропускает */
+/* дракон на острове: рисунок лежит в группе своей постройки (по глубине, как раньше), а зона нажатия — в отдельном
+   слое поверх всех построек (HITS), иначе прозрачные ромбы соседних построек перехватывали бы нажатие.
+   Живой слой (live.js) прячет этот рисунок, рисует дракона на холсте и двигает зону нажатия вместе с ним:
+   data-ix/iy — где стоят лапы в единицах острова, data-home — дом, data-mode — гуляет у среды (hab) или сидит в гнезде (nest),
+   data-face — куда смотрит. Прозрачный овал — сама зона нажатия, рисунок нажатия пропускает. */
 const escA=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
-const dragonAt=(d,x,y,size,key)=>{const W=root.DRAW,G=root.DRG;
-  return `<g class="an idle drg-dr" data-act="drginsp" data-dragon="${escA(d.id)}"><title>${escA(d.name)}: осмотреть</title><ellipse cx="${f1(x)}" cy="${f1(y-size*0.38)}" rx="${f1(size*0.44)}" ry="${f1(size*0.4)}" fill="rgba(255,255,255,.001)"/>${W.svg(G.phenotype(d.genome),{key,size,label:'',stage:W.stageOf(d.lvl)}).replace('<svg class="dragon"',`<svg class="dragon drg-on" x="${f1(x-size/2)}" y="${f1(y-size*0.8)}"`)}</g>`};
-function nestSprite(b,st,k){const out=[SPR.nest(k)];
-  if(b.pair){[b.pair.m,b.pair.f].forEach((id,i)=>{const d=st.dragons.find(x=>x.id===id);if(!d)return;out.push(dragonAt(d,i?20:-20,-10,58,'n'+b.id+id))})}
+let HITS=[];
+const dragonAt=(d,x,y,size,key,c,b,mode,face)=>{const W=root.DRAW,G=root.DRG,ix=c[0]+x,iy=c[1]+y;
+  HITS.push(`<g class="drg-dr" data-act="drginsp" data-dragon="${escA(d.id)}" data-ix="${f1(ix)}" data-iy="${f1(iy)}" data-sz="${size}" data-home="${escA(b.id)}" data-mode="${mode}" data-face="${face||1}"><title>${escA(d.name)}: осмотреть</title><ellipse cx="${f1(ix)}" cy="${f1(iy-size*0.38)}" rx="${f1(size*0.44)}" ry="${f1(size*0.4)}" fill="rgba(255,255,255,.001)"/></g>`);
+  return `<g class="an idle drg-art" data-art="${escA(d.id)}">${W.svg(G.phenotype(d.genome),{key,size,label:'',stage:W.stageOf(d.lvl)}).replace('<svg class="dragon"',`<svg class="dragon drg-on" x="${f1(x-size/2)}" y="${f1(y-size*0.8)}"`)}</g>`};
+function nestSprite(b,st,k,c){const out=[SPR.nest(k)];
+  if(b.pair){[b.pair.m,b.pair.f].forEach((id,i)=>{const d=st.dragons.find(x=>x.id===id);if(!d)return;out.push(dragonAt(d,i?20:-20,-10,58,'n'+b.id+id,c,b,'nest',i?-1:1))})}
   else out.push(eggSVG(-6,-14,{viable:false},.8).replace('#D8D4CC','#F5EBD6'));
   return out.join('')}
 function hatchSprite(b,k){const out=[SPR.hatch(k)];
@@ -181,6 +187,7 @@ function rimRocks(back){const out=[];
 /* ---------- всё вместе ---------- */
 function svg(st,opt){
   const D=root.DECO,K=opt.K,sel=opt.sel,place=opt.place,k=opt.key||'i',ro=!!opt.readonly,vb=VIEW[opt.full?'full':'norm'];
+  HITS=[];
   const out=[`<svg class="drg-isl" viewBox="${vb.join(' ')}" preserveAspectRatio="xMidYMid ${opt.full?'meet':'meet'}" role="img" aria-label="Остров драконов">`];
   out.push(`<defs>
     <linearGradient id="${k}-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--isl-sky1)"/><stop offset="1" stop-color="var(--isl-sky2)"/></linearGradient>
@@ -242,10 +249,10 @@ function svg(st,opt){
     if(isSel)out.push(`<path d="M0 -34 L68 0 L0 34 L-68 0 Z" fill="none" stroke="#FFF3B0" stroke-width="3.4" stroke-dasharray="7 5"/>`);
     if(b.build){out.push(scaffold(b.build,K,D))}
     else{
-      out.push(T.kind==='farm'?farmSprite(b,st,K,D):T.kind==='nest'?nestSprite(b,st,k):T.kind==='hatch'?hatchSprite(b,k):(SPR[b.type]||SPR.nest)(k));
+      out.push(T.kind==='farm'?farmSprite(b,st,K,D):T.kind==='nest'?nestSprite(b,st,k,c):T.kind==='hatch'?hatchSprite(b,k):(SPR[b.type]||SPR.nest)(k));
       if(T.kind==='hab'){
         const ds=st.dragons.filter(d=>d.home===b.id),pos=[[-30,22],[28,22],[0,30],[46,8]];
-        ds.forEach((d,n)=>{const [dx,dy]=pos[n%4];out.push(dragonAt(d,dx,dy,66,k+b.id+d.id))})}
+        ds.forEach((d,n)=>{const [dx,dy]=pos[n%4];out.push(dragonAt(d,dx,dy,66,k+b.id+d.id,c,b,'hab',dx>0?-1:1))})}
       if(b.up)out.push(scaffold(b.up,K,D))}
     out.push(`</g>`);
     /* пузырь над зданием: в отдельном слое поверх всего */
@@ -257,12 +264,13 @@ function svg(st,opt){
       else if(T.kind==='hatch'){const r=(b.slots||[]).filter(p=>p&&D.ready(p,K)).length;if(r)bubs.push(bubble(x,y,'baby','×'+r,true))}}
   });
   if(!opt.bare)out.push(rimRocks(false));
+  out.push(`<g class="drg-drs">${HITS.join('')}</g>`);HITS=[];
   out.push(`<g class="drg-bubs">${bubs.join('')}</g>`);
   /* ближние облака: проплывают у краёв, нажатиям не мешают */
   if(!opt.bare)out.push(`<g class="an drift d2" pointer-events="none">${cloud(-60,470,.9,.92)}${cloud(860,430,.8,.9)}${cloud(330,590,1.1,.95)}</g>`);
   out.push(`</svg>`);
   return out.join('')}
 
-const ISL={svg,P,VIEW,eggSVG,HEIGHT};
+const ISL={svg,P,VIEW,eggSVG,HEIGHT,TW,TH,OX,OY};
 if(typeof module!=='undefined'&&module.exports)module.exports=ISL;else root.ISL=ISL;
 })(typeof window!=='undefined'?window:globalThis);

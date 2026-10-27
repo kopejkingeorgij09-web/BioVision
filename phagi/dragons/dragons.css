@@ -303,3 +303,10 @@ button.dri-pp{cursor:pointer}button.dri-pp:hover{background:var(--soft)}
 .dri-pp span{font-size:11.5px;color:var(--muted)}.dri-pp b{font-size:13px;overflow-wrap:anywhere}.dri-pp small{font-size:11px;color:var(--muted)}
 .dri-pp.none{justify-content:center;min-height:70px;background:var(--soft);border-style:dashed}
 @media(max-width:420px){.dri-hd h2{font-size:19px}.dri-acts .btn{font-size:13px;padding:8px 4px}.dri-pg.four{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* живой остров (live.js): холст с драконами поверх острова, у дракона с готовыми текстурами старый рисунок спрятан,
+   зона нажатия двигается вместе с ним (style.transform), поэтому её покачивание выключено */
+.drg-live{position:absolute;left:0;top:0;pointer-events:none}
+.drg-live.fs{inset:0;width:100%;height:100%}
+.drg-isl.live .drg-art.lv{visibility:hidden}
+.drg-map.placing .drg-dr{pointer-events:none}

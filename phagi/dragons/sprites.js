@@ -6,6 +6,7 @@
 (function(root){
 'use strict';
 const MORPH=root.MORPH,SHAPE=root.SHAPE,ART=root.ART;
+/* trim и load общие с ригом анимации (rig.js) */
 
 /* тень на земле не качается вместе с драконом, поэтому она отдельно */
 const PARTS={ground:l=>l.part==='shadow',far:l=>l.part==='wings'&&!!l.far,body:l=>l.part!=='wings'&&l.part!=='shadow',near:l=>l.part==='wings'&&!l.far};
@@ -23,7 +24,7 @@ function trim(img,W,H){
   for(let y=0;y<H;y++){const row=y*W*4;for(let x=0;x<W;x++)if(a[row+x*4+3]>3){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}}
   let out;
   if(x1<0){out={cv:null,x:0,y:0,w:0,h:0}}
-  else{const w=x1-x0+1,h=y1-y0+1,cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(tmp,x0,y0,w,h,0,0,w,h);out={cv,x:x0,y:y0,w,h}}
+  else{const w=x1-x0+1,h=y1-y0+1,cv=root.DRTEX.newCanvas(w,h);cv.getContext('2d').drawImage(tmp,x0,y0,w,h,0,0,w,h);out={cv,x:x0,y:y0,w,h}}
   tmp.width=tmp.height=0;   /* временный полный холст сразу отдаём */
   return out}
 
@@ -50,29 +51,22 @@ function compose(ctx,S,t,x,y){
   if(S.parts.body.cv)ctx.drawImage(S.parts.body.cv,x+S.parts.body.x,y+S.parts.body.y+bob);
   wing(S.parts.near,-a)}
 
-/* ---------- кеш ---------- */
-const cache=new Map();   /* ключ → {S|promise, bytes}; порядок вставки = давность использования */
-let budget=24*1024*1024,hits=0,misses=0,evicted=0;
+/* ---------- кеш ----------
+   Общий кеш текстур (texcache.js): кто показывает дракона, держит его спрайты через get и отпускает через release.
+   Занятые текстуры не вытесняются, поэтому видимый дракон не пропадает. */
+const TEX=()=>root.DRTEX.shared;
 function keyOf(ph,lvl,opt){
   const p=Object.assign({},ph);delete p.spanM;
-  return JSON.stringify([p,MORPH.stageOf(lvl),opt.width||0,opt.dpr||1,opt.frame||null,opt.pad==null?8:opt.pad,!!opt.sil])}
-function used(){let b=0;cache.forEach(v=>{if(v.S)b+=v.S.bytes});return b}
-function evict(){
-  let b=used();
-  for(const [k,v] of cache){if(b<=budget)break;if(!v.S||v.busy)continue;b-=v.S.bytes;
-    Object.values(v.S.parts).forEach(p=>{if(p.cv){p.cv.width=p.cv.height=0}});cache.delete(k);evicted++}}
+  return 'spr:'+JSON.stringify([p,MORPH.stageOf(lvl),opt.width||0,opt.dpr||1,opt.frame||null,opt.pad==null?8:opt.pad,!!opt.sil])}
 /* спрайты по фенотипу и уровню: из кеша или новые; одинаковые запросы ждут одну подготовку */
 function get(ph,lvl,opt){
-  opt=opt||{};const k=keyOf(ph,lvl,opt),hit=cache.get(k);
-  if(hit){hits++;cache.delete(k);cache.set(k,hit);return hit.S?Promise.resolve(hit.S):hit.p}
-  misses++;
-  const v={S:null,busy:true};
-  v.p=make(MORPH.morph(ph,lvl),opt).then(S=>{v.S=S;v.busy=false;evict();return S},e=>{cache.delete(k);throw e});
-  cache.set(k,v);return v.p}
-function stats(){let n=0;cache.forEach(v=>{if(v.S)n++});return {count:n,bytes:used(),budget,hits,misses,evicted}}
-function setBudget(b){budget=b;evict()}
-function clear(){cache.forEach(v=>{if(v.S)Object.values(v.S.parts).forEach(p=>{if(p.cv)p.cv.width=p.cv.height=0})});cache.clear();hits=misses=evicted=0}
+  opt=opt||{};const k=keyOf(ph,lvl,opt);
+  return TEX().acquire(k,()=>make(MORPH.morph(ph,lvl),opt).then(S=>{S.key=k;return S}))}
+function release(S){if(S&&S.key)TEX().release(S.key)}
+function stats(){return Object.assign(TEX().stats(),{canvases:root.DRTEX.liveCanvases()})}
+function setBudget(b){TEX().setBudget(b)}
+function clear(force){TEX().clear(force)}
 
-const SPR={make,compose,get,stats,setBudget,clear,keyOf,load};
+const SPR={make,compose,get,release,stats,setBudget,clear,keyOf,load,trim};
 root.SPR=SPR;
 })(typeof window!=='undefined'?window:globalThis);

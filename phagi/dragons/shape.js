@@ -240,7 +240,8 @@ function eyeGeom(h,c,r,night,tf,soft){
     brow=`M${T(Bb)}Q${T([m[0],m[1]-t*1.8])} ${T(Fb)}Q${T([m[0]+0.2*r,m[1]+t*0.25])} ${T(Bb)}Z`;
     browSh=`M${T(add(Bb,[0.3*r,t*0.5]))}Q${T([m[0],m[1]+t*0.55])} ${T(add(Fb,[-0.2*r,t*0.4]))}`}
   return {sclera,lid,lower,iris:circ(tf(ic),ir),irisC:tf(ic),ir,pupil,shine,brow,browSh,
-    sleep:`M${T(B)}Q${T(upC)} ${T(Fc)}Q${T([c[0],c[1]+0.15*r])} ${T(B)}Z`}}
+    sleep:`M${T(B)}Q${T(upC)} ${T(Fc)}Q${T([c[0],c[1]+0.15*r])} ${T(B)}Z`,
+    shut:`M${T(B)}Q${T(upC)} ${T(Fc)}Q${T([loC[0],loC[1]+0.1*r])} ${T(B)}Z`}}
 
 /* ---------- голова ---------- */
 function headGeom(M,joint,box){
@@ -374,9 +375,9 @@ function crestGeom(M,K,box){
   const hh0=(big?11:6.5)*c.k,gap={spikes:7,fin:4,plates:9,tufts:6,leaves:8,shards:6,hooks:8,ridge:6}[c.style];
   const items=[];let acc=gap*0.6;
   for(let i=from;i>to;i--){const a=S[i],b=S[i-1];acc+=len(sub(a.top,b.top));if(acc>=gap){acc=0;items.push(i)}}
-  const parts=[],dark=[];
+  const parts=[],dark=[],pi=[],di=[],pq=[];
   const hAt=i=>{const r=(S[i].rt+S[i].rb)/2;return hh0*Math.max(0.55,Math.min(1.15,r/16))};
-  items.forEach((i,j)=>{const s=S[i],q=sub(s.top,mul(s.up,0.8)),u=s.up,back=mul(s.d,-1),hh=hAt(i)*(c.style==='plates'?(j%2?0.8:1.1):1);
+  items.forEach((i,j)=>{const np=parts.length,nd=dark.length;const s=S[i],q=sub(s.top,mul(s.up,0.8)),u=s.up,back=mul(s.d,-1),hh=hAt(i)*(c.style==='plates'?(j%2?0.8:1.1):1);
     const tip=add(add(q,mul(u,hh)),mul(back,hh*0.35));box.add([tip]);
     switch(c.style){
       case 'spikes':{const sp=spike(add(q,mul(back,3.6)),add(q,mul(s.d,3.6)),tip);parts.push(sp.d);dark.push(tri(q,tip,add(q,mul(back,3.6))));break}
@@ -388,13 +389,15 @@ function crestGeom(M,K,box){
         parts.push(poly(P,true));dark.push(poly([P[0],P[1],P[2],q],true));break}
       case 'hooks':{const b=add(add(q,mul(u,hh*0.9)),mul(back,hh*0.75)),c1=add(q,mul(u,hh*0.95));parts.push(`M${pt(add(q,mul(back,3.2)))}Q${pt(add(c1,mul(back,1)))} ${pt(b)}Q${pt(add(c1,mul(s.d,2.6)))} ${pt(add(q,mul(s.d,3.2)))}Z`);
         dark.push(`M${pt(add(q,mul(back,3.2)))}Q${pt(add(c1,mul(back,1)))} ${pt(b)}Q${pt(add(q,mul(u,hh*0.4)))} ${pt(q)}Z`);break}
-      case 'ridge':parts.push(`M${pt(add(q,mul(back,3.2)))}Q${pt(add(q,mul(u,hh*1.1)))} ${pt(add(q,mul(s.d,3.2)))}Z`);break}});
+      case 'ridge':parts.push(`M${pt(add(q,mul(back,3.2)))}Q${pt(add(q,mul(u,hh*1.1)))} ${pt(add(q,mul(s.d,3.2)))}Z`);break}
+    for(let k=np;k<parts.length;k++){pi.push(i);pq.push(q)}for(let k=nd;k<dark.length;k++)di.push(i)});
   if(c.style==='fin'){
     /* сплошной плавник с рёбрами и волнистым краем */
     const top=[],base=[];
     items.forEach((i,j)=>{const s=S[i],hh=hAt(i)*(0.85+0.25*Math.sin(j*1.3));base.push(sub(s.top,mul(s.up,0.8)));top.push(add(add(s.top,mul(s.up,hh)),mul(s.d,-hh*0.3)))});
     if(top.length>1){box.add(top);return {d:curve(top.concat(base.slice().reverse()),true),ribs:base.map((b,i)=>`M${pt(b)}L${pt(top[i])}`).join(''),fin:1,dark:''}}}
-  return {d:parts.join(''),dark:dark.join(''),ribs:''}}
+  /* по шипу с номером позвонка: риг анимации отдаёт каждый шип целиком хвосту, туловищу или шее */
+  return {d:parts.join(''),dark:dark.join(''),ribs:'',items:{parts:parts.map((d,k)=>[pi[k],d,pq[k]]),dark:dark.map((d,k)=>[di[k],d])}}}
 
 /* ---------- кончик хвоста ---------- */
 function tailEndGeom(M,K,box){
@@ -514,6 +517,12 @@ function breathGeom(M,G){
       case 'L':out.push({paint:'light',d:poly([A(9,-9),A(11,-2),A(18,0),A(11,2),A(9,9),A(7,2),A(0,0),A(7,-2)],true)});break;
       case 'D':out.push({paint:'dark',d:curve([A(1,0),A(7,-6),A(12,-1),A(16,-5),A(14,3),A(6,5)],true),op:.85});break}});
   return out}
+/* где лежит дыхание у пасти: рамка рисунка должна его вмещать, иначе пламя обрезается краем */
+function breathBox(M,G){
+  const p=G.mouthTip,at=(x,y)=>add(p,rot([x,y],M.head.tilt));
+  if(M.breath==='smoke')return [at(-1,-21),at(16,-21),at(16,2),at(-1,2)];
+  if(M.breath!=='element')return [];
+  const lo=M.elements.length>1?18:11;return [at(-1,-12),at(22,-12),at(22,lo),at(-1,lo)]}
 
 /* ---------- сборка ---------- */
 function build(M){
@@ -535,8 +544,8 @@ function build(M){
   const hindA=add(K.hip,[b.hipR*0.12,b.hipR*0.22]),frontA=add(K.sh,[-b.chestR*0.18,b.chestR*0.34]);
   const LP={hindF:legPts('hind',add(hindA,[6,-2]),-2.4,b,M),frontF:legPts('front',add(frontA,[6,-2]),-2.4,b,M),hind:legPts('hind',hindA,0,b,M),front:legPts('front',frontA,0,b,M)};
   const legs={hindF:legGeom(LP.hindF,-2.4,box),frontF:legGeom(LP.frontF,-2.4,box),hind:legGeom(LP.hind,0,box),front:legGeom(LP.front,0,box)};
-  let spurs='',spurDark='';
-  if(M.spurs){const s=M.spurs.size;[LP.hind,LP.hindF].forEach(Lg=>{const h=Lg.hock,sp=spike(add(h,[1,-3.4]),add(h,[1.4,3.2]),add(h,[-13*s,0.6]));spurs+=sp.d;spurDark+=sp.dark})}
+  /* шпоры у каждой задней лапы отдельно: дальняя рисуется со своей лапой за телом, ближняя со своей */
+  const spurOf=k=>{if(!M.spurs)return null;const s=M.spurs.size,h=LP[k].hock;return spike(add(h,[1,-3.4]),add(h,[1.4,3.2]),add(h,[-13*s,0.6]))};
 
   const G=headGeom(M,K.N2,box);
 
@@ -549,13 +558,24 @@ function build(M){
   push('wings',{paint:'boneFar',d:wingF.bone,far:1});
   if(wingF.feathers){push('wings',{paint:'featherFar',stroke:'edge',sw:.7,d:wingF.feathers,far:1});push('wings',{paint:'core',d:wingF.fdark,op:.3,far:1,fx:1})}
   /* дальние лапы */
-  ['hindF','frontF'].forEach(k=>{push('legs',{paint:'legFar',stroke:'edge',d:legs[k].d});push('legs',{paint:'legFar',stroke:'edge',sw:.7,d:legs[k].toes});push('legs',{paint:'claw',stroke:'edge',sw:.6,d:legs[k].claws})});
+  /* leg: какая это лапа для анимации (F дальняя, N ближняя; H задняя, F передняя) */
+  ['hindF','frontF'].forEach(k=>{const leg=k==='hindF'?'FH':'FF';push('legs',{paint:'legFar',stroke:'edge',d:legs[k].d,leg});push('legs',{paint:'legFar',stroke:'edge',sw:.7,d:legs[k].toes,leg});push('legs',{paint:'claw',stroke:'edge',sw:.6,d:legs[k].claws,leg});
+    const sp=k==='hindF'&&spurOf(k);if(sp){push('spurs',{paint:'claw',stroke:'edge',sw:.9,d:sp.d,leg});push('spurs',{paint:'hornLine',d:sp.dark,op:.45,fx:1,leg})}});
   if(M.horns){const hf=hornGeom(M,G,true,box);push('horns',{paint:'hornFar',stroke:'edge',d:hf.d})}
   const col=M.collar?collarGeom(M,G,box):null;
   if(col){push('collar',{paint:col.kind==='leaves'?'leaf':'crest',stroke:'edge',d:col.d,op:col.kind==='fins'?0.92:1});if(col.dark)push('collar',{paint:'leafDark',d:col.dark,op:.45,fx:1});push('collar',{paint:'rib',line:.9,d:col.ribs})}
   if(M.crest){const cr=crestGeom(M,K,box),pc=M.crest.style==='leaves'?'leaf':M.crest.style==='shards'?'crystal':'crest';
-    push('crest',{paint:pc,stroke:'edge',d:cr.d,op:cr.fin?0.9:1});
-    if(cr.dark)push('crest',{paint:pc==='leaf'?'leafDark':pc==='crystal'?'crystalDark':'crestDark',d:cr.dark,op:.75,fx:1});
+    const pd=pc==='leaf'?'leafDark':pc==='crystal'?'crystalDark':'crestDark';
+    if(cr.items){
+      /* шипы по участкам тела (seg), разрезы те же, что в rigOf: хвост позади бедра, шея от её основания */
+      const seg=i=>i<=K.idx.hip-2?'tail':i>=K.idx.n0?'neck':'trunk',by=list=>{const o={};list.forEach(([i,d])=>{const k=seg(i);o[k]=(o[k]||'')+d});return o};
+      const P=by(cr.items.parts),Dk=by(cr.items.dark);
+      /* на гнущихся хвосте и шее риг ставит каждый шип целиком по месту его основания (pieces) */
+      const pcs=k=>k==='trunk'?null:cr.items.parts.filter(([i])=>seg(i)===k).map(([i,d,q])=>({d,q:[q[0],q[1]]}));
+      ['tail','trunk','neck'].forEach(k=>{if(P[k])push('crest',{paint:pc,stroke:'edge',d:P[k],op:1,seg:k,pieces:pcs(k)})});
+      ['tail','trunk','neck'].forEach(k=>{if(Dk[k])push('crest',{paint:pd,d:Dk[k],op:.75,fx:1,seg:k})})}
+    else{push('crest',{paint:pc,stroke:'edge',d:cr.d,op:cr.fin?0.9:1});
+      if(cr.dark)push('crest',{paint:pd,d:cr.dark,op:.75,fx:1})}
     if(cr.ribs)push('crest',{paint:'rib',line:.9,d:cr.ribs})}
   const te=tailEndGeom(M,K,box);
   if(te&&te.part==='mace'){push('mace',{paint:'maceSpike',stroke:'edge',d:te.spikes});push('mace',{paint:'mace',stroke:'edge',d:te.ball,grad:'ball',c:te.c,r:te.r})}
@@ -586,14 +606,14 @@ function build(M){
   {const rim=[];for(let i=3;i<=K.idx.n2;i++){const q=S[i];rim.push(sub(q.top,mul(q.up,Math.min(2.2,q.rt*0.18))))}push('body',{paint:'rim',line:1.6,d:curve(rim,false),clip:'body',op:.5,fx:1})}
   if(M.metal){const mg=metalGeom(K);push('metal',{paint:'metal',line:4.2,d:mg.d,clip:'body',op:.55,blur:qb(1)});push('metal',{paint:'metal',line:1.4,d:mg.d2,clip:'body',op:.55})}
   /* ближние лапы: заливка, объём, мышца бедра, пальцы и когти */
-  [['hind','legH'],['front','legF']].forEach(([k,cid])=>{const lg=legs[k],Lp=LP[k];
-    push('legs',{paint:'body',stroke:'edge',d:lg.d,grad:'body',clipId:cid});
-    shadeTube(lg.S,0,lg.S.length-1,cid,{core:.5,hi:.35}).forEach(o=>push('legs',o));
+  [['hind','legH','NH'],['front','legF','NF']].forEach(([k,cid,leg])=>{const lg=legs[k],Lp=LP[k];
+    push('legs',{paint:'body',stroke:'edge',d:lg.d,grad:'body',clipId:cid,leg});
+    shadeTube(lg.S,0,lg.S.length-1,cid,{core:.5,hi:.35}).forEach(o=>push('legs',Object.assign(o,{leg})));
     const th=lerpP(Lp.ctrl[0],Lp.knee,0.38),ang=Math.atan2(Lp.knee[1]-Lp.ctrl[0][1],Lp.knee[0]-Lp.ctrl[0][0])*180/Math.PI;
-    push('legs',{paint:'hi',d:ell(add(th,[Lp.r[0]*0.15,-Lp.r[0]*0.1]),Lp.r[0]*0.75,Lp.r[0]*0.4,ang),clip:cid,blur:qb(Lp.r[0]*0.25),op:.35,fx:1});
-    push('legs',{paint:'body',stroke:'edge',sw:.8,d:lg.toes,grad:'body'});
-    push('legs',{paint:'claw',stroke:'edge',sw:.6,d:lg.claws})});
-  if(spurs){push('spurs',{paint:'claw',stroke:'edge',sw:.9,d:spurs});push('spurs',{paint:'hornLine',d:spurDark,op:.45,fx:1})}
+    push('legs',{paint:'hi',d:ell(add(th,[Lp.r[0]*0.15,-Lp.r[0]*0.1]),Lp.r[0]*0.75,Lp.r[0]*0.4,ang),clip:cid,blur:qb(Lp.r[0]*0.25),op:.35,fx:1,leg});
+    push('legs',{paint:'body',stroke:'edge',sw:.8,d:lg.toes,grad:'body',leg});
+    push('legs',{paint:'claw',stroke:'edge',sw:.6,d:lg.claws,leg});
+    const sp=k==='hind'&&spurOf(k);if(sp){push('spurs',{paint:'claw',stroke:'edge',sw:.9,d:sp.d,leg});push('spurs',{paint:'hornLine',d:sp.dark,op:.45,fx:1,leg})}});
   /* голова */
   push('head',{paint:'body',stroke:'edge',d:G.d,grad:'body',clipId:'head'});
   push('head',{paint:'core',d:G.shade.core,clip:'head',blur:qb(G.H*0.12),op:.5,fx:1});
@@ -622,6 +642,9 @@ function build(M){
   push('eyes',{paint:'core',line:Math.max(1,Math.min(G.eyeR*0.55,6)),d:E.lid,clip:'eye',op:.35,blur:qb(Math.min(G.eyeR*0.22,2.5)),fx:1});
   push('eyes',{paint:'white',d:E.shine,clip:'eye'});
   if(M.breath==='dormant')push('eyes',{paint:'body',stroke:'edge',sw:1,d:E.sleep});
+  /* веко для моргания: только для анимации (rig), на неподвижном рисунке глаз открыт */
+  else{push('eyes',{paint:'body',stroke:'edge',sw:1,d:E.shut,rig:1});   /* закрывает глаз целиком, край века — по нижней линии */
+    push('eyes',{paint:'lid',line:Math.max(1.2,Math.min(G.eyeR*0.25,3)),d:E.lower,rig:1})}
   push('eyes',{paint:'lid',line:Math.max(1.4,Math.min(G.eyeR*0.34,3.6)),d:E.lid});
   push('eyes',{paint:'lid',line:Math.max(0.7,Math.min(G.eyeR*0.12,1.3)),d:E.lower,op:.7});
   /* надбровье лежит на голове (обрезано по ней, чтобы у крупноглазых малышей не висело в воздухе), но повторяет глаз: по генам оно часть глаза */
@@ -639,9 +662,38 @@ function build(M){
   if(M.wing.type!=='leaf'){push('wings',{paint:'bone',stroke:'edge',sw:.55,d:wingN.bone});push('wings',{paint:'bone',stroke:'edge',sw:.55,d:wingN.knuckles})}
   if(wingN.feathers){push('wings',{paint:'feather',stroke:'edge',sw:.7,d:wingN.feathers});push('wings',{paint:'core',d:wingN.fdark,op:.22,fx:1});push('wings',{paint:'vein',line:.6,d:wingN.shafts,op:.6})}
   if(wingN.extra)push('wings',{paint:'claw',stroke:'edge',sw:.7,d:wingN.extra});
-  breathGeom(M,G).forEach(o=>push('breath',Object.assign({fx:1},o)));
+  breathGeom(M,G).forEach(o=>push('breath',Object.assign({fx:1},o)));box.add(breathBox(M,G));
   return {layers:L.filter(l=>l.op!==0),box:{x:box.x0,y:box.y0,w:box.x1-box.x0,h:-box.y0+8},scale:M.scale,
-    anchors:{hip:K.hip,sh:K.sh,head:K.N2,mouth:G.mouthTip,eye:G.eyeC,eyeR:G.eyeR,root,tail:S[0].p}}}
+    anchors:{hip:K.hip,sh:K.sh,head:K.N2,mouth:G.mouthTip,eye:G.eyeC,eyeR:G.eyeR,root,tail:S[0].p},
+    rig:rigOf(M,K,LP,G,root)}}
+
+/* точки для анимации (rig.js, anim.js): суставы, разрезы туловища, опоры лап. Единицы рисунка, земля y=0 */
+function rigOf(M,K,LP,G,root){
+  const S=K.S,cut=i=>({p:S[i].p,d:S[i].d,r:(S[i].rt+S[i].rb)/2,i});
+  /* лапа: a место крепления, k колено, h скакательный сустав (у передней запястье), f кончик стопы,
+     toe самая передняя точка на земле (конец когтя): вокруг неё стопа поднимает пятку, g уровень земли этой лапы,
+     hr толщина лапы у сустава */
+  const leg=(k,g)=>{const L=LP[k],a=L.ctrl[0],f=L.tip,tr=Math.max(1.6,L.r[5]*0.95);
+    return {a,k:L.knee,h:L.hock,hr:L.r[3],f,toe:[f[0]+0.6+tr*2.1,g],g,len:Math.hypot(f[0]-a[0],f[1]-a[1])}};
+  /* разрезы: хвост чуть позади бедра, шея у её основания (дальше от плеча, где она уже тонкая) */
+  const tailCut=cut(K.idx.hip-2),neckCut=cut(K.idx.n0);
+  let tl=0;for(let i=tailCut.i;i>0;i--)tl+=Math.hypot(S[i].p[0]-S[i-1].p[0],S[i].p[1]-S[i-1].p[1]);
+  let nl=0;for(let i=neckCut.i;i<K.idx.n2;i++)nl+=Math.hypot(S[i+1].p[0]-S[i].p[0],S[i+1].p[1]-S[i].p[1]);
+  let belly=-1e9;for(let i=K.idx.hip;i<=K.idx.sh;i++)belly=Math.max(belly,S[i].bot[1]);   /* нижняя точка живота */
+  /* нижний край хвоста и головы: по ним анимация не даёт частям уйти под землю */
+  const tailS=[];for(let i=0;i<=tailCut.i;i+=2)tailS.push([S[i].bot[0],S[i].bot[1]]);
+  const h=M.head,low=[G.tf([G.cl*0.55,G.H*(0.28+0.32*h.jaw)]),G.tf([G.L*0.82,G.H*(0.12+0.14*h.taper)])];
+  /* трубка вдоль позвоночника с запасом на обводку: риг отдаёт шее и хвосту только то, что внутри неё,
+     а холка, грудь и круп за линией разреза остаются туловищу. Заходит за разрез на радиус, чтобы накрыть стык */
+  const back=(i,dir)=>{let d=0,j=i,r=cut(i).r*1.1;while(d<r&&j-dir>=0&&j-dir<S.length){d+=Math.hypot(S[j].p[0]-S[j-dir].p[0],S[j].p[1]-S[j-dir].p[1]);j-=dir}return j};
+  const tube=(i0,i1)=>{const T=[],B=[],o=(s,v)=>{const w=[v[0]-s.p[0],v[1]-s.p[1]],l=Math.hypot(w[0],w[1])||1;return [s.p[0]+w[0]*1.2+w[0]/l*1.5,s.p[1]+w[1]*1.2+w[1]/l*1.5]};
+    const cap=(i,sg)=>{const s=S[i],r=Math.max(s.rt,s.rb)*1.2+3;return [s.p[0]+s.d[0]*r*sg,s.p[1]+s.d[1]*r*sg]};
+    for(let i=i0;i<=i1;i++){T.push(o(S[i],S[i].top));B.push(o(S[i],S[i].bot))}
+    return [cap(i0,-1)].concat(T,[cap(i1,1)],B.reverse())};
+  const neckTube=tube(back(neckCut.i,1),S.length-1),tailTube=tube(0,back(tailCut.i,-1));
+  return {hip:K.hip,sh:K.sh,mid:K.mid,head:K.N2,mouth:G.mouthTip,eye:G.eyeC,eyeR:G.eyeR,root,tailTip:S[0].p,
+    tailCut,neckCut,neckTube,tailTube,tailLen:tl,neckLen:nl,headH:G.H,belly,tailS,headLow:low,lidTop:[G.eyeC[0],G.eyeC[1]-G.eyeR],
+    legs:{FH:leg('hindF',-2.4),FF:leg('frontF',-2.4),NH:leg('hind',0),NF:leg('front',0)}}}
 
 const SHAPE={build,curve,spline,tube};
 if(typeof module!=='undefined'&&module.exports)module.exports=SHAPE;else root.SHAPE=SHAPE;

@@ -30,10 +30,11 @@ const words=(ph,M)=>OLD.describe(ph).join(' · ')+' · '+M.stageName+', '+M.lvl+
    Текстуры частей лежат в общем кеше SPR, одинаковые драконы делят одни и те же. */
 const live=new Set();
 /* текстуры готовятся, только когда карточка подходит к экрану: и память, и время на подготовку тратятся на видимых драконов */
+/* карточка держит текстуры, пока видна: ушла с экрана — отпускает их, и кеш может их вытеснить при нехватке памяти */
 const io=new IntersectionObserver(es=>es.forEach(e=>{const cv=e.target;cv._vis=e.isIntersecting;
-  if(cv._vis){if(cv._S)paint(cv,0);else if(!cv._req){cv._req=1;SPR.get(cv._ph0,cv._lvl,cv._opt).then(S=>{cv._S=S;if(cv._vis)paint(cv,0)})}}else release(cv)}),{rootMargin:'300px'});
+  if(cv._vis){if(cv._S)paint(cv,0);else if(!cv._req){cv._req=1;SPR.get(cv._ph0,cv._lvl,cv._opt).then(S=>{cv._req=0;if(cv._vis&&cv.isConnected){cv._S=S;paint(cv,0)}else SPR.release(S)})}}else release(cv)}),{rootMargin:'300px'});
 function paint(cv,t){const S=cv._S;if(!S)return;if(cv.width!==S.W){cv.width=S.W;cv.height=S.H}const c=cv.getContext('2d');c.clearRect(0,0,S.W,S.H);SPR.compose(c,S,t+(cv._ph||0))}
-function release(cv){if(cv.width){cv.width=0;cv.height=0}}
+function release(cv){if(cv._S){SPR.release(cv._S);cv._S=null}if(cv.width){cv.width=0;cv.height=0}}
 function sprPic(ph,lvl,frame,title,tag){
   const d=el('div','pic',tag?'<span class="tag">C</span>':''),cv=document.createElement('canvas');
   cv.setAttribute('role','img');cv.setAttribute('aria-label',title);cv.width=0;cv.height=0;
@@ -156,7 +157,7 @@ function render(){
   const dcv=document.createElement('canvas');dcv.setAttribute('role','img');dcv.setAttribute('aria-label','Огненный дракон, анимация спрайтами');dcv.style.aspectRatio=FRAME[2]+' / '+FRAME[3];
   const dp=el('div','pic');dp.append(dcv);demo.append(dp);demo.append(el('h3',null,'C · спрайты, живой пример'));
   demo.append(el('p','ph','Машет крыльями всегда, даже без кнопки «Анимация» (если в системе не выключено движение).'));s2.append(demo);
-  SPR.get(D.phenotype(mk({E:'F/F',H:'H/H',R:'R1/R1'})),12,{frame:FRAME,width:380,dpr:DPR}).then(S=>{dcv._S=S;dcv._vis=true;live.add(dcv);paint(dcv,0);
+  SPR.get(D.phenotype(mk({E:'F/F',H:'H/H',R:'R1/R1'})),12,{frame:FRAME,width:380,dpr:DPR}).then(S=>{if(!dcv.isConnected){SPR.release(S);return}dcv._S=S;dcv._vis=true;live.add(dcv);paint(dcv,0);
     if(!still()){const tok=loopTok,t0=performance.now(),step=now=>{if(tok!==loopTok||!dcv.isConnected)return;if(!st.anim)paint(dcv,(now-t0)/1000);requestAnimationFrame(step)};requestAnimationFrame(step)}});
   const out=el('div');s2.append(out);const btn=el('button','btn','Замерить ещё раз');btn.onclick=()=>measure(out,iouOut);s2.append(btn);app.append(s2);
 
@@ -186,7 +187,7 @@ async function measure(out,iouOut){
   for(const M of Ms){const a=await raster(A.svg(M,{frame:FRAME,width:WA,key:'cmp'}),WA,HA),S=await SPR.make(M,{frame:FRAME,width:WA,dpr:1});
     const cv=document.createElement('canvas');cv.width=WA;cv.height=HA;const c=cv.getContext('2d',{willReadFrequently:true});SPR.compose(c,S,0);const b=c.getImageData(0,0,WA,HA).data;
     let n=0,bad=0;for(let i=0;i<a.length;i+=4){if(a[i+3]<8&&b[i+3]<8)continue;n++;if(Math.max(Math.abs(a[i]-b[i]),Math.abs(a[i+1]-b[i+1]),Math.abs(a[i+2]-b[i+2]),Math.abs(a[i+3]-b[i+3]))>40)bad++}
-    const v=n?bad/n:0;diffSum+=v;diffMax=Math.max(diffMax,v);cv.width=cv.height=0;Object.values(S.parts).forEach(p=>{if(p.cv)p.cv.width=p.cv.height=0})}
+    const v=n?bad/n:0;diffSum+=v;diffMax=Math.max(diffMax,v);cv.width=cv.height=0;DRTEX.freeParts(S)}
 
   /* скорость: 7 драконов × N повторов */
   const N=20,phs=ELS.map(e=>D.phenotype(mk({E:e+'/'+e})));
@@ -199,7 +200,7 @@ async function measure(out,iouOut){
   const cv2=document.createElement('canvas');cv2.width=SP[0].W;cv2.height=SP[0].H;const cx2=cv2.getContext('2d');
   const NF=60;t0=performance.now();for(let f=0;f<NF;f++){cx2.clearRect(0,0,cv2.width,cv2.height);SP.forEach(S=>SPR.compose(cx2,S,f/60))}cx2.getImageData(0,0,1,1);const tFrame=(performance.now()-t0)/(NF*7);
   const trim=SP.reduce((a,S)=>a+S.bytes,0)/7,full=SP.reduce((a,S)=>a+S.fullBytes,0)/7;
-  SP.forEach(S=>Object.values(S.parts).forEach(p=>{if(p.cv)p.cv.width=p.cv.height=0}));cv2.width=cv2.height=0;
+  SP.forEach(S=>DRTEX.freeParts(S));cv2.width=cv2.height=0;
   const avgLen=Math.round(strs.slice(0,7).reduce((s,x)=>s+x.length,0)/7/1024);
   const cs=SPR.stats(),MB=b=>(b/1048576).toFixed(1)+' МБ';
   let shown=0,shownB=0;live.forEach(cv=>{if(cv.width){shown++;shownB+=cv.width*cv.height*4}});

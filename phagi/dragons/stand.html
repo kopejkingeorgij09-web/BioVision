@@ -13,6 +13,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-ap
 header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:12px 16px}
 h1{font-size:20px;margin:0 0 4px}
 header p{margin:0 0 10px;color:var(--quiet);max-width:860px}
+header a{color:var(--acc)}
 .ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .seg button,.tg{border:0;background:var(--card);color:var(--ink);padding:7px 12px;font:inherit;font-size:14px;cursor:pointer}
@@ -62,7 +63,7 @@ body.anim svg.dr3 .flap{animation:drflap 2.6s ease-in-out infinite}
 <body>
 <header>
   <h1>Стенд драконов</h1>
-  <p>Каждый дракон здесь собран из настоящего генотипа (DRG.make или DRG.breed). Рисунок строится только из фенотипа и уровня: архетип стихии, наследуемые признаки сверху, возраст меняет пропорции. A рисуется в SVG, C нарезан из того же рисунка для анимации. Наведи на часть тела в рисунке A: подсказка покажет, какие гены решают, есть ли она, какой она формы и окраски.</p>
+  <p>Каждый дракон здесь собран из настоящего генотипа (DRG.make или DRG.breed). Рисунок строится только из фенотипа и уровня: архетип стихии, наследуемые признаки сверху, возраст меняет пропорции. A рисуется в SVG, C нарезан из того же рисунка для анимации. Наведи на часть тела в рисунке A: подсказка покажет, какие гены решают, есть ли она, какой она формы и окраски. Все действия дракона: <a href="anim.html">анимации</a>.</p>
   <div class="ctl">
     <span class="seg" role="group" aria-label="Рисунок">
       <button data-r="svg" aria-pressed="true">A · SVG</button><button data-r="spr" aria-pressed="false">C · спрайты</button><button data-r="both" aria-pressed="false">Оба рядом</button>
@@ -74,12 +75,13 @@ body.anim svg.dr3 .flap{animation:drflap 2.6s ease-in-out infinite}
 </header>
 <main id="app"></main>
 <div id="tip" role="tooltip"></div>
-<script src="genetics.js"></script>
-<script src="draw.js"></script>
-<script src="morph.js?v=2"></script>
-<script src="shape.js?v=2"></script>
-<script src="art.js?v=2"></script>
-<script src="sprites.js?v=2"></script>
-<script src="stand.js?v=2"></script>
+<script src="genetics.js?v=4"></script>
+<script src="draw.js?v=4"></script>
+<script src="morph.js?v=4"></script>
+<script src="shape.js?v=4"></script>
+<script src="art.js?v=4"></script>
+<script src="texcache.js?v=4"></script>
+<script src="sprites.js?v=4"></script>
+<script src="stand.js?v=4"></script>
 </body>
 </html>

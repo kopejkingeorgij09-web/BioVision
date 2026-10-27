@@ -60,12 +60,16 @@ function joints(c,A,view){
     c.strokeStyle='#2F9CD6';c.setLineDash([4*DPR,3*DPR]);c.beginPath();c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1]);c.stroke();c.setLineDash([])});
   dot(AN.MAT.app(p.mat.head,R.head),4,'#2F9CD6');c.restore()}
 
+/* высота сцены по дракону: от земли до верха крыльев, у летающих ещё высота полёта (anim.js: 1,15 высоты бедра) и взмах вверх */
+const fitH=(M,G)=>{const P=AN.profile(M,G.rig);return Math.max(260,Math.min(480,(-G.box.y*1.08+(P.canFly?P.h*1.2:0)+10)/0.84))};
+
 /* ---------- главный дракон ---------- */
 const main=new Scene($('cv'),{wu:470,hu:340,maxH:()=>Math.min(560,Math.max(300,innerHeight*0.6)),joints:()=>st.joints});
 let mainPh=null,mainInfo={},loadTok=0;
 const spec=()=>WHO.find(w=>w[0]===st.who)||WHO[0];
 async function loadMain(){
   const tok=++loadTok,[,name,sp]=spec(),g=mk(sp),ph=D.phenotype(g),M=MO.morph(ph,st.lvl),G=SH.build(M);
+  main.o.hu=fitH(M,G);
   const px=Math.round(main.size()*20)/20,t0=performance.now();
   const X=await RIG.get(ph,st.lvl,{px,dpr:DPR});
   if(tok!==loadTok){RIG.release(X);return}
@@ -114,7 +118,7 @@ async function buildGrid(ph){
   for(let i=0;i<ACTS.length;i++){const [k,n]=ACTS[i],box=document.createElement('div');box.className='cell';
     const cv=document.createElement('canvas');cv.setAttribute('role','img');cv.setAttribute('aria-label',n);box.append(cv);
     const h3=document.createElement('h3');h3.textContent=n;box.append(h3);grid.append(box);
-    const s=new Scene(cv,{wu:360,hu:340});s.cx=G.box.x+G.box.w/2;s.cam=s.cx;s.act=k;s.wait=0;
+    const s=new Scene(cv,{wu:360,hu:fitH(M,G)});s.cx=G.box.x+G.box.w/2;s.cam=s.cx;s.act=k;s.wait=0;
     s.A=new AN.Animator(M,G.rig,{seed:11+i,reduce:reduce()});if(k!=='idle')s.A.play(k);
     if(k==='fly'&&!s.A.P.canFly)h3.textContent=n+' (не летает: '+s.A.P.noFly+')';
     cells.push(s);cio.observe(cv)}

@@ -88,7 +88,9 @@ function hullOf(d,m){
     return [p[0]+bi[0]*m/c,p[1]+bi[1]*m/c]})}
 
 /* ---------- подготовка текстур (нужен браузер) ----------
-   opt: px — CSS-пикселей на единицу экрана рисунка A, dpr — плотность экрана. */
+   opt: px — CSS-пикселей на единицу экрана рисунка A, dpr — плотность экрана.
+   opt.part — только слои одной части тела (поле of или part слоя): маска для подсветки при осмотре,
+   она двигается той же позой, что и весь дракон. Части рига без подходящих слоёв не растрируются. */
 async function make(M,opt){
   opt=opt||{};
   const ART=root.ART,SHAPE=root.SHAPE,SPR=root.SPR,t0=(root.performance||Date).now();
@@ -97,7 +99,9 @@ async function make(M,opt){
   const frame=(vb)=>{const W=Math.ceil(vb[2]*k),H=Math.ceil(vb[3]*k);return {vb:[vb[0],vb[1],W/k,H/k],W,H}};
   const main=frame(fr.vb);
   const defs=partsOf(R,P);
+  if(opt.part){const k=opt.part;defs.forEach(d=>{const o=d.only;d.only=l=>o(l)&&(l.of||l.part)===k})}
   const jobs=defs.map(d=>{
+    if(!G.layers.some(l=>(!l.rig||d.rig)&&d.only(l)))return Promise.resolve({d,f:main,F:null,img:null});
     let f=main,F=[sig,0,0,sig,(tx-main.vb[0])*k,-main.vb[1]*k],turn=null;
     if(d.ax){
       /* повернуть так, чтобы ось хвоста (шеи) смотрела вправо: столбцы сетки изгиба идут по столбцам картинки */
@@ -111,6 +115,7 @@ async function make(M,opt){
   const loaded=await Promise.all(jobs);
   const parts={},order=[];
   loaded.forEach(({d,f,F,img})=>{
+    if(!img){parts[d.name]={cv:null,x:0,y:0,w:0,h:0,name:d.name};return}
     const tr=SPR.trim(img,f.W,f.H),p=Object.assign(tr,{name:d.name,F,bend:d.bend||null,ax:d.ax||null});
     p.Fi=mul(inv(F),T(tr.x,tr.y));   /* пиксель обрезанного холста → точка рисунка в покое */
     if(d.ax){const q=app(F,d.ax.c);p.cutX=q[0]-tr.x;p.cutY=q[1]-tr.y}
@@ -229,7 +234,7 @@ function VIEW(X,o){const z=X.s*(o.px||X.px)*(o.dpr||X.dpr);return [z,0,0,z,o.x0-
 
 /* ---------- кеш ---------- */
 const TEX=()=>root.DRTEX.shared;
-function keyOf(ph,lvl,opt){const p=Object.assign({},ph);delete p.spanM;return 'rig:'+JSON.stringify([p,root.MORPH.stageOf(lvl),opt.px||1,opt.dpr||1])}
+function keyOf(ph,lvl,opt){const p=Object.assign({},ph);delete p.spanM;return 'rig:'+JSON.stringify([p,root.MORPH.stageOf(lvl),opt.px||1,opt.dpr||1])+(opt.part?':'+opt.part:'')}
 function get(ph,lvl,opt){opt=opt||{};const k=keyOf(ph,lvl,opt);
   return TEX().acquire(k,()=>make(root.MORPH.morph(ph,lvl),opt).then(X=>{X.key=k;return X}))}
 function release(X){if(X&&X.key)TEX().release(X.key)}

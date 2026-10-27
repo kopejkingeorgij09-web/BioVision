@@ -63,5 +63,11 @@ t('если кеш очистили, пока текстура готовила�
   await Promise.resolve();c.clear(true);go({id:'a',bytes:MB});
   await assert.rejects(p);assert.deepStrictEqual(c.freed,['a'])});
 
+t('drop убирает только свободную готовую текстуру',async()=>{
+  const c=mk(10*MB);
+  await c.acquire('a',tex('a',1));assert.strictEqual(c.drop('a'),false);assert.deepStrictEqual(c.freed,[]);   /* занята */
+  c.release('a');assert.strictEqual(c.drop('a'),true);assert.deepStrictEqual(c.freed,['a']);assert.strictEqual(c.peek('a'),null);
+  assert.strictEqual(c.drop('нет такого'),false)});
+
 (async()=>{for(const [name,fn] of queue){n++;try{await fn();console.log('ok  ',name)}catch(e){fails++;console.log('FAIL',name,'\n     ',e.stack.split('\n').slice(0,2).join(' '))}}
   console.log(`\n${n-fails}/${n} тестов прошли`);if(fails)process.exit(1)})();

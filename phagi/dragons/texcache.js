@@ -41,6 +41,9 @@ TexCache.prototype.evict=function(){
     if(!e.v||e.refs>0)continue;
     b-=e.v.bytes||0;this.free(e.v);this.map.delete(k);this.evicted++}};
 
+/* убрать одну свободную текстуру сразу, не дожидаясь лимита (крупная текстура осмотра после закрытия) */
+TexCache.prototype.drop=function(key){const e=this.map.get(key);if(!e||!e.v||e.refs>0)return false;this.free(e.v);this.map.delete(key);return true};
+
 TexCache.prototype.setBudget=function(b){this.budget=b;this.evict()};
 TexCache.prototype.peek=function(key){const e=this.map.get(key);return e?{ready:!!e.v,refs:e.refs}:null};
 

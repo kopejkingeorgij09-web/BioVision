@@ -175,7 +175,7 @@ function panel(st,c,own){
 function dragonCard(st,d,own,L){
   const ph=phOf(d),rr=G.rarity(ph),cost=E.feedCost(d.lvl),cap=E.maxDragonLv(L),home=st.bld.find(b=>b.id===d.home);
   const homes=own?st.bld.filter(b=>b.id!==d.home&&!b.build&&E.hosts(b.type,ph)&&st.dragons.filter(x=>x.home===b.id).length<E.habCap(b)):[];
-  return `<article class="drg-card ${RCLS[rr]}"><div class="drg-pic">${W.svg(ph,{stage:W.stageOf(d.lvl),key:'c'+d.id,size:170,label:esc(d.name)})}</div>
+  return `<article class="drg-card ${RCLS[rr]}"><button class="drg-pic" data-act="drginsp" data-dragon="${d.id}" aria-label="Осмотреть: ${esc(d.name)}" title="Осмотреть крупно">${W.svg(ph,{stage:W.stageOf(d.lvl),key:'c'+d.id,size:170,label:esc(d.name)})}</button>
   <div class="drg-info"><div class="drg-nm"><b>${esc(d.name)}</b><span class="drg-sex" title="${d.genome.sex==='F'?'самка ZW':'самец ZZ'}">${SEX[d.genome.sex]}</span><span class="drg-rar">${G.RARITY[rr]}</span></div>
   <div class="drg-dl"><span>${d.lvl}-й уровень, ${W.STAGE_NAME[W.stageOf(d.lvl)]}</span><span class="drg-pips" title="Кормлений до следующего уровня">${Array.from({length:E.FEEDS},(_,i)=>`<i${i<(d.fed||0)?' class="on"':''}></i>`).join('')}</span><span class="muted">+${fmt(E.goldPerCard(d))} 🪙 за карточку</span></div>
   <ul>${W.describe(ph).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
@@ -323,7 +323,7 @@ window.addEventListener('click',e=>{if(Date.now()-lastDrag<350&&e.target.closest
 window.addEventListener('wheel',e=>{const m=e.target.closest&&e.target.closest('.drg-map.full');if(!m||onHud(e.target))return;e.preventDefault();
   const r=camBox();camZoom(e.clientX-r.left,e.clientY-r.top,Math.exp(-e.deltaY*0.0018))},{passive:false});
 window.addEventListener('resize',()=>camApply());
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.drgFull&&S.view==='island'&&!document.querySelector('dialog[open]')){if(S.drgPanel||S.drgSel){S.drgPanel=null;S.drgSel=null}else S.drgFull=false;render()}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.drgFull&&S.view==='island'&&!document.querySelector('dialog[open]')&&!document.querySelector('.dri')){if(S.drgPanel||S.drgSel){S.drgPanel=null;S.drgSel=null}else S.drgFull=false;render()}});
 /* общие часы анимаций и классы body: на весь экран прокрутка страницы выключена, уведомления наверху */
 new MutationObserver(()=>{
   document.querySelectorAll('svg.drg-isl:not([data-clk])').forEach(el=>{el.dataset.clk='1';el.style.setProperty('--clk',(-performance.now()/1000).toFixed(2)+'s')});
@@ -331,6 +331,24 @@ new MutationObserver(()=>{
   if(b.classList.contains('drg-fs')!==fs)b.classList.toggle('drg-fs',fs);
   const iv=!!document.querySelector('.drg-map');if(b.classList.contains('drg-islv')!==iv)b.classList.toggle('drg-islv',iv);
   if(fs)camApply()}).observe(document.documentElement,{childList:true,subtree:true});
+
+/* ---------- осмотр дракона (inspect.js): данные для сцены и кормление оттуда ---------- */
+function inspInfo(uid,id){
+  const x=stateOf(uid);if(!x)return null;const st=x.st,own=uid===meId(),L=E.level(st);
+  const d=st.dragons.find(z=>z.id===id);if(!d)return null;
+  const all=st.dragons.concat(st.gone||[]);
+  const node=i=>{const z=all.find(q=>q.id===i);return z?{id:z.id,name:z.name,genome:z.genome,lvl:z.lvl||null,alive:st.dragons.includes(z),parents:z.parents||null}:{id:i,unknown:true}};
+  const cost=E.feedCost(d.lvl),cap=E.maxDragonLv(L),food=Math.floor(st.bal.food),home=st.bld.find(b=>b.id===d.home);
+  const why=d.lvl>=cap?'Следующий уровень откроется с ростом острова':food<cost?`Не хватает корма: есть ${fmt(food)} 🌾, нужно ${cost}`:'';
+  return {id:d.id,name:d.name,genome:d.genome,lvl:d.lvl,fed:d.fed||0,feeds:E.FEEDS,own,gen:d.gen||1,from:d.from||null,
+    home:home?E.TYPES[home.type].name:null,gold:fmt(E.goldPerCard(d)),
+    feed:own?{cost,can:!why,why,max:d.lvl>=cap}:null,
+    parents:d.parents?d.parents.map(i=>{const n=node(i);n.parents=n.parents?n.parents.map(node):null;return n}):null}}
+function inspect(el){
+  if(S.drgPlace||!window.DRGINSP)return;
+  const uid=S.drgUid||meId(),info=inspInfo(uid,el.dataset.dragon);if(!info)return;
+  DRGINSP.open(info,{info:id=>inspInfo(uid,id),
+    feed:id=>{const r=act({t:'feed',dragon:id});if(!r)return null;render();return {lvup:r.s.lvup===id}}},el)}
 
 /* ---------- действия ---------- */
 const num=v=>v==null||v===''?undefined:Number(v);
@@ -345,6 +363,7 @@ window.DRG_ACTIONS={
     if(!await askConfirm(`${k.name}: расчистить за ${k.gold} золота? Освободится место для построек${k.gems?', а под валуном найдётся самоцвет':''}.`,'Расчистить'))return;
     const r=act({t:'clear',cell:o.id});if(r)toast(k.gems?`Расчищено! +${k.gems} 💎`:'Расчищено')},
   drgsel:el=>{if(S.drgPlace)return;S.drgSel=el.dataset.id||null;S.drgPanel=null},
+  drginsp:inspect,
   drgpanel:el=>{S.drgPanel=el.dataset.v||null;S.drgSel=null;S.drgPlace=null},
   drgbuild:el=>{S.drgPlace={type:el.dataset.type};S.drgPanel=null;S.drgSel=null;if(!S.drgFull)window.scrollTo(0,0)},
   drgmove:el=>{S.drgPlace={move:el.dataset.id};S.drgSel=null;if(!S.drgFull)window.scrollTo(0,0)},

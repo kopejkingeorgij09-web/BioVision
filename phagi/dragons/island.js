@@ -121,8 +121,10 @@ function eggSVG(x,y,eg,r){const G=root.DRG,W=root.DRAW;r=r||1;
   let c1='#FFF6DE',c2='#C9A86A';
   if(eg.viable){const ph=G.phenotype(eg.genome),k=ph.breath==='element'?ph.elements:[];c2=k.length?W.EL_COL[k[0]]:'#8C8F96';if(k[1])c1=W.EL_COL[k[1]]+'55'}else{c1='#D8D4CC';c2='#9A958C'}
   return `<g transform="translate(${x} ${y}) scale(${r})"><ellipse cx="0" cy="0" rx="9" ry="12" fill="${c1}" stroke="#8A7650" stroke-width="1.4"/><circle cx="-3" cy="-4" r="2" fill="${c2}"/><circle cx="3" cy="2" r="2.4" fill="${c2}"/><circle cx="-2" cy="6" r="1.5" fill="${c2}"/><ellipse cx="-3" cy="-6" rx="2" ry="3" fill="#fff" opacity=".5"/></g>`}
+/* дракон на острове: нажатие открывает осмотр (inspect.js); прозрачный овал — зона нажатия, сам рисунок нажатия пропускает */
+const escA=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
 const dragonAt=(d,x,y,size,key)=>{const W=root.DRAW,G=root.DRG;
-  return `<g class="an idle">${W.svg(G.phenotype(d.genome),{key,size,label:'',stage:W.stageOf(d.lvl)}).replace('<svg class="dragon"',`<svg class="dragon drg-on" x="${f1(x-size/2)}" y="${f1(y-size*0.8)}"`)}</g>`};
+  return `<g class="an idle drg-dr" data-act="drginsp" data-dragon="${escA(d.id)}"><title>${escA(d.name)}: осмотреть</title><ellipse cx="${f1(x)}" cy="${f1(y-size*0.38)}" rx="${f1(size*0.44)}" ry="${f1(size*0.4)}" fill="rgba(255,255,255,.001)"/>${W.svg(G.phenotype(d.genome),{key,size,label:'',stage:W.stageOf(d.lvl)}).replace('<svg class="dragon"',`<svg class="dragon drg-on" x="${f1(x-size/2)}" y="${f1(y-size*0.8)}"`)}</g>`};
 function nestSprite(b,st,k){const out=[SPR.nest(k)];
   if(b.pair){[b.pair.m,b.pair.f].forEach((id,i)=>{const d=st.dragons.find(x=>x.id===id);if(!d)return;out.push(dragonAt(d,i?20:-20,-10,58,'n'+b.id+id))})}
   else out.push(eggSVG(-6,-14,{viable:false},.8).replace('#D8D4CC','#F5EBD6'));

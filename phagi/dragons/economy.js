@@ -127,9 +127,22 @@ function normalize(s,K,inc){
 
 /* ---------- место на карте ---------- */
 const chunkOf=(x,y)=>Math.floor(x/CHUNK)+','+Math.floor(y/CHUNK);
+const under=(s,x,y,skipId)=>s.bld.some(b=>b.id!==skipId&&x>=b.x&&x<b.x+2&&y>=b.y&&y<b.y+2);
+/* препятствия: деревья и камни на свободной земле, как в оригинальной игре их расчищают за золото.
+   Места постоянные (зерно от участка), в документе хранится только список расчищенных клеток s.clr.
+   Середина острова чистая, на боковых участках по 3, на закрытых по 4: они видны и после расчистки участка. */
+const OBST_KIND={tree:{name:'Дерево',gold:60,xp:8},bush:{name:'Куст',gold:30,xp:4},rock:{name:'Валун',gold:180,xp:20,gems:1}};
+const OBST=(()=>{const out=[];
+  for(let cx=0;cx<GRID/CHUNK;cx++)for(let cy=0;cy<GRID/CHUNK;cy++){const id=cx+','+cy;if(id==='1,1')continue;
+    const r=G.rng('obst:'+id),n=START_LAND.includes(id)?3:4,used=new Set();
+    for(let k=0;k<n;k++){let x,y,t=0;do{x=cx*CHUNK+Math.floor(r()*CHUNK);y=cy*CHUNK+Math.floor(r()*CHUNK);t++}while(used.has(x+','+y)&&t<20);
+      used.add(x+','+y);const v=r();out.push({id:x+','+y,x,y,kind:v<0.5?'tree':v<0.75?'bush':'rock'})}}
+  return out})();
+const obstacles=s=>OBST.filter(o=>s.land.includes(chunkOf(o.x,o.y))&&!(s.clr||[]).includes(o.id)&&!under(s,o.x,o.y));
 function canPlace(s,x,y,skipId){
   if(x<0||y<0||x+2>GRID||y+2>GRID)return false;
   for(let dx=0;dx<2;dx++)for(let dy=0;dy<2;dy++)if(!s.land.includes(chunkOf(x+dx,y+dy)))return false;
+  const obs=obstacles(s);if(obs.some(o=>o.x>=x&&o.x<x+2&&o.y>=y&&o.y<y+2))return false;
   return !s.bld.some(b=>b.id!==skipId&&x<b.x+2&&b.x<x+2&&y<b.y+2&&b.y<y+2)}
 
 /* ---------- действия ----------
@@ -183,6 +196,8 @@ const ACTS={
     const e=pay(s,{gold:t.price});if(e)return e;settle(s,c.K);
     const id='d'+(s.seq++),genome=marketGenome(type,c.uid+':'+id);
     s.dragons.push({id,name:NAMES[type][Math.floor(G.rng(c.uid+':n:'+id)()*NAMES[type].length)],born:c.today,genome,lvl:1,fed:0,home:home.id,from:'market'});xp(s,20);s.last=id},
+  clear(s,c,{cell}){const o=obstacles(s).find(z=>z.id===cell);if(!o)return 'Здесь нечего расчищать';const k=OBST_KIND[o.kind];
+    const e=pay(s,{gold:k.gold});if(e)return e;s.clr=(s.clr||[]).concat(o.id);xp(s,k.xp);if(k.gems)s.bal.gems+=k.gems;s.got={clear:o.kind,gems:k.gems||0}},
   expand(s,c,{chunk}){if(s.land.includes(chunk))return 'Уже открыто';const cost=LAND_COST[chunk];if(!cost)return 'Этот участок не открыть';
     const e=pay(s,cost);if(e)return e;s.land.push(chunk);xp(s,50)},
   /* скрещивание: яйцо считается сразу от генотипов родителей (мейоз, кроссинговер, мутации) с зерном,
@@ -261,6 +276,6 @@ function marketGenome(type,seed){
 
 const DECO={HATCH_LV,BREED_LV,breedCost,BREED_NEED,HATCH_NEED,PRED_TOL,lvTable,summary,habNames,TYPES,HAB_ORDER,HAB_LV,FARM_LV,CROPS,RAR_GOLD,SKIP_CARDS,GRID,CHUNK,START_LAND,LAND_COST,MILESTONES,FEEDS,RATION,
   xpFor,levelOf,maxHabs,maxFarms,maxDragonLv,feedCost,income,startState,hosts,dragonKeys,goldPerCard,rate,settle,chestNow,normalize,
-  canPlace,chunkOf,apply,ready,left,level,count,streakMult,marketGenome,habCap,chestCap};
+  canPlace,chunkOf,apply,OBST,OBST_KIND,obstacles,ready,left,level,count,streakMult,marketGenome,habCap,chestCap};
 if(typeof module!=='undefined'&&module.exports)module.exports=DECO;else root.DECO=DECO;
 })(typeof window!=='undefined'?window:globalThis);

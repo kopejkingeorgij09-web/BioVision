@@ -3,6 +3,8 @@
 const assert=require('assert');
 global.DRG=require('./genetics.js');
 const E=require('./economy.js'),G=global.DRG;
+/* в старых тестах координаты построек заданы руками: препятствия в них заранее расчищены */
+const start0=E.startState;E.startState=f=>Object.assign(start0(f),{clr:E.OBST.map(o=>o.id)});
 
 let fails=0,n=0;
 function t(name,fn){n++;try{fn();console.log('ok  ',name)}catch(e){fails++;console.log('FAIL',name,'\n     ',e.stack.split('\n').slice(0,2).join(' '))}}
@@ -183,6 +185,19 @@ t('потомство двух гетерозигот по окраске: ок�
   for(let i=0;i<400;i++){s=ok(E.apply(s,ctx(K),{t:'breed',id:'b4',mother:'d1',father:'d2'}));K+=20;s=ok(E.apply(s,ctx(K),{t:'egg',id:'b4'}));
     const eg=s.bld.find(x=>x.id==='b5').slots[0];all++;if(G.phenotype(eg.genome).color==='pale')pale++;s.bld.find(x=>x.id==='b5').slots[0]=null}
   assert.ok(Math.abs(pale/all-0.25)<0.07,pale/all);
+});
+
+t('препятствия: места постоянные, мешают стройке, расчищаются за золото',()=>{
+  let s=E.normalize(start0([]),0,null);s.bal.gold=1000;
+  const obs=E.obstacles(s);assert.ok(obs.length>=9,obs.length);assert.ok(!obs.some(o=>E.chunkOf(o.x,o.y)==='1,1'));
+  const o=obs.find(z=>z.kind==='rock')||obs[0],x=Math.min(o.x,E.GRID-2),y=Math.min(o.y,E.GRID-2);
+  assert.ok(!E.canPlace(s,x,y));
+  const gm=s.bal.gems,s2=ok(E.apply(s,ctx(0),{t:'clear',cell:o.id}));
+  assert.strictEqual(s2.bal.gold,1000-E.OBST_KIND[o.kind].gold);assert.strictEqual(s2.bal.gems,gm+(E.OBST_KIND[o.kind].gems||0));
+  assert.ok(!E.obstacles(s2).some(z=>z.id===o.id));
+  assert.ok(E.apply(s2,ctx(0),{t:'clear',cell:o.id}).err);
+  /* закрытый участок: препятствий не видно, пока его не откроют */
+  assert.ok(!obs.some(z=>E.chunkOf(z.x,z.y)==='0,0'));
 });
 
 console.log(`\n${n-fails} из ${n} тестов прошли`);

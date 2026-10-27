@@ -90,7 +90,7 @@ const rateAll=st=>st.bld.reduce((x,b)=>x+E.rate(st,b),0);
 /* ---------- «Карточки»: сводка вместо чашки ---------- */
 function hero(uid,compact){
   const x=stateOf(uid);if(!x)return '';const {st,c}=x,info=c.info,n=info.cur,first=st.dragons[0];
-  if(compact)return `<div class="streak-mini drg-mini${info.done?' done':''}">${first?W.svg(phOf(first),{key:'m'+uid.slice(-6),size:64}):''}<div><b>${n}</b> <span>${plural(n,'день','дня','дней')} подряд</span><br><small class="muted">${info.done?'сегодня засчитано':`сегодня ${info.todayN} из ${GOAL}`}</small></div></div>`;
+  if(compact)return `<div class="streak-mini drg-mini${info.done?' done':''}">${first?W.svg(phOf(first),{stage:W.stageOf(first.lvl),key:'m'+uid.slice(-6),size:64}):''}<div><b>${n}</b> <span>${plural(n,'день','дня','дней')} подряд</span><br><small class="muted">${info.done?'сегодня засчитано':`сегодня ${info.todayN} из ${GOAL}`}</small></div></div>`;
   const left=Math.max(0,GOAL-info.todayN),td=todo(st,c.K),rt=rateAll(st),ration=E.RATION(info.done?n:n+1);
   const notes=[];
   if(td.gold)notes.push(`🪙 в сундуках ${fmt(td.gold)}${td.full?`, ${td.full} ${plural(td.full,'полон','полны','полны')}`:''}`);
@@ -101,8 +101,8 @@ function hero(uid,compact){
   <div class="drg-top"><div><div class="st-k">Остров драконов</div><div class="st-n"><b>${n}</b><span>${plural(n,'день','дня','дней')} подряд</span></div>
   <p class="st-msg">${info.done?`День засчитан. Паёк ${ration} корма уже на острове, а каждая следующая карточка приносит драконам ещё ${fmt(rt)} золота.`:`Сегодня ${info.todayN} из ${GOAL}. Ещё ${cardsAcc(left)}, и придёт дневной паёк ${ration} корма и самоцвет. Каждая карточка уже сейчас приносит ${fmt(rt)} золота.`}</p></div>
   <div class="drg-side">${lvlHTML(st)}${walletHTML(st)}</div></div>
-  <div class="drg-strip">${st.dragons.slice(0,8).map(d=>`<span class="drg-chip" title="${esc(d.name)}, ${d.lvl}-й уровень">${W.svg(phOf(d),{key:'h'+uid.slice(-6)+d.id,size:56})}<small>${esc(d.name)} · ${d.lvl}</small></span>`).join('')}</div>
-  <div class="drg-go">${notes.length?`<span class="drg-notes">${notes.join(' · ')}</span>`:'<span class="muted small">Остров ждёт новых карточек.</span>'}<button class="btn" data-act="drgopen" data-uid="${uid}">${own?'На остров':'Открыть остров'}</button></div>
+  <div class="drg-strip">${st.dragons.slice(0,8).map(d=>`<span class="drg-chip" title="${esc(d.name)}, ${d.lvl}-й уровень">${W.svg(phOf(d),{stage:W.stageOf(d.lvl),key:'h'+uid.slice(-6)+d.id,size:56})}<small>${esc(d.name)} · ${d.lvl}</small></span>`).join('')}</div>
+  <div class="drg-go">${notes.length?`<span class="drg-notes">${notes.join(' · ')}</span>`:'<span class="muted small">Остров ждёт новых карточек.</span>'}<span class="drg-gob"><button class="btn ghost" data-act="drgopen" data-uid="${uid}">${own?'На остров':'Открыть остров'}</button><button class="btn" data-act="drgopen" data-uid="${uid}" data-full="1">🏝 Отправиться на остров</button></span></div>
   </section>`}
 
 function switchHTML(){
@@ -112,20 +112,33 @@ function switchHTML(){
 function reviewBadge(uid){const x=stateOf(uid);if(!x)return '';const info=x.c.info,rt=rateAll(x.st);
   return `<span class="rv-dish drg-rv" title="Каждая карточка приносит драконам ${fmt(rt)} золота"><i aria-hidden="true">🪙</i><small>${info.done?'+'+fmt(rt*info.todayN):info.todayN+'/'+GOAL}</small></span>`}
 function dayDoneHTML(uid){const x=stateOf(uid);if(!x)return '';const inf=x.c.info,first=x.st.dragons[0];
-  return `<div class="party-dish">${first?W.svg(phOf(first),{key:'p'+uid.slice(-6),size:150}):''}<span class="plus">💎</span></div><div class="big">${inf.cur} ${plural(inf.cur,'день','дня','дней')}</div><p><b>Серия продлена!</b> На остров пришёл паёк ${E.RATION(inf.cur)} корма и самоцвет. Чем длиннее серия, тем больше паёк и урожай с грядок.</p>`}
+  return `<div class="party-dish">${first?W.svg(phOf(first),{stage:W.stageOf(first.lvl),key:'p'+uid.slice(-6),size:150}):''}<span class="plus">💎</span></div><div class="big">${inf.cur} ${plural(inf.cur,'день','дня','дней')}</div><p><b>Серия продлена!</b> На остров пришёл паёк ${E.RATION(inf.cur)} корма и самоцвет. Чем длиннее серия, тем больше паёк и урожай с грядок.</p>`}
 
 /* ---------- страница «Остров драконов» ---------- */
 function islandView(){
   const uid=S.drgUid||meId(),own=uid===meId(),x=stateOf(uid);
   const back=`<button class="back" data-act="go" data-v="cards">← К карточкам</button>`;
   if(!x)return back+`<div class="empty">Остров ещё не открыт.</div>`;
-  const {st,c}=x,K=c.K;
+  const {st,c}=x,K=c.K,full=!!S.drgFull;
   if(S.drgSel&&!st.bld.some(b=>b.id===S.drgSel))S.drgSel=null;
   const pl=own?S.drgPlace:null;
+  const placeBar=pl?`<div class="drg-place"><span>${pl.move?'Нажмите, куда перенести здание':'Нажмите на зелёную клетку, где поставить: '+E.TYPES[pl.type].name}</span><button class="btn ghost sm" data-act="drgcancel">Отмена</button></div>`:'';
+  const isl=I.svg(st,{K,sel:S.drgSel,place:pl,key:'isl',readonly:!own,full});
+  if(full){
+    const L=E.level(st),a=E.xpFor(L),b=E.xpFor(L+1),xp=Math.round((st.bal.xp-a)/Math.max(1,b-a)*100),bal=st.bal;
+    const pill=(ic,v,t)=>`<span class="drg-pill" title="${t}"><i aria-hidden="true">${ic}</i><b>${fmt(v)}</b>${own?`<button data-act="drgpanel" data-v="help" aria-label="${t}: как получить">+</button>`:''}</span>`;
+    const rb=(act,v,ic,t,big)=>`<button class="drg-rb${big?' big':''}" data-act="${act}" data-v="${v}"><i aria-hidden="true">${ic}</i><span>${t}</span></button>`;
+    return `<div class="drg-map full${pl?' placing':''}"><div class="drg-stage">${isl}</div>
+      <div class="drg-hud"><div class="drg-hud-l" title="Опыт ${fmt(bal.xp)} из ${fmt(b)}"><span class="drg-star"><b>${L}</b></span><span class="drg-xpbar"><i style="width:${xp}%"></i></span></div>
+      <div class="drg-hud-r">${pill('🪙',bal.gold,'Золото')}${pill('💎',bal.gems,'Самоцветы')}${pill('🌾',bal.food,'Корм')}</div></div>
+      ${placeBar}
+      <div class="drg-bl">${rb('drgfull','0','🏠','Домой')}${rb('drgpanel','dragons','📖','Драконы')}${rb('drgpanel','journal','📓','Журнал')}</div>
+      ${own?`<div class="drg-br">${rb('drgpanel','market','🐉','Рынок')}${rb('drgpanel','shop','🔨','Строить',1)}</div>`:''}
+      <div class="drg-zm"><button data-act="drgzoom" data-v="in" aria-label="Приблизить">+</button><button data-act="drgzoom" data-v="out" aria-label="Отдалить">−</button><button data-act="drgzoom" data-v="fit" aria-label="Весь остров">⤢</button></div>
+      </div>`+panel(st,c,own)}
   const head=`${back}<div class="drg-ih"><div class="drg-ih-t"><h1>Остров драконов${own?'':': '+esc(name(uid))}</h1><span class="muted small">Время на острове идёт в карточках: повторено ${cards(K)}</span></div>${lvlHTML(st)}${walletHTML(st)}</div>`;
-  const tools=own?`<div class="drg-tools">${pl?`<span class="drg-hint">${pl.move?'Нажмите, куда перенести здание':'Нажмите на зелёную клетку, где поставить: '+E.TYPES[pl.type].name}</span><button class="btn ghost sm" data-act="drgcancel">Отмена</button>`
-    :`<button class="btn sm" data-act="drgpanel" data-v="shop">🏗 Построить</button><button class="btn ghost sm" data-act="drgpanel" data-v="market">🐉 Рынок</button><button class="btn ghost sm" data-act="drgpanel" data-v="dragons">📖 Драконы</button><button class="btn ghost sm" data-act="drgpanel" data-v="journal">📓 Журнал скрещиваний</button><button class="btn ghost sm" data-act="drgpanel" data-v="help">Как это работает</button>`}</div>`:'';
-  const map=`<div class="drg-map${pl?' placing':''}">${I.svg(st,{K,sel:S.drgSel,place:pl,key:'isl',readonly:!own})}</div>`;
+  const tools=own&&!pl?`<div class="drg-tools"><button class="btn sm" data-act="drgfull" data-v="1">🏝 Отправиться на остров</button><button class="btn ghost sm" data-act="drgpanel" data-v="shop">🔨 Построить</button><button class="btn ghost sm" data-act="drgpanel" data-v="market">🐉 Рынок</button><button class="btn ghost sm" data-act="drgpanel" data-v="dragons">📖 Драконы</button><button class="btn ghost sm" data-act="drgpanel" data-v="journal">📓 Журнал скрещиваний</button><button class="btn ghost sm" data-act="drgpanel" data-v="help">Как это работает</button></div>`:'';
+  const map=`<div class="drg-map${pl?' placing':''}">${placeBar}${isl}<button class="drg-fsb" data-act="drgfull" data-v="1" aria-label="Открыть остров на весь экран">⛶</button></div>`;
   return head+tools+map+panel(st,c,own);
 }
 
@@ -138,7 +151,7 @@ function panel(st,c,own){
   if(p==='journal')return journalHTML(st);
   if(p==='baby'){const d=st.dragons.find(x=>x.id===S.drgBaby);if(d)return `<section class="sheet drg-pan drg-baby"><div class="drg-pan-h"><h2>🐣 Вылупился ${esc(d.name)}!</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div><div class="drg-list">${dragonCard(st,d,own,L)}</div></section>`}
   const b=st.bld.find(x=>x.id===S.drgSel);
-  if(!b)return `<p class="muted small drg-tip">${own?'Нажмите на здание, чтобы собрать золото, покормить драконов или посадить корм.':'Это остров ученицы, здесь можно только смотреть.'}</p>`;
+  if(!b)return S.drgFull?'':`<p class="muted small drg-tip">${own?'Нажмите на здание, чтобы собрать золото, покормить драконов или посадить корм.':'Это остров ученицы, здесь можно только смотреть.'}</p>`;
   const T=E.TYPES[b.type],job=b.build||b.up;
   let h=`<section class="sheet drg-pan"><div class="drg-pan-h"><h2>${T.name}${b.build?'':` · ${b.lvl}-й уровень`}</h2><button class="btn ghost sm" data-act="drgsel" data-id="">Закрыть</button></div>`;
   if(job){const lf=E.left(job,K);
@@ -162,9 +175,9 @@ function panel(st,c,own){
 function dragonCard(st,d,own,L){
   const ph=phOf(d),rr=G.rarity(ph),cost=E.feedCost(d.lvl),cap=E.maxDragonLv(L),home=st.bld.find(b=>b.id===d.home);
   const homes=own?st.bld.filter(b=>b.id!==d.home&&!b.build&&E.hosts(b.type,ph)&&st.dragons.filter(x=>x.home===b.id).length<E.habCap(b)):[];
-  return `<article class="drg-card ${RCLS[rr]}"><div class="drg-pic">${W.svg(ph,{key:'c'+d.id,size:170,label:esc(d.name)})}</div>
+  return `<article class="drg-card ${RCLS[rr]}"><div class="drg-pic">${W.svg(ph,{stage:W.stageOf(d.lvl),key:'c'+d.id,size:170,label:esc(d.name)})}</div>
   <div class="drg-info"><div class="drg-nm"><b>${esc(d.name)}</b><span class="drg-sex" title="${d.genome.sex==='F'?'самка ZW':'самец ZZ'}">${SEX[d.genome.sex]}</span><span class="drg-rar">${G.RARITY[rr]}</span></div>
-  <div class="drg-dl"><span>${d.lvl}-й уровень</span><span class="drg-pips" title="Кормлений до следующего уровня">${Array.from({length:E.FEEDS},(_,i)=>`<i${i<(d.fed||0)?' class="on"':''}></i>`).join('')}</span><span class="muted">+${fmt(E.goldPerCard(d))} 🪙 за карточку</span></div>
+  <div class="drg-dl"><span>${d.lvl}-й уровень, ${W.STAGE_NAME[W.stageOf(d.lvl)]}</span><span class="drg-pips" title="Кормлений до следующего уровня">${Array.from({length:E.FEEDS},(_,i)=>`<i${i<(d.fed||0)?' class="on"':''}></i>`).join('')}</span><span class="muted">+${fmt(E.goldPerCard(d))} 🪙 за карточку</span></div>
   <ul>${W.describe(ph).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
   <p class="muted small" style="margin:4px 0 0">${home?'Живёт: '+E.TYPES[home.type].name:'Без дома'}${d.parents?` · ${d.gen}-е поколение, родители ${d.parents.map(id=>esc(dname(st,id))).join(' × ')}`:d.from==='market'?' · с рынка':''}</p>
   ${own?`<div class="drg-da">${d.lvl<cap?`<button class="btn sm" data-act="drgdo" data-t="feed" data-dragon="${d.id}"${st.bal.food<cost?' disabled':''}>Покормить: ${cost} 🌾</button>`:`<span class="muted small">Следующий уровень откроется с ростом острова</span>`}
@@ -193,7 +206,7 @@ function nestHTML(st,b,c,own){
   const K=c.K;
   if(b.pair){const p=b.pair,m=st.dragons.find(x=>x.id===p.m),f=st.dragons.find(x=>x.id===p.f),rd=E.ready(p,K),lf=E.left(p,K);
     const pr=p.pred?`<p class="drg-pred ${p.pred.ok?'ok':'no'}">${p.pred.ok?'✓':'✗'} Прогноз: ${TRAITS[p.pred.trait].toLowerCase()} «${esc((classesOf(p.pred.trait,m||st.dragons[0],f||st.dragons[0]).find(x=>x[0]===p.pred.value)||[0,p.pred.value])[1])}» у ${Math.round(p.pred.p*100)} % потомков. ${p.pred.ok?`Верно! Скрещивание идёт вдвое быстрее, и пришёл самоцвет.`:`На самом деле ${Math.round(p.pred.truth*1000)/10} %. Подумай, какие генотипы у родителей могли бы дать такое число.`}</p>`:'';
-    return `<div class="drg-pair">${[m,f].map(d=>d?`<span class="drg-chip">${W.svg(phOf(d),{key:'np'+d.id,size:56})}<small>${esc(d.name)} ${SEX[d.genome.sex]}</small></span>`:'').join('<b>×</b>')}</div>${pr}
+    return `<div class="drg-pair">${[m,f].map(d=>d?`<span class="drg-chip">${W.svg(phOf(d),{stage:W.stageOf(d.lvl),key:'np'+d.id,size:56})}<small>${esc(d.name)} ${SEX[d.genome.sex]}</small></span>`:'').join('<b>×</b>')}</div>${pr}
       <p>${rd?'Яйцо готово. Перенесите его в Инкубатор.':`Яйцо будет готово через ${cardsAcc(lf)}.`}</p>
       ${own?`<div class="actions" style="justify-content:flex-start">${rd?`<button class="btn sm" data-act="drgdo" data-t="egg" data-id="${b.id}">Забрать яйцо в Инкубатор</button>`:`<button class="btn ghost sm" data-act="drgdo" data-t="speed" data-id="${b.id}">Ускорить за ${Math.ceil(lf/E.SKIP_CARDS)} 💎</button>`}</div>`:''}`}
   if(!own)return '<p class="muted small">Гнездовье пустует.</p>';
@@ -204,7 +217,7 @@ function nestHTML(st,b,c,own){
   const tr=TRAITS[fv.drgPt]?fv.drgPt:'',cls=tr?classesOf(tr,m,f):[],cv=cls.some(x=>x[0]===fv.drgPc)?fv.drgPc:(cls[0]||[])[0];
   const low=[m,f].filter(d=>!ok(d));
   return `<div class="drg-breed"><label>Самка ${sel('drgM',fs.map(d=>[d.id,`${d.name} ♀ · ${d.lvl}-й ур.`]),mid)}</label><label>Самец ${sel('drgF',ms.map(d=>[d.id,`${d.name} ♂ · ${d.lvl}-й ур.`]),fid)}</label></div>
-  <div class="drg-pair">${[m,f].map(d=>`<span class="drg-chip">${W.svg(phOf(d),{key:'bp'+d.id,size:56})}<small>${esc(d.name)}</small></span>`).join('<b>×</b>')}</div>
+  <div class="drg-pair">${[m,f].map(d=>`<span class="drg-chip">${W.svg(phOf(d),{stage:W.stageOf(d.lvl),key:'bp'+d.id,size:56})}<small>${esc(d.name)}</small></span>`).join('<b>×</b>')}</div>
   <details class="drg-predbox" data-k="drgpred"${tr?' open':''}><summary>Сделать прогноз (по желанию)</summary>
     <p class="muted small">Если догадалась о генотипах родителей, предскажи долю потомков с признаком. Ошибка до ${Math.round(E.PRED_TOL*100)} процентных пунктов засчитывается: скрещивание вдвое быстрее и самоцвет. Неверный прогноз ничего не стоит.</p>
     <div class="drg-breed"><label>Признак ${sel('drgPt',[['','без прогноза'],...Object.entries(TRAITS)],tr)}</label>${tr?`<label>Вариант ${sel('drgPc',cls,cv)}</label><label>Доля, % <input id="drgPp" class="drg-in" type="number" min="0" max="100" step="0.1" inputmode="decimal" value="${esc(fv.drgPp||'')}" placeholder="например 25"></label>`:''}</div></details>
@@ -282,17 +295,59 @@ document.addEventListener('scroll',e=>{const m=e.target;if(m&&m.classList&&m.cla
 new MutationObserver(()=>{const m=document.querySelector('.drg-map');if(!m||m.dataset.sc)return;m.dataset.sc='1';
   m.scrollLeft=S.drgScroll!=null?S.drgScroll:(m.scrollWidth-m.clientWidth)/2}).observe(document.documentElement,{childList:true,subtree:true});
 
+/* ---------- остров на весь экран: панорама и масштаб ----------
+   Камера живёт вне HTML (S.drgCam), чтобы перерисовка не сбрасывала положение; применяется после каждой перерисовки. */
+const cam=()=>S.drgCam||(S.drgCam={z:0,x:0,y:0});
+function camBox(){const m=document.querySelector('.drg-map.full');return m?m.getBoundingClientRect():null}
+function camClamp(c,r){c.z=Math.max(1,Math.min(4,c.z));c.x=Math.min(0,Math.max(r.width-r.width*c.z,c.x));c.y=Math.min(0,Math.max(r.height-r.height*c.z,c.y))}
+/* начальный вид: остров (800×560 в единицах рисунка) почти во всю ширину или высоту окна, по центру */
+function camFit(r){const c=cam(),V=I.VIEW.full,s0=Math.min(r.width/V[2],r.height/V[3]),ox=(r.width-V[2]*s0)/2,oy=(r.height-V[3]*s0)/2;
+  c.z=Math.max(1,Math.min(4,(r.width<700?1.5:0.96)*r.width/(800*s0),(r.width<700?9:0.9)*r.height/(560*s0)));
+  const cx=ox+(400-V[0])*s0,cy=oy+(320-V[1])*s0;c.x=r.width/2-c.z*cx;c.y=r.height/2-c.z*cy;camClamp(c,r)}
+function camApply(){const st=document.querySelector('.drg-map.full .drg-stage'),r=camBox();if(!st||!r)return;const c=cam();if(!c.z)camFit(r);camClamp(c,r);
+  st.style.transform=`translate(${c.x.toFixed(1)}px,${c.y.toFixed(1)}px) scale(${c.z.toFixed(3)})`}
+function camZoom(px,py,f){const r=camBox();if(!r)return;const c=cam(),nz=Math.max(1,Math.min(4,c.z*f)),k=nz/c.z;c.x=px-(px-c.x)*k;c.y=py-(py-c.y)*k;c.z=nz;camApply()}
+const ptrs=new Map();let moved=0,lastDrag=0,pinch=null;
+const onHud=t=>t.closest&&t.closest('.drg-hud,.drg-bl,.drg-br,.drg-zm,.drg-place,.drg-pan');
+window.addEventListener('pointerdown',e=>{const m=e.target.closest&&e.target.closest('.drg-map.full');if(!m||onHud(e.target))return;
+  ptrs.set(e.pointerId,[e.clientX,e.clientY]);if(ptrs.size===1)moved=0;if(ptrs.size===2){const [a,b]=[...ptrs.values()];pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1])}}});
+window.addEventListener('pointermove',e=>{const p=ptrs.get(e.pointerId);if(!p)return;const r=camBox();if(!r){ptrs.clear();return}
+  const dx=e.clientX-p[0],dy=e.clientY-p[1];ptrs.set(e.pointerId,[e.clientX,e.clientY]);
+  if(ptrs.size===1){moved+=Math.abs(dx)+Math.abs(dy);if(moved>6){const c=cam();c.x+=dx;c.y+=dy;camApply()}}
+  else if(ptrs.size===2&&pinch){const [a,b]=[...ptrs.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]);moved=99;
+    camZoom((a[0]+b[0])/2-r.left,(a[1]+b[1])/2-r.top,d/pinch.d);pinch.d=d}});
+const ptrUp=e=>{if(!ptrs.has(e.pointerId))return;ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=null;if(moved>6)lastDrag=Date.now()};
+window.addEventListener('pointerup',ptrUp);window.addEventListener('pointercancel',ptrUp);
+/* после перетаскивания отпускание кнопки не считается нажатием на здание */
+window.addEventListener('click',e=>{if(Date.now()-lastDrag<350&&e.target.closest&&e.target.closest('.drg-map.full')&&!onHud(e.target)){e.stopPropagation();e.preventDefault()}},true);
+window.addEventListener('wheel',e=>{const m=e.target.closest&&e.target.closest('.drg-map.full');if(!m||onHud(e.target))return;e.preventDefault();
+  const r=camBox();camZoom(e.clientX-r.left,e.clientY-r.top,Math.exp(-e.deltaY*0.0018))},{passive:false});
+window.addEventListener('resize',()=>camApply());
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.drgFull&&S.view==='island'&&!document.querySelector('dialog[open]')){if(S.drgPanel||S.drgSel){S.drgPanel=null;S.drgSel=null}else S.drgFull=false;render()}});
+/* общие часы анимаций и классы body: на весь экран прокрутка страницы выключена, уведомления наверху */
+new MutationObserver(()=>{
+  document.querySelectorAll('svg.drg-isl:not([data-clk])').forEach(el=>{el.dataset.clk='1';el.style.setProperty('--clk',(-performance.now()/1000).toFixed(2)+'s')});
+  const fs=!!document.querySelector('.drg-map.full'),b=document.body;if(!b)return;
+  if(b.classList.contains('drg-fs')!==fs)b.classList.toggle('drg-fs',fs);
+  const iv=!!document.querySelector('.drg-map');if(b.classList.contains('drg-islv')!==iv)b.classList.toggle('drg-islv',iv);
+  if(fs)camApply()}).observe(document.documentElement,{childList:true,subtree:true});
+
 /* ---------- действия ---------- */
 const num=v=>v==null||v===''?undefined:Number(v);
 window.DRGUI={on,hero,switchHTML,reviewBadge,dayDoneHTML,onSnap,islandView,stateOf,founders,setMode};
 window.DRG_ACTIONS={
   drgmode:async el=>{const v=el.dataset.v;await setMode(v);toast(v==='dragons'?'Включены драконы. Чашка Петри никуда не делась, вернуться можно в любой момент.':'Включены бактерии. Драконы ждут на острове.')},
   drgopen:el=>{S.drgUid=el.dataset.uid||meId();S.view='island';S.drgSel=null;S.drgPanel=null;S.drgPlace=null;window.scrollTo(0,0);
-    S.drgScroll=null},
+    S.drgScroll=null;S.drgFull=!!el.dataset.full;S.drgCam=null},
+  drgfull:el=>{S.drgFull=el.dataset.v==='1';S.drgCam=null;S.drgPanel=null;S.drgSel=null;if(!S.drgFull)window.scrollTo(0,0)},
+  drgzoom:el=>{const r=camBox();if(!r)return;const v=el.dataset.v;if(v==='fit'){camFit(r);camApply()}else camZoom(r.width/2,r.height/2,v==='in'?1.35:1/1.35)},
+  drgobs:async el=>{const x=stateOf(meId());if(!x)return;const o=E.obstacles(x.st).find(z=>z.id===el.dataset.c);if(!o)return;const k=E.OBST_KIND[o.kind];
+    if(!await askConfirm(`${k.name}: расчистить за ${k.gold} золота? Освободится место для построек${k.gems?', а под валуном найдётся самоцвет':''}.`,'Расчистить'))return;
+    const r=act({t:'clear',cell:o.id});if(r)toast(k.gems?`Расчищено! +${k.gems} 💎`:'Расчищено')},
   drgsel:el=>{if(S.drgPlace)return;S.drgSel=el.dataset.id||null;S.drgPanel=null},
   drgpanel:el=>{S.drgPanel=el.dataset.v||null;S.drgSel=null;S.drgPlace=null},
-  drgbuild:el=>{S.drgPlace={type:el.dataset.type};S.drgPanel=null;S.drgSel=null;window.scrollTo(0,0);toast('Выберите место на острове')},
-  drgmove:el=>{S.drgPlace={move:el.dataset.id};window.scrollTo(0,0)},
+  drgbuild:el=>{S.drgPlace={type:el.dataset.type};S.drgPanel=null;S.drgSel=null;if(!S.drgFull)window.scrollTo(0,0)},
+  drgmove:el=>{S.drgPlace={move:el.dataset.id};S.drgSel=null;if(!S.drgFull)window.scrollTo(0,0)},
   drgcancel:()=>{S.drgPlace=null},
   drgtile:el=>{const p=S.drgPlace;if(!p)return;const x=+el.dataset.x,y=+el.dataset.y;
     const r=p.move?act({t:'move',id:p.move,x,y}):act({t:'build',type:p.type,x,y});

@@ -2,6 +2,8 @@
 <html lang="ru">
 <head>
 <script src="cloud.js?v=2"></script>
+<link rel="stylesheet" href="dragons/dragons.css?v=7">
+<script src="dragons/genetics.js?v=4"></script><script src="dragons/draw.js?v=4"></script><script src="dragons/economy.js?v=4"></script><script src="dragons/island.js?v=6"></script><script src="dragons/ui.js?v=7"></script><script src="dragons/inspect.js?v=7"></script><script src="dragons/live.js?v=7"></script><script src="dragons/fight.js?v=7"></script>
 <meta charset="utf-8">
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1951,7 +1953,7 @@ function navHTML(){
   const items=T()
     ?[['home','Главная',pending().length],['cal','Расписание'],['track','Трекер'],['tasks','Задания'],['cards','Карточки'],['nbs','Тетради'],['arena','Арена'],['bio','Биовиз'],['journal','Журнал'],['people','Ученицы']]
     :[['home','Главная'],['cal','Расписание'],['track','Трекер',tkLate(meId())],['tasks','Задания',myTasks().filter(t=>!inNb(t)&&['todo','late'].includes(status(t,meId()).k)).length],['cards','Карточки',dueCards],['nbs','Тетради',nbBadge()],['arena','Арена'],['bio','Биовиз'],['marks','Журнал',errPile(meId()).length+bvPile(meId()).length]];
-  const cur=S.view==='task'?'tasks':['deck','review','stview'].includes(S.view)?'cards':S.view==='fix'?'marks':S.view==='arview'?'arena':S.view==='nb'?'nbs':S.view;
+  const cur=S.view==='task'?'tasks':['deck','review','stview','island'].includes(S.view)?'cards':S.view==='fix'?'marks':S.view==='arview'?'arena':S.view==='nb'?'nbs':S.view;
   const kb=/Mac|iPhone|iPad/.test(navigator.platform||'')?'⌥':'Alt+';
   return items.map(([v,l,n],i)=>`<button data-act="go" data-v="${v}" aria-current="${cur===v}" aria-label="${l}${n?`, ${n}`:''}" title="${l}${i<9?` (${kb}${i+1})`:''}"><span class="ni" aria-hidden="true"><svg viewBox="0 0 24 24">${IC[v]}</svg></span><span class="nl">${l}</span>${n?`<span class="badge">${n}</span>`:''}</button>`).join('');
 }
@@ -2232,7 +2234,7 @@ function cardsHTML(){
   const ds=myDecks();
   const head=`<div class="page-h"><h1>Карточки</h1>${T()?`<button class="btn" data-act="newdeck">Новая колода</button>`:canAssign()?`<button class="btn" data-act="newdeck">Колода ученицам</button>`:''}</div>
   <p class="muted small" style="margin:-8px 0 16px">Интервальное повторение: карточка возвращается тогда, когда вы начинаете её забывать. Чем лучше помните, тем реже.</p>`;
-  const sHero=T()?(S.people.length?`<div class="st-strip">${S.people.map(p=>`<button class="st-chip" data-act="stview" data-uid="${p.id}" title="Открыть чашку подробно"><span class="nm">${esc(p.label)}</span>${streakHTML(p.id,true)}<span class="go" aria-hidden="true">›</span></button>`).join('')}</div>`:''):streakHTML(meId(),false)+peekStrip();
+  const sHero=T()?(S.people.length?`<div class="st-strip">${S.people.map(p=>`<button class="st-chip" data-act="stview" data-uid="${p.id}" title="Открыть чашку подробно"><span class="nm">${esc(p.label)}</span>${streakHTML(p.id,true)}<span class="go" aria-hidden="true">›</span></button>`).join('')}</div>`:''):DRGUI.switchHTML()+streakHTML(meId(),false)+peekStrip();
   const given=canAssign()?S.decks.filter(ownAsg):[];
   const gv=canAssign()?`<div class="cd-h"><h2>Вы дали ученицам</h2><span class="muted small">${given.length}</span></div>${given.length?`<div class="dgrid">${given.map(d=>{const n=(d.cards||[]).length;return `<button class="dk" data-act="deck" data-id="${d.id}" style="--c:${sc(d.subject)}"><span class="dk-h">${subj(d.subject)}<span class="dk-n">${n} ${plural(n,'карточка','карточки','карточек')}</span></span><span class="dk-t">${esc(d.title)}</span><span class="dk-s">Для: ${toNames(d)}</span></button>`}).join('')}</div>`:`<p class="muted small">Колоды, которые вы дадите ученицам кнопкой «Колода ученицам», появятся здесь. Прогресс учениц по ним видит учитель.</p>`}`:'';
   if(!ds.length)return head+sHero+`<div class="empty">${T()?'Колод пока нет. Создайте колоду и вставьте карточки из Anki или списком «вопрос ; ответ».':'Колод пока нет.'}</div>`+gv;
@@ -2287,8 +2289,8 @@ function reviewHTML(){
   const total=r.done+r.queue.length;
   const sti=streakInfo(S.streak[meId()]);
   const tm=!!d&&typeMode(d);
-  const top=`<div class="rv-top"><button class="back" data-act="endreview">← Закончить</button><span class="ttl">${r.mix?(r.sub?'Всё '+SUBJ_PO[r.sub]:'Все колоды'):esc(d.title)}</span>${d?`<button class="rv-tm" data-act="typemode" data-id="${d.id}" aria-pressed="${tm}" title="${r.mix?'Писать ответ с клавиатуры в колоде «'+esc(d.title)+'»':'Писать ответ с клавиатуры'}">⌨<span class="l"> Ввод ответа</span></button>`:''}<span class="rv-dish" title="Чашка Петри">${dishSVG(meId(),{size:30,pulse:S.pulseAt&&Date.now()-S.pulseAt<700})}<small>${sti.done?'+'+spawnN(sti.todayN)+' кол.':sti.todayN+'/'+GOAL}</small></span><span class="cnt">${r.done} / ${total}</span></div><div class="rv-bar" aria-hidden="true"><i style="width:${total?r.done/total*100:0}%"></i></div>`;
-  if(!r.queue.length){const inf=streakInfo(S.streak[meId()]);return `<div class="rv" style="--c:${col}">${top}<section class="rv-card"><div class="rv-done${r.newDay?' party':''}">${r.newDay?`<div class="party-dish">${dishSVG(meId(),{size:150,ring:false})}<span class="plus">+1</span></div><div class="big">${inf.cur} ${plural(inf.cur,'день','дня','дней')}</div><p><b>Серия продлена!</b> В чашке выросла новая колония, а старые получили порцию питания. Каждые 5 карточек сверх ${GOAL} дают ещё одну колонию.</p>`:`<div class="big">${r.done}</div><p>${plural(r.done,'повторение','повторения','повторений')} на сегодня сделано. Карточки вернутся, когда начнут забываться.${inf.done?(inf.cur?` Серия: ${inf.cur} ${plural(inf.cur,'день','дня','дней')} подряд.`:''):` Для серии сегодня ${inf.todayN} из ${GOAL}: повторите ещё ${GOAL-inf.todayN}, можно через «Пройти всю колоду».`}</p>`}<button class="btn" data-act="endreview">${r.mix?'К колодам':'К колоде'}</button></div></section></div>`}
+  const top=`<div class="rv-top"><button class="back" data-act="endreview">← Закончить</button><span class="ttl">${r.mix?(r.sub?'Всё '+SUBJ_PO[r.sub]:'Все колоды'):esc(d.title)}</span>${d?`<button class="rv-tm" data-act="typemode" data-id="${d.id}" aria-pressed="${tm}" title="${r.mix?'Писать ответ с клавиатуры в колоде «'+esc(d.title)+'»':'Писать ответ с клавиатуры'}">⌨<span class="l"> Ввод ответа</span></button>`:''}${DRGUI.on(meId())?DRGUI.reviewBadge(meId()):`<span class="rv-dish" title="Чашка Петри">${dishSVG(meId(),{size:30,pulse:S.pulseAt&&Date.now()-S.pulseAt<700})}<small>${sti.done?'+'+spawnN(sti.todayN)+' кол.':sti.todayN+'/'+GOAL}</small></span>`}<span class="cnt">${r.done} / ${total}</span></div><div class="rv-bar" aria-hidden="true"><i style="width:${total?r.done/total*100:0}%"></i></div>`;
+  if(!r.queue.length){const inf=streakInfo(S.streak[meId()]);return `<div class="rv" style="--c:${col}">${top}<section class="rv-card"><div class="rv-done${r.newDay?' party':''}">${r.newDay?(DRGUI.on(meId())?DRGUI.dayDoneHTML(meId()):`<div class="party-dish">${dishSVG(meId(),{size:150,ring:false})}<span class="plus">+1</span></div><div class="big">${inf.cur} ${plural(inf.cur,'день','дня','дней')}</div><p><b>Серия продлена!</b> В чашке выросла новая колония, а старые получили порцию питания. Каждые 5 карточек сверх ${GOAL} дают ещё одну колонию.</p>`):`<div class="big">${r.done}</div><p>${plural(r.done,'повторение','повторения','повторений')} на сегодня сделано. Карточки вернутся, когда начнут забываться.${inf.done?(inf.cur?` Серия: ${inf.cur} ${plural(inf.cur,'день','дня','дней')} подряд.`:''):` Для серии сегодня ${inf.todayN} из ${GOAL}: повторите ещё ${GOAL-inf.todayN}, можно через «Пройти всю колоду».`}</p>`}<button class="btn" data-act="endreview">${r.mix?'К колодам':'К колоде'}</button></div></section></div>`}
   const c=(d.cards||[]).find(x=>x.i===ci);
   if(!c){r.queue.shift();return reviewHTML()}
   const st=((S.srs[meId()]||{})[d.id]||{s:{}}).s[c.i];
@@ -2526,6 +2528,7 @@ function speciesHTML(n){
   return `<div class="lvwrap"><div class="lv-t"><span>Коллекция бактерий</span><span class="muted">${got} из ${SPECIES.length}</span></div><div class="lvs">${SPECIES.map(node).join('')}</div>${info}</div>`;
 }
 function streakHTML(uid,compact){
+  if(DRGUI.on(uid))return DRGUI.hero(uid,compact);
   const info=streakInfo(S.streak[uid]),c=culture(uid),n=info.cur,lbl=uid===meId()?(S.myLabel||''):name(uid);
   if(compact){
     if(c.broken)return `<div class="streak-mini dead">${dishSVG(uid,{size:64,mode:'dead'}).replace('class="dish dead','class="dish dead still')}<div><b>0</b> <span>дней</span><br><small class="muted">чашка погибла</small></div></div>`;
@@ -2931,7 +2934,7 @@ function mainHTML(){
     <p class="muted">Напиши, как тебя зовут, чтобы учитель понимал, чья работа.</p>
     <label>Имя<input id="joinname" maxlength="40" value="${esc(val('joinname'))}" autocomplete="given-name"></label>
     <button class="btn" data-act="join">Войти в класс</button></section>`;
-  const html=({home:homeHTML,cal:calHTML,tasks:tasksHTML,task:taskHTML,cards:cardsHTML,deck:deckHTML,review:reviewHTML,stview:stViewHTML,journal:journalHTML,marks:marksHTML,fix:fixHTML,people:peopleHTML,arena:arenaHTML,arview:arviewHTML,bio:bioHTML,nbs:nbsHTML,nb:nbHTML,track:trackHTML}[S.view]||homeHTML)();
+  const html=({home:homeHTML,cal:calHTML,tasks:tasksHTML,task:taskHTML,cards:cardsHTML,deck:deckHTML,review:reviewHTML,stview:stViewHTML,journal:journalHTML,marks:marksHTML,fix:fixHTML,people:peopleHTML,arena:arenaHTML,arview:arviewHTML,island:DRGUI.islandView,bio:bioHTML,nbs:nbsHTML,nb:nbHTML,track:trackHTML}[S.view]||homeHTML)();
   const c=PHC[S.view];
   return c&&IC[S.view]?html.replace('<div class="page-h"><h1>',`<div class="page-h"><h1><span class="phi" style="--c:${c}" aria-hidden="true"><svg viewBox="0 0 24 24">${IC[S.view]}</svg></span>`):html;
 }
@@ -3025,7 +3028,7 @@ function watch(uid){
   const db=S.db,map=q=>Object.fromEntries(q.docs.map(d=>[d.id,d.data()]));
   db.collection('subs/'+uid+'/items').onSnapshot(q=>{S.subs[uid]=map(q);render(true)},err);
   db.collection('srs/'+uid+'/meta').onSnapshot(q=>{const m=map(q),srv=m.streak||{days:{}};
-    if(uid===meId()){mergeStreak(srv);markReady('streak',q)}else S.streak[uid]=srv;syncPeek();syncArena();render(true)},err);
+    if(uid===meId()){mergeStreak(srv);markReady('streak',q)}else S.streak[uid]=srv;DRGUI.onSnap(uid,m.dragons);syncPeek();syncArena();render(true)},err);
   if(T())db.collection('petri/'+uid+'/from').onSnapshot(q=>{S.peek[uid]=map(q);syncPeek();render(true)},err);
   db.collection('subs/'+uid+'/fix').onSnapshot(q=>{S.fix[uid]=map(q);render(true)},err);
   db.collection('subs/'+uid+'/bv').onSnapshot(q=>{S.bverr[uid]=map(q);if(!T()&&uid===meId()){S.bvErrLoaded=true;bvErrChanged();bvBackfill()}render(true)},err);
@@ -4292,6 +4295,7 @@ function rate(g){
 }
 const focusTyped=()=>{const r=S.rev;if(r&&typeMode(S.decks.find(x=>x.id===r.deckId)))setTimeout(()=>{const i=$('#rvin');if(i&&document.activeElement!==i)i.focus({preventScroll:true})},80)};
 const actions={
+  ...window.DRG_ACTIONS,
   bvopen:el=>{BVS.want=el.dataset.m;S.view='bio';window.scrollTo(0,0);if(BVS.st===2)bvWant()},
   ai:()=>{aiStart()},aistop:()=>{aiStop()},
   arview:el=>{S.arUid=el.dataset.uid;S.view='arview';window.scrollTo(0,0)},

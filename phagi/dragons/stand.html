@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Стенд драконов</title>
+<style>
+:root{--bg:#F3F5F8;--card:#FFFFFF;--ink:#1E2230;--quiet:#5E6475;--line:#DDE2EA;--acc:#2F6FD6;--accbg:#E7EFFC;--good:#1E8A4C;--warn:#B7791F;--bad:#C0392B;--stage:#F7FAFD}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14161C;--card:#1D2029;--ink:#E8EAF0;--quiet:#A0A6B5;--line:#2E3340;--acc:#7DA8F0;--accbg:#22304A;--good:#5BC98A;--warn:#E0B060;--bad:#F07A6E;--stage:#232733}}
+:root[data-theme="dark"]{--bg:#14161C;--card:#1D2029;--ink:#E8EAF0;--quiet:#A0A6B5;--line:#2E3340;--acc:#7DA8F0;--accbg:#22304A;--good:#5BC98A;--warn:#E0B060;--bad:#F07A6E;--stage:#232733}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:12px 16px}
+h1{font-size:20px;margin:0 0 4px}
+header p{margin:0 0 10px;color:var(--quiet);max-width:860px}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button,.tg{border:0;background:var(--card);color:var(--ink);padding:7px 12px;font:inherit;font-size:14px;cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"],.tg[aria-pressed="true"]{background:var(--accbg);color:var(--acc);font-weight:600}
+.tg{border:1px solid var(--line);border-radius:10px}
+main{padding:8px 16px 60px;max-width:1400px;margin:0 auto}
+section{margin:22px 0}
+h2{font-size:17px;margin:0 0 4px}
+section>p{margin:0 0 10px;color:var(--quiet);max-width:860px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.grid.age{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px 10px;min-width:0}
+.pics{display:flex;gap:6px}
+.pic{flex:1;min-width:0;background:var(--stage);border-radius:8px;position:relative;display:flex;align-items:flex-end;justify-content:center;overflow:hidden}
+.pic svg,.pic canvas{display:block;width:100%;height:auto}
+.pic.fix{aspect-ratio:4/3;align-items:stretch}
+.pic svg.fit{width:100%;height:100%}
+.grid.heads,.grid.sils{grid-template-columns:repeat(auto-fill,minmax(165px,1fr))}
+.pic.white{background:#FFFFFF}
+.card h3+.ph{margin-top:0}
+.scroll+h3,section h3{font-size:14px;margin:12px 0 4px}
+.pic .tag{position:absolute;left:6px;top:4px;font-size:11px;color:var(--quiet);background:var(--card);border-radius:6px;padding:0 5px}
+.card h3{font-size:14px;margin:8px 0 2px}
+.card .gene{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--acc);margin:0 0 4px;word-break:break-word}
+.card .ph{font-size:12px;color:var(--quiet);margin:0}
+body.sil .pic{background:#FFFFFF}
+svg.dr3 g[data-part]{transition:opacity .15s}
+svg.dr3.hl g[data-part]{opacity:.22}
+svg.dr3.hl g[data-part].on{opacity:1}
+#tip{position:fixed;z-index:9;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12px;border-radius:8px;padding:5px 8px;max-width:260px;display:none}
+table{border-collapse:collapse;font-size:13px}
+th,td{border:1px solid var(--line);padding:4px 8px;text-align:right}
+th{background:var(--card);font-weight:600}
+td.ok{color:var(--good)}td.mid{color:var(--warn)}td.badc{color:var(--bad)}
+.scroll{overflow-x:auto}
+.note{font-size:13px;color:var(--quiet)}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:7px 12px;font:inherit;font-size:14px;cursor:pointer}
+@keyframes drbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+@keyframes drflap{0%,100%{transform:rotate(0)}50%{transform:rotate(-5deg)}}
+body.anim svg.dr3>g{animation:drbob 2.6s ease-in-out infinite}
+body.anim svg.dr3 .flap{animation:drflap 2.6s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){body.anim svg.dr3>g,body.anim svg.dr3 .flap{animation:none}}
+@media (max-width:600px){.grid,.grid.age{grid-template-columns:1fr}.grid.heads,.grid.sils{grid-template-columns:1fr 1fr}header{position:static}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Стенд драконов</h1>
+  <p>Каждый дракон здесь собран из настоящего генотипа (DRG.make или DRG.breed). Рисунок строится только из фенотипа и уровня: архетип стихии, наследуемые признаки сверху, возраст меняет пропорции. A рисуется в SVG, C нарезан из того же рисунка для анимации. Наведи на часть тела в рисунке A: подсказка покажет, какие гены решают, есть ли она, какой она формы и окраски.</p>
+  <div class="ctl">
+    <span class="seg" role="group" aria-label="Рисунок">
+      <button data-r="svg" aria-pressed="true">A · SVG</button><button data-r="spr" aria-pressed="false">C · спрайты</button><button data-r="both" aria-pressed="false">Оба рядом</button>
+    </span>
+    <button class="tg" data-t="sil" aria-pressed="false">Чёрные силуэты</button>
+    <button class="tg" data-t="anim" aria-pressed="false">Анимация</button>
+    <button class="tg" data-t="dark" aria-pressed="false">Тёмная тема</button>
+  </div>
+</header>
+<main id="app"></main>
+<div id="tip" role="tooltip"></div>
+<script src="genetics.js"></script>
+<script src="draw.js"></script>
+<script src="morph.js?v=2"></script>
+<script src="shape.js?v=2"></script>
+<script src="art.js?v=2"></script>
+<script src="sprites.js?v=2"></script>
+<script src="stand.js?v=2"></script>
+</body>
+</html>

@@ -18,7 +18,7 @@ Scene.prototype.add=async function(ph,lvl,x,face,extra){
   const d=Object.assign({ph,lvl,M,G,R,X,A,x,face:face||1,s:G.scale,cx:G.box.x+G.box.w/2,alpha:1,tint:0},extra||{});
   this.ds.push(d);return d};
 /* размер текстур: столько пикселей холста на единицу экрана рисунка, сколько даст текущая ширина (с запасом на 25 %) */
-Scene.prototype.texPx=function(){const w=this.cv.clientWidth||600;return Math.max(0.5,Math.min(3,Math.round(w/this.w*1.25*4)/4))};
+Scene.prototype.texPx=function(){const w=this.cv.clientWidth||600,z=this.fb?this.zoomFb(w,this.cv.clientHeight||300):w/this.w;return Math.max(0.5,Math.min(3,Math.round(z*1.25*4)/4))};
 /* расставить драконов: команды слева и справа, между фигурами gap, по краям поле. Ширина и высота сцены по ним.
    Единица экрана рисунка: ширина фигуры = box.w × масштаб возраста */
 Scene.prototype.layout=function(gap,mid){
@@ -28,19 +28,24 @@ Scene.prototype.layout=function(gap,mid){
 Scene.prototype.remove=function(d){const i=this.ds.indexOf(d);if(i>=0){this.ds.splice(i,1);RIG().release(d.X)}};
 Scene.prototype.clear=function(){this.ds.forEach(d=>RIG().release(d.X));this.ds=[];this.runs=[]};
 /* матрица дракона: его мир (единицы рисунка, как в позе) → сцена */
-Scene.prototype.place=function(d){const k=d.s*d.face;return [k,0,0,d.s,d.x-k*d.cx,0]};
+Scene.prototype.place=function(d){const k=d.s*d.face;return [k,0,0,d.s,d.x-k*d.cx,d.y||0]};
+/* рамка для боя 3 на 3: прямоугольник сцены {x0,x1,y0,y1} целиком в холсте по центру, pad и padTop в CSS-пикселях.
+   Драконы тогда могут стоять в глубину (d.y > 0 ближе к зрителю), а холст любой формы */
+Scene.prototype.frame=function(b){this.fb=b};
+Scene.prototype.zoomFb=function(W,H){const b=this.fb,p=b.pad||0,pt=b.padTop||0;return Math.max(0.01,Math.min((W-2*p)/(b.x1-b.x0),(H-p-pt)/(b.y1-b.y0)))};
 Scene.prototype.view=function(){
-  const W=this.cv.width,H=this.cv.height,z=W/this.w,gy=H-Math.max(8,H*0.12);
+  const W=this.cv.width,H=this.cv.height;let z=W/this.w,ox=0,gy=H-Math.max(8,H*0.12);
+  if(this.fb){const b=this.fb,k=this.dpr,p=(b.pad||0)*k,pt=(b.padTop||0)*k;z=this.zoomFb(W/k,H/k)*k;ox=W/2-z*(b.x0+b.x1)/2;gy=(pt+H-p)/2-z*(b.y0+b.y1)/2}
   let sx=0,sy=0;const sh=this.runs.reduce((a,r)=>Math.max(a,r.shake),0);
   if(sh>0&&!this.reduce){sx=(Math.random()-0.5)*sh*z*2;sy=(Math.random()-0.5)*sh*z*1.2}
-  return [z,0,0,z,sx,gy+sy]};
+  return [z,0,0,z,ox+sx,gy+sy]};
 const mul=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
 const app=(m,p)=>[m[0]*p[0]+m[2]*p[1]+m[4],m[1]*p[0]+m[3]*p[1]+m[5]];
 Scene.prototype.mouth=function(d){return app(this.place(d),app(d.A.pose.mat.head,d.R.mouth))};
 Scene.prototype.chest=function(d){const R=d.R,p=[R.mid[0]*0.35+R.sh[0]*0.65,(R.mid[1]*0.35+R.sh[1]*0.65)-R.neckCut.r*0.2];return app(this.place(d),app(d.A.pose.body,p))};
 /* атака: a бьёт b стихией el; onImpact зовётся один раз в момент попадания, onEnd — когда атака отыграла */
 Scene.prototype.attack=function(a,b,el,cb){
-  cb=cb||{};const run=new (ATK().Run)({el,from:()=>this.mouth(a),to:()=>this.chest(b),h:a.A.P.h*a.s*1.6,ground:0,reduce:this.reduce,seed:this.seed++});
+  cb=cb||{};const run=new (ATK().Run)({el,from:()=>this.mouth(a),to:()=>this.chest(b),h:a.A.P.h*a.s*1.6*(cb.size||1),ground:a.y||0,reduce:this.reduce,seed:this.seed++});
   run.src=a;run.dst=b;run.cb=cb;run.hits=0;a.A.play('attack');this.runs.push(run);return run};
 Scene.prototype.update=function(dt){
   if(this.paused)dt=0;this.t+=dt;
@@ -54,7 +59,8 @@ Scene.prototype.draw=function(){
   const c=this.cv.getContext('2d'),W=this.cv.width,H=this.cv.height,t0=(root.performance||Date).now();
   c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,W,H);
   const V=this.view();
-  /* сначала тени и драконы, потом атаки поверх */
+  /* сначала тени и драконы, потом атаки поверх; under и over — слои того, кто ведёт сцену (тени, кольца, полоски здоровья) */
+  if(this.under){c.setTransform(V[0],V[1],V[2],V[3],V[4],V[5]);this.under(c,V);c.setTransform(1,0,0,1,0,0)}
   this.ds.forEach(d=>{const v=mul(V,this.place(d));RIG().draw(c,d.X,d.A.pose,v,{alpha:d.alpha});
     if(d.tint>0.02&&!this.reduce){/* вспышка попадания: тот же дракон светлым поверх, быстро гаснет */
       c.save();c.globalCompositeOperation='lighter';RIG().draw(c,d.X,d.A.pose,v,{alpha:0.28*d.tint*d.alpha});c.restore()}
@@ -66,6 +72,7 @@ Scene.prototype.draw=function(){
     const g=c.createRadialGradient(p[0],p[1],0,p[0],p[1],r.h*2.2);g.addColorStop(0,'rgba(255,255,255,'+(0.4*fl).toFixed(3)+')');g.addColorStop(1,'rgba(255,255,255,0)');
     c.fillStyle=g;c.beginPath();c.arc(p[0],p[1],r.h*2.2,0,Math.PI*2);c.fill()}
   c.setTransform(1,0,0,1,0,0);
+  if(this.over){this.over(c,V);c.setTransform(1,0,0,1,0,0);c.globalAlpha=1}
   const ms=(root.performance||Date).now()-t0;this.stats.draw.push(ms);if(this.stats.draw.length>120)this.stats.draw.shift();
   this.stats.parts=this.runs.reduce((a,r)=>a+r.p.length,0)};
 /* подогнать холст под ширину блока: высота по самой высокой фигуре (top — сколько единиц над землёй) */

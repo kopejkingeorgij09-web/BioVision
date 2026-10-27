@@ -207,7 +207,7 @@ function draw(){
   L.camKey=[V.s.toFixed(4),V.ox.toFixed(1),V.oy.toFixed(1),W,H].join();
   const ms=performance.now()-t0;L.stats.draw.push(ms);if(L.stats.draw.length>240)L.stats.draw.shift();L.stats.frames++;L.dirty=false}
 
-function running(){return L.svg&&L.svg.isConnected&&L.ready&&L.vis&&!document.hidden&&!document.querySelector('.dri')}
+function running(){return L.svg&&L.svg.isConnected&&L.ready&&L.vis&&!document.hidden&&!document.querySelector('.dri,.drf')}
 function wake(){if(!L.raf&&running())L.raf=requestAnimationFrame(tick)}
 function stop(){if(L.raf)cancelAnimationFrame(L.raf);L.raf=0;L.last=0}
 function tick(ts){
@@ -224,9 +224,9 @@ function tick(ts){
   draw()}
 if(typeof document!=='undefined'){
   document.addEventListener('visibilitychange',wake);
-  /* после осмотра цикл продолжается: осмотр живёт вне острова, его закрытие удаляет .dri */
-  new MutationObserver(()=>{if(!L.raf&&!document.querySelector('.dri'))wake()}).observe(document.documentElement,{childList:true,subtree:false});
-  addEventListener('DOMContentLoaded',()=>new MutationObserver(()=>{if(!L.raf&&!document.querySelector('.dri'))wake()}).observe(document.body,{childList:true}))}
+  /* после осмотра и похода цикл продолжается: они живут вне острова, их закрытие удаляет .dri и .drf */
+  new MutationObserver(()=>{if(!L.raf&&!document.querySelector('.dri,.drf'))wake()}).observe(document.documentElement,{childList:true,subtree:false});
+  addEventListener('DOMContentLoaded',()=>new MutationObserver(()=>{if(!L.raf&&!document.querySelector('.dri,.drf'))wake()}).observe(document.body,{childList:true}))}
 
 const DRLIVE={scan,wake,stats:()=>({dragons:L.ds.size,ready:L.ready,running:!!L.raf,attached:!!L.svg&&L.svg.isConnected,vis:L.vis,cv:!!L.cv&&L.cv.isConnected,frames:L.stats.frames,draw:L.stats.draw.slice(),frame:L.stats.frame.slice(),
   pos:[...L.ds.values()].map(d=>({id:d.id,p:d.p.slice(),state:d.state,face:d.face,tex:!!d.X,px:d.px,how:d.how||'',hid:hidden(L.map,d.p,d.w,d.h)}))}),

@@ -132,12 +132,12 @@ function islandView(){
       <div class="drg-hud"><div class="drg-hud-l" title="Опыт ${fmt(bal.xp)} из ${fmt(b)}"><span class="drg-star"><b>${L}</b></span><span class="drg-xpbar"><i style="width:${xp}%"></i></span></div>
       <div class="drg-hud-r">${pill('🪙',bal.gold,'Золото')}${pill('💎',bal.gems,'Самоцветы')}${pill('🌾',bal.food,'Корм')}</div></div>
       ${placeBar}
-      <div class="drg-bl">${rb('drgfull','0','🏠','Домой')}${rb('drgpanel','dragons','📖','Драконы')}${rb('drgpanel','journal','📓','Журнал')}</div>
+      <div class="drg-bl">${rb('drgfull','0','🏠','Домой')}${rb('drgpanel','dragons','📖','Драконы')}${rb('drgpanel','journal','📓','Журнал')}${own&&st.dragons.length?rb('drgfight','','⚔️','Поход'):''}</div>
       ${own?`<div class="drg-br">${rb('drgpanel','market','🐉','Рынок')}${rb('drgpanel','shop','🔨','Строить',1)}</div>`:''}
       <div class="drg-zm"><button data-act="drgzoom" data-v="in" aria-label="Приблизить">+</button><button data-act="drgzoom" data-v="out" aria-label="Отдалить">−</button><button data-act="drgzoom" data-v="fit" aria-label="Весь остров">⤢</button></div>
       </div>`+panel(st,c,own)}
   const head=`${back}<div class="drg-ih"><div class="drg-ih-t"><h1>Остров драконов${own?'':': '+esc(name(uid))}</h1><span class="muted small">Время на острове идёт в карточках: повторено ${cards(K)}</span></div>${lvlHTML(st)}${walletHTML(st)}</div>`;
-  const tools=own&&!pl?`<div class="drg-tools"><button class="btn sm" data-act="drgfull" data-v="1">🏝 Отправиться на остров</button><button class="btn ghost sm" data-act="drgpanel" data-v="shop">🔨 Построить</button><button class="btn ghost sm" data-act="drgpanel" data-v="market">🐉 Рынок</button><button class="btn ghost sm" data-act="drgpanel" data-v="dragons">📖 Драконы</button><button class="btn ghost sm" data-act="drgpanel" data-v="journal">📓 Журнал скрещиваний</button><button class="btn ghost sm" data-act="drgpanel" data-v="help">Как это работает</button></div>`:'';
+  const tools=own&&!pl?`<div class="drg-tools"><button class="btn sm" data-act="drgfull" data-v="1">🏝 Отправиться на остров</button><button class="btn ghost sm" data-act="drgpanel" data-v="shop">🔨 Построить</button><button class="btn ghost sm" data-act="drgpanel" data-v="market">🐉 Рынок</button><button class="btn ghost sm" data-act="drgpanel" data-v="dragons">📖 Драконы</button>${st.dragons.length?'<button class="btn ghost sm" data-act="drgfight">⚔️ Поход</button>':''}<button class="btn ghost sm" data-act="drgpanel" data-v="journal">📓 Журнал скрещиваний</button><button class="btn ghost sm" data-act="drgpanel" data-v="help">Как это работает</button></div>`:'';
   const map=`<div class="drg-map${pl?' placing':''}">${placeBar}${isl}<button class="drg-fsb" data-act="drgfull" data-v="1" aria-label="Открыть остров на весь экран">⛶</button></div>`;
   return head+tools+map+panel(st,c,own);
 }
@@ -286,6 +286,7 @@ function helpHTML(st,c){
   <li>Кормление. Дракон растёт в уровнях: ${E.FEEDS} кормления на уровень, корма нужно всё больше. Предел уровня драконов растёт вместе с уровнем острова.</li>
   <li>Опыт и уровень острова. Опыт дают стройка, кормление, урожай и покупки. Уровень открывает новые среды обитания, фермы и культуры, а с 3-го уровня Гнездовье и Инкубатор.</li>
   <li>Скрещивание. В Гнездовье сажают самку и самца не ниже ${E.BREED_LV}-го уровня. Яйцо получается настоящим мейозом из генотипов родителей, которые скрыты: видно только, как выглядят драконы. Яйцо дозревает в Инкубаторе, а в журнале копится потомство каждой пары. Перед скрещиванием можно сделать прогноз доли потомков с признаком: верный ускоряет вдвое и даёт самоцвет.</li>
+  <li>Поход. Кнопка ⚔️ Поход ведёт на Огненную гряду: пять боёв и Хранитель на вершине, команда до трёх драконов против диких. Стихии сильны и слабы по кругу, это правило игры. За победу даются звёзды, золото и корм за бои не начисляются.</li>
   </ul><p class="muted small">Сейчас: серия ${c.streak} ${plural(c.streak,'день','дня','дней')}, рекорд в режиме драконов ${c.inc.best}.</p></section>`}
 
 /* выбор в формах острова сразу перерисовывает панель (варианты прогноза зависят от признака) */
@@ -323,7 +324,7 @@ window.addEventListener('click',e=>{if(Date.now()-lastDrag<350&&e.target.closest
 window.addEventListener('wheel',e=>{const m=e.target.closest&&e.target.closest('.drg-map.full');if(!m||onHud(e.target))return;e.preventDefault();
   const r=camBox();camZoom(e.clientX-r.left,e.clientY-r.top,Math.exp(-e.deltaY*0.0018))},{passive:false});
 window.addEventListener('resize',()=>camApply());
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.drgFull&&S.view==='island'&&!document.querySelector('dialog[open]')&&!document.querySelector('.dri')){if(S.drgPanel||S.drgSel){S.drgPanel=null;S.drgSel=null}else S.drgFull=false;render()}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.drgFull&&S.view==='island'&&!document.querySelector('dialog[open]')&&!document.querySelector('.dri,.drf')){if(S.drgPanel||S.drgSel){S.drgPanel=null;S.drgSel=null}else S.drgFull=false;render()}});
 /* общие часы анимаций и классы body: на весь экран прокрутка страницы выключена, уведомления наверху */
 new MutationObserver(()=>{
   document.querySelectorAll('svg.drg-isl:not([data-clk])').forEach(el=>{el.dataset.clk='1';el.style.setProperty('--clk',(-performance.now()/1000).toFixed(2)+'s')});
@@ -350,7 +351,19 @@ function inspect(el){
   if(S.drgPlace||!window.DRGINSP)return;
   const uid=S.drgUid||meId(),info=inspInfo(uid,el.dataset.dragon);if(!info)return;
   DRGINSP.open(info,{info:id=>inspInfo(uid,id),
-    feed:id=>{const r=act({t:'feed',dragon:id});if(!r)return null;render();return {lvup:r.s.lvup===id}}},el)}
+    feed:id=>{const r=act({t:'feed',dragon:id});if(!r)return null;render();return {lvup:r.s.lvup===id}},
+    fight:uid===meId()&&window.DRFIGHT?id=>fight(id):null},el)}
+
+/* ---------- поход и бой 3 на 3 (fight.js): драконы для команды и запись звёзд в поле pve документа острова ---------- */
+function fightApi(){
+  const uid=meId();
+  return {dragons:()=>{const x=stateOf(uid);return x?x.st.dragons.map(d=>({id:d.id,name:d.name,genome:d.genome,lvl:d.lvl})):[]},
+    progress:()=>DRCAMP.progress(docOf(uid)),
+    /* звёзды и победы, больше ничего: остальной документ острова пишется как есть, как после любого действия */
+    record:(id,stars)=>{const x=stateOf(uid),d=docOf(uid);if(!x||!d)return null;const p=DRCAMP.record(DRCAMP.progress(d),id,stars,today());
+      save(uid,Object.assign({},x.st,{mode:d.mode,periods:d.periods,pve:p}));return p},
+    onClose:()=>render()}}
+function fight(dragon){if(S.drgPlace||!window.DRFIGHT||!stateOf(meId()))return;DRFIGHT.open(fightApi(),{dragon})}
 
 /* ---------- действия ---------- */
 const num=v=>v==null||v===''?undefined:Number(v);
@@ -366,6 +379,7 @@ window.DRG_ACTIONS={
     const r=act({t:'clear',cell:o.id});if(r)toast(k.gems?`Расчищено! +${k.gems} 💎`:'Расчищено')},
   drgsel:el=>{if(S.drgPlace)return;S.drgSel=el.dataset.id||null;S.drgPanel=null},
   drginsp:inspect,
+  drgfight:el=>fight(el.dataset.dragon||null),
   drgpanel:el=>{S.drgPanel=el.dataset.v||null;S.drgSel=null;S.drgPlace=null},
   drgbuild:el=>{S.drgPlace={type:el.dataset.type};S.drgPanel=null;S.drgSel=null;if(!S.drgFull)window.scrollTo(0,0)},
   drgmove:el=>{S.drgPlace={move:el.dataset.id};S.drgSel=null;if(!S.drgFull)window.scrollTo(0,0)},

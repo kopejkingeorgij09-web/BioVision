@@ -516,7 +516,7 @@ function onClick(v,e){
   else if(k==='ped')setSub(v,'ped');
   else if(k==='main')setSub(v,null);
   else if(k==='feed')feed(v);
-  else if(k==='fight'){v.A.play('attack');say(v,'Пробный удар. Бои 3 на 3 появятся позже, пока это только движение')}
+  else if(k==='fight'){if(v.api.fight&&v.info.own){const id=v.info.id,go=v.api.fight;close(v);setTimeout(()=>go(id),180)}else{v.A.play('attack');say(v,'В поход ходят только со своего острова')}}
   else if(k==='part'){const p=b.dataset.p;if(p===v.sel)select(v,null,true);else{select(v,p,true);if(p==='breath'||p==='eyes')react(v,p)}}
   else if(k==='unsel'){v.loc=null;select(v,null,true)}
   else if(k==='loc'){const l=b.dataset.l;selLoc(v,l===v.loc?null:l)}

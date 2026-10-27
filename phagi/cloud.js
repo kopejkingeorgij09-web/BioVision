@@ -191,7 +191,8 @@ const gate=ready.then(m=>{if(m)return m;
   return new Promise(()=>{})});
 gate.then(()=>{const go=()=>bar();document.readyState==='loading'?document.addEventListener('DOMContentLoaded',go):go()});
 
-window.PHCLOUD={rpc,get me(){return me},sync,codes:()=>me&&me.isOwner&&codes()};
+/* fresh — документ прямо с сервера, мимо кеша страницы (кеш может держать неподтверждённую запись): нужен сохранению острова */
+window.PHCLOUD={rpc,get me(){return me},sync,codes:()=>me&&me.isOwner&&codes(),fresh:path=>rpc('ph_get',{p_code:getCode(),p_path:path})};
 window.claude={use:async name=>{await gate;
   if(name==='db')return db;
   if(name==='user')return user;

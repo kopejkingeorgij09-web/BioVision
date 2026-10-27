@@ -200,5 +200,18 @@ t('препятствия: места постоянные, мешают стр�
   assert.ok(!obs.some(z=>E.chunkOf(z.x,z.y)==='0,0'));
 });
 
+t('рынок: текст «большинство обычные, около десятой редкие, около сотой сверхредкие» совпадает с генератором',()=>{
+  /* выборка генератора на 2000 seed для каждой стихии, а не настоящие покупки */
+  for(const k of ['F','W','N','T','A','P']){const c=[0,0,0,0,0];let two=0;
+    for(let i=0;i<2000;i++){const ph=G.phenotype(E.marketGenome(k,'audit:'+i));c[G.rarity(ph)]++;if(ph.elements.length>1||ph.elements.some(a=>a==='L'||a==='D'))two++}
+    assert.strictEqual(two,0,k+': две стихии или свет/тьма с рынка');assert.strictEqual(c[4],0,k+': легендарный с рынка');
+    assert.ok(c[0]/2000>0.8&&c[0]/2000<0.95,k+' обычных '+c[0]);assert.ok(c[1]/2000>0.05&&c[1]/2000<0.15,k+' редких '+c[1]);assert.ok(c[2]/2000<0.03,k+' сверхредких '+c[2])}
+});
+
+t('эпистаз из ревью: самка F/F s/s × самец W/W S/S дают 100 % F+W, хотя самка без стихии',()=>{
+  const m=G.make({sex:'F',E:'F/F',S:'s/s'}),f=G.make({sex:'M',E:'W/W',S:'S/S'});
+  assert.strictEqual(G.phenotype(m).breath,'dormant');assert.deepStrictEqual(G.dist(m,f,'elements'),{'F+W':1});
+});
+
 console.log(`\n${n-fails} из ${n} тестов прошли`);
 process.exit(fails?1:0);

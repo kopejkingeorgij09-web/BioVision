@@ -353,7 +353,10 @@ async function ending(tok){
   F.scene.ds.forEach(d=>{const f=b.get(d.id);if(!f.ko)d.A.play(f.side===b.winner?'victory':'defeat')});
   sfx(won?'win':'lose');say(won?'Победа!':'Поражение');renderTeams();
   let p=F.api.progress(),before=p.best[F.bid]||0;
-  if(won){try{p=F.api.record(F.bid,stars)||p}catch(e){console.error(e)}}
+  /* звёзды пишутся в облако; итог показывает честный статус записи, а не обещание */
+  F.save=null;
+  if(won){try{const r=F.api.record(F.bid,stars);if(r){p=r.p;F.save='saving';const my=F;
+    Promise.resolve(r.saved).then(s=>{if(F===my){F.save=s==='ok'?'ok':s;saveLine()}},()=>{if(F===my){F.save='error';saveLine()}})}}catch(e){console.error(e);F.save='error'}}
   await wait(1.6,tok);
   F.result={won,stars,before,best:p.best[F.bid]||0};showResult()}
 function showResult(){
@@ -364,8 +367,14 @@ function showResult(){
     <p>${R.stars===3?'Никто из команды не выбыл.':R.stars===2?'Один дракон выбыл. Без потерь будет три звезды.':'Победа с потерями. Попробуйте другой состав или стихии посильнее.'}${R.stars>R.before&&R.before?` Новый рекорд: было ${R.before}.`:''}</p>
     <p class="drf-small">Звёзды похода: ${C.total(p)} из ${C.BATTLES.length*3}.${nx&&C.unlocked(p,nx.id)&&!R.before?` Открыт бой «${esc(nx.name)}».`:''}</p>`
     :`<p>${why?'Тридцать раундов прошло, а противники ещё держатся: ничья засчитывается как поражение.':'Команда выбыла. Посмотрите, какие стихии сильнее против этих противников, и возьмите драконов посильнее.'}</p><p class="drf-small">Поражение ничего не отнимает: звёзды и драконы остаются.</p>`}
+    ${R.won?'<p class="drf-svl" role="status" aria-live="polite"></p>':''}
     <div class="drf-ra">${R.won&&nx&&C.unlocked(p,nx.id)?`<button class="btn" data-fk="next" data-id="${nx.id}" data-first>Следующий бой</button>`:''}<button class="btn${R.won&&nx?' ghost':''}" data-fk="again"${R.won&&nx?'':' data-first'}>Ещё раз</button><button class="btn ghost" data-fk="map">К походу</button></div></div>`;
-  F.el.appendChild(box);const f=box.querySelector('[data-first]');if(f)f.focus({preventScroll:true});F.screen='result'}
+  F.el.appendChild(box);saveLine();const f=box.querySelector('[data-first]');if(f)f.focus({preventScroll:true});F.screen='result'}
+/* строка о записи звёзд на экране итога */
+function saveLine(){const e=F&&F.$('.drf-svl');if(!e)return;const s=F.save;
+  e.className='drf-svl '+(s||'');
+  e.innerHTML=s==='ok'?'✓ Звёзды сохранены':s==='saving'?'Сохраняю звёзды…':s==='conflict'?'Звёзды не записаны: остров изменили в другой вкладке или на другом устройстве. Закройте поход и выберите версию на острове.':
+    s==='error'?'Звёзды пока не сохранены: нет связи с облаком. <button class="btn sm" data-fk="svretry">Повторить</button>':''}
 
 /* ---------- панели боя ---------- */
 function renderTeams(){
@@ -415,7 +424,8 @@ async function onClick(e){
   else if(k==='skill')pickSkill(b.dataset.sk);
   else if(k==='untgt'){F.tgtMode=null;renderSkills();renderTeams();say(`Ход: ${F.pend.f.name}. Выберите приём`)}
   else if(k==='tgt')pickTarget(b.dataset.id);
-  else if(k==='press')press()}
+  else if(k==='press')press()
+  else if(k==='svretry'&&F.api.retry){F.save='saving';saveLine();const my=F;F.api.retry().then(s=>{if(F===my){F.save=s;saveLine()}})}}
 function onKey(e){
   if(!F||document.querySelector('dialog[open]'))return;
   e.stopPropagation();const k=e.key;

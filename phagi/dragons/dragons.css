@@ -420,3 +420,22 @@ body.drf-open .drg-isl .an,body.drf-open .drg-isl .drift,body.drf-open .drg-isl 
   .drf-path::before{left:29px}.drf-node{padding:10px 12px}
   .drf-team{gap:4px;padding:5px 6px}.drf-fc{padding:5px 6px;gap:2px 4px}.drf-fn{font-size:12px}.drf-hpn{font-size:10px}
   .drf-sk{grid-template-columns:repeat(2,minmax(0,1fr))}.drf-skb{padding:6px 7px}.drf-skb small{font-size:11px}.drf-bt,.drf-wide{display:none}.drf-go .btn{flex:1}}
+
+/* ---------- состояние сохранения острова (store.js) ---------- */
+.drg-sv{font-size:12.5px;font-weight:600}
+.drg-sv.ok{color:var(--muted)}.drg-sv.saving{color:var(--ink)}
+.drg-sv.err{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:10px 12px;margin:0 0 12px;border-radius:14px;font-weight:500;font-size:13.5px;line-height:1.4;
+  background:color-mix(in srgb,#E8604C 12%,var(--card));border:1px solid color-mix(in srgb,#E8604C 45%,var(--line));color:var(--text)}
+.drg-sv.err span{flex:1 1 220px;min-width:0}
+.drg-svw{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 58px);z-index:3;max-width:min(560px,calc(100% - 24px));pointer-events:auto}
+.drg-svw .drg-sv.ok,.drg-svw .drg-sv.saving{display:inline-block;padding:3px 10px;border-radius:999px;background:color-mix(in srgb,var(--card) 88%,transparent);box-shadow:0 2px 8px -4px rgba(0,0,0,.4)}
+.drg-svw .drg-sv.err{margin:0;box-shadow:0 8px 20px -10px rgba(0,0,0,.5)}
+.drf-svl{margin:10px 0 0;font-size:13px;color:var(--muted);min-height:1.3em}
+.drf-svl.ok{color:#2E8540}.drf-svl.error,.drf-svl.conflict{color:#C0392B}
+:root[data-theme=dark] .drf-svl.ok{color:#7ED492}:root[data-theme=dark] .drf-svl.error,:root[data-theme=dark] .drf-svl.conflict{color:#FF8A7A}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]) .drf-svl.ok{color:#7ED492}:root:not([data-theme=light]) .drf-svl.error,:root:not([data-theme=light]) .drf-svl.conflict{color:#FF8A7A}}
+.drf-svl .btn{margin-left:6px}
+/* при ошибке строка сохранения выше открытой панели; на широком экране панель справа, строка уходит левее */
+.drg-svw:has(.drg-sv.err){z-index:46}
+@media(min-width:601px){body.drg-fs:has(#main>.drg-pan) .drg-svw{left:12px;transform:none;max-width:min(560px,calc(100vw - 470px))}}
+.drg-shop-i.built .drg-price{color:var(--accent);font-weight:700}

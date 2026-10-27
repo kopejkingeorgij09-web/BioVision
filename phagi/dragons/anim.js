@@ -82,7 +82,8 @@ function profile(M,R){
   const tailSl=b.tailL/(b.hipR*b.tailR0);
   P.tail={amp:clamp(0.075+0.03*tailSl,0.1,0.42),k:1.2+2.5*(b.tailWave||0),T:2.6*Math.sqrt(b.tailL*s/80)*(sleepy?1.3:1)};
   P.neck={T:P.breathT*1.15};
-  /* крылья: нагрузка на крыло = масса / площадь; полёт — предложение для игры, в правила острова пока не входит */
+  /* крылья: нагрузка на крыло = масса / площадь. Правило игры утверждено 27.10: не летают малыши, короткие крылья (Wg)
+     и драконы с нагрузкой на крыло больше 1,6 (так выходит у тяжёлой Земли) */
   const w=M.wing,b2=Math.max(w.span*s,0.05),area=Math.max(w.span*w.chord*s*s,0.002),load=mass/area;
   P.wing={load,span:b2,area,flapT:clamp(0.95*Math.pow(mass,-3/8)*Math.pow(b2/WREF,23/24)*Math.pow(area/WREF,1/3),0.3,1.6)};
   P.canFly=!w.short&&stage>0&&load<=1.6;

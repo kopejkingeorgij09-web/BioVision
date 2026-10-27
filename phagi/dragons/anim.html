@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Анимации драконов</title>
+<style>
+:root{--bg:#F3F5F8;--card:#FFFFFF;--ink:#1E2230;--quiet:#5E6475;--line:#DDE2EA;--acc:#2F6FD6;--accbg:#E7EFFC;--good:#1E8A4C;--warn:#B7791F;--bad:#C0392B;--stage:#EAF1F7;--sky:#DCE9F5;--ground:#C9D8B0;--grass:#7FA35A}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14161C;--card:#1D2029;--ink:#E8EAF0;--quiet:#A0A6B5;--line:#2E3340;--acc:#7DA8F0;--accbg:#22304A;--good:#5BC98A;--warn:#E0B060;--bad:#F07A6E;--stage:#232733;--sky:#1F2635;--ground:#2C3527;--grass:#5E7A45}}
+:root[data-theme="dark"]{--bg:#14161C;--card:#1D2029;--ink:#E8EAF0;--quiet:#A0A6B5;--line:#2E3340;--acc:#7DA8F0;--accbg:#22304A;--good:#5BC98A;--warn:#E0B060;--bad:#F07A6E;--stage:#232733;--sky:#1F2635;--ground:#2C3527;--grass:#5E7A45}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:12px 16px;border-bottom:1px solid var(--line)}
+h1{font-size:20px;margin:0 0 4px}
+header p{margin:0 0 6px;color:var(--quiet);max-width:900px}
+header a{color:var(--acc)}
+main{padding:8px 16px 60px;max-width:1400px;margin:0 auto}
+section{margin:18px 0}
+h2{font-size:17px;margin:0 0 4px}
+section>p{margin:0 0 10px;color:var(--quiet);max-width:900px}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}
+.row .lbl{font-size:13px;color:var(--quiet);margin-right:2px}
+.chip,.act,.tg,.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:6px 11px;font:inherit;font-size:14px;cursor:pointer;min-height:36px}
+.chip[aria-pressed="true"],.tg[aria-pressed="true"]{background:var(--accbg);color:var(--acc);border-color:var(--acc);font-weight:600}
+.act[aria-pressed="true"]{background:var(--acc);color:#fff;border-color:var(--acc);font-weight:600}
+.act.no{color:var(--quiet)}
+button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.scene{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:8px;margin:8px 0}
+.scene canvas{display:block;width:100%;border-radius:10px;background:var(--sky);touch-action:manipulation;cursor:pointer}
+.acts{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:8px 0 4px}
+.acts .act{width:100%}
+.now{font-size:14px;margin:4px 2px 0;min-height:20px}
+.now b{color:var(--acc)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px;margin-top:8px}
+.fact{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px;font-size:13px;min-width:0}
+.fact h3{font-size:13px;margin:0 0 4px;color:var(--quiet);font-weight:600}
+.fact .v{font-variant-numeric:tabular-nums}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.cell{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px;min-width:0}
+.cell canvas{display:block;width:100%;border-radius:8px;background:var(--sky)}
+.cell h3{font-size:13px;margin:6px 2px 0}
+.note{font-size:13px;color:var(--quiet)}
+pre.out{white-space:pre-wrap;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:8px 0;min-height:2em}
+@media (max-width:600px){.acts{grid-template-columns:repeat(2,minmax(0,1fr))}.grid{grid-template-columns:1fr 1fr}.act,.chip,.tg,.btn{font-size:13px;padding:6px 8px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Анимации драконов</h1>
+  <p>Движение собирается из того же рисунка A: части только поворачиваются и сдвигаются, лапа сгибается, туловище дышит. Темп, шаг и полёт считаются из морфологии дракона, а она из генотипа. Ничего не сохраняется и в базу не ходит. <a href="stand.html">Стенд рисунков</a></p>
+</header>
+<main>
+  <div class="row" role="group" aria-label="Дракон" id="who"></div>
+  <div class="row" role="group" aria-label="Возраст" id="age"></div>
+  <div class="scene">
+    <canvas id="cv" role="img" aria-label="Дракон"></canvas>
+    <div class="acts" role="group" aria-label="Действия" id="acts"></div>
+    <p class="now" id="now" aria-live="polite"></p>
+    <div class="row" role="group" aria-label="Настройки">
+      <button class="tg" data-t="reduce" aria-pressed="false">Меньше движения</button>
+      <button class="tg" data-t="slow" aria-pressed="false">Медленно ×4</button>
+      <button class="tg" data-t="joints" aria-pressed="false">Суставы и опоры</button>
+      <button class="tg" data-t="dark" aria-pressed="false">Тёмная тема</button>
+    </div>
+  </div>
+  <div class="facts" id="facts"></div>
+  <section>
+    <h2>Все действия одного дракона</h2>
+    <p>Десять копий с одной общей текстурой: части растрированы один раз, каждая копия только по-своему двигает их. Копии за краем экрана не рисуются.</p>
+    <div class="grid" id="grid"></div>
+  </section>
+  <section>
+    <h2>Память</h2>
+    <p>Проверка кеша текстур: 12 разных драконов готовятся и рисуются, потом лимит памяти сжимается до 1 МБ, а потом все уходят со страницы. Текстуры дракона наверху заняты, их кеш не трогает при любом лимите.</p>
+    <button class="btn" id="memBtn">Проверить память</button>
+    <pre class="out" id="memOut"></pre>
+  </section>
+</main>
+<script src="genetics.js?v=9"></script>
+<script src="morph.js?v=9"></script>
+<script src="shape.js?v=9"></script>
+<script src="art.js?v=9"></script>
+<script src="texcache.js?v=9"></script>
+<script src="sprites.js?v=9"></script>
+<script src="anim.js?v=9"></script>
+<script src="rig.js?v=9"></script>
+<script src="anim-demo.js?v=9"></script>
+</body>
+</html>

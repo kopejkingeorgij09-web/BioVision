@@ -344,7 +344,7 @@ function solve(A,r){
    end по окончании разового действия, land после посадки. Поза текущего кадра лежит в anim.pose. */
 function Animator(M,R,opt){
   opt=opt||{};
-  this.M=M;this.R=R;this.P=profile(M,R);this.reduce=!!opt.reduce;
+  this.M=M;this.R=R;this.P=profile(M,R);this.reduce=!!opt.reduce;this.noPuff=!!opt.noPuff;   /* noPuff: атаку рисует attacks.js, свои клубы дыхания не нужны */
   this.rnd=rng(opt.seed==null?1:opt.seed);
   this.t=(opt.seed||0)%7;this.x=0;
   this.cur={name:'idle',t:0};this.prev=null;this.bt=0;this.bd=1;
@@ -394,7 +394,7 @@ Animator.prototype.spawn=function(t0,t1,ww,dt){
   const P=this.P,R=this.R,pose=this.pose,n=this.cur.name,red=this.reduce,rnd=this.rnd;
   const at=a=>t0<a&&t1>=a,push=p=>{if(this.fx.length<80)this.fx.push(Object.assign({age:0,vx:0,vy:0},p))};
   const H=pose.mat.head,mouth=app(H,R.mouth),dir=unit(sub(app(H,add(R.mouth,[10,0])),mouth));
-  if(n==='attack'&&!P.sleepy&&t1>0.48&&t0<0.66&&Math.floor(t1/0.03)!==Math.floor(t0/0.03)){
+  if(n==='attack'&&!P.sleepy&&!this.noPuff&&t1>0.48&&t0<0.66&&Math.floor(t1/0.03)!==Math.floor(t0/0.03)){
     const sp=P.h*(2.2+rnd()),a=(rnd()-0.5)*0.5;
     push({k:'puff',x:mouth[0],y:mouth[1],vx:(dir[0]*Math.cos(a)-dir[1]*Math.sin(a))*sp,vy:(dir[0]*Math.sin(a)+dir[1]*Math.cos(a))*sp,r:P.h*0.05,grow:P.h*0.3,life:red?0.3:0.5})}
   if(n==='hit'&&at(0.02)&&!red){const c=app(pose.body,[R.sh[0]+R.neckCut.r*0.8,R.sh[1]]);for(let i=0;i<6;i++){const a=rnd()*TAU;push({k:'spark',x:c[0],y:c[1],vx:Math.cos(a)*P.h*1.4,vy:Math.sin(a)*P.h*1.4,r:P.h*0.06,life:0.35})}}

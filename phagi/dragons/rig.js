@@ -139,13 +139,14 @@ function piecesOf(G,R,d,p){
 
 /* ---------- кадр ----------
    view: матрица «единицы рисунка в мире → пиксели холста» (VIEW помогает её собрать). */
-function draw(ctx,X,pose,view){
+function draw(ctx,X,pose,view,o){
+  const K=o&&o.alpha!=null?o.alpha:1;
   ctx.save();
   for(const p of X.order){
     const M=pose.mat[p.m||p.name];if(!M)continue;
     let a=1;
     if(p.name==='ground')a=pose.alpha.ground;else if(p.name==='breath')a=pose.alpha.breath;else if(p.name==='lid'){if(pose.lid<0.02)continue}
-    if(a<0.01)continue;ctx.globalAlpha=a;
+    a*=K;if(a<0.01)continue;ctx.globalAlpha=a;
     const base=mul(view,M);
     if(!p.bend){const m=mul(base,p.Fi);ctx.setTransform(m[0],m[1],m[2],m[3],m[4],m[5]);ctx.drawImage(p.cv,0,0);continue}
     if(p.pieces){const bp=pose.bend[p.bend],ax=p.ax;
@@ -155,7 +156,7 @@ function draw(ctx,X,pose,view){
       continue}
     /* хвост и шея: всё до разреза одним куском, дальше сетка из треугольников по изгибу (bent) */
     bent(ctx,p,base,pose.bend[p.bend],X.sig)}
-  ctx.globalAlpha=1;ctx.setTransform(view[0],view[1],view[2],view[3],view[4],view[5]);
+  ctx.globalAlpha=K;ctx.setTransform(view[0],view[1],view[2],view[3],view[4],view[5]);
   if(pose.food)drawFood(ctx,X,pose.food);
   ctx.restore()}
 

@@ -59,6 +59,17 @@ t('лапа не растягивается и не сплющивается с�
           assert.ok(sy<=1.065,`${name} ${s} ${L}: лапа вытянута в ${sy.toFixed(3)} раза`);
           assert.ok(sy>=(lying||s==='fly'||s==='victory'?0.3:0.62),`${name} ${s} ${L}: лапа сжата до ${sy.toFixed(3)}`)})})})})});
 
+t('лапа гнётся в колене: бедро, голень и стопа сходятся в суставах, колено не выворачивается назад',()=>{
+  const ACTS=['idle','walk','happy','eat','sleep','fly','attack','hit','victory','defeat','flutter'];
+  CASES.forEach(([name,g,lvl])=>{const A=anim(g,lvl,{seed:5});
+    ACTS.forEach(s=>{A.play(s);run(A,1.4,(pose)=>{AN.LEGS.forEach(L=>{const q=A.P.legs[L],m=pose.mat;
+      const k1=app(m[L+'u'],q.k),k2=app(m[L+'k'],q.k),h1=app(m[L+'k'],q.h),h2=app(m[L+'f'],q.h),a=app(m[L+'u'],q.a);
+      assert.ok(Math.hypot(k1[0]-k2[0],k1[1]-k2[1])<1e-6,`${name} ${s} ${L}: колено разошлось`);
+      assert.ok(Math.hypot(h1[0]-h2[0],h1[1]-h2[1])<0.05,`${name} ${s} ${L}: голень не дошла до стопы на ${Math.hypot(h1[0]-h2[0],h1[1]-h2[1]).toFixed(3)}`);
+      const side=((h1[0]-a[0])*(k1[1]-a[1])-(h1[1]-a[1])*(k1[0]-a[0]))*q.bend;
+      assert.ok(side>=-1e-6,`${name} ${s} ${L}: колено вывернуто`);
+      [m[L+'u'],m[L+'k']].forEach(M=>assert.ok(Math.abs(M[0]*M[3]-M[1]*M[2]-1)<1e-9,`${name} ${s} ${L}: звено лапы изменило длину`))})})})})});
+
 t('хвост и голова не уходят под землю ни в одном действии',()=>{
   CASES.forEach(([name,g,lvl])=>{const {M,R}=rigOf(g,lvl),A=new AN.Animator(M,R,{seed:2}),P=A.P;
     ['sleep','defeat','victory','attack','hit','happy','eat','fly','idle'].forEach(s=>{A.play(s);
@@ -121,8 +132,8 @@ t('уменьшенное движение: покой почти неподви
 t('риг: каждый слой рисунка A попадает ровно в одну подвижную часть, ничего не теряется и не рисуется дважды',()=>{
   const RIG=require('./rig.js');
   CASES.forEach(([name,g,lvl])=>{const M=MO.morph(D.phenotype(g),lvl),G=SH.build(M),P=AN.profile(M,G.rig),parts=RIG.partsOf(G.rig,P);
-    /* хвост, шея и туловище — одна группа слоёв, разделённая разрезами; верх лапы и стопа тоже */
-    const group=p=>['tail','neck','trunk'].includes(p.name)?'spine':/^[FN][HF][uf]$/.test(p.name)?p.name.slice(0,2):p.name;
+    /* хвост, шея и туловище — одна группа слоёв, разделённая разрезами; бедро, голень и стопа тоже */
+    const group=p=>['tail','neck','trunk'].includes(p.name)?'spine':/^[FN][HF][ukf]$/.test(p.name)?p.name.slice(0,2):p.name;
     G.layers.forEach((l,i)=>{const gs=new Set(parts.filter(p=>p.only(l)&&(!l.rig||p.rig)).map(group));
       assert.strictEqual(gs.size,1,`${name}: слой ${i} (${l.part}${l.leg?' '+l.leg:''}) попал в ${[...gs].join(', ')||'никуда'}`)})})});
 
@@ -142,6 +153,14 @@ t('дыхание у пасти помещается в рамку рисунк�
   [mk({E:'F/F'}),mk({E:'F/W'}),mk({E:'L/L'}),mk({E:'e/e'})].forEach(g=>{const M=MO.morph(D.phenotype(g),12),G=SH.build(M),b=G.box;
     G.layers.filter(l=>l.part==='breath').forEach(l=>{const n=l.d.replace(/A[^A-Za-z]*/g,'').match(/-?\d*\.?\d+/g).map(Number);
       for(let i=0;i+1<n.length;i+=2)assert.ok(n[i]>=b.x-0.5&&n[i]<=b.x+b.w+0.5&&n[i+1]>=b.y-0.5,`${M.breath}: точка ${n[i].toFixed(1)},${n[i+1].toFixed(1)} вне рамки`)})})});
+
+t('манера движения по стихиям и возрасту: Огонь резче Земли, Вода плавнее, малыш суетливее взрослого, гибрид посередине',()=>{
+  const S=(e,l)=>anim(mk({E:e}),l||12).P.style;
+  assert.ok(S('F/F').look>S('T/T').look*2,'взгляд Огня');assert.ok(S('T/T').tempo<S('A/A').tempo,'темп Земли');
+  assert.ok(S('W/W').sway>S('T/T').sway,'размах Воды');assert.ok(S('F/F',1).tempo>S('F/F',12).tempo,'малыш');
+  assert.ok(S('F/F',18).tempo<S('F/F',12).tempo,'старший');
+  const h=S('F/W'),f=S('F/F'),w=S('W/W');assert.ok(Math.abs(h.look-(f.look+w.look)/2)<1e-9,'гибрид');
+  const src=fs.readFileSync(__dirname+'/anim.js','utf8');assert.ok(/художественная условность/.test(src),'манера помечена как условность')});
 
 t('машина состояний отдельно от генетики: anim.js не знает о генах',()=>{
   const src=fs.readFileSync(__dirname+'/anim.js','utf8');

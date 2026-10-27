@@ -52,7 +52,7 @@ Scene.prototype.draw=function(){
 function joints(c,A,view){
   const P=A.P,R=A.R,p=A.pose,dot=(q,r,fill)=>{const v=AN.MAT.app(view,q);c.beginPath();c.arc(v[0],v[1],r*DPR,0,Math.PI*2);c.fillStyle=fill;c.fill()};
   c.save();c.setTransform(1,0,0,1,0,0);c.lineWidth=1.5*DPR;
-  AN.LEGS.forEach(L=>{const g=P.legs[L],a=AN.MAT.app(p.body,g.a),k=AN.MAT.app(p.mat[L+'u'],g.h),t=AN.MAT.app(p.mat[L+'f'],g.toe);
+  AN.LEGS.forEach(L=>{const g=P.legs[L],a=AN.MAT.app(p.body,g.a),k=AN.MAT.app(p.mat[L+'k']||p.mat[L+'u'],g.h),t=AN.MAT.app(p.mat[L+'f'],g.toe);
     const va=AN.MAT.app(view,a),vk=AN.MAT.app(view,k),vt=AN.MAT.app(view,t);c.strokeStyle=L[0]==='N'?'#E0457B':'#8F6BD8';
     c.beginPath();c.moveTo(va[0],va[1]);c.lineTo(vk[0],vk[1]);c.lineTo(vt[0],vt[1]);c.stroke();
     const planted=Math.abs(p.feet[L][1]-g.g)<1e-6;dot(a,3,c.strokeStyle);dot(k,3,c.strokeStyle);dot(t,4,planted?'#22A35A':'#E8A33A')});
@@ -98,13 +98,13 @@ function nowLine(){const A=main.A;if(!A)return;const s=A.state(),nm=AN.STATES[s]
 function facts(){
   const A=main.A,X=main.X;if(!A||!X)return;const P=A.P,cs=TX.shared.stats(),m=mainInfo.M;
   const avg=k=>main.stats.length?main.stats.reduce((a,s)=>a+s[k],0)/main.stats.length:0;
-  const strips=X.order.filter(p=>p.bend).reduce((a,p)=>a+Math.ceil(Math.max(0,p.w-p.cutX)/6),0);
+  const strips=X.order.filter(p=>p.bend&&!p.pieces).reduce((a,p)=>a+8*Math.ceil(Math.max(0,p.w-p.cutX)/10),0);
   const dev=(/Mobi|Android|iPhone|iPad/.test(navigator.userAgent)?'телефон или планшет':'компьютер')+', плотность экрана '+DPR;
   $('facts').innerHTML=[
     ['Походка',`скорость ${f1(P.v)} ед./с, цикл шага ${f2(P.period)} с, длина цикла ${Math.round(P.stride)} ед., опора ${Math.round(P.duty*100)} % цикла, тяжесть ${f2(P.hv)}`],
     ['Дыхание и крылья',`вдох-выдох ${f1(P.breathT)} с, взмах ${f2(P.wing.flapT)} с, нагрузка на крыло ${f2(P.wing.load)} (у взрослого Огня около 1)`],
     ['Полёт',P.canFly?'может летать':'не летает: '+esc(P.noFly)+'. Нажатие «Летит» покажет попытку'],
-    ['Кадр',`поза ${f2(avg('u'))} мс, рисование ${f2(avg('d'))} мс, частей ${X.order.length}, полосок изгиба ${strips}. Замер: ${dev}`],
+    ['Кадр',`поза ${f2(avg('u'))} мс, рисование ${f2(avg('d'))} мс, частей ${X.order.length}, треугольников изгиба ${strips}. Замер: ${dev}`],
     ['Текстуры',`подготовка ${Math.round(mainInfo.cached?X.ms:mainInfo.prep)} мс${mainInfo.cached?' (сейчас взято из кеша)':''}, этот дракон ${MB(X.bytes)}, весь кеш ${MB(cs.bytes)} из ${MB(cs.budget)}, занято ${cs.pinned} из ${cs.count}, холстов ${TX.liveCanvases()}`]
   ].map(([h,v])=>`<div class="fact"><h3>${h}</h3><div class="v">${v}</div></div>`).join('')}
 

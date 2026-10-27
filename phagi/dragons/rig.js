@@ -1,9 +1,10 @@
 /* Риг анимации: рисунок A, разрезанный на части, которые двигает поза из anim.js.
    Каждая часть — отдельный SVG из тех же слоёв (ART.svg с фильтром слоёв и обрезкой по разрезам), он растрируется
    один раз и обрезается по прозрачным полям; кадр собирается из готовых картинок матрицами позы.
-   Туловище разрезано у бедра и у плеча: хвост и шея растрированы повёрнутыми вдоль своей оси и гнутся полосками,
-   каждая полоска сдвигается и поворачивается по изгибу. Лапа разрезана над скакательным суставом (у передней над
-   запястьем): верхнее звено поворачивается и сгибается, стопа стоит на земле. Новых форм риг не рисует.
+   Туловище разрезано у бедра и у плеча: хвост и шея растрированы повёрнутыми вдоль своей оси и гнутся сеткой
+   из треугольников (столбцы через MESH пикселей, каждый столбец стоит по изгибу, между ними картинка тянется
+   без разрывов). Лапа разрезана в колене (у передней в локте) и над скакательным суставом (над запястьем):
+   бедро и голень поворачиваются, стопа стоит на земле. Новых форм риг не рисует.
    Текстуры лежат в общем кеше (texcache.js): кто рисует дракона, держит их через get/release, видимые не вытесняются. */
 (function(root){
 'use strict';
@@ -38,9 +39,14 @@ function partsOf(R,P){
   add('ground',l=>l.part==='shadow');
   add('aura',l=>l.part==='aura');
   add('wingFar',l=>l.part==='wings'&&!!l.far);
+  /* лапа из трёх кусков: бедро (u), голень (k) от колена до скакательного сустава, стопа (f). Колено режется
+     по биссектрисе между бедром и голенью; голень заходит под бедро кругом, стопа под голень */
   const leg=L=>{const g=R.legs[L],n=unit([g.k[0]-g.h[0],g.k[1]-g.h[1]]),c=g.h;
-    add(L+'f',ofLeg(L),{region:[[half(c,neg(n),0),disc(c,g.hr*1.15)]]});add(L+'u',ofLeg(L),{region:[half(c,n,0)]});
-    add(L+'s',spurOf(L),{m:L+'f'})};
+    const nk=unit([unit([g.k[0]-g.a[0],g.k[1]-g.a[1]])[0]+unit([g.h[0]-g.k[0],g.h[1]-g.k[1]])[0],unit([g.k[0]-g.a[0],g.k[1]-g.a[1]])[1]+unit([g.h[0]-g.k[0],g.h[1]-g.k[1]])[1]]);
+    add(L+'f',ofLeg(L),{region:[[half(c,neg(n),0),disc(c,g.hr*1.15)]]});
+    add(L+'s',spurOf(L),{m:L+'f'});
+    add(L+'k',ofLeg(L),{region:[half(c,n,0),[half(g.k,nk,0),disc(g.k,(g.kr||g.hr*1.3)*1.15)]]});
+    add(L+'u',ofLeg(L),{region:[half(c,n,0),half(g.k,neg(nk),0)]})};
   leg('FH');leg('FF');
   add('headBack',l=>l.part==='collar'||(l.part==='horns'&&l.paint==='hornFar'));
   /* шипы гребня целиком: каждый со своим участком тела, без разреза; на хвосте и шее шип не гнётся полосками,
@@ -50,9 +56,16 @@ function partsOf(R,P){
   add('neckCr',ofSeg('neck'),{m:'neck',ax:P.neckAx,bend:'neck',pieces:'neck'});
   add('tailTip',l=>l.part==='tailEnd'||l.part==='mace',{m:'tail',ax:P.tailAx,bend:'tail',pieces:'tip'});
   /* хвост и шея: за разрезом (с кругом у стыка), но только внутри трубки вдоль позвоночника; туловище — остальное */
-  add('tail',isSpine,{region:[[half(tc.p,neg(tc.d),0),disc(tc.p,tc.r*1.05)],poly(R.tailTube)],ax:P.tailAx,bend:'tail'});
-  add('neck',isSpine,{region:[[half(nc.p,nc.d,0),disc(nc.p,nc.r*1.05)],poly(R.neckTube)],ax:P.neckAx,bend:'neck'});
-  add('trunk',isSpine,{region:[[half(tc.p,tc.d,0),outside(R.tailTube)],[half(nc.p,neg(nc.d),0),outside(R.neckTube)]]});
+  /* за трубкой туловищу остаются только холка, грудь и круп у самого разреза (круг RB); то, что дальше вылезло за трубку
+     (гребень шеи на изгибе), уходит с шеей, иначе при сгибе на старом месте висят обрывки контура */
+  const RB=1.9,far=(c,r)=>'!M-4000 -4000H4000V4000H-4000Z'+disc(c,r);
+  const W=(a,b)=>R[a]||R[b];
+  add('tail',isSpine,{region:[[half(tc.p,neg(tc.d),-2.5),disc(tc.p,tc.r*1.05),poly(W('tailFromW','tailTube'))],[poly(W('tailTubeW','tailTube')),far(tc.p,tc.r*RB)]],ax:P.tailAx,bend:'tail'});
+  add('neck',isSpine,{region:[[half(nc.p,nc.d,-2.5),disc(nc.p,nc.r*1.05),poly(W('neckFromW','neckTube'))],[poly(W('neckTubeW','neckTube')),far(nc.p,nc.r*RB)]],ax:P.neckAx,bend:'neck'});
+  const tr=[[half(tc.p,tc.d,0),outside(R.tailTube)],[half(nc.p,neg(nc.d),0),outside(R.neckTube)],
+    [half(tc.p,tc.d,0),disc(tc.p,tc.r*RB)],[half(nc.p,neg(nc.d),0),disc(nc.p,nc.r*RB)]];
+  if(R.neckFrom)tr.push(outside(R.neckFrom),outside(R.tailFrom));
+  add('trunk',isSpine,{region:tr});
   leg('NH');leg('NF');
   add('head',isHead);
   add('lid',l=>!!l.rig,{rig:true});
@@ -87,7 +100,7 @@ async function make(M,opt){
   const jobs=defs.map(d=>{
     let f=main,F=[sig,0,0,sig,(tx-main.vb[0])*k,-main.vb[1]*k],turn=null;
     if(d.ax){
-      /* повернуть так, чтобы ось хвоста (шеи) смотрела вправо: полоски режутся по столбцам картинки */
+      /* повернуть так, чтобы ось хвоста (шеи) смотрела вправо: столбцы сетки изгиба идут по столбцам картинки */
       const th=-Math.atan2(d.ax.a[1],d.ax.a[0]),c=d.ax.c,Rc=Rot(th,c),b=G.box;
       const pts=[[b.x,b.y],[b.x+b.w,b.y],[b.x,b.y+b.h],[b.x+b.w,b.y+b.h]].map(p=>app(Rc,p)).map(p=>[p[0]*s+tx,p[1]*s]);
       const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),pad=12;
@@ -126,7 +139,6 @@ function piecesOf(G,R,d,p){
 
 /* ---------- кадр ----------
    view: матрица «единицы рисунка в мире → пиксели холста» (VIEW помогает её собрать). */
-const STRIP=6;   /* ширина полоски изгиба в пикселях текстуры */
 function draw(ctx,X,pose,view){
   ctx.save();
   for(const p of X.order){
@@ -141,19 +153,56 @@ function draw(ctx,X,pose,view){
         ctx.save();ctx.setTransform(m0[0],m0[1],m0[2],m0[3],m0[4],m0[5]);if(q.path)ctx.clip(q.path);
         const m=mul(m0,p.Fi);ctx.setTransform(m[0],m[1],m[2],m[3],m[4],m[5]);ctx.drawImage(p.cv,q.sx,q.sy,q.sw,q.sh,q.sx,q.sy,q.sw,q.sh);ctx.restore()}
       continue}
-    /* хвост и шея: всё до разреза и у самого разреза без изгиба одним куском, дальше полосками */
-    const bp=pose.bend[p.bend],ax=p.ax,sig=X.sig,x0=Math.max(0,Math.min(p.w,Math.floor(p.cutX)));
-    if(x0>0){const m=mul(base,p.Fi);ctx.setTransform(m[0],m[1],m[2],m[3],m[4],m[5]);ctx.drawImage(p.cv,0,0,x0+1,p.h,0,0,x0+1,p.h)}
-    /* полоска чуть шире шага: стык закрыт соседней; на сильном изгибе внешний край расходится, нахлёст больше */
-    const hmax=Math.max(p.cutY,p.h-p.cutY);
-    for(let x=x0;x<p.w;x+=STRIP){
-      const w=Math.min(STRIP,p.w-x),u=(x+w/2-p.cutX)/sig,c=ANIM.curl(ax,bp,Math.max(0,u)),cm=mul(T(c.d[0],c.d[1]),Rot(c.ang,[ax.c[0]+ax.a[0]*u,ax.c[1]+ax.a[1]*u]));
-      const nx=ANIM.curl(ax,bp,Math.max(0,u+STRIP/sig)).ang,ov=1.5+Math.min(8,Math.abs(nx-c.ang)*hmax);
-      const m=mul(base,mul(cm,p.Fi)),ww=Math.min(w+ov,p.w-x);
-      ctx.setTransform(m[0],m[1],m[2],m[3],m[4],m[5]);ctx.drawImage(p.cv,x,0,ww,p.h,x,0,ww,p.h)}}
+    /* хвост и шея: всё до разреза одним куском, дальше сетка из треугольников по изгибу (bent) */
+    bent(ctx,p,base,pose.bend[p.bend],X.sig)}
   ctx.globalAlpha=1;ctx.setTransform(view[0],view[1],view[2],view[3],view[4],view[5]);
   if(pose.food)drawFood(ctx,X,pose.food);
   ctx.restore()}
+
+/* изогнутая часть сеткой: в каждом столбце строки до оси и после;
+   вершина (x, y) текстуры уезжает туда же, куда точка оси на расстоянии u = (x − разрез)/sig (colMat), поэтому соседние
+   ячейки делят рёбра и между ними нет щелей: выпуклая сторона растягивается, вогнутая сжимается, как кожа.
+   Начало части до разреза рисуется неизогнутым (FILL — запас за разрез, сейчас ноль: сетка от разреза сплошная).
+   Столбцы ставятся не чаще MESH пикселей и только там, где изгиб успел повернуть ось больше чем на TOL радиана с прошлого
+   столбца: почти прямая шея в покое рисуется двумя-тремя ячейками, а не десятками (каждый треугольник — своя обрезка). */
+const MESH=8,FILL=0,GROW=0.75,TOL=0.03;
+function bent(ctx,p,base,bp,sig){
+  const ax=p.ax,x0=Math.max(0,Math.min(p.w,Math.floor(p.cutX)));
+  const xf=Math.min(p.w,Math.ceil(p.cutX+FILL*ax.L*sig));
+  const m=mul(base,p.Fi);ctx.setTransform(m[0],m[1],m[2],m[3],m[4],m[5]);ctx.drawImage(p.cv,0,0,xf,p.h,0,0,xf,p.h);
+  if(x0>=p.w)return;
+  const cy=Math.max(1,Math.min(p.h-1,p.cutY)),rows=[0,cy,p.h],cand=[];
+  for(let x=x0;x<p.w;x+=MESH)cand.push(x);cand.push(p.w);
+  const CM=cand.map(x=>{const u=(x-p.cutX)/sig,C=ANIM.colMat(ax,bp,Math.max(0,u));return {x,C,a:Math.atan2(C[1],C[0])}});
+  const cols=[CM[0]];for(let i=1;i<CM.length;i++){const c=CM[i];if(i===CM.length-1||Math.abs(c.a-cols[cols.length-1].a)>TOL)cols.push(c)}
+  /* изгиба нет совсем: вся часть одной картинкой */
+  if(cols.length===2&&Math.abs(cols[1].a-cols[0].a)<0.002&&Math.abs(cols[0].a)<0.002){
+    const M=mul(base,mul(cols[1].C,p.Fi));ctx.setTransform(M[0],M[1],M[2],M[3],M[4],M[5]);ctx.drawImage(p.cv,x0,0,p.w-x0,p.h,x0,0,p.w-x0,p.h);return}
+  const V=cols.map(({x,C})=>{const M=mul(base,mul(C,p.Fi));return rows.map(y=>app(M,[x,y]))});
+  cols.forEach((c,i)=>cols[i]=c.x);
+  for(let i=0;i+1<cols.length;i++)for(let j=0;j+1<rows.length;j++){
+    const a=[cols[i],rows[j]],b=[cols[i+1],rows[j]],c=[cols[i+1],rows[j+1]],d=[cols[i],rows[j+1]];
+    tri(ctx,p.cv,a,b,c,V[i][j],V[i+1][j],V[i+1][j+1]);tri(ctx,p.cv,a,c,d,V[i][j],V[i+1][j+1],V[i][j+1])}}
+/* треугольник текстуры s0 s1 s2 в треугольник холста d0 d1 d2: обрезка по чуть расширенному треугольнику (GROW пикселя,
+   чтобы сглаживание краёв обрезки не оставляло просветов на общих рёбрах) и аффинная матрица */
+function tri(ctx,img,s0,s1,s2,d0,d1,d2){
+  const ux=s1[0]-s0[0],uy=s1[1]-s0[1],vx=s2[0]-s0[0],vy=s2[1]-s0[1],den=ux*vy-vx*uy;if(Math.abs(den)<1e-9)return;
+  const px=d1[0]-d0[0],py=d1[1]-d0[1],qx=d2[0]-d0[0],qy=d2[1]-d0[1];
+  const a=(px*vy-qx*uy)/den,b=(py*vy-qy*uy)/den,c=(qx*ux-px*vx)/den,d=(qy*ux-py*vx)/den,e=d0[0]-a*s0[0]-c*s0[1],f=d0[1]-b*s0[0]-d*s0[1];
+  const [A,B,C]=grow([d0,d1,d2]);
+  const sx=Math.max(0,Math.floor(Math.min(s0[0],s1[0],s2[0]))-1),sy=Math.max(0,Math.floor(Math.min(s0[1],s1[1],s2[1]))-1);
+  const sw=Math.min(img.width,Math.ceil(Math.max(s0[0],s1[0],s2[0]))+1)-sx,sh=Math.min(img.height,Math.ceil(Math.max(s0[1],s1[1],s2[1]))+1)-sy;
+  if(sw<=0||sh<=0)return;
+  ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.beginPath();ctx.moveTo(A[0],A[1]);ctx.lineTo(B[0],B[1]);ctx.lineTo(C[0],C[1]);ctx.closePath();ctx.clip();
+  ctx.setTransform(a,b,c,d,e,f);ctx.drawImage(img,sx,sy,sw,sh,sx,sy,sw,sh);ctx.restore()}
+
+/* треугольник, у которого каждое ребро сдвинуто наружу на GROW (острые углы не дальше 3·GROW) */
+function grow(P){
+  const o=(P[1][0]-P[0][0])*(P[2][1]-P[0][1])-(P[1][1]-P[0][1])*(P[2][0]-P[0][0])>0?1:-1;
+  const nrm=(a,b)=>{const dx=b[0]-a[0],dy=b[1]-a[1],l=Math.hypot(dx,dy)||1;return [o*dy/l,-o*dx/l]};
+  const N=[nrm(P[0],P[1]),nrm(P[1],P[2]),nrm(P[2],P[0])];
+  return P.map((p,i)=>{const n1=N[(i+2)%3],n2=N[i],k=1+n1[0]*n2[0]+n1[1]*n2[1],s=Math.min(3,1/Math.max(k,1e-3))*GROW;
+    return [p[0]+(n1[0]+n2[0])*s,p[1]+(n1[1]+n2[1])*s]})}
 
 function drawFood(ctx,X,f){
   const r=X.P.h*0.075;ctx.globalAlpha=f.a;

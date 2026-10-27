@@ -132,10 +132,20 @@ function legPts(kind,attach,g,b,M){
   const elbow=[attach[0]-h*0.1,attach[1]+h*0.46],wrist=[elbow[0]+h*0.1,g-h*(0.1+0.06*dg)];
   const upper=lerpP(attach,elbow,0.45),paw=[wrist[0]+foot*0.35,g-2],tip=[wrist[0]+foot*0.8,g-0.8];
   return {ctrl:[attach,upper,elbow,wrist,paw,tip],r:[Math.max(b.chestR*0.6,8.5*T),Math.max(b.chestR*0.44,6.8*T),5.4*T,4*T,3.7*T,2.3*T],hock:wrist,tip,knee:elbow}}
+/* ломаная без петель: на крутом сгибе (колено) внутренний край трубки перехлёстывает сам себя, петлю вырезаем
+   по точке пересечения, чтобы контур шёл гладко, без зубца */
+function deloop(P){
+  const X=(a,b,c,d)=>{const r=[b[0]-a[0],b[1]-a[1]],q=[d[0]-c[0],d[1]-c[1]],den=r[0]*q[1]-r[1]*q[0];if(Math.abs(den)<1e-9)return null;
+    const t=((c[0]-a[0])*q[1]-(c[1]-a[1])*q[0])/den,u=((c[0]-a[0])*r[1]-(c[1]-a[1])*r[0])/den;return t>0&&t<1&&u>0&&u<1?[a[0]+r[0]*t,a[1]+r[1]*t]:null};
+  const out=P.slice();
+  for(let i=0;i+1<out.length;i++)for(let j=out.length-2;j>i+1;j--){const x=X(out[i],out[i+1],out[j],out[j+1]);if(x){out.splice(i+1,j-i,x);break}}
+  return out}
 function legGeom(L,g,box){
-  const S=tube(L.ctrl,L.r,L.r,4);
+  const S=tube(L.ctrl,L.r,L.r,6);
   S.forEach(s=>{s.top=[s.top[0],Math.min(s.top[1],g)];s.bot=[s.bot[0],Math.min(s.bot[1],g)]});
-  const out=tubeOutline(S,0,1.2).map(p=>[p[0],Math.min(p[1],g)]);
+  /* верх бедра круглый (мышца уходит под кожу туловища), а не срезан прямой линией поперёк тела */
+  const s0=S[0],dome=sub(s0.p,mul(s0.d,Math.max(s0.rt,s0.rb)*0.8)),sN=S[S.length-1];
+  const out=[dome].concat(deloop(S.map(q=>q.top)),[add(sN.p,mul(sN.d,1.2))],deloop(S.map(q=>q.bot)).reverse()).map(p=>[p[0],Math.min(p[1],g)]);
   box.add(out);
   /* три пальца у земли и изогнутые когти */
   const t=L.tip,tr=Math.max(1.6,L.r[5]*0.95),toes=[],cl=[];
@@ -143,7 +153,8 @@ function legGeom(L,g,box){
     const a=add(c,[tr*0.55,-tr*0.55]),b=add(c,[tr*0.7,tr*0.6]),tip=add(c,[tr*2.1,tr*0.7]);
     cl.push(`M${pt(a)}Q${pt(add(c,[tr*2,-tr*0.2]))} ${pt(tip)}Q${pt(add(c,[tr*1.3,tr*0.5]))} ${pt(b)}Z`)});
   box.add([[t[0]+tr*2.2,g]]);
-  return {d:curve(out,true),S,toes:toes.join(''),claws:cl.join('')}}
+  /* fade: верх бедра растворяется в туловище (от купола до трети бедра), как у мышцы под общей кожей */
+  return {d:curve(out,true),S,toes:toes.join(''),claws:cl.join(''),fade:[dome,lerpP(L.ctrl[0],L.knee,0.32)]}}
 
 /* ---------- крылья ---------- */
 const WS=78;   /* длина крыла при размахе 1 */
@@ -607,10 +618,10 @@ function build(M){
   if(M.metal){const mg=metalGeom(K);push('metal',{paint:'metal',line:4.2,d:mg.d,clip:'body',op:.55,blur:qb(1)});push('metal',{paint:'metal',line:1.4,d:mg.d2,clip:'body',op:.55})}
   /* ближние лапы: заливка, объём, мышца бедра, пальцы и когти */
   [['hind','legH','NH'],['front','legF','NF']].forEach(([k,cid,leg])=>{const lg=legs[k],Lp=LP[k];
-    push('legs',{paint:'body',stroke:'edge',d:lg.d,grad:'body',clipId:cid,leg});
-    shadeTube(lg.S,0,lg.S.length-1,cid,{core:.5,hi:.35}).forEach(o=>push('legs',Object.assign(o,{leg})));
+    push('legs',{paint:'body',stroke:'edge',d:lg.d,grad:'body',clipId:cid,leg,fade:lg.fade});
+    shadeTube(lg.S,0,lg.S.length-1,cid,{core:.5,hi:.35}).forEach(o=>push('legs',Object.assign(o,{leg,fade:lg.fade})));
     const th=lerpP(Lp.ctrl[0],Lp.knee,0.38),ang=Math.atan2(Lp.knee[1]-Lp.ctrl[0][1],Lp.knee[0]-Lp.ctrl[0][0])*180/Math.PI;
-    push('legs',{paint:'hi',d:ell(add(th,[Lp.r[0]*0.15,-Lp.r[0]*0.1]),Lp.r[0]*0.75,Lp.r[0]*0.4,ang),clip:cid,blur:qb(Lp.r[0]*0.25),op:.35,fx:1,leg});
+    push('legs',{paint:'hi',d:ell(add(th,[Lp.r[0]*0.15,-Lp.r[0]*0.1]),Lp.r[0]*0.75,Lp.r[0]*0.4,ang),clip:cid,blur:qb(Lp.r[0]*0.25),op:.35,fx:1,leg,fade:lg.fade});
     push('legs',{paint:'body',stroke:'edge',sw:.8,d:lg.toes,grad:'body',leg});
     push('legs',{paint:'claw',stroke:'edge',sw:.6,d:lg.claws,leg});
     const sp=k==='hind'&&spurOf(k);if(sp){push('spurs',{paint:'claw',stroke:'edge',sw:.9,d:sp.d,leg});push('spurs',{paint:'hornLine',d:sp.dark,op:.45,fx:1,leg})}});
@@ -674,7 +685,7 @@ function rigOf(M,K,LP,G,root){
      toe самая передняя точка на земле (конец когтя): вокруг неё стопа поднимает пятку, g уровень земли этой лапы,
      hr толщина лапы у сустава */
   const leg=(k,g)=>{const L=LP[k],a=L.ctrl[0],f=L.tip,tr=Math.max(1.6,L.r[5]*0.95);
-    return {a,k:L.knee,h:L.hock,hr:L.r[3],f,toe:[f[0]+0.6+tr*2.1,g],g,len:Math.hypot(f[0]-a[0],f[1]-a[1])}};
+    return {a,k:L.knee,h:L.hock,hr:L.r[3],kr:L.r[2],f,toe:[f[0]+0.6+tr*2.1,g],g,len:Math.hypot(f[0]-a[0],f[1]-a[1])}};
   /* разрезы: хвост чуть позади бедра, шея у её основания (дальше от плеча, где она уже тонкая) */
   const tailCut=cut(K.idx.hip-2),neckCut=cut(K.idx.n0);
   let tl=0;for(let i=tailCut.i;i>0;i--)tl+=Math.hypot(S[i].p[0]-S[i-1].p[0],S[i].p[1]-S[i-1].p[1]);
@@ -686,13 +697,23 @@ function rigOf(M,K,LP,G,root){
   /* трубка вдоль позвоночника с запасом на обводку: риг отдаёт шее и хвосту только то, что внутри неё,
      а холка, грудь и круп за линией разреза остаются туловищу. Заходит за разрез на радиус, чтобы накрыть стык */
   const back=(i,dir)=>{let d=0,j=i,r=cut(i).r*1.1;while(d<r&&j-dir>=0&&j-dir<S.length){d+=Math.hypot(S[j].p[0]-S[j-dir].p[0],S[j].p[1]-S[j-dir].p[1]);j-=dir}return j};
-  const tube=(i0,i1)=>{const T=[],B=[],o=(s,v)=>{const w=[v[0]-s.p[0],v[1]-s.p[1]],l=Math.hypot(w[0],w[1])||1;return [s.p[0]+w[0]*1.2+w[0]/l*1.5,s.p[1]+w[1]*1.2+w[1]/l*1.5]};
-    const cap=(i,sg)=>{const s=S[i],r=Math.max(s.rt,s.rb)*1.2+3;return [s.p[0]+s.d[0]*r*sg,s.p[1]+s.d[1]*r*sg]};
-    for(let i=i0;i<=i1;i++){T.push(o(S[i],S[i].top));B.push(o(S[i],S[i].bot))}
-    return [cap(i0,-1)].concat(T,[cap(i1,1)],B.reverse())};
-  const neckTube=tube(back(neckCut.i,1),S.length-1),tailTube=tube(0,back(tailCut.i,-1));
+  /* lim: у станций по эту сторону разреза (туловище там толще шеи) отступ не больше, чем у станции разреза:
+     иначе в трубку попадает контур холки над шеей и при сгибе уезжает вместе с шеей */
+  const tube=(i0,i1,pad,noCap,lim)=>{pad=pad||0;const T=[],B=[],o=(s,v,m)=>{const w=[v[0]-s.p[0],v[1]-s.p[1]],l=Math.hypot(w[0],w[1])||1,k=Math.min(1.2,m/l);return [s.p[0]+w[0]*k+w[0]/l*(1.5+pad),s.p[1]+w[1]*k+w[1]/l*(1.5+pad)]};
+    const cap=(i,sg)=>{const s=S[i],r=Math.max(s.rt,s.rb)*1.2+3+pad;return [s.p[0]+s.d[0]*r*sg,s.p[1]+s.d[1]*r*sg]};
+    for(let i=i0;i<=i1;i++){const c=lim&&lim.c(i)?lim:null;T.push(o(S[i],S[i].top,c?c.t:1e9));B.push(o(S[i],S[i].bot,c?c.b:1e9))}
+    return (noCap===0?[]:[cap(i0,-1)]).concat(T,noCap===1?[]:[cap(i1,1)],B.reverse())};
+  const nl0={t:S[neckCut.i].rt*1.2,b:S[neckCut.i].rb*1.2,c:i=>i<=neckCut.i+2},tl0={t:S[tailCut.i].rt*1.2,b:S[tailCut.i].rb*1.2,c:i=>i>=tailCut.i-2};
+  const neckTube=tube(back(neckCut.i,1),S.length-1,0,null,nl0),tailTube=tube(0,back(tailCut.i,-1),0,null,tl0);
+  /* те же трубки шире на пару единиц: шея и хвост лежат под туловищем, и сглаженный край туловища
+     ложится на тот же рисунок, а не на прозрачное (иначе по границе трубки виден тонкий шов) */
+  const neckTubeW=tube(back(neckCut.i,1),S.length-1,2.5,null,nl0),tailTubeW=tube(0,back(tailCut.i,-1),2.5,null,tl0);
+  /* трубка от самого разреза без торца у разреза: всё, что в ней, принадлежит шее (хвосту), даже если на крутом изгибе
+     спинной контур заходит назад за плоскость разреза */
+  const neckFrom=tube(neckCut.i,S.length-1,0,0,nl0),tailFrom=tube(0,tailCut.i,0,1,tl0);
+  const neckFromW=tube(neckCut.i,S.length-1,2.5,0,nl0),tailFromW=tube(0,tailCut.i,2.5,1,tl0);
   return {hip:K.hip,sh:K.sh,mid:K.mid,head:K.N2,mouth:G.mouthTip,eye:G.eyeC,eyeR:G.eyeR,root,tailTip:S[0].p,
-    tailCut,neckCut,neckTube,tailTube,tailLen:tl,neckLen:nl,headH:G.H,belly,tailS,headLow:low,lidTop:[G.eyeC[0],G.eyeC[1]-G.eyeR],
+    tailCut,neckCut,neckTube,tailTube,neckTubeW,tailTubeW,neckFrom,tailFrom,neckFromW,tailFromW,tailLen:tl,neckLen:nl,headH:G.H,belly,tailS,headLow:low,lidTop:[G.eyeC[0],G.eyeC[1]-G.eyeR],
     legs:{FH:leg('hindF',-2.4),FF:leg('frontF',-2.4),NH:leg('hind',0),NF:leg('front',0)}}}
 
 const SHAPE={build,curve,spline,tube};

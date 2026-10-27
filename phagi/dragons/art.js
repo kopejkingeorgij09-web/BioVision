@@ -31,6 +31,7 @@ function svg(M,opt){
   const id=n=>n+key;
   const skip=l=>(l.rig&&!opt.rig)||(opt.only&&!opt.only(l))||(sil&&(l.fx||l.clip||l.line||l.blur||l.part==='shadow'||l.part==='eyes'||l.part==='breath'));
   const layers=G.layers.filter(l=>!skip(l));
+  let fadeId=()=>null;
   const o=[];
   o.push(`<svg xmlns="http://www.w3.org/2000/svg" class="dr3${sil?' sil':''}" viewBox="${vb.map(R1).join(' ')}" width="${W}" height="${H}" role="img" aria-label="${esc(opt.label||'Дракон')}">`);
   if(!sil){
@@ -48,6 +49,12 @@ function svg(M,opt){
     const bx=G.box,fr=`filterUnits="userSpaceOnUse" x="${R1(bx.x-40)}" y="${R1(bx.y-40)}" width="${R1(bx.w+80)}" height="${R1(bx.h+80)}"`;
     [...new Set(layers.filter(l=>l.blur).map(l=>l.blur))].forEach(b=>o.push(`<filter id="${id('f'+String(b).replace('.','_'))}" ${fr}><feGaussianBlur stdDeviation="${b}"/></filter>`));
     G.layers.forEach(l=>{if(l.clipId)o.push(`<clipPath id="${id('c'+l.clipId)}"><path d="${l.d}"/></clipPath>`)});
+    /* fade: слой растворяется от точки a (прозрачно) к точке b (целиком): маска с градиентом в единицах рисунка */
+    const fk=f=>f.map(p=>p.map(R1).join(',')).join(';'),fades=[...new Set(layers.filter(l=>l.fade).map(l=>fk(l.fade)))];
+    fades.forEach((k,i)=>{const [a,b]=k.split(';').map(q=>q.split(',').map(Number)),bx=G.box;
+      o.push(`<linearGradient id="${id('fg'+i)}" gradientUnits="userSpaceOnUse" x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff"/></linearGradient>`+
+        `<mask id="${id('fm'+i)}" maskUnits="userSpaceOnUse" x="${R1(bx.x-40)}" y="${R1(bx.y-40)}" width="${R1(bx.w+80)}" height="${R1(bx.h+80)}"><rect x="${R1(bx.x-40)}" y="${R1(bx.y-40)}" width="${R1(bx.w+80)}" height="${R1(bx.h+80)}" fill="url(#${id('fg'+i)})"/></mask>`)});
+    fadeId=l=>l.fade?id('fm'+fades.indexOf(fk(l.fade))):null;
     o.push('</defs>')}
   /* разрезы для рига нужны и в силуэте */
   if(opt.region&&opt.region.length)o.push('<defs>'+opt.region.map((d,i)=>`<clipPath id="${id('rg'+i)}">${[].concat(d).map(x=>x[0]==='!'?`<path d="${x.slice(1)}" clip-rule="evenodd"/>`:`<path d="${x}"/>`).join('')}</clipPath>`).join('')+'</defs>');
@@ -75,7 +82,8 @@ function svg(M,opt){
     const flt=!sil&&l.blur?` filter="url(#${id('f'+String(l.blur).replace('.','_'))})"`:'';
     /* размытый слой с обрезкой: сначала размыть, потом обрезать — для этого обрезка на внешней группе */
     const body=`<path d="${l.d}" fill="${fill}"${stroke!=='none'?` stroke="${stroke}" stroke-width="${Math.round(w*100)/100}"`:''}${extra}${op}${flt&&!clip?flt:''}${clip&&!flt?clip:''}/>`;
-    o.push(flt&&clip?`<g${clip}><path d="${l.d}" fill="${fill}"${stroke!=='none'?` stroke="${stroke}" stroke-width="${Math.round(w*100)/100}"`:''}${extra}${op}${flt}/></g>`:body)});
+    const one=flt&&clip?`<g${clip}><path d="${l.d}" fill="${fill}"${stroke!=='none'?` stroke="${stroke}" stroke-width="${Math.round(w*100)/100}"`:''}${extra}${op}${flt}/></g>`:body;
+    const fm=!sil&&fadeId(l);o.push(fm?`<g mask="url(#${fm})">${one}</g>`:one)});
   if(cur)o.push(close(cur));
   rg.forEach(()=>o.push('</g>'));
   o.push('</g></svg>');

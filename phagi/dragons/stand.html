@@ -29,6 +29,12 @@ section>p{margin:0 0 10px;color:var(--quiet);max-width:860px}
 .pics{display:flex;gap:6px}
 .pic{flex:1;min-width:0;background:var(--stage);border-radius:8px;position:relative;display:flex;align-items:flex-end;justify-content:center;overflow:hidden}
 .pic svg,.pic canvas{display:block;width:100%;height:auto}
+.pic.fix{aspect-ratio:4/3;align-items:stretch}
+.pic svg.fit{width:100%;height:100%}
+.grid.heads,.grid.sils{grid-template-columns:repeat(auto-fill,minmax(165px,1fr))}
+.pic.white{background:#FFFFFF}
+.card h3+.ph{margin-top:0}
+.scroll+h3,section h3{font-size:14px;margin:12px 0 4px}
 .pic .tag{position:absolute;left:6px;top:4px;font-size:11px;color:var(--quiet);background:var(--card);border-radius:6px;padding:0 5px}
 .card h3{font-size:14px;margin:8px 0 2px}
 .card .gene{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--acc);margin:0 0 4px;word-break:break-word}
@@ -50,16 +56,16 @@ td.ok{color:var(--good)}td.mid{color:var(--warn)}td.badc{color:var(--bad)}
 body.anim svg.dr3>g{animation:drbob 2.6s ease-in-out infinite}
 body.anim svg.dr3 .flap{animation:drflap 2.6s ease-in-out infinite}
 @media (prefers-reduced-motion:reduce){body.anim svg.dr3>g,body.anim svg.dr3 .flap{animation:none}}
-@media (max-width:600px){.grid,.grid.age{grid-template-columns:1fr}header{position:static}}
+@media (max-width:600px){.grid,.grid.age{grid-template-columns:1fr}.grid.heads,.grid.sils{grid-template-columns:1fr 1fr}header{position:static}}
 </style>
 </head>
 <body>
 <header>
   <h1>Стенд драконов</h1>
-  <p>Каждый дракон здесь собран из настоящего генотипа (DRG.make или DRG.breed). Рисунок строится только из фенотипа и уровня: архетип стихии, наследуемые признаки сверху, возраст меняет пропорции. Наведи на часть тела, чтобы увидеть, какие гены за неё отвечают.</p>
+  <p>Каждый дракон здесь собран из настоящего генотипа (DRG.make или DRG.breed). Рисунок строится только из фенотипа и уровня: архетип стихии, наследуемые признаки сверху, возраст меняет пропорции. A рисуется в SVG, C нарезан из того же рисунка для анимации. Наведи на часть тела в рисунке A: подсказка покажет, какие гены решают, есть ли она, какой она формы и окраски.</p>
   <div class="ctl">
     <span class="seg" role="group" aria-label="Рисунок">
-      <button data-r="svg" aria-pressed="true">A · SVG</button><button data-r="cv" aria-pressed="false">B · Canvas</button><button data-r="both" aria-pressed="false">Оба рядом</button>
+      <button data-r="svg" aria-pressed="true">A · SVG</button><button data-r="spr" aria-pressed="false">C · спрайты</button><button data-r="both" aria-pressed="false">Оба рядом</button>
     </span>
     <button class="tg" data-t="sil" aria-pressed="false">Чёрные силуэты</button>
     <button class="tg" data-t="anim" aria-pressed="false">Анимация</button>
@@ -70,10 +76,10 @@ body.anim svg.dr3 .flap{animation:drflap 2.6s ease-in-out infinite}
 <div id="tip" role="tooltip"></div>
 <script src="genetics.js"></script>
 <script src="draw.js"></script>
-<script src="morph.js"></script>
-<script src="shape.js"></script>
-<script src="art.js"></script>
-<script src="art-canvas.js"></script>
-<script src="stand.js"></script>
+<script src="morph.js?v=2"></script>
+<script src="shape.js?v=2"></script>
+<script src="art.js?v=2"></script>
+<script src="sprites.js?v=2"></script>
+<script src="stand.js?v=2"></script>
 </body>
 </html>

@@ -95,11 +95,57 @@ t('геометрия без NaN и бесконечностей для 300 сл
     G.layers.forEach(l=>assert.ok(!/NaN|Infinity/.test(l.d),l.part));
     ['x','y','w','h'].forEach(k=>assert.ok(Number.isFinite(G.box[k])))})});
 
-t('каждая часть тела знает свои гены, а возрастное и оформление помечено отдельно',()=>{
+t('у каждой части тела записаны гены наличия, формы и окраски, возраст и оформление отдельно',()=>{
   const M=MO.morph(ph({E:'F/F'}),18);
-  ['horns','crest','mace','wings','eyes','metal','spurs'].forEach(k=>{assert.ok(M.src[k].length);M.src[k].forEach(l=>assert.ok(D.LOCI[l],l))});
-  assert.ok(M.cosm.aura);assert.ok(!M.src.aura);
+  Object.keys(MO.SRC).forEach(k=>{const s=M.src[k];assert.ok(s&&Array.isArray(s.has)&&Array.isArray(s.shape)&&Array.isArray(s.color),k);
+    s.has.concat(s.shape,s.color).forEach(l=>assert.ok(D.LOCI[l],k+' '+l));
+    Object.keys(s.why||{}).forEach(c=>{assert.ok(['has','shape','color'].includes(c),k+' why '+c);Object.keys(s.why[c]).forEach(l=>assert.ok(s[c].includes(l),k+' why '+c+' '+l))})});
+  assert.ok(M.cosm.aura&&M.cosm.shadow);assert.ok(!M.src.aura&&!M.src.shadow);
   assert.ok(M.age.wings&&M.age.horns)});
+
+/* Подпись части тела на рисунке: есть ли она, её контуры (форма) и краски (окраска).
+   Слой относится к той части, которую изображает: тень от крыла на теле считается крылом (поле of).
+   Свечение (градиент glow) считается окраской, а не формой. */
+function partSigs(p,lvl){
+  const M=MO.morph(p,lvl),G=SH.build(M),pl=M.pal,P=MO.paints(M),two=M.elements.length>1,out={};
+  const GR={body:[pl.base,pl.light,pl.deep].concat(two?[pl.deep2]:[]),wing:[pl.wingDeep,pl.wing,pl.light2],horn:[pl.horn,pl.deep],ball:[P.mace],glow:[pl.glow],iris:[P.iris,P.irisDeep]};
+  G.layers.forEach(l=>{const k=l.of||l.part,o=out[k]||(out[k]={shape:[],color:[]}),light=l.grad==='glow';
+    if(!light)o.shape.push([l.d,l.blur||0,l.clip||'',l.stroke?1:0,l.sw||0,l.line||0].join('|'));
+    const op='@'+(l.op==null?1:Math.round(l.op*100)/100);
+    (l.line?[P[l.paint]]:l.grad?GR[l.grad]:l.paint==='aura'?[pl.accent]:[P[l.paint]]).forEach(c=>o.color.push(c+op+(light?l.d:'')));
+    if(l.stroke)o.color.push('edge'+pl.edge)});
+  Object.values(out).forEach(o=>{o.shape=o.shape.join('#');o.color=[...new Set(o.color)].sort().join(',')});
+  return out}
+
+t('карта генов src совпадает с рисунком: меняем по одному гену, меняется только записанное',()=>{
+  const memo=new Map(),sig=(p,lv)=>{const k=JSON.stringify(p)+lv;if(!memo.has(k))memo.set(k,partSigs(p,lv));return memo.get(k)};
+  const pairs=A=>{const o=[];A.forEach((x,i)=>A.slice(i).forEach(y=>o.push(x+'/'+y)));return o};
+  const bases=['F/F','W/W','T/T','A/A','P/P','L/L','D/D','F/W','T/P','L/D','e/e','A/F'].map((e,i)=>{const f=i%2===1;
+    const s={sex:f?'F':'M',E:e,S:i===3?'S/s':'S/S',C:['C/c','Cb/c','c/c','C/C'][i%4],H:i%3?'H/h':'h/h',K:i%4===2?'K/k':'k/k',R:['R1/R2','R1/R1','R2/R2'][i%3],
+      Wg:i%5===4?'Wg/+':'+/+',Q1:'+/-',Q2:['+/+','-/-','+/-'][i%3],Q3:'+/-',G:i%4===3?'G':'g'};
+    if(f){s.M=i%3?'M':'m';s.N=i%4===1?'n':'N';s.Sp=i%3===1?'Sp':'sp'}else{s.M=i%3?'M/m':'m/m';s.N=i%4===0?'n/n':'N/n'}
+    return s});
+  const bad=[],seen={},note=(k,l)=>{(seen[k]||(seen[k]=new Set())).add(l)};
+  bases.forEach(b=>{const p0=D.phenotype(D.make(b));
+    Object.keys(D.LOCI).forEach(L=>{
+      if(L==='Sp'&&b.sex==='M')return;
+      const one=L==='G'||(b.sex==='F'&&(L==='M'||L==='N'||L==='Sp'));
+      (one?D.LOCI[L].alleles.slice():pairs(D.LOCI[L].alleles)).forEach(v=>{
+        const g=D.make(Object.assign({},b,{[L]:v})),p1=D.phenotype(g);if(p1.lethal)return;
+        [2,12,18].forEach(lv=>{const a=sig(p0,lv),c=sig(p1,lv);
+          new Set(Object.keys(a).concat(Object.keys(c))).forEach(part=>{
+            if(MO.morph(p0,lv).cosm[part])return;
+            const src=MO.SRC[part];if(!src){bad.push(part+': нет в карте');return}
+            const x=a[part],y=c[part],why=part+' '+L+' ('+b.E+', '+v+', ур. '+lv+')';
+            if(!!x!==!!y){note(part+'.has',L);if(!src.has.includes(L))bad.push('наличие '+why);return}
+            if(!x)return;
+            if(x.shape!==y.shape){note(part+'.shape',L);if(!src.has.includes(L)&&!src.shape.includes(L))bad.push('форма '+why)}
+            if(x.color!==y.color){note(part+'.color',L);if(!src.color.includes(L))bad.push('окраска '+why)}})})})})});
+  assert.deepStrictEqual(bad.slice(0,8),[],'не записано в карте');
+  /* и обратно: каждый записанный ген хоть где-то меняет то, что про него сказано */
+  const idle=[];Object.keys(MO.SRC).forEach(part=>['has','shape','color'].forEach(k=>MO.SRC[part][k].forEach(L=>{
+    if(!(seen[part+'.'+k]||new Set()).has(L))idle.push(part+'.'+k+' '+L)})));
+  assert.deepStrictEqual(idle,[],'записано, но не влияет')});
 
 t('силуэт: SVG силуэта не выдаёт цвет, части подписаны для подсветки',()=>{
   const p=ph({E:'F/F',G:'G'}),s=A.dragon(p,12,{sil:true,key:'s'}),c=A.dragon(p,12,{key:'c'});

@@ -235,7 +235,8 @@ body.dri-open #toast{top:calc(env(safe-area-inset-top,0px) + 64px);bottom:auto}
   font:inherit;font-weight:700;font-size:16px;color:#fff;background:linear-gradient(135deg,#2F8A3B,#1F6FA8);box-shadow:0 8px 20px -12px rgba(31,111,168,.9)}
 .dri-geno:hover{filter:brightness(1.08)}.dri-geno[aria-pressed=true]{box-shadow:inset 0 0 0 2px rgba(255,255,255,.75)}
 .dri-geno:focus-visible,.dri-chip:focus-visible,.dri-pp:focus-visible,.dri-b2:focus-visible,.dri-ux:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
-.dri-acts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:8px}
+.dri-acts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px}
+.dri-acts [data-dk=feed]{grid-column:1/-1}
 .dri-acts.two{grid-template-columns:repeat(2,minmax(0,1fr))}
 .dri-acts .btn{width:100%;text-align:center;padding:9px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dri-acts .btn[aria-pressed=true]{background:var(--soft)}

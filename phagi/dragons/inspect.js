@@ -181,8 +181,9 @@ function clampCam(v,c){const b=v.G.box;c.z=clamp(c.z,1,ZMAX);c.cx=clamp(c.cx,b.x
 const viewOf=c=>[c.Z,0,0,c.Z,c.ax-c.Z*c.cx,c.ay-c.Z*c.cy];
 
 /* ---------- кадр ---------- */
+let NF=0;   /* все кадры осмотра с загрузки страницы: по приросту за секунду видно, не идут ли два цикла сразу */
 function frame(now){
-  const v=V;if(!v||v.dead)return;
+  const v=V;if(!v||v.dead)return;NF++;
   v.raf=document.hidden?0:requestAnimationFrame(frame);
   const dt=Math.min(0.1,(now-v.last)/1000);v.last=now;
   if(v.A){const ev=v.A.update(dt);if(ev.length)onEvents(v,ev)}
@@ -510,6 +511,6 @@ function whereIs(part){const v=V;if(!v||!v.A)return null;
   return root.RIG.get(v.ph,v.info.lvl,{px:v.Xpx,dpr:v.dpr,part}).then(X=>{const b=boxOf(v,X),vw=v.view;root.RIG.release(X);if(!b)return null;
     return {x:(vw[0]*(b.x+b.w/2)+vw[4])/v.dpr,y:(vw[3]*(b.y+b.h/2)+vw[5])/v.dpr}})}
 
-root.DRGINSP=Object.assign({open,close:()=>{if(V)close(V)},state,tapAt,partAt,whereIs,loadAll},PURE);
+root.DRGINSP=Object.assign({open,close:()=>{if(V)close(V)},state,tapAt,partAt,whereIs,loadAll,frames:()=>NF},PURE);
 addEventListener('pagehide',()=>{if(V)finish(V)});
 })(typeof window!=='undefined'?window:globalThis);

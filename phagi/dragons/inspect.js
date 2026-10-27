@@ -1,7 +1,9 @@
 /* Осмотр дракона (этап 2 Драконов 3.0): нажатие на дракона на острове или в списке открывает отдельную сцену.
    Камера плавно приближается от того места, где дракон был на острове, дракон крупно и живой (риг из рисунка A,
    anim.js), части тела можно рассмотреть мышью, касанием и с клавиатуры, рядом имя, возраст, пол, стихии,
-   характеристики, «Покормить», «Родословная», «В бой» и отдельная кнопка «Посмотреть генотип».
+   характеристики, «Покормить», «Родословная», «В бой» и отдельная кнопка «Генетический паспорт»:
+   хромосомы, сцепление, правила наследования с метками «как в природе», «условность модели», «только рисунок»,
+   ген в таблице подсвечивает часть тела и наоборот.
    Закрытие возвращает камеру туда же, остров при этом не перестраивается: его камера (S.drgCam) и выбор не меняются.
    Сцена живёт вне дерева страницы (последний ребёнок body), поэтому перерисовка острова ей не мешает.
    Модули рисунка и анимации (morph, shape, art, texcache, sprites, anim, rig, stats) подгружаются при первом осмотре.
@@ -52,18 +54,78 @@ const SHOW={
   Sp:ph=>ph.spurs?'шпоры есть':ph.sex==='M'?'у самцов шпор не бывает':'шпор нет',
   G:ph=>ph.glow?'глаза светятся':'глаза не светятся'};
 
-/* генотип по хромосомам: гомологи как есть (какой из них от матери, в сохранении не записано), сцепление из CHROMS */
-function genoModel(g){
-  const ph=DRG.phenotype(g),blocks=[];
+/* ---------- генетический паспорт ----------
+   Метки: nat — так устроено у настоящих организмов (с источником), mod — условность модели (числа и выбор признаков
+   придуманы для игры), art — только рисунок, генами не задаётся. Правила доминирования повторяют DRG.phenotype,
+   inspect.test.js сверяет их с фенотипом перебором. */
+const TAG={nat:'Как в природе',mod:'Условность модели',art:'Только рисунок'};
+const RULE={
+  E:'Аллели стихий F, W, T, A, P, L, D кодоминантны: у F/W видны обе стихии. Аллель e рецессивен, у e/e стихии нет.',
+  S:'S доминантен. У s/s нет искры, и стихия не проявляется при любых аллелях E: это эпистаз.',
+  C:'Три аллеля, ряд доминирования C > cᵇ > c: тёмный, бронзовый, бледный.',
+  H:'H доминантен: с одной копией рога уже есть.',K:'K доминантен: с одной копией на хвосте булава.',
+  R:'Неполное доминирование: R¹/R¹ большой гребень, R¹/R² средний, R²/R² гребня нет.',
+  Wg:'Wgˢ доминантен по длине крыльев и рецессивно летален: Wgˢ/Wgˢ гибнет в яйце.',
+  Q1:'Один из трёх генов размаха: каждый «+» добавляет 0,5 м к базовым 3 м.',Q2:'Один из трёх генов размаха: каждый «+» добавляет 0,5 м к базовым 3 м.',Q3:'Один из трёх генов размаха: каждый «+» добавляет 0,5 м к базовым 3 м.',
+  M:'M доминантен, ген на Z: самцу нужна одна копия из двух, у самки Z одна.',
+  N:'n рецессивен, ген на Z: самцу для ночного зрения нужно n/n, самке хватает одного n.',
+  Sp:'Ген на W: шпоры бывают только у самок, мать передаёт W дочерям.',
+  G:'Ген в митохондриях: передаётся от матери всем детям, от отца никогда.'};
+/* где ген виден на рисунке: части, у которых он есть в карте MORPH.SRC. E, S и C задают форму и окраску почти всего тела,
+   у них в списке только части, которые от них появляются или пропадают */
+const WIDE=['E','S','C'];
+function partsOfLocus(l){const S=root.MORPH?root.MORPH.SRC:null;if(!S)return [];
+  return PART_ORDER.filter(p=>{const s=S[p];return s&&(WIDE.includes(l)?s.has.includes(l):s.has.concat(s.shape,s.color).includes(l))})}
+const FACTS=[
+  {tag:'nat',h:'Пары хромосом и мейоз',l:[],src:['grif','inge'],
+   t:'Аутосомы парные: одна хромосома пары от матери, другая от отца. В каждую гамету уходит одна хромосома из пары, какая именно, решает случай. Поэтому потомки одних родителей получаются разными.'},
+  {tag:'nat',h:'Сцепление и кроссинговер',l:['H','K','M','N'],src:['sturt','grif'],
+   t:'Гены одной хромосомы наследуются вместе, пока их не разделит кроссинговер, и чем дальше гены друг от друга, тем чаще это случается. Частота рекомбинации служит расстоянием на генетической карте: так Стёртевант в 1913 году построил первую карту хромосомы дрозофилы.'},
+  {tag:'mod',h:'Расстояния на карте',l:['H','K','M','N'],src:[],
+   t:'H и K разделяются в 18 % гамет, M и N в 10 %: эти числа выбраны для игры. 50 % означает независимое наследование, как у генов на разных хромосомах.'},
+  {tag:'nat',h:'Половые хромосомы ZW',l:['M','N','Sp'],src:['grif'],
+   t:'Самка ZW, самец ZZ, как у птиц и бабочек. Самка получает Z от отца, а W от матери, поэтому гены Z у неё в одной копии и проявляются сразу, даже рецессивные.'},
+  {tag:'mod',h:'Шпоры на W',l:['Sp'],src:[],
+   t:'Ген шпор на W придуман для игры, чтобы был признак только по материнской линии. У настоящих птиц на W мало генов, а шпоры у кур обычно растут у петухов.'},
+  {tag:'nat',h:'Митохондрии от матери',l:['G'],src:['alb'],
+   t:'У большинства животных митохондрии с их ДНК переходят к потомку только из яйцеклетки. Поэтому митохондриальный ген наследуется по материнской линии.'},
+  {tag:'mod',h:'Свечение глаз',l:['G'],src:[],
+   t:'Сам признак придуман для игры. У настоящих животных гены митохондрий в основном нужны для клеточного дыхания.'},
+  {tag:'nat',h:'Эпистаз',l:['S','E'],src:['grif'],
+   t:'Один ген может скрыть действие другого. У s/s стихия не проявляется, какие бы аллели E ни были. Похожим образом у мышей генотип cc (альбинизм) скрывает окраску, которую задают другие гены.'},
+  {tag:'nat',h:'Множественные аллели, кодоминирование, неполное доминирование',l:['C','E','R'],src:['grif','inge'],
+   t:'У гена бывает больше двух аллелей, как ряд окраски кроликов. Кодоминантные аллели видны оба, как A и B у групп крови человека: так у F/W две стихии. При неполном доминировании гетерозигота промежуточная, как розовые цветки у гибрида красного и белого львиного зева: так у R¹/R² средний гребень.'},
+  {tag:'nat',h:'Полигенный признак',l:['Q1','Q2','Q3'],src:['grif'],
+   t:'Размах крыльев складывают три гена, каждый «+» добавляет понемногу. Поэтому у потомков много промежуточных значений, как у роста человека.'},
+  {tag:'mod',h:'Числа размаха',l:['Q1','Q2','Q3'],src:[],
+   t:'3 м и 0,5 м за каждый «+» выбраны для игры. Среда, питание и случай на размах в модели не влияют, у настоящих полигенных признаков влияют.'},
+  {tag:'nat',h:'Летальный аллель',l:['Wg'],src:['castle','grif'],
+   t:'Аллель может быть доминантным по виду и смертельным в двух копиях. Wgˢ/Wgˢ не вылупляется, поэтому от двух короткокрылых родителей короткокрылых и обычных выходит 2 : 1, а не 3 : 1. Так объяснили жёлтую окраску мышей: жёлтые мыши все гетерозиготны.'},
+  {tag:'mod',h:'Мутации',l:['E'],src:['grif'],
+   t:'В модели каждый ген в каждой гамете меняется с вероятностью 1/400, только так появляются Свет и Тьма. У настоящих генов мутации гораздо реже, в учебниках обычно приводят порядок 10⁻⁵–10⁻⁶ на ген за поколение.'},
+  {tag:'art',h:'Что задаёт только рисунок',l:[],src:[],
+   t:'Форма тела, рогов и чешуи по стихии, цвета, манера движения, атаки и сияние нарисованы для игры. Гены решают, есть ли часть и какой вариант взять, а как он выглядит, придумал художник. Возраст тоже меняет вид, но это развитие, оно не наследуется.'}];
+const SOURCES={
+  grif:'Griffiths A. J. F. и др. Introduction to Genetic Analysis. W. H. Freeman, любое издание: менделевское наследование, сцепление, половые хромосомы, взаимодействие генов, летальные аллели, полигенные признаки.',
+  inge:'Инге-Вечтомов С. Г. Генетика с основами селекции. СПб.: Изд-во Н-Л, 2010.',
+  sturt:'Sturtevant A. H. The linear arrangement of six sex-linked factors in Drosophila, as shown by their mode of association // Journal of Experimental Zoology. 1913. Vol. 14. P. 43–59.',
+  castle:'Castle W. E., Little C. C. On a modified Mendelian ratio among yellow mice // Science. 1910. Vol. 32. P. 868–870.',
+  alb:'Alberts B. и др. Molecular Biology of the Cell. Garland Science, любое издание: генетические системы митохондрий.'};
+
+/* генотип по хромосомам, сцепление из CHROMS */
+/* bred — дракон выведен на острове: тогда [0] пришла с яйцеклеткой матери, [1] со сперматозоидом отца (DRG.fuse),
+   у первых драконов и драконов с рынка порядок гомологов ничего не значит */
+function genoModel(g,bred){
+  const ph=DRG.phenotype(g),blocks=[],R=bred?['от матери','от отца']:['1-я','2-я'];
   const links=(loci,r)=>r.map((x,i)=>x<0.5?{a:loci[i],b:loci[i+1],r:x}:null).filter(Boolean);
   Object.keys(DRG.CHROMS).forEach((c,ci)=>{const C=DRG.CHROMS[c];
-    blocks.push({id:c,title:'Аутосома '+(ci+1),loci:C.loci,rows:[['1-я',g[c][0]],['2-я',g[c][1]]],links:links(C.loci,C.r),show:C.loci.map(l=>SHOW[l](ph))})});
+    blocks.push({id:c,title:'Аутосома '+(ci+1),loci:C.loci,rows:[[R[0],g[c][0]],[R[1],g[c][1]]],links:links(C.loci,C.r),show:C.loci.map(l=>SHOW[l](ph))})});
   const Zl=DRG.Z.loci;
-  if(g.sex==='M')blocks.push({id:'Z',title:'Половые хромосомы: самец ZZ',loci:Zl,rows:[['Z',g.Z[0]],['Z',g.Z[1]]],links:links(Zl,DRG.Z.r),show:Zl.map(l=>SHOW[l](ph)),
+  if(g.sex==='M')blocks.push({id:'Z',title:'Половые хромосомы: самец ZZ',loci:Zl,rows:[[bred?'Z от матери':'Z',g.Z[0]],[bred?'Z от отца':'Z',g.Z[1]]],links:links(Zl,DRG.Z.r),show:Zl.map(l=>SHOW[l](ph)),
     note:'Гена шпор Sp у самца нет: он лежит на W.'});
-  else blocks.push({id:'Z',title:'Половые хромосомы: самка ZW',loci:Zl,rows:[['Z',g.Z[0]]],links:[],show:Zl.map(l=>SHOW[l](ph)),
+  else blocks.push({id:'Z',title:'Половые хромосомы: самка ZW',loci:Zl,rows:[[bred?'Z от отца':'Z',g.Z[0]]],links:[],show:Zl.map(l=>SHOW[l](ph)),
     note:'Z одна, поэтому по M и N самка гемизиготна: проявляется единственный аллель.',
-    w:{loci:['Sp'],rows:[['W',[g.W]]],show:[SHOW.Sp(ph)]}});
+    w:{loci:['Sp'],rows:[[bred?'W от матери':'W',[g.W]]],show:[SHOW.Sp(ph)]}});
   blocks.push({id:'mt',title:'Митохондрии',mt:g.mt,show:[SHOW.G(ph)],note:'Одна копия, не пара: митохондрии достаются только от матери.'});
   return {ph,blocks}}
 
@@ -89,7 +151,7 @@ const seedOf=id=>{let h=7;for(const c of String(id))h=(h*31+c.charCodeAt(0))>>>0
 const plural=(n,a,b,c)=>{const m=n%10,h=n%100;return m===1&&h!==11?a:m>=2&&m<=4&&(h<10||h>=20)?b:c};
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 
-const PURE={PART,PART_ORDER,partsHere,allelesOf,allelesText,genoModel,partInfo,bodyPartOf,SHOW};
+const PURE={PART,PART_ORDER,partsHere,allelesOf,allelesText,genoModel,partInfo,bodyPartOf,SHOW,TAG,RULE,FACTS,SOURCES,partsOfLocus};
 if(typeof document==='undefined'){if(typeof module!=='undefined'&&module.exports)module.exports=PURE;return}
 
 /* ---------- подгрузка модулей рисунка ---------- */
@@ -155,7 +217,7 @@ async function show(v,info,mode){
     requestAnimationFrame(()=>{if(!v.dead)v.root.classList.add('in')});
     v.$('.dri-load').hidden=true}
   else{v.cam=Object.assign({},to);
-    if(mode==='switch'){v.sel=null;v.sub=null;v.pend=null;if(v.hidden){v.hidden.style.visibility='';v.hidden=null}}}
+    if(mode==='switch'){v.sel=null;v.sub=null;v.loc=null;v.pend=null;if(v.hidden){v.hidden.style.visibility='';v.hidden=null}}}
   v.root.setAttribute('aria-label','Осмотр: '+info.name);
   v.stage.setAttribute('aria-label',`${info.name} крупно. Стрелки двигают вид, плюс и минус приближают, Enter гладит дракона`);
   renderPanel(v);
@@ -273,7 +335,7 @@ function layerAt(v,rp,px,py){
 async function select(v,part,zoom){
   v.sel=part;v.selT=performance.now();
   if(part&&v.hint){v.hint=false;v.root.classList.add('nohint')}
-  renderPart(v);renderChips(v);
+  renderPart(v);renderChips(v);genoHi(v);
   const tok=++v.mtok;
   if(!part){dropMask(v);if(zoom)camHome(v);return}
   const t0=performance.now();
@@ -311,8 +373,8 @@ function tap(v,x,y){
   if(!v.A||v.fly)return;
   const part=hitTest(v,x*v.dpr,y*v.dpr);
   if(!part){if(v.sel)select(v,null,true);return}
-  react(v,part);
-  if(part!==v.sel)select(v,part,true)}
+  react(v,part);v.loc=null;
+  if(part!==v.sel)select(v,part,true);else genoHi(v)}
 function feed(v){
   const inf=v.info;if(!inf.own||!inf.feed||!inf.feed.can)return;
   const r=v.api.feed(inf.id);if(!r)return;
@@ -409,7 +471,9 @@ function onClick(v,e){
   else if(k==='feed')feed(v);
   else if(k==='fight'){v.A.play('attack');say(v,'Пробный удар. Бои 3 на 3 появятся позже, пока это только движение')}
   else if(k==='part'){const p=b.dataset.p;if(p===v.sel)select(v,null,true);else{select(v,p,true);if(p==='breath'||p==='eyes')react(v,p)}}
-  else if(k==='unsel')select(v,null,true);
+  else if(k==='unsel'){v.loc=null;select(v,null,true)}
+  else if(k==='loc'){const l=b.dataset.l;selLoc(v,l===v.loc?null:l)}
+  else if(k==='unloc')selLoc(v,null);
   else if(k==='goto'){const inf=v.api.info(b.dataset.id);if(inf)show(v,inf,'switch').then(()=>{if(!v.dead)v.$('.dri-x').focus({preventScroll:true})})}}
 
 function onKey(v,e){
@@ -443,7 +507,7 @@ function renderHead(v){
   const fd=i.own&&f?`<button class="btn sm" data-dk="feed"${f.can?'':' disabled'}>Покормить · ${f.cost} 🌾</button>`:'';
   setHTML(v.$('.dri-head'),`<div class="dri-hd"><h2 id="dri-t">${esc(i.name)}</h2><span class="dri-sex" title="${i.genome.sex==='F'?'самка, ZW':'самец, ZZ'}">${i.genome.sex==='F'?'♀':'♂'}<span class="sr"> ${i.genome.sex==='F'?'самка':'самец'}</span></span><span class="dri-rar r${rr}">${esc(DRG.RARITY[rr])}</span></div>
   <p class="dri-sub">${i.lvl}-й уровень · ${esc(M.stageName)} · ${esc(elText(v))}</p>
-  <button class="dri-geno" data-dk="geno" aria-pressed="${v.sub==='geno'}"><span aria-hidden="true">🧬</span> Посмотреть генотип</button>
+  <button class="dri-geno" data-dk="geno" aria-pressed="${v.sub==='geno'}"><span aria-hidden="true">🧬</span> Генетический паспорт</button>
   <div class="dri-acts${fd?'':' two'}">${fd}<button class="btn ghost sm" data-dk="ped" aria-pressed="${v.sub==='ped'}">Родословная</button><button class="btn ghost sm" data-dk="fight">В бой</button></div>
   ${i.own&&f&&!f.can&&f.why?`<p class="dri-why">${esc(f.why)}</p>`:''}<p class="dri-say" aria-live="polite"></p>`)}
 function renderMain(v){
@@ -473,22 +537,56 @@ function renderFacts(v){const e=v.$('.dri-facts');if(!e)return;const i=v.info,L=
   if(i.own&&i.feed&&!i.feed.max)L.push(`Кормлений до ${i.lvl+1}-го уровня: ${i.fed} из ${i.feeds}`);
   setHTML(e,`<ul>${L.map(x=>`<li>${x}</li>`).join('')}</ul>`)}
 
-function setSub(v,s){v.sub=s;renderHead(v);if(s)renderSub(v);else renderMain(v);
+function setSub(v,s){v.sub=s;if(!s)v.loc=null;renderHead(v);if(s)renderSub(v);else renderMain(v);
   const p=v.$('.dri-pan');if(p)p.scrollTop=0;const h=v.$('.dri-body h3[tabindex]');if(h)h.focus({preventScroll:true});else{const b=v.$('[data-dk="geno"]');if(b)b.focus({preventScroll:true})}}
 function renderSub(v){
   const head=t=>`<button class="dri-b2" data-dk="main">← К осмотру</button><h3 tabindex="-1">${t}</h3>`;
-  if(v.sub==='geno')setHTML(v.$('.dri-body'),head('Генотип '+esc(v.info.name))+genoHTML(v.info.genome));
+  if(v.sub==='geno'){setHTML(v.$('.dri-body'),head('Генетический паспорт '+esc(v.info.name))+genoHTML(v.info.genome,!!(v.info.parents&&v.info.parents.length)));genoHi(v)}
   else setHTML(v.$('.dri-body'),head('Родословная')+pedHTML(v))}
-function genoHTML(g){
-  const m=genoModel(g),th=l=>`<th scope="col">${l}<small>${esc(DRG.LOCI[l].name.toLowerCase())}</small></th>`;
-  const tbl=(loci,rows,show)=>`<table><thead><tr><th></th>${loci.map(th).join('')}</tr></thead><tbody>${rows.map(([n,h])=>`<tr><th scope="row">${n}</th>${h.map(a=>`<td>${esc(al(a))}</td>`).join('')}</tr>`).join('')}
-    <tr class="ph"><th scope="row">видно</th>${show.map(s=>`<td>${esc(s)}</td>`).join('')}</tr></tbody></table>`;
-  return `<p class="dri-gn">Каждая аутосома в паре. Столбец — ген, строка — одна хромосома пары: аллели в строке лежат на одной хромосоме и вместе уходят в гамету, если не случится кроссинговер.</p>`+
+function genoHTML(g,bred){
+  const m=genoModel(g,bred),th=l=>`<th scope="col" data-l="${l}"><button class="dri-lb" data-dk="loc" data-l="${l}" aria-pressed="false" aria-label="Ген ${l}, ${esc(DRG.LOCI[l].name.toLowerCase())}: показать на драконе">${l}<small>${esc(DRG.LOCI[l].name.toLowerCase())}</small></button></th>`;
+  const tbl=(loci,rows,show)=>`<table><thead><tr><th></th>${loci.map(th).join('')}</tr></thead><tbody>${rows.map(([n,h])=>`<tr><th scope="row">${n}</th>${h.map((a,i)=>`<td data-l="${loci[i]}">${esc(al(a))}</td>`).join('')}</tr>`).join('')}
+    <tr class="ph"><th scope="row">видно</th>${show.map((x,i)=>`<td data-l="${loci[i]}">${esc(x)}</td>`).join('')}</tr></tbody></table>`;
+  const sn=Object.keys(SOURCES),ref=f=>f.src.length?` <small class="dri-ref">Источник: ${f.src.map(k=>sn.indexOf(k)+1).join(', ')}</small>`:'';
+  return `<p class="dri-gn">Каждая аутосома в паре. Столбец — ген, строка — одна хромосома пары: аллели в строке лежат на одной хромосоме и вместе уходят в гамету, если не случится кроссинговер.${bred?' Дракон выведен на острове, поэтому известно, какая хромосома от матери, а какая от отца.':''}</p>
+  <p class="dri-gn">Нажмите на ген, и на драконе подсветится, где он виден. Нажмите на часть тела дракона, и в таблице подсветятся её гены.</p>
+  <div class="dri-loc" aria-live="polite"></div>`+
   m.blocks.map(b=>{
-    if(b.id==='mt')return `<section class="dri-chr"><h4>${b.title}</h4><p class="dri-mt"><b>G</b> ${esc(DRG.LOCI.G.name.toLowerCase())}: <span class="dri-al">${esc(al(b.mt))}</span> · ${esc(b.show[0])}</p><p class="dri-gn">${esc(b.note)}</p></section>`;
+    if(b.id==='mt')return `<section class="dri-chr"><h4>${b.title}</h4><p class="dri-mt" data-l="G"><button class="dri-lb" data-dk="loc" data-l="G" aria-pressed="false" aria-label="Ген G, свечение глаз: показать на драконе">G<small>${esc(DRG.LOCI.G.name.toLowerCase())}</small></button> <span class="dri-al">${esc(al(b.mt))}</span> · ${esc(b.show[0])}</p><p class="dri-gn">${esc(b.note)}</p></section>`;
     const ln=b.links.map(x=>`${x.a} и ${x.b} сцеплены: кроссинговер между ними ${Math.round(x.r*100)} %`).join('; ');
     return `<section class="dri-chr"><h4>${b.title}${ln?`<small>${esc(ln)}</small>`:''}</h4>${tbl(b.loci,b.rows,b.show)}${b.w?tbl(b.w.loci,b.w.rows,b.w.show):''}
-      ${b.id==='A1'?`<p class="dri-gn">Аллели E: ${Object.entries(ELW).map(([k,w])=>k+' '+w).join(', ')}. Здесь W означает воду, это не половая хромосома W.</p>`:''}${b.note?`<p class="dri-gn">${esc(b.note)}</p>`:''}</section>`}).join('')}
+      ${b.id==='A1'?`<p class="dri-gn">Аллели E: ${Object.entries(ELW).map(([k,w])=>k+' '+w).join(', ')}. Здесь W означает воду, это не половая хромосома W.</p>`:''}${b.note?`<p class="dri-gn">${esc(b.note)}</p>`:''}</section>`}).join('')+
+  `<section class="dri-law"><h4>Как устроено наследование</h4><p class="dri-gn">Метки: <span class="dri-tag nat">${TAG.nat}</span> так у настоящих организмов, <span class="dri-tag mod">${TAG.mod}</span> придумано для игры, <span class="dri-tag art">${TAG.art}</span> генами не задаётся.</p>
+    ${FACTS.map(f=>`<div class="dri-fact"><span class="dri-tag ${f.tag}">${TAG[f.tag]}</span><b>${esc(f.h)}</b><p>${esc(f.t)}${ref(f)}</p></div>`).join('')}
+    <h4>Источники</h4><ol class="dri-src">${sn.map(k=>`<li>${esc(SOURCES[k])}</li>`).join('')}</ol></section>`}
+/* подсветка ген ↔ часть тела в паспорте: v.loc — выбранный ген, v.sel — выбранная часть */
+function genoHi(v){
+  const body=v.$('.dri-body');if(!body||v.sub!=='geno')return;
+  const gs=v.sel&&root.MORPH?root.MORPH.genesOf(v.sel):[];
+  body.querySelectorAll('[data-l]').forEach(e=>{const l=e.dataset.l;
+    if(e.tagName==='BUTTON')e.setAttribute('aria-pressed',String(l===v.loc));
+    else{e.classList.toggle('hi',gs.includes(l));e.classList.toggle('on',l===v.loc)}});
+  const c=v.$('.dri-loc');if(!c)return;
+  const g=v.info.genome,ph=v.ph,chip=p=>`<button class="dri-chip" data-dk="part" data-p="${p}" aria-pressed="${v.sel===p}">${PART[p]}</button>`;
+  if(v.loc){const l=v.loc,ps=partsOfLocus(l),here=ps.filter(p=>v.parts.includes(p)),miss=ps.filter(p=>!v.parts.includes(p));
+    const fs=FACTS.filter(f=>f.l.includes(l));
+    setHTML(c,`<div class="dri-pc"><div class="dri-pch"><h3>${l} · ${esc(DRG.LOCI[l].name)}</h3><button class="dri-ux" data-dk="unloc" aria-label="Снять выделение гена">✕</button></div>
+      <p><span class="dri-al">${esc(allelesText(g,l))}</span> · ${esc(SHOW[l](ph))}</p><p class="dri-gn">${esc(RULE[l])}</p>
+      ${WIDE.includes(l)?'<p class="dri-gn">Задаёт форму и окраску почти всего тела.</p>':''}
+      ${here.length?`<p class="dri-gn">${WIDE.includes(l)?'От него зависит, есть ли':'Где виден'}:</p><div class="dri-cl" role="group" aria-label="Где виден ген">${here.map(chip).join('')}</div>`:''}
+      ${miss.length?`<p class="dri-gn">${here.length?'Ещё бывает: ':'У этого дракона нет: '}${miss.map(p=>PART[p].toLowerCase()).join(', ')}.</p>`:''}
+      ${fs.length?`<p class="dri-gn">${fs.map(f=>`<span class="dri-tag ${f.tag}">${TAG[f.tag]}</span> ${esc(f.h)}`).join(' · ')}</p>`:''}</div>`)}
+  else if(v.sel){
+    setHTML(c,`<div class="dri-pc"><div class="dri-pch"><h3>${esc(PART[v.sel]||v.sel)}</h3><button class="dri-ux" data-dk="unsel" aria-label="Снять выделение">✕</button></div>
+      <p class="dri-gn">${gs.length?'Гены этой части подсвечены в таблице:':'Эта часть от генов не зависит.'}</p>
+      ${gs.length?`<div class="dri-cl" role="group" aria-label="Гены части">${gs.map(l=>`<button class="dri-chip" data-dk="loc" data-l="${l}" aria-pressed="false">${l} · ${esc(DRG.LOCI[l].name.toLowerCase())}</button>`).join('')}</div>`:''}</div>`)}
+  else c.innerHTML=''}
+function selLoc(v,l){
+  v.loc=l||null;
+  /* ген одной части: подсветить её и приблизить; ген всего тела (E, S, C): показать дракона целиком */
+  if(l){const here=WIDE.includes(l)?[]:partsOfLocus(l).filter(p=>v.parts.includes(p));
+    if(here.length)select(v,here[0],true);else select(v,null,true)}
+  genoHi(v)}
 function pedHTML(v){
   const i=v.info,pic=(n,w)=>{try{return root.ART.svg(root.MORPH.morph(DRG.phenotype(n.genome),n.lvl||12),{width:w,key:'pd'+n.id,label:n.name})}catch(e){return ''}};
   const card=(n,role,w)=>{if(!n||n.unknown)return `<div class="dri-pp none"><span>${role}</span><b>не записано</b></div>`;

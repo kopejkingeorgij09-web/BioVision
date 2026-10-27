@@ -100,4 +100,40 @@ t('характеристики следуют признакам: рога и �
   assert.ok(sA.spd>sT.spd,'Воздух быстрее');
   assert.ok(sA.src.spd.some(([l])=>/Полёт/.test(l))===A.P.canFly)});
 
+t('паспорт: правило каждого гена совпадает с фенотипом, числа в тексте совпадают с моделью',()=>{
+  Object.keys(D.LOCI).forEach(l=>assert.ok(I.RULE[l],'нет правила для '+l));
+  const P=spec=>D.phenotype(mk(spec)),F=spec=>D.phenotype(fem(spec));
+  assert.deepStrictEqual(P({E:'F/W'}).elements,['F','W']);assert.strictEqual(P({E:'e/e'}).breath,'smoke');
+  assert.strictEqual(P({S:'s/s',E:'F/F'}).breath,'dormant');assert.strictEqual(P({S:'S/s',E:'F/F'}).breath,'element');
+  assert.deepStrictEqual(['C/c','Cb/c','c/c','C/Cb'].map(c=>P({C:c}).color),['dark','bronze','pale','dark']);
+  assert.deepStrictEqual(['R1/R1','R1/R2','R2/R2'].map(r=>P({R:r}).crest),['big','mid','none']);
+  assert.ok(P({H:'H/h'}).horns&&P({K:'K/k'}).mace&&P({Wg:'Wg/+'}).shortWings);
+  assert.strictEqual(D.viable(mk({Wg:'Wg/Wg'})),false);assert.strictEqual(D.viable(mk({Wg:'Wg/+'})),true);
+  assert.strictEqual(P({N:'N/n'}).night,false);assert.strictEqual(P({N:'n/n'}).night,true);assert.strictEqual(F({N:'n'}).night,true);
+  assert.strictEqual(P({M:'M/m'}).metal,true);assert.strictEqual(F({M:'m'}).metal,false);
+  assert.strictEqual(F({Sp:'Sp'}).spurs,true);assert.strictEqual(P({}).spurs,false);
+  const all=I.FACTS.map(f=>f.t).join(' ')+' '+Object.values(I.RULE).join(' ');
+  assert.ok(all.includes(Math.round(D.CHROMS.A3.r[0]*100)+' %'),'H–K');assert.ok(all.includes(Math.round(D.Z.r[0]*100)+' %'),'M–N');
+  assert.ok(all.includes('1/'+Math.round(1/D.MU)),'частота мутаций');
+  const ph0=P({Q1:'-/-',Q2:'-/-',Q3:'-/-'}),ph1=P({Q1:'+/-',Q2:'-/-',Q3:'-/-'});
+  assert.ok(all.includes(String(ph0.spanM).replace('.',',')+' м')&&all.includes(String(ph1.spanM-ph0.spanM).replace('.',',')+' м'),'размах')});
+
+t('паспорт: у каждого факта известная метка, у фактов «как в природе» есть источник, ссылки на источники существуют',()=>{
+  I.FACTS.forEach(f=>{assert.ok(I.TAG[f.tag],f.h);f.src.forEach(k=>assert.ok(I.SOURCES[k],f.h+': '+k));
+    if(f.tag==='nat')assert.ok(f.src.length,f.h+': нет источника');f.l.forEach(l=>assert.ok(D.LOCI[l],f.h+': '+l))});
+  ['nat','mod','art'].forEach(k=>assert.ok(I.FACTS.some(f=>f.tag===k),k))});
+
+t('паспорт: ген показывает свои части тела по карте MORPH.SRC',()=>{
+  const want={H:['horns'],K:['mace','tailEnd'],R:['crest'],Wg:['wings'],Q1:['wings'],Q2:['wings'],Q3:['wings'],M:['metal'],N:['eyes'],Sp:['spurs'],G:['eyes'],S:['breath','collar','tailEnd'],E:['collar','tailEnd'],C:[]};
+  Object.entries(want).forEach(([l,ps])=>assert.deepStrictEqual(I.partsOfLocus(l).slice().sort(),ps.slice().sort(),l))});
+
+t('паспорт: у дракона с острова строки подписаны «от матери» и «от отца» и это правда',()=>{
+  const mo=fem({H:'H/H',K:'K/K',C:'C/C',M:'M',N:'N'}),fa=mk({H:'h/h',K:'k/k',C:'c/c',M:'m/m',N:'n/n'});
+  for(let s=1;s<30;s++){const e=D.breed(mo,fa,D.rng(s)),g=e.genome,m=I.genoModel(g,true),a3=block(m,'A3'),a2=block(m,'A2'),z=block(m,'Z');
+    assert.deepStrictEqual(a3.rows.map(r=>r[0]),['от матери','от отца']);
+    assert.strictEqual(a3.rows[0][1][0],'H');assert.strictEqual(a3.rows[1][1][0],'h');assert.strictEqual(a2.rows[0][1][1],'C');assert.strictEqual(a2.rows[1][1][1],'c');
+    if(g.sex==='F'){assert.strictEqual(z.rows[0][0],'Z от отца');assert.deepStrictEqual(z.rows[0][1],['m','n'])}
+    else{assert.deepStrictEqual(z.rows.map(r=>r[0]),['Z от матери','Z от отца']);assert.deepStrictEqual(z.rows[0][1],['M','N'])}}
+  assert.deepStrictEqual(block(I.genoModel(fa),'A3').rows.map(r=>r[0]),['1-я','2-я'])});
+
 console.log(`\n${n-fails}/${n} тестов прошли`);if(fails)process.exit(1);

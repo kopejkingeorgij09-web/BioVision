@@ -359,6 +359,9 @@ function isle2HTML(st){const q=E.isleState(st),L=E.level(st);
 const sigOf=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(36)+s.length.toString(36)};
 const bgKey=st=>E.extent(st).n+(st.isl===1?'l':'g');
 const BGC=new Map();
+/* рисунок острова строится заново, только если изменились состояние острова или вид (на телефоне это десятки миллисекунд на каждое нажатие) */
+const ISLC={k:'',v:''};
+function islSvg(st,opt){const k=JSON.stringify([st,opt]);if(k!==ISLC.k){ISLC.v=I.svg(st,opt);ISLC.k=k}return ISLC.v}
 /* далёкие драконы в небе: силуэты пролетают за островом, двигается целый слой (без перерисовки) */
 const FLY_SIL='<path d="M2 22 C 14 18 24 18 34 20 C 40 10 50 2 62 0 C 56 8 52 14 50 20 C 58 20 66 22 72 26 C 64 26 58 27 52 28 C 46 34 36 36 26 32 C 18 30 10 28 2 22 Z M 50 21 C 60 12 72 8 84 10 C 76 14 70 18 66 23 Z"/>';
 const FLYERS=`<div class="drg-fly f1" aria-hidden="true"><svg viewBox="0 0 86 38">${FLY_SIL}</svg></div><div class="drg-fly f2" aria-hidden="true"><svg viewBox="0 0 86 38">${FLY_SIL}</svg></div>`;
@@ -373,7 +376,7 @@ function islandView(){
   if(S.drgSel&&!st.bld.some(b=>b.id===S.drgSel))S.drgSel=null;
   const pl=own?S.drgPlace:null;
   const placeBar=pl?`<div class="drg-place"><span>${pl.move?'Нажмите на свободную ячейку «+», куда перенести здание':'Нажмите на свободную ячейку «+», где поставить: '+E.TYPES[pl.type].name}<small class="drg-pkeys">Клавиши: стрелки — выбрать ячейку, Enter — поставить, A — на свободное место, Esc — отмена</small></span><button class="btn sm" data-act="drgauto">${pl.move?'Перенести':'Поставить'} на свободное место</button><button class="btn ghost sm" data-act="drgcancel">Отмена</button></div>`:'';
-  const cur=curIsle(st),isl=I.svg(viewSt(st),{K,sel:S.drgSel,place:pl,key:'isl',readonly:!own,full});
+  const cur=curIsle(st),isl=islSvg(viewSt(st),{K,sel:S.drgSel,place:pl,key:'isl',readonly:!own,full});
   const gl=own&&!pl?goalLine(st,K):null;
   if(full){
     const L=E.level(st),b=E.xpFor(L+1),xp=xpPct(st),bal=st.bal;

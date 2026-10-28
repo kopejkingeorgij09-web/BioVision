@@ -527,7 +527,7 @@ function svg(st,opt){
     const occ=new Set();st.bld.forEach(b=>{for(let i=0;i<2;i++)for(let j=0;j<2;j++)occ.add((b.x+i)+':'+(b.y+j))});
     const det=[];
     for(let i=0;i<n;i++)for(let j=0;j<n;j++){const r=hrand('g'+i+':'+j),c=P(i+.5,j+.5);
-      if(r<0.2){det.push(`<ellipse cx="${f1(c[0])}" cy="${f1(c[1])}" rx="${f1(20+r*44)}" ry="${f1(9+r*18)}" fill="${lava?(r<0.1?'#000':'#9A8A86'):(r<0.1?'#2A7019':'#E2FFA6')}" opacity="${lava?.12:r<0.1?.14:.2}"/>`);continue}
+      if(r<(lava?0.1:0.2)){det.push(`<ellipse cx="${f1(c[0])}" cy="${f1(c[1])}" rx="${f1(20+r*44)}" ry="${f1(9+r*18)}" fill="${lava?(r<0.05?'#000':'#9A8A86'):(r<0.1?'#2A7019':'#E2FFA6')}" opacity="${lava?.09:r<0.1?.14:.2}"/>`);continue}
       if(occ.has(i+':'+j))continue;
       if(lava){if(r>0.9)det.push(crack(c[0],c[1],'ck'+i+':'+j));else if(r>0.86){det.push(stone(c[0],c[1],.35,BAS,i+j));if(r>0.88)withOrg(c[0],c[1],1,()=>fx('e',0,-2,9,'#FFB347'))}continue}
       if(r>0.9)det.push(tuft(c[0]+(r-.9)*80,c[1]));else if(r>0.85)det.push(flowers(c[0],c[1],'f'+i+j));else if(r>0.83)det.push(pebbles(c[0],c[1],'pb'+i+j));else if(r>0.825)det.push(shroom(c[0],c[1],hrand('gm'+i+j)>.5,'sm'+i+j))}
@@ -577,6 +577,8 @@ function svg(st,opt){
       else if(T.kind==='hatch'){const r=(b.slots||[]).filter(p=>p&&D.ready(p,K)).length;if(r)bubs.push(bubble(x,y,'baby','×'+r,true))}}
   });
   if(!opt.bare)out.push(rimDecor(false,g,lava,k));
+  /* ночь в тёмной теме: лунный оттенок поверх острова (днём прозрачный); подписи и пузыри остаются яркими */
+  if(!opt.bare)out.push(`<rect x="${vb[0]-vb[2]}" y="${vb[1]-vb[3]}" width="${vb[2]*3}" height="${vb[3]*3}" style="fill:var(--isl-night,transparent)" pointer-events="none"/>`);
   out.push(`<g class="drg-drs">${HITS.join('')}</g>`);HITS=[];
   out.push(`<g class="drg-labs">${labs.join('')}</g>`);
   out.push(`<g class="drg-bubs">${bubs.join('')}</g>`);

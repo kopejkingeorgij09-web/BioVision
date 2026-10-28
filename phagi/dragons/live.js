@@ -268,8 +268,9 @@ function draw(){
   const dpr=Math.min(2,root.devicePixelRatio||1),V=islandView(),W=Math.round(V.cw*dpr),H=Math.round(V.ch*dpr);
   if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H}
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);
-  drawFx(ctx,L.fx,V,dpr,W,H,(performance.now()-L.t0)/1000,reduced());
   const list=[...L.ds.values()].sort((a,b)=>a.p[1]-b.p[1]);
+  /* ночь тёмной темы (--isl-night из dragons.css): тот же лунный оттенок, что у острова; читается раз в 30 кадров */
+  if(L.night==null||!(L.stats.frames%30)){try{L.night=(getComputedStyle(L.svg).getPropertyValue('--isl-night')||'').trim()}catch(e){L.night=''}}
   for(const d of list){
     want(d,V.s);
     if(d.art)d.art.classList.toggle('lv',!!d.X&&!d.cover);
@@ -284,6 +285,10 @@ function draw(){
     const view=[z*flip,0,0,z,x-z*flip*d.cx,y];
     root.RIG.draw(ctx,d.X,d.A.pose,view);
     root.RIG.drawFx(ctx,d.X,d.A.fx,view)}
+  ctx.setTransform(1,0,0,1,0,0);
+  if(L.night&&L.night!=='transparent'){ctx.globalCompositeOperation='source-atop';ctx.fillStyle=L.night;ctx.fillRect(0,0,W,H);ctx.globalCompositeOperation='source-over'}
+  /* эффекты поверх драконов: свечение лавы и кристаллов подсвечивает и тех, кто стоит рядом */
+  drawFx(ctx,L.fx,V,dpr,W,H,(performance.now()-L.t0)/1000,reduced());
   ctx.setTransform(1,0,0,1,0,0);
   L.camKey=[V.s.toFixed(4),V.ox.toFixed(1),V.oy.toFixed(1),W,H].join();
   const ms=performance.now()-t0;L.ema=L.ema==null?ms:L.ema*0.9+ms*0.1;L.stats.draw.push(ms);if(L.stats.draw.length>240)L.stats.draw.shift();L.stats.frames++;L.dirty=false}

@@ -6,7 +6,8 @@ module.exports=async(page,{OUT,store,UID,fail,writes})=>{
   await page.click('[data-act="drgmode"][data-v="dragons"]').catch(()=>{});await w(900);
   await page.click('[data-act="drgopen"][data-full]');await w(1500);
   await page.click('[data-act="drgfight"]');await w(2000);
-  await page.click('[data-fk="prep"][data-id="e1"]');await w(1500);
+  /* с этапа 4 бой выбирают на карте: метка узла, потом кнопка в карточке узла (список узлов спрятан в «Списком») */
+  await page.click('.drf-pin[data-id="e1"]');await w(300);await page.click('.drf-nc [data-fk="prep"]');await w(1500);
   await page.click('[data-fk="start"]');await w(1500);
   await page.click('[data-fk="auto"]');await page.click('[data-fk="speed"]');
   fail.set=50;const t0=Date.now();

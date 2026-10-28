@@ -1,5 +1,6 @@
 /* Стенд для проверки phagi/ без сети: статический сервер на localhost, Supabase RPC подменены памятью, всё, что уходит не на localhost, обрывается.
    Запуск из phagi/dragons/dev: SCEN=scen_save.js DRAG="$(cat isle-many.json)" W=390 H=844 TOUCH=1 node hx.js ../.. ./out
+   Посмотреть руками: SHOW=1 DRAG="$(cat isle-many.json)" W=390 H=844 TOUCH=1 node hx.js ../.. (откроется окно браузера).
    Нужен playwright с chromium (require('playwright')). Код входа FAG-TEST-TEST выдуманный, настоящих кодов и ключей здесь нет. */
 const {chromium}=require('playwright');const http=require('http'),fs=require('fs'),path=require('path');
 const ROOT=process.argv[2],OUT=process.argv[3]||'.';
@@ -23,7 +24,7 @@ const rpc=(fn,a)=>{switch(fn){
   case 'ph_sync':return {ch:[],now:T()};
   case 'ph_profiles':return {};
   default:return null}};
-(async()=>{const b=await chromium.launch();
+(async()=>{const b=await chromium.launch({headless:!process.env.SHOW});
   const W=Number(process.env.W||1280),H=Number(process.env.H||900);const ctx=await b.newContext({viewport:{width:W,height:H},colorScheme:process.env.DARK?'dark':'light',reducedMotion:process.env.REDUCE?'reduce':'no-preference',hasTouch:!!process.env.TOUCH,isMobile:!!process.env.TOUCH,deviceScaleFactor:Number(process.env.DPR||1)});
   await ctx.addInitScript(()=>{try{localStorage.setItem('ph_code','FAG-TEST-TEST')}catch(e){}});
   /* всё, что уходит не на localhost, обрывается: в production не уходит ни одного запроса, тем более записи */
@@ -37,6 +38,8 @@ const rpc=(fn,a)=>{switch(fn){
     route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(out)})});
     const page=await ctx.newPage();const errs=[];page.on('pageerror',e=>errs.push(e.message));page.on('console',m=>{if(m.type()==='error')errs.push(m.text())});
   await page.goto(`http://localhost:${srv.address().port}/index.html`);await page.waitForTimeout(1500);
+  /* SHOW=1: окно браузера для просмотра руками, без сценария; база та же подставная, закрыть окно — выход */
+  if(process.env.SHOW){console.log('Открыто окно стенда. Записи идут только в память стенда. Закройте окно, чтобы выйти.');await page.waitForEvent('close',{timeout:0});console.log('записей:',writes.length);await b.close();srv.close();return}
   const sc=require(path.resolve(process.env.SCEN||'./scen.js'));try{await sc(page,{OUT,store,UID,ctx,fail,writes,blocked})}catch(e){console.log('SCENARIO FAIL',e.stack)}
   console.log('errors:',JSON.stringify(errs));console.log('blocked external:',blocked.length,JSON.stringify(blocked.slice(0,5)));
   await b.close();srv.close()})();

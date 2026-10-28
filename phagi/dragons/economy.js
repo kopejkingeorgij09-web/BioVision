@@ -131,6 +131,40 @@ function normalize(s,K,inc){
   const L=level(s);if(L>(s.credited.lvl||1)){s.bal.gems+=2*(L-(s.credited.lvl||1));s.credited.lvl=L}
   return s}
 
+/* ---------- проверка сохранения (этап 5) ----------
+   Документ v2 из базы может быть неполным (его писала старая версия страницы) или испорченным. repair ничего не обнуляет молча:
+   недостающие служебные поля дополняет (fix), а если испорчено то, что принадлежит игроку (драконы, постройки, числа баланса),
+   возвращает список bad: тогда остров показывается только для чтения и ничего не записывается, пока учитель не посмотрит.
+   Учтённый доход (credited) без значения берётся равным текущему, чтобы старый доход не начислился второй раз. */
+function repair(d,inc){const fix=[],bad=[];
+  if(!d||typeof d!=='object'||d.v!==2)return {s:null,fix,bad:['документ не версии 2']};
+  const s=clone(d),num=v=>typeof v==='number'&&isFinite(v)&&v>=0,int=v=>Number.isInteger(v)&&v>=0;
+  if(!s.bal||typeof s.bal!=='object'||Array.isArray(s.bal)){bad.push('нет баланса');s.bal={}}
+  ['gold','food','gems','xp'].forEach(k=>{if(s.bal[k]===undefined){s.bal[k]=0;fix.push('баланс: '+k+' = 0')}else if(!num(s.bal[k]))bad.push('баланс: '+k)});
+  if(!s.credited||typeof s.credited!=='object'){s.credited={};fix.push('учтённый доход')}
+  ['food','gems'].forEach(k=>{if(!num(s.credited[k])){s.credited[k]=inc?inc[k]:0;fix.push('учтённый доход: '+k)}});
+  if(!int(s.credited.lvl)||s.credited.lvl<1){s.credited.lvl=num(s.bal.xp)?levelOf(s.bal.xp):1;fix.push('учтённый уровень')}
+  if(!Array.isArray(s.land)||!s.land.length){s.land=START_LAND.slice();fix.push('земля')}else{const n=s.land.length;s.land=s.land.filter(x=>typeof x==='string');if(s.land.length<n)fix.push('земля')}
+  if(s.clr!==undefined&&!Array.isArray(s.clr)){s.clr=[];fix.push('расчищенные клетки')}
+  if(!Array.isArray(s.bld)){bad.push('постройки');s.bld=[]}
+  s.bld.forEach((b,i)=>{const t=b&&TYPES[b.type],nm='постройка '+(b&&b.id||i+1);
+    if(!t||typeof b.id!=='string'||!int(b.x)||!int(b.y)){bad.push(nm);return}
+    if(!int(b.lvl)||b.lvl<1){b.lvl=1;fix.push(nm+': уровень')}
+    if(t.kind==='hab'&&(!b.chest||typeof b.chest!=='object')){b.chest={amt:0,k0:null};fix.push(nm+': сундук')}
+    if(t.kind==='farm'&&!Array.isArray(b.plots)){b.plots=Array(FARM_LV[Math.min(b.lvl,3)].plots).fill(null);fix.push(nm+': грядки')}
+    if(t.kind==='hatch'&&!Array.isArray(b.slots)){b.slots=Array(HATCH_LV[Math.min(b.lvl,3)].slots).fill(null);fix.push(nm+': ячейки')}
+    if(t.kind==='nest'&&b.pair===undefined)b.pair=null});
+  if(!Array.isArray(s.dragons)){bad.push('драконы');s.dragons=[]}
+  s.dragons.forEach((x,i)=>{const nm='дракон '+(x&&x.name||i+1);
+    if(!x||typeof x.id!=='string'||G.validate(x.genome).length){bad.push(nm);return}
+    if(x.lvl===undefined){x.lvl=1;fix.push(nm+': уровень')}else if(!int(x.lvl)||x.lvl<1||x.lvl>20)bad.push(nm+': уровень');
+    if(!int(x.fed)){x.fed=0;fix.push(nm+': кормления')}
+    if(x.home===undefined)x.home=null});
+  const ids=a=>Math.max(0,...a.map(z=>+String(z&&z.id||'').replace(/\D/g,'')||0))+1;
+  if(!int(s.seq)){s.seq=ids(s.dragons);fix.push('счётчик драконов')}else s.seq=Math.max(s.seq,ids(s.dragons));
+  if(!int(s.bseq)){s.bseq=ids(s.bld);fix.push('счётчик построек')}else s.bseq=Math.max(s.bseq,ids(s.bld));
+  return {s,fix,bad}}
+
 /* ---------- место на карте ---------- */
 const chunkOf=(x,y)=>Math.floor(x/CHUNK)+','+Math.floor(y/CHUNK);
 const under=(s,x,y,skipId)=>s.bld.some(b=>b.id!==skipId&&x>=b.x&&x<b.x+2&&y>=b.y&&y<b.y+2);
@@ -310,7 +344,21 @@ function marketGenome(type,seed){
   else{spec.M=pair(()=>r()<0.25?'M':'m');spec.N=pair(()=>r()<0.25?'n':'N')}
   return G.make(spec)}
 
-const DECO={NURSERY,homeFor,nursery,breedPath,HATCH_LV,BREED_LV,breedCost,BREED_NEED,HATCH_NEED,PRED_TOL,lvTable,summary,habNames,TYPES,HAB_ORDER,HAB_LV,FARM_LV,CROPS,RAR_GOLD,SKIP_CARDS,GRID,CHUNK,START_LAND,LAND_COST,MILESTONES,FEEDS,RATION,
+/* ---------- прогрессия: что открывает уровень острова (этап 5 доработки) ----------
+   Только описание существующих правил: числа здесь не меняются. Списки для подсказки «что даст следующий уровень»
+   и для таблицы PROGRESSION-RU.md (dev/progression.js). */
+function unlocksAt(L){const out=[];if(L<=1)return out;
+  Object.entries(TYPES).forEach(([k,t])=>{if(t.unlock===L)out.push((t.kind==='hab'?'среда «':'постройка «')+t.name+'»')});
+  Object.values(CROPS).forEach(c=>{if(c.unlock===L)out.push('культура «'+c.name+'»')});
+  Object.entries(TYPES).forEach(([k,t])=>{if(t.price&&t.unlock===L)out.push('на рынке драконы для среды «'+t.name+'»')});
+  if(maxHabs(L)>maxHabs(L-1))out.push('ещё одно место под среду обитания (всего '+maxHabs(L)+')');
+  if(maxFarms(L)>maxFarms(L-1))out.push('ещё одна ферма (всего '+maxFarms(L)+')');
+  if(maxDragonLv(L)>maxDragonLv(L-1))out.push('драконы растут до '+maxDragonLv(L)+'-го уровня');
+  return out}
+/* ближайший уровень после L, на котором открывается что-то кроме мест и ферм (до 60) */
+function nextMajor(L){for(let k=L+1;k<=60;k++){const u=unlocksAt(k).filter(x=>!/^ещё/.test(x));if(u.length)return {L:k,list:u}}return null}
+
+const DECO={repair,unlocksAt,nextMajor,NURSERY,homeFor,nursery,breedPath,HATCH_LV,BREED_LV,breedCost,BREED_NEED,HATCH_NEED,PRED_TOL,lvTable,summary,habNames,TYPES,HAB_ORDER,HAB_LV,FARM_LV,CROPS,RAR_GOLD,SKIP_CARDS,GRID,CHUNK,START_LAND,LAND_COST,MILESTONES,FEEDS,RATION,
   xpFor,levelOf,maxHabs,maxFarms,maxDragonLv,feedCost,income,startState,hosts,dragonKeys,goldPerCard,rate,settle,chestNow,normalize,
   canPlace,chunkOf,apply,OBST,OBST_KIND,obstacles,ready,left,level,count,streakMult,marketGenome,habCap,chestCap};
 if(typeof module!=='undefined'&&module.exports)module.exports=DECO;else root.DECO=DECO;

@@ -554,3 +554,18 @@ body.drf-open .drg-isl .an,body.drf-open .drg-isl .drift,body.drf-open .drg-isl 
 .drg-hubb{background:radial-gradient(120% 140% at 100% 0%,color-mix(in srgb,#2D9C8A 12%,var(--card)) 0%,var(--card) 60%)}
 .drg-hubn{grid-column:1/-1;margin:0}
 .drg-hubh{margin:8px 0 12px;font-family:var(--d);font-size:22px;scroll-margin-top:70px}
+/* журнал: сравнение с теорией (этап 5 доработки) */
+.drg-th{margin:8px 0 4px}.drg-th summary{cursor:pointer;font-weight:600;font-size:14px}
+.drg-th[open] summary{margin-bottom:6px}
+.drg-off{font-size:11px;font-weight:700;padding:0 6px;border-radius:999px;background:color-mix(in srgb,#8A63D2 16%,var(--card));border:1px solid color-mix(in srgb,#8A63D2 35%,var(--line))}
+.dri-jump{font-weight:600}
+
+/* этап 5: три шкалы на странице «Ещё» */
+.drg-scl{display:grid;gap:8px;margin:8px 0 4px}
+.drg-sc{border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--card);display:flex;flex-direction:column;gap:6px;min-width:0}
+.drg-sc small{font-size:12.5px;color:var(--muted);line-height:1.45}
+.drg-scr{list-style:none;margin:0;padding:0;display:grid;gap:4px}.drg-scr li{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px}.drg-scr li span{color:var(--muted)}
+@media(min-width:760px){.drg-scl{grid-template-columns:1fr 1fr}.drg-scl>.drg-sc:last-child{grid-column:1/-1}}
+.drg-broken{border:2px solid #C0392B;border-radius:16px;padding:14px 16px;margin:10px 0}.drg-broken h2{margin:0 0 6px;font-size:18px;color:#C0392B}
+:root[data-theme=dark] .drg-broken h2{color:#FF8A7A}@media(prefers-color-scheme:dark){:root:not([data-theme=light]) .drg-broken h2{color:#FF8A7A}}
+.drg-tt{font-size:13px;width:100%}.drg-tt th,.drg-tt td{padding:6px 8px;white-space:normal;vertical-align:top}.drg-tt th{font-size:12px}.drg-tt td small{display:block;color:var(--muted);font-size:11.5px}

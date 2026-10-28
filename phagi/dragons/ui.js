@@ -18,7 +18,11 @@ function ctxOf(uid){
 function stateOf(uid){
   const d=docOf(uid);if(!d)return null;const c=ctxOf(uid);
   let base=d;if(d.v!==2){base=Object.assign(E.startState(d.dragons||founders(uid)),{mode:d.mode,periods:d.periods});E.settle(base,c.K)}
+  else{const r=E.repair(d,c.inc);if(r.bad.length)return null;base=r.s}
   return {st:E.normalize(base,c.K,c.inc),c}}
+/* испорченное сохранение: что именно не так (остров тогда не открывается и ничего не пишет) */
+function brokenOf(uid){const d=docOf(uid);if(!d||d.v!==2)return null;const r=E.repair(d,ctxOf(uid).inc);return r.bad.length?r.bad:null}
+function brokenHTML(bad){return `<section class="sheet drg-broken" role="alert"><h2>Сохранение острова повреждено</h2><p>В документе острова испорчены данные: ${esc(bad.slice(0,6).join(', '))}${bad.length>6?` и ещё ${bad.length-6}`:''}. Чтобы ничего не потерять, остров не открывается и ничего не записывает. Данные в базе остались как были.</p><p class="muted small">Напишите учителю: он посмотрит документ и восстановит его. Карточки и серия работают как обычно.</p></section>`}
 
 /* ---------- первые драконы: пара с зерном от uid, у каждой ученицы своя ---------- */
 function founders(uid){
@@ -113,7 +117,7 @@ const rateAll=st=>st.bld.reduce((x,b)=>x+E.rate(st,b),0);
 
 /* ---------- «Карточки»: сводка вместо чашки ---------- */
 function hero(uid,compact){
-  const x=stateOf(uid);if(!x)return '';const {st,c}=x,info=c.info,n=info.cur,first=st.dragons[0];
+  const x=stateOf(uid);if(!x){const bad=!compact&&brokenOf(uid);return bad?brokenHTML(bad):''}const {st,c}=x,info=c.info,n=info.cur,first=st.dragons[0];
   if(compact)return `<div class="streak-mini drg-mini${info.done?' done':''}">${first?W.svg(phOf(first),{stage:W.stageOf(first.lvl),key:'m'+uid.slice(-6),size:64}):''}<div><b>${n}</b> <span>${plural(n,'день','дня','дней')} подряд</span><br><small class="muted">${info.done?'сегодня засчитано':`сегодня ${info.todayN} из ${GOAL}`}</small></div></div>`;
   const left=Math.max(0,GOAL-info.todayN),td=todo(st,c.K),rt=rateAll(st),ration=E.RATION(info.done?n:n+1);
   const notes=[];
@@ -158,7 +162,8 @@ function dayDoneHTML(uid){const x=stateOf(uid);if(!x)return '';const inf=x.c.inf
 function islandView(){
   const uid=S.drgUid||meId(),own=uid===meId(),x=stateOf(uid);
   const back=`<button class="back" data-act="go" data-v="cards">← К карточкам</button>`;
-  if(!x)return back+`<div class="empty">Остров ещё не открыт.</div>`;
+  if(!x){const bad=brokenOf(uid);if(bad)return back+brokenHTML(bad);
+    return back+`<div class="empty">Остров ещё не открыт.</div>`}
   const {st,c}=x,K=c.K,full=!!S.drgFull;
   if(S.drgSel&&!st.bld.some(b=>b.id===S.drgSel))S.drgSel=null;
   const pl=own?S.drgPlace:null;
@@ -199,7 +204,7 @@ function panel(st,c,own){
   if(p==='dragons')return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>Драконы острова</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div><div class="drg-list">${st.dragons.map(d=>dragonCard(st,d,own,L)).join('')}</div></section>`;
   if(p==='help')return helpHTML(st,c);
   if(p==='breed')return breedHTML(st,c,own);
-  if(p==='more')return moreHTML(st,own);
+  if(p==='more')return moreHTML(st,own,c);
   if(p==='blds')return bldsHTML(st,c,own);
   if(own&&p&&p.startsWith('res:'))return resHTML(st,c,p.slice(4));
   if(p==='journal')return journalHTML(st);
@@ -234,7 +239,8 @@ function dragonCard(st,d,own,L){
   <div class="drg-dl"><span>${d.lvl}-й уровень, ${W.STAGE_NAME[W.stageOf(d.lvl)]}</span><span class="drg-pips" title="Кормлений до следующего уровня">${Array.from({length:E.FEEDS},(_,i)=>`<i${i<(d.fed||0)?' class="on"':''}></i>`).join('')}</span><span class="muted">+${fmt(E.goldPerCard(d))} 🪙 за карточку</span></div>
   <ul>${W.describe(ph).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
   <p class="muted small" style="margin:4px 0 0">${home?'Живёт: '+E.TYPES[home.type].name:d.nurs?`В яслях Инкубатора, ждёт дом: ${E.habNames(ph)}`:'Без дома'}${d.parents?` · ${d.gen}-е поколение, родители ${d.parents.map(id=>esc(dname(st,id))).join(' × ')}`:d.from==='market'?' · с рынка':''}</p>
-  ${own?`<div class="drg-da">${d.lvl<cap?`<button class="btn sm" data-act="drgdo" data-t="feed" data-dragon="${d.id}"${st.bal.food<cost?' disabled':''}>Покормить: ${cost} 🌾</button>${st.bal.food<cost?`<span class="drg-why">Корма ${fmt(st.bal.food)} из ${cost}. Корм растёт на ферме и приходит паёк за день с карточками.</span>`:''}`:`<span class="muted small">Следующий уровень откроется с ростом острова</span>`}
+  ${own?`<p class="muted small drg-feedi">${d.lvl<cap?`Кормлений до ${d.lvl+1}-го уровня: ${d.fed||0} из ${E.FEEDS}, ещё ${E.FEEDS-(d.fed||0)} по ${cost} 🌾 корма.`:d.lvl>cap?`Уровень ${d.lvl} выше нынешнего предела острова (${cap}-й): уровень сохраняется, кормить дальше можно, когда предел его догонит.`:`Достигнут предел: ${cap}-й уровень.`} ${cap<20?`На острове ${L}-го уровня драконы растут до ${cap}-го, остров ${L+1}-го уровня поднимет предел до ${E.maxDragonLv(L+1)}-го.`:'Это наибольший уровень драконов в игре.'}</p>`:''}
+  ${own?`<div class="drg-da">${d.lvl<cap?`<button class="btn sm" data-act="drgdo" data-t="feed" data-dragon="${d.id}"${st.bal.food<cost?' disabled':''}>Покормить: ${cost} 🌾</button>${st.bal.food<cost?`<span class="drg-why">Корма ${fmt(st.bal.food)} из ${cost}. Корм растёт на ферме и приходит паёк за день с карточками.</span>`:''}`:`<span class="muted small">${cap<20?`Следующий уровень откроется, когда остров дорастёт до ${L+1}-го уровня`:'Дракон вырос до наибольшего уровня'}</span>`}
   ${homes.map(b=>`<button class="btn ghost sm" data-act="drgdo" data-t="place" data-dragon="${d.id}" data-home="${b.id}">Переселить: ${E.TYPES[b.type].name}</button>`).join('')}
   <button class="btn ghost sm" data-act="drgrename" data-dragon="${d.id}">Имя</button><button class="btn ghost sm" data-act="drgrelease" data-dragon="${d.id}">Отпустить</button></div>`:''}</div></article>`}
 function dname(st,id){const d=st.dragons.find(x=>x.id===id)||(st.gone||[]).find(x=>x.id===id);return d?d.name:'?'}
@@ -276,7 +282,7 @@ function nestHTML(st,b,c,own){
   return `<div class="drg-breed"><label>Самка ${sel('drgM',fs.map(d=>[d.id,`${d.name} ♀ · ${d.lvl}-й ур.`]),mid)}</label><label>Самец ${sel('drgF',ms.map(d=>[d.id,`${d.name} ♂ · ${d.lvl}-й ур.`]),fid)}</label></div>
   <div class="drg-pair">${[m,f].map(d=>`<span class="drg-chip">${W.svg(phOf(d),{stage:W.stageOf(d.lvl),key:'bp'+d.id,size:56})}<small>${esc(d.name)}</small></span>`).join('<b>×</b>')}</div>
   <details class="drg-predbox" data-k="drgpred"${tr?' open':''}><summary>Сделать прогноз (по желанию)</summary>
-    <p class="muted small">Если догадалась о генотипах родителей, предскажи долю потомков с признаком. Доля считается среди вылупившихся потомков этой пары (яйца, которые не развились, в неё не входят) и без учёта редких мутаций. Ошибка до ${Math.round(E.PRED_TOL*100)} процентных пунктов засчитывается: скрещивание вдвое быстрее и самоцвет. Неверный прогноз ничего не стоит.</p>
+    <p class="muted small">Если догадалась о генотипах родителей, предскажи долю потомков с признаком. Доля считается среди вылупившихся потомков этой пары (яйца, которые не развились, в неё не входят) и без учёта редких мутаций. Пример: у двух короткокрылых родителей Wgˢ/+ четверть всех яиц (Wgˢ/Wgˢ) не развивается, а среди вылупившихся короткокрылых 2/3. Среди всех яиц короткокрылых 1/2, но в прогноз идёт 2/3. Ошибка до ${Math.round(E.PRED_TOL*100)} процентных пунктов засчитывается: скрещивание вдвое быстрее и самоцвет. Неверный прогноз ничего не стоит.</p>
     <div class="drg-breed"><label>Признак ${sel('drgPt',[['','без прогноза'],...Object.entries(TRAITS)],tr)}</label>${tr?`<label>Вариант ${sel('drgPc',cls,cv)}</label><label>Доля, % <input id="drgPp" class="drg-in" type="number" min="0" max="100" step="0.1" inputmode="decimal" value="${esc(fv.drgPp||'')}" placeholder="например 25"></label>`:''}</div></details>
   ${low.length?`<p class="muted small">${low.map(d=>`${esc(d.name)} (${d.lvl}-й ур.)`).join(' и ')}: для скрещивания нужен ${E.BREED_LV}-й уровень. Кормят дракона кнопкой «Покормить» в его карточке, корм для этого растёт на ферме.</p><div class="actions" style="justify-content:flex-start"><button class="btn ghost sm" data-act="drgpanel" data-v="dragons">Открыть драконов</button></div>`:''}
   <div class="actions" style="justify-content:flex-start"><button class="btn sm" data-act="drgbreed" data-id="${b.id}" data-m="${mid}" data-f="${fid}"${low.length||st.bal.gold<cost?' disabled':''}>Скрестить: ${fmt(cost)} 🪙, ${cards(E.BREED_NEED)}</button>${!low.length&&st.bal.gold<cost?`<span class="drg-why">Не хватает ${fmt(cost-Math.floor(st.bal.gold))} 🪙. Золото копится в сундуках домов за каждую повторённую карточку.</span>`:''}</div>`}
@@ -357,15 +363,31 @@ function journalHTML(st){
   const close=`<button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button>`;
   if(!log.length)return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>Журнал скрещиваний</h2>${close}</div><p class="muted">Пока ни одного яйца. Постройте Гнездовье и Инкубатор (с 3-го уровня острова), и сюда попадёт каждый потомок.</p></section>`;
   const pairs=new Map();log.forEach(r=>{const k=r.m+'|'+r.f;if(!pairs.has(k))pairs.set(k,[]);pairs.get(k).push(r)});
-  const any=st.dragons[0];
-  const block=([k,rs])=>{const [mi,fi]=k.split('|'),m=st.dragons.find(x=>x.id===mi)||any,f=st.dragons.find(x=>x.id===fi)||any;
+  /* родитель из нынешних драконов или из архива отпущенных: подставлять генотип случайного дракона нельзя, теория была бы чужой */
+  const par=id=>st.dragons.find(x=>x.id===id)||(st.gone||[]).find(x=>x.id===id)||null;
+  const pc=v=>String(Math.round(v*1000)/10).replace('.',',')+' %';
+  const block=([k,rs])=>{const [mi,fi]=k.split('|'),m=par(mi),f=par(fi),gone=[m,f].filter(d=>d&&!st.dragons.includes(d));
     const alive=rs.filter(r=>!r.dead),cnt={};alive.forEach(r=>{const v=PH_KEY[tr](r.ph);cnt[v]=(cnt[v]||0)+1});
-    const names=Object.fromEntries(classesOf(tr,m,f));
-    const rows=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).map(([v,n])=>`<tr><td>${esc(names[v]||(tr==='elements'?v.split('+').map(x=>ELW[x]||x).join(' и '):v))}</td><td>${n}</td><td>${Math.round(n/alive.length*100)} %</td></tr>`).join('');
+    const names=Object.fromEntries(m&&f?classesOf(tr,m,f):tr!=='elements'?classesOf(tr,null,null):[]);
+    const nm=v=>names[v]||(tr==='elements'?(v==='smoke'?'дымный, без стихии':v==='dormant'?'дремлющий':v.split('+').map(x=>ELW[x]||x).join(' и ')):v);
+    const rows=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).map(([v,n])=>`<tr><td>${esc(nm(v))}</td><td>${n}</td><td>${Math.round(n/alive.length*100)} %</td></tr>`).join('');
     const dead=rs.length-alive.length;
+    /* теория по известным генотипам родителей: доли среди вылупившихся (как в прогнозе) и отдельно доля неразвившихся яиц */
+    let theory='';
+    if(m&&f&&m.genome&&f.genome){const th=G.dist(m.genome,f.genome,tr),leth=G.lethalShare(m.genome,f.genome),keys=[...new Set([...Object.keys(th),...Object.keys(cnt)])];
+      keys.sort((a,b)=>(th[b]||0)-(th[a]||0)||(cnt[b]||0)-(cnt[a]||0));
+      theory=`<details class="drg-th" data-k="drgth-${esc(k)}"><summary>Сравнить с теорией по генотипам родителей</summary>
+        <p class="muted small">Генотипы родителей известны из паспорта, поэтому теорию можно посчитать точно (без мутаций). Если хотите сначала угадать генотипы сами, не открывайте этот блок.</p>
+        <div class="tbl-wrap"><table class="drg-tt"><thead><tr><th>${TRAITS[tr]}</th><th>Наблюдали</th><th>Теория${leth?' среди вылупившихся':''}</th>${leth?'<th>Теория среди всех яиц</th>':''}</tr></thead><tbody>
+        ${keys.map(v=>`<tr><td>${esc(nm(v))}${!th[v]?' <span class="drg-off">вне расчёта: мутация</span>':''}</td><td>${cnt[v]||0} из ${alive.length}<small> ${alive.length?Math.round((cnt[v]||0)/alive.length*100):0} %</small></td><td>${pc(th[v]||0)}</td>${leth?`<td>${pc((th[v]||0)*(1-leth))}</td>`:''}</tr>`).join('')}
+        ${leth?`<tr><td>не развилось (Wgˢ/Wgˢ)</td><td>${dead} из ${rs.length} яиц</td><td>—</td><td>${pc(leth)}</td></tr>`:''}</tbody></table></div>
+        <p class="muted small">${leth?`У этой пары теоретически ${pc(leth)} яиц не развиваются, поэтому доли среди вылупившихся и среди всех яиц разные. Прогноз на острове считается среди вылупившихся. `:'По теории все яйца этой пары развиваются. '}Выборка: ${rs.length} ${plural(rs.length,'яйцо','яйца','яиц')}, ${alive.length} ${plural(alive.length,'потомок','потомка','потомков')}. На маленькой выборке доли заметно гуляют: при восьми потомках и теории 50 % часто выпадает 3 или 5 из 8, и это не опровергает теорию. Мутации (игровой параметр, 1/400 на ген в гамете) изредка дают потомка вне расчёта.</p></details>`}
+    else theory=`<p class="muted small">Генотип родителя не сохранился в архиве, поэтому теорию для этой пары посчитать нельзя. Наблюдения остаются.</p>`;
     return `<div class="drg-jb"><h3>${esc(dname(st,mi))} ♀ × ${esc(dname(st,fi))} ♂ <span class="muted small">${rs.length} ${plural(rs.length,'яйцо','яйца','яиц')}</span></h3>
-      ${alive.length?`<div class="tbl-wrap"><table><thead><tr><th>${TRAITS[tr]}</th><th>Потомков</th><th>Доля</th></tr></thead><tbody>${rows}</tbody></table></div>`:''}
-      ${dead?`<p class="muted small">Не развилось ${dead} ${plural(dead,'яйцо','яйца','яиц')} из ${rs.length}.</p>`:''}</div>`};
+      ${gone.length?`<p class="muted small">${gone.map(d=>esc(d.name)).join(' и ')}: ${gone.length>1?'отпущены':'отпущен'}, генотип взят из архива острова.</p>`:''}
+      <p class="muted small">Наблюдения: всего ${rs.length} ${plural(rs.length,'яйцо','яйца','яиц')}, вылупилось ${alive.length}, не развилось ${dead}.</p>
+      ${alive.length?`<div class="tbl-wrap"><table class="drg-tt"><thead><tr><th>${TRAITS[tr]}</th><th>Потомков</th><th>Доля среди вылупившихся</th></tr></thead><tbody>${rows}</tbody></table></div>`:''}
+      ${theory}</div>`};
   return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>Журнал скрещиваний</h2>${close}</div>
   <p class="muted small">Здесь копится потомство каждой пары. Чем больше яиц, тем ближе доли к теоретическим: по ним можно понять генотипы родителей.</p>
   <label class="drg-jt">Признак ${sel('drgJt',Object.entries(TRAITS),tr)}</label>
@@ -401,8 +423,21 @@ function marketHTML(st,L){
   <div class="drg-shop">${['F','W','N','T','A','P'].map(row).join('')}</div></section>`}
 
 /* «Ещё»: то, что не поместилось в нижние кнопки */
-function moreHTML(st,own){const it=(act,v,ic,t,d)=>`<button class="drg-mi" data-act="${act}" data-v="${v}"><i aria-hidden="true">${ic}</i><span><b>${t}</b><small>${d}</small></span></button>`;
-  return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>Ещё</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div><div class="drg-menu">
+/* три шкалы: уровень острова, уровень драконов, поход. Что даст следующий уровень и где новых построек больше не будет (этап 5) */
+function scalesHTML(st,c){const L=E.level(st),a=E.xpFor(L),b=E.xpFor(L+1),pc=Math.round((st.bal.xp-a)/Math.max(1,b-a)*100);
+  const nx=E.unlocksAt(L+1),mj=E.nextMajor(L),cap=E.maxDragonLv(L),top=Math.max(0,...st.dragons.map(d=>d.lvl));
+  const capL=cap<20?[...Array(60)].map((_,i)=>i+1).find(k=>E.maxDragonLv(k)>cap):null;
+  const isle=L>=60?'Это последний уровень острова.':`До ${L+1}-го: ${fmt(st.bal.xp)} из ${fmt(b)} опыта. ${nx.length?'Он даст: '+esc(nx.join('; '))+'.':'Новых построек он не даст.'}`
+    +(mj&&mj.L>L+1?` Ближайшая новая постройка на ${mj.L}-м уровне: ${esc(mj.list.join('; '))}.`:'')
+    +(!mj?' Новых построек дальше нет: уровни дают только места под среды и фермы. Цели теперь в походе и в разведении: светлые и тёмные драконы, редкие окрасы, прогнозы в журнале.':'');
+  let camp='';if(window.DRCAMP){const p=DRCAMP.progress(docOf(c.uid));
+    camp=`<div class="drg-sc"><div class="st-k">⚔ Поход</div><ul class="drg-scr">${DRCAMP.REGIONS.map(r=>{const ns=DRCAMP.nodesOf(r.id),op=DRCAMP.regionOpen(p,r.id);
+      return `<li><b>${esc(r.name)}</b><span>${ns[0].rec}–${ns[ns.length-1].rec}-й ур. · ${op?`★ ${DRCAMP.total(p,r.id)} из ${DRCAMP.max(r.id)}`:'закрыт'}</span></li>`}).join('')}</ul>
+      <small>Уровень острова на бои не влияет, важны уровни драконов.</small></div>`}
+  return `<div class="drg-scl"><div class="drg-sc"><div class="st-k">🏝 Остров · ${L}-й уровень</div><span class="drg-xp" role="img" aria-label="Опыт до следующего уровня: ${pc} %"><i style="width:${pc}%"></i></span><small>${isle}</small></div>
+  <div class="drg-sc"><div class="st-k">🐉 Драконы · до ${cap}-го уровня</div><small>Самый сильный сейчас ${top}-го уровня. Уровень дракона растёт кормлением, ${E.FEEDS} кормления на уровень. ${capL?`На ${capL}-м уровне острова предел станет ${E.maxDragonLv(capL)}.`:'Это предел роста драконов.'}</small></div>${camp}</div>`}
+function moreHTML(st,own,c){const it=(act,v,ic,t,d)=>`<button class="drg-mi" data-act="${act}" data-v="${v}"><i aria-hidden="true">${ic}</i><span><b>${t}</b><small>${d}</small></span></button>`;
+  return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>Ещё</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div>${c?scalesHTML(st,c):''}<div class="drg-menu">
   ${own?it('drgpanel','market','🐉','Рынок драконов','купить дракона одной стихии'):''}${it('drgpanel','journal','📓','Журнал скрещиваний','потомство пар и доли признаков')}
   ${it('drgpanel','blds','▤','Мои постройки','список зданий: открыть любое')}${it('drgzoom','fit','⤢','Весь остров','вернуть вид целиком')}
   ${it('drgcards','','📚','Повторять карточки','время острова идёт в карточках')}${it('drgpanel','help','?','Как это работает','золото, корм, самоцветы, уровни')}</div></section>`}
@@ -686,7 +721,11 @@ window.DRG_ACTIONS={
     const r=act({t:'breed',id:el.dataset.id,mother:el.dataset.m,father:el.dataset.f,pred});if(!r)return;
     S.fv.drgPp='';const g=r.s.got&&r.s.got.pred;toast(g?(g.ok?'Прогноз верный! Яйцо будет вдвое быстрее, +1 💎':`Прогноз мимо: на самом деле ${Math.round(g.truth*1000)/10} %`):'Пара в Гнездовье. Яйцо будет через '+cardsAcc(E.BREED_NEED))},
   drgrelease:async el=>{const x=stateOf(meId()),d=x&&x.st.dragons.find(z=>z.id===el.dataset.dragon);if(!d)return;
-    if(!await askConfirm(`Отпустить дракона ${d.name}? Он улетит с острова, а в журнале и родословной останется.`,'Отпустить'))return;
+    /* единственная самка или самец, особенно взрослые: без них скрещивание встанет */
+    const sx=d.genome.sex,same=x.st.dragons.filter(z=>z.genome.sex===sx),adult=same.filter(z=>z.lvl>=E.BREED_LV);
+    const warn=same.length===1?` Это ${sx==='F'?'единственная самка':'единственный самец'} на острове: без ${sx==='F'?'неё':'него'} скрещивать будет нельзя, пока не купите ${sx==='F'?'самку':'самца'} на рынке.`:
+      d.lvl>=E.BREED_LV&&adult.length===1?` Это ${sx==='F'?'единственная взрослая самка':'единственный взрослый самец'} (${E.BREED_LV}-й уровень и выше): других придётся сначала вырастить.`:'';
+    if(!await askConfirm(`Отпустить дракона ${d.name}? Он улетит с острова насовсем, вернуть его нельзя.${warn} В журнале и родословной он останется, а его генотип сохранится в архиве острова, чтобы теория в журнале считалась по настоящим родителям. На прощание ${fmt(50*(1+G.rarity(phOf(d))))} золота.`,'Отпустить'))return;
     const r=act({t:'release',dragon:d.id});if(r)toast(`${d.name} улетел. +${fmt(r.s.got.gold)} золота на прощание`)},
   drgrename:el=>{const x=stateOf(meId()),d=x&&x.st.dragons.find(z=>z.id===el.dataset.dragon);if(!d)return;
     const n=prompt('Имя дракона',d.name);if(n!=null&&n.trim())act({t:'rename',dragon:d.id,name:n})}

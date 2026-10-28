@@ -30,9 +30,9 @@ t('самец: две Z, M и N сцеплены, гена шпор нет; са
   assert.strictEqual(f.rows.length,1);assert.deepStrictEqual(f.links,[]);
   assert.deepStrictEqual(f.w.rows,[['W',['Sp']]]);assert.ok(/гемизиготна/.test(f.note))});
 
-t('митохондрии одной копией, не парой аллелей',()=>{
+t('митохондрии одним вариантом в модели, не парой аллелей',()=>{
   const b=block(I.genoModel(fem({G:'G'})),'mt');
-  assert.strictEqual(b.mt,'G');assert.ok(!b.rows);assert.ok(/от матери/.test(b.note));
+  assert.strictEqual(b.mt,'G');assert.ok(!b.rows);assert.ok(/от матери/.test(b.note));assert.ok(/гетероплазм/i.test(b.note)&&!/одна копия/i.test(b.note),'модель не учит, что копия мтДНК одна');
   assert.strictEqual(I.allelesText(fem({G:'g'}),'G'),'g (митохондрии)')});
 
 t('аллели по месту гена: аутосома парой, Z у самки одна, Sp у самца отсутствует',()=>{

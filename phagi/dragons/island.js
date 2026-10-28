@@ -116,6 +116,8 @@ function slabs(p,front,h,seed){const out=[],N=7,gap=.035;
     out.push(`<path d="M${pp(ell(a0+.03,PR-1.2,-h-.2))} Q${pp(ell(am,PR,-h-.4))} ${pp(ell(a1-.03,PR-1.2,-h-.2))}" stroke="#fff" stroke-width="1" fill="none" opacity="${front?.55:.4}"/>`);
     if(v>.8)out.push(`<ellipse cx="${f1(Math.cos(am)*(PR+PRI)/2)}" cy="${f1(Math.sin(am)*(PR+PRI)/4-h-.5)}" rx="3.4" ry="1.4" fill="#5DA83A" opacity=".75"/>`)}
   return out.join('')}
+/* шов под кольцом плит: в щелях между плитами виден тёмный раствор, а не небо (рисуется до пола) */
+const mortar=(p,h)=>`<ellipse cx="0" cy="${f1(-h/2)}" rx="${PR+.5}" ry="${f1(PR/2+h/2+.5)}" fill="${p.D}"/>`;
 /* пол площадки по среде */
 function habFloor(t,p,k){const o=[`<ellipse cx="0" cy="0" rx="${PRI+.5}" ry="${(PRI+.5)/2}" fill="url(#${k}-fl${t})"/>`];
   switch(t){
@@ -142,6 +144,7 @@ function habPad(t,k){const p=PAD[t],o=[];
   o.push(`<path d="M${-PR} 0 A${PR} ${PR/2} 0 0 0 ${PR} 0 L${PR} 11 A${PR} ${PR/2} 0 0 1 ${-PR} 11 Z" fill="url(#${k}-base${t})"/>`);
   o.push(`<path d="${Array.from({length:8},(_,i)=>{const a=(i+.5)/8*Math.PI,[x,y]=ell(a,PR);return `M${f1(x)} ${f1(y+1)} l0 ${i%2?9:10}`}).join(' ')}" stroke="${p.baseD}" stroke-width="1.2" opacity=".7"/>`);
   o.push(`<path d="M${-PR} 11 A${PR} ${PR/2} 0 0 0 ${PR} 11" stroke="#3E8A2A" stroke-width="3" fill="none" opacity=".55" stroke-dasharray="3 5"/>`);
+  o.push(mortar(p,9));
   o.push(habFloor(t,p,k));
   o.push(slabs(p,false,9,'sb'+t));
   return o.join('')}
@@ -238,7 +241,7 @@ function nestBase(k){fx('g',0,-30,30,'#FF8CC6',.5);fx('s',0,-40,26,'#FFE0F0');fx
   const bloom=([x,y],i)=>`<circle cx="${x}" cy="${y}" r="${4.4+i%2}" fill="#4E9F33"/><circle cx="${x+2.4}" cy="${y-2}" r="2.6" fill="${i%2?'#FFB6D9':'#FFE0F0'}"/><circle cx="${x-2.2}" cy="${y+1}" r="2" fill="#FF92C8"/><circle cx="${x+.4}" cy="${y-.4}" r=".9" fill="#FFF3B0"/>`;
   return `<ellipse cx="0" cy="9" rx="70" ry="32" fill="#0B1A10" opacity=".2"/>
     <path d="M${-PR} 0 A${PR} ${PR/2} 0 0 0 ${PR} 0 L${PR} 10 A${PR} ${PR/2} 0 0 1 ${-PR} 10 Z" fill="${NPAD.base}"/><path d="M${-PR} 10 A${PR} ${PR/2} 0 0 0 ${PR} 10" stroke="${NPAD.baseD}" stroke-width="2" fill="none"/>
-    <ellipse cx="0" cy="0" rx="${PRI+.5}" ry="${(PRI+.5)/2}" fill="url(#${k}-flP)"/>${flowers(-30,8,'nf1')}${flowers(30,10,'nf2')}${flowers(-8,19,'nf3')}
+    ${mortar(NPAD,7)}<ellipse cx="0" cy="0" rx="${PRI+.5}" ry="${(PRI+.5)/2}" fill="url(#${k}-flP)"/>${flowers(-30,8,'nf1')}${flowers(30,10,'nf2')}${flowers(-8,19,'nf3')}
     ${slabs(NPAD,false,7,'nsb')}
     <path d="M${-RI} -6 L${-RI} -30 A${RI} ${RI} 0 0 1 ${RI} -30 L${RI} -6 Z" fill="url(#${k}-portal)"/>
     ${back.join('')}${pil(-1)}${pil(1)}${face.join('')}
@@ -257,7 +260,7 @@ function hatchBase(k){fx('g',0,-22,32,'#FFB24A',.5);fx('g',0,-60,9,'#7FE6F7',.6)
     <path d="M${-PR} 0 A${PR} ${PR/2} 0 0 0 ${PR} 0 L${PR} 11 A${PR} ${PR/2} 0 0 1 ${-PR} 11 Z" fill="url(#${k}-baseW)"/>
     <path d="${Array.from({length:8},(_,i)=>{const a=(i+.5)/8*Math.PI,[x,y]=ell(a,PR);return `M${f1(x)} ${f1(y+1)} l0 10`}).join(' ')}" stroke="${HPAD.baseD}" stroke-width="1.2" opacity=".7"/>
     ${[0.2,0.4,0.6,0.8].map(t=>{const [x,y]=ell(t*Math.PI,PR);return `<path d="M${f1(x-2.4)} ${f1(y+4)} l2.4 3.4 l2.4 -3.4" stroke="#FF9A3D" stroke-width="1.6" fill="none"/>`}).join('')}
-    <ellipse cx="0" cy="0" rx="${PRI+.5}" ry="${(PRI+.5)/2}" fill="#DCE2EA"/>${slabs(HPAD,false,6,'hsb')}
+    ${mortar(HPAD,6)}<ellipse cx="0" cy="0" rx="${PRI+.5}" ry="${(PRI+.5)/2}" fill="#DCE2EA"/>${slabs(HPAD,false,6,'hsb')}
     <path d="M-44 -4 A44 22 0 0 0 44 -4 L44 1 A44 22 0 0 1 -44 1 Z" fill="#A8782E"/><ellipse cx="0" cy="-4" rx="44" ry="22" fill="url(#${k}-bronze)"/><ellipse cx="0" cy="-5" rx="40" ry="19.5" fill="#E7ECF2"/>
     <ellipse cx="0" cy="-12" rx="36" ry="14" fill="url(#${k}-sandH)"/><ellipse cx="0" cy="-14" rx="26" ry="8" fill="#FFF1C4" opacity=".55"/>`}
 function hatchDome(k){return `<path d="M-40 -10 C -40 -66 40 -66 40 -10 A40 9 0 0 1 -40 -10 Z" fill="url(#${k}-glass)"/>

@@ -37,7 +37,7 @@ module.exports=async(page,{OUT,store,UID,writes,need})=>{
   log('панель:',await page.evaluate(()=>(document.querySelector('.drg-pan h2')||{}).textContent),'строка сохранения:',await page.evaluate(()=>(document.querySelector('.drg-baby .drg-sv')||{}).textContent||'—'));
   /* 5.0: у птенца разбор происхождения: гены от матери и отца, пол, что было в мейозе */
   const og=await page.evaluate(()=>{const o=document.querySelector('.drg-baby .drg-orig');return o?{rows:o.querySelectorAll('tbody tr').length,sex:/Пол\./.test(o.textContent),mei:o.querySelectorAll('.drg-cr li').length}:null});
-  log('происхождение',JSON.stringify(og));need(og&&og.rows>=15&&og.sex,'у птенца есть разбор: гены от матери и отца и пол');
+  log('происхождение',JSON.stringify(og));need(og&&og.rows>=14&&og.sex,'у птенца есть разбор: гены от матери и отца и пол');
   if(og){await page.evaluate(()=>{const o=document.querySelector('.drg-baby .drg-orig');o.open=true;o.scrollIntoView()});await w(300);await shot('6-origin')}
   await shot('5-baby');
   const s=store.get(P).d;need((s.log||[]).filter(r=>r.child).length===1,'в базе ровно один потомок в журнале');log('в базе: потомков в журнале',(s.log||[]).filter(r=>r.child).length,'драконов',s.dragons.length,'rev',s.rev);

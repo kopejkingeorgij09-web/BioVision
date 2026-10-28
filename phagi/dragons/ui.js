@@ -359,6 +359,9 @@ function isle2HTML(st){const q=E.isleState(st),L=E.level(st);
 const sigOf=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(36)+s.length.toString(36)};
 const bgKey=st=>E.extent(st).n+(st.isl===1?'l':'g');
 const BGC=new Map();
+/* далёкие драконы в небе: силуэты пролетают за островом, двигается целый слой (без перерисовки) */
+const FLY_SIL='<path d="M2 22 C 14 18 24 18 34 20 C 40 10 50 2 62 0 C 56 8 52 14 50 20 C 58 20 66 22 72 26 C 64 26 58 27 52 28 C 46 34 36 36 26 32 C 18 30 10 28 2 22 Z M 50 21 C 60 12 72 8 84 10 C 76 14 70 18 66 23 Z"/>';
+const FLYERS=`<div class="drg-fly f1" aria-hidden="true"><svg viewBox="0 0 86 38">${FLY_SIL}</svg></div><div class="drg-fly f2" aria-hidden="true"><svg viewBox="0 0 86 38">${FLY_SIL}</svg></div>`;
 function bgHTML(st,kind){const key=kind+bgKey(st);if(!BGC.has(key))BGC.set(key,kind==='far'?I.bg(st):I.bgClouds(st));return BGC.get(key)}
 function islandView(){
   const uid=S.drgUid||meId(),own=uid===meId(),x=stateOf(uid),visit=String(uid).startsWith('v:');
@@ -387,7 +390,7 @@ function islandView(){
     /* 5.0: мир (фон и остров) — отдельный узел с подписью data-sig: если рисунок не изменился, страница оставляет старый узел,
        и браузер не растрирует остров заново при каждом открытии панели или нажатии кнопки. Кнопки и панели лежат слоем выше */
     const wcls=`drg-world${pl?' placing':''}${cur?' lava':''}`,wsig=sigOf(wcls+'|'+bgKey(st)+'|'+isl);
-    return `<div class="${wcls}" data-sig="${wsig}"><div class="drg-bgs" aria-hidden="true"><div class="drg-bgl">${bgHTML(st,'far')}</div><div class="drg-bgl drift">${bgHTML(st,'clouds')}</div></div><div class="drg-stage">${isl}</div></div>
+    return `<div class="${wcls}" data-sig="${wsig}"><div class="drg-bgs" aria-hidden="true"><div class="drg-bgl">${bgHTML(st,'far')}</div><div class="drg-bgl drift">${bgHTML(st,'clouds')}</div>${FLYERS}</div><div class="drg-stage">${isl}</div></div>
       <div class="drg-map full${pl?' placing':''}${cur?' lava':''}">
       <div class="drg-hud"><button class="drg-hud-l" data-act="drgpanel" data-v="lvl" aria-label="Уровень острова ${L}, опыт ${xp} %: подробнее (клавиша L)" title="${L>=E.ISLE_MAX?'Высший уровень острова':`Опыт ${fmt(bal.xp)} из ${fmt(b)}`}. Нажмите, чтобы узнать подробнее"><span class="drg-star" aria-hidden="true"><b>${L}</b></span><span class="drg-xpbar" aria-hidden="true"><i style="width:${xp}%"></i></span></button>
       <div class="drg-hud-r">${visit?`<span class="drg-pill drg-guest">🏠 В гостях у ${esc(visitName(uid))}</span>`:pill('gold','🪙',bal.gold,'Золото')+pill('gems','💎',bal.gems,'Самоцветы')+pill('food','🌾',bal.food,'Корм')}</div></div>
@@ -559,6 +562,7 @@ function hatchHTML(st,b,c,own){
     if(!eg)return `<div class="drg-plot"><b>Место ${i+1}</b><span class="muted small">Пусто. Яйца приходят из Гнездовья.</span></div>`;
     const rd=E.ready(eg,K),lf=E.left(eg,K);
     return `<div class="drg-plot${rd?' ready':''}"><span class="drg-egg"><svg viewBox="-14 -16 28 32" width="34" height="40" aria-hidden="true">${I.eggSVG(0,0,eg)}</svg><b>Яйцо №${eg.n}</b></span><span class="muted small">${esc(dname(st,eg.m))} ♀ × ${esc(dname(st,eg.f))} ♂</span><span class="drg-bar"><i style="width:${Math.min(100,(eg.need-lf)/eg.need*100)}%"></i></span><span class="muted small">${rd?'Готово!':`До вылупления ${cardsAcc(lf)}`}</span>
+      ${eg.viable?`<span class="muted small drg-eggg">🧬 Генотип птенца определился при слиянии гамет; цвет крапинок — его стихия.</span>`:`<span class="drg-why">🧬 Яйцо не развивается: птенец получил летальный аллель Wg и от матери, и от отца (Wg/Wg). У двух носителей Wg/+ так в среднем с каждым четвёртым яйцом.</span>`}
       ${rd?hatchWhy(st,eg):''}
       ${own?(rd?`<button class="btn sm" data-act="drgdo" data-t="hatch" data-id="${b.id}" data-plot="${i}"${hatchBlocked(st,eg)?' disabled':''}>Вылупить</button>`:`<button class="btn ghost sm" data-act="drgdo" data-t="speed" data-id="${b.id}" data-plot="${i}">Ускорить за ${Math.ceil(lf/E.SKIP_CARDS)} 💎</button>`):''}</div>`}).join('')}${lockedSlotHTML(st,b,c)}</div>`}
 
@@ -594,8 +598,8 @@ function originHTML(st,d,open){if(!d.parents||!G.origin)return '';
   const mu=o.mut.map(m=>`<li class="mut"><b>Новая мутация</b> в гамете ${who[m.who]}: ген «${esc(nm(m.locus))}», аллель ${esc(m.a)} — его не было ни на одной хромосоме ${who[m.who]}. В модели мутация случается в 1 гене из 400 в каждой гамете.</li>`).join('');
   const lost=!mo||!fa?`<p class="muted small">Геном ${!mo&&!fa?'родителей':!mo?'матери':'отца'} не сохранился, поэтому перекрёсты и мутации показаны не полностью.</p>`:'';
   return `<details class="drg-orig" data-k="orig-${esc(d.id)}"${open?' open':''}><summary>🧬 Откуда у ${esc(d.name)} эти признаки</summary>
-    <p class="muted small">Каждая хромосома пары пришла от одного родителя: левый столбец — от матери ${esc(mo?mo.name:'?')}, правый — от отца ${esc(fa?fa.name:'?')}. Яйцо получилось слиянием двух гамет, и каждая гамета — результат мейоза.</p>
-    ${sex}<div class="drg-ot"><table><thead><tr><th>Ген</th><th>от матери</th><th>от отца</th><th>что видно</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="muted small">Каждая хромосома пары пришла от одного родителя: ♀ — аллель от матери ${esc(mo?mo.name:'?')}, ♂ — от отца ${esc(fa?fa.name:'?')}. Яйцо получилось слиянием двух гамет, и каждая гамета — результат мейоза.</p>
+    ${sex}<div class="drg-ot"><table><thead><tr><th>Ген</th><th>♀ от матери</th><th>♂ от отца</th><th>что видно</th></tr></thead><tbody>${rows}</tbody></table></div>
     ${cr||mu?`<h4>Что произошло в мейозе</h4><ul class="drg-cr">${cr}${mu}</ul>`:''}${lost}
     <p class="muted small">Митохондрии и W-хромосома в паре не бывают: обе передаются только от матери. Числа модели (18 % перекрёстов между рогами и булавой, 10 % между блеском и ночным зрением, 1/400 мутаций) выбраны для игры; сами механизмы — как в природе.</p></details>`}
 

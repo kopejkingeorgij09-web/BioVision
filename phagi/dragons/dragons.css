@@ -364,6 +364,59 @@ body.drf-open .drg-isl .an,body.drf-open .drg-isl .drift,body.drf-open .drg-isl 
 .drf-node.done .drf-n{background:color-mix(in srgb,var(--bio) 24%,var(--card))}
 .drf-nt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.drf-nt b{font-size:15.5px}.drf-nt small{color:var(--muted);font-size:12.5px}
 .drf-st{flex:none;color:#E2A814;font-size:18px;letter-spacing:1px}
+/* поход: два вида боёв, вкладки регионов, карта региона (этап 4 доработки) */
+.drf-kinds{flex:none;display:flex;gap:6px;padding:8px 12px 0;background:var(--card);overflow-x:auto;scrollbar-width:none}
+.drf-kinds>*{appearance:none;font:inherit;font-size:13.5px;font-weight:700;display:flex;flex-direction:column;gap:1px;padding:6px 12px 8px;border-radius:12px 12px 0 0;border:1px solid var(--line);border-bottom:0;background:var(--soft);color:var(--muted);white-space:nowrap;flex:none}
+.drf-kinds>* small{font-weight:400;font-size:11.5px}
+.drf-kinds>.on{background:var(--bg);color:var(--ink)}
+.drf-kinds>button{cursor:pointer}.drf-kinds>button:hover{color:var(--text)}
+.drf-rts{flex:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--bg)}
+.drf-rt{appearance:none;font:inherit;min-width:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:2px;padding:6px 7px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);cursor:pointer;text-align:left}
+.drf-rt b{font-size:12px;line-height:1.2;hyphens:auto;-webkit-hyphens:auto}.drf-rt small{font-size:11px;color:var(--muted);white-space:nowrap}
+@media(min-width:600px){.drf-rt b{font-size:13.5px}.drf-rt{padding:6px 10px}}
+.drf-rt.on{border-color:var(--ra);box-shadow:inset 0 -3px 0 var(--ra);background:color-mix(in srgb,var(--ra) 10%,var(--card))}
+.drf-rt.lock{opacity:.7}
+.drf-mapw{display:flex;flex-direction:column;gap:12px}
+.drf-map{position:relative;width:100%;aspect-ratio:2/3;border-radius:18px;overflow:hidden;border:1px solid var(--line);box-shadow:var(--sh1,0 2px 8px rgba(0,0,0,.08))}
+.drf-msv{position:absolute;inset:0;width:100%;height:100%;display:block}
+:root[data-theme=dark] .drf-msv{filter:brightness(.62) saturate(.9)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]) .drf-msv{filter:brightness(.62) saturate(.9)}}
+.drf-pin{appearance:none;position:absolute;transform:translate(-50%,-50%);width:46px;height:46px;padding:0;border:0;background:none;cursor:pointer;font:inherit;display:grid;place-items:center;-webkit-tap-highlight-color:transparent}
+.drf-pc{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:15px;background:#fff;color:var(--pi);border:3px solid var(--pa);box-shadow:0 2px 6px rgba(0,0,0,.25);transition:transform .15s}
+.drf-pin:hover .drf-pc{transform:scale(1.08)}
+.drf-pin.done .drf-pc{background:var(--pa);color:#fff;border-color:#fff}
+.drf-pin.lock{cursor:pointer}.drf-pin.lock .drf-pc{background:#E4E4E4;border-color:#B9B9B9;color:#777;font-size:13px;box-shadow:none}
+.drf-pin.boss .drf-pc{width:46px;height:46px;font-size:20px;border-width:4px}
+.drf-pin.sel .drf-pc{outline:3px solid var(--ink);outline-offset:2px}
+.drf-pin.goal .drf-pc{animation:drfGoal 1.6s ease-in-out infinite}
+@keyframes drfGoal{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--pa) 70%,transparent),0 2px 6px rgba(0,0,0,.25)}50%{box-shadow:0 0 0 9px color-mix(in srgb,var(--pa) 0%,transparent),0 2px 6px rgba(0,0,0,.25)}}
+@media(prefers-reduced-motion:reduce){.drf-pin.goal .drf-pc{animation:none;box-shadow:0 0 0 4px color-mix(in srgb,var(--pa) 45%,transparent)}}
+.drf-pg{position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:10.5px;font-weight:800;color:#fff;background:var(--pp);padding:1px 6px;border-radius:999px;white-space:nowrap;pointer-events:none}
+.drf-ps{position:absolute;top:calc(100% - 4px);left:50%;transform:translateX(-50%);font-size:11px;letter-spacing:-.5px;color:#E2A814;text-shadow:0 0 2px #fff,0 0 3px #fff;white-space:nowrap;pointer-events:none}
+.drf-pin.boss .drf-ps{top:100%}
+.drf-nc{border:1px solid var(--line);border-radius:16px;background:var(--card);padding:12px 14px}
+/* на телефоне карточка выбранного боя прилипает к низу, пока карта прокручивается */
+@media(max-width:759px){.drf-ncw{position:sticky;bottom:-24px;z-index:2;padding-bottom:12px;margin-bottom:-12px}.drf-nc{box-shadow:0 -4px 18px rgba(0,0,0,.14)}.drf-nc p:not(.drf-small):not(.drf-lock){display:none}}
+.drf-nc.boss{border-color:color-mix(in srgb,#E2B33C 60%,var(--line));background:color-mix(in srgb,#FFE27A 9%,var(--card))}
+.drf-nc h3{margin:4px 0 4px;font-size:17px}.drf-nc p{margin:0 0 8px;font-size:14px;line-height:1.4}
+.drf-nch{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+.drf-nch b{color:var(--ink)}
+.drf-nc .btn{width:100%;margin-top:4px}
+.drf-lock{color:var(--muted);font-weight:600}
+.drf-want{margin:0 auto 10px;padding:8px 12px;border-radius:12px;background:color-mix(in srgb,#F2C94C 18%,var(--card));border:1px solid color-mix(in srgb,#E2B33C 50%,var(--line));font-size:14px}
+.drf-ls{margin-top:14px}.drf-ls .drf-path{margin-top:10px}
+.drf-tac{margin:0 auto 10px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--bio) 9%,var(--card));border:1px solid color-mix(in srgb,var(--bio) 30%,var(--line));font-size:14px;line-height:1.45}
+.drf-tac.boss{background:color-mix(in srgb,#FFE27A 14%,var(--card));border-color:color-mix(in srgb,#E2B33C 55%,var(--line))}
+.drf-trs{display:flex;flex-wrap:wrap;justify-content:center;gap:3px;margin-top:3px}
+.drf-trs>span{font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;background:color-mix(in srgb,#8A63D2 14%,var(--card));color:var(--ink);border:1px solid color-mix(in srgb,#8A63D2 35%,var(--line))}
+.drf-trl{margin:8px auto 0;padding-left:20px;font-size:13.5px;line-height:1.45;display:flex;flex-direction:column;gap:4px}
+.drf-tr{margin-left:2px}.drf-tr.hot{filter:drop-shadow(0 0 3px #FF5A4A)}
+@media(min-width:760px){
+  .drf-mapw{flex-direction:row;align-items:flex-start}
+  .drf-map{width:min(440px,calc((100vh - 300px)*2/3));flex:none}
+  .drf-ncw{flex:1;min-width:0;position:sticky;top:0}}
+@media(max-width:599px){.drf-kinds>*{padding:5px 10px 6px;font-size:13px}.drf-scroll>.drf-intro{font-size:13.5px}}
+@media(max-width:340px){.drf-kinds>* small{display:none}.drf-rts{gap:4px;padding:6px 8px}.drf-rt{padding:5px 6px}.drf-rt b{font-size:11.5px}}
 .drf-foes{display:flex;flex-wrap:wrap;gap:8px}
 .drf-foe{flex:1 1 140px;max-width:220px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px;border-radius:14px;background:color-mix(in srgb,#E8604C 7%,var(--card));border:1px solid var(--line);text-align:center}
 .drf-foe small,.drf-pk small{color:var(--muted);font-size:12px}
@@ -493,3 +546,11 @@ body.drf-open .drg-isl .an,body.drf-open .drg-isl .drift,body.drf-open .drg-isl 
 @media(max-width:340px){.drg-rb{font-size:9px;letter-spacing:-.01em}}
 @media(min-width:701px){.drg-rb{flex-basis:92px}.drg-rb.big{flex-basis:96px}}
 @media(max-width:340px){.drg-dock{gap:3px;left:4px;right:4px}.drg-rb{padding:0;font-size:8.6px;letter-spacing:-.02em}}
+/* страница «Бои» в режиме драконов: два вида боёв рядом, турнир бактерий ниже (этап 4 доработки) */
+.drg-hub{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px;margin-bottom:18px}
+.drg-hubc{display:flex;flex-direction:column;gap:6px;padding:16px 18px;border-radius:20px;border:1px solid var(--line);background:var(--card);box-shadow:var(--sh1,none)}
+.drg-hubc p{margin:0;line-height:1.45}.drg-hubc .btn{align-self:flex-start;margin-top:auto}
+.drg-hubd{background:radial-gradient(120% 140% at 100% 0%,color-mix(in srgb,#E4572E 11%,var(--card)) 0%,var(--card) 60%)}
+.drg-hubb{background:radial-gradient(120% 140% at 100% 0%,color-mix(in srgb,#2D9C8A 12%,var(--card)) 0%,var(--card) 60%)}
+.drg-hubn{grid-column:1/-1;margin:0}
+.drg-hubh{margin:8px 0 12px;font-family:var(--d);font-size:22px;scroll-margin-top:70px}

@@ -2,8 +2,8 @@
 <html lang="ru">
 <head>
 <script src="cloud.js?v=3"></script>
-<link rel="stylesheet" href="dragons/dragons.css?v=8">
-<script src="dragons/genetics.js?v=4"></script><script src="dragons/draw.js?v=4"></script><script src="dragons/economy.js?v=8"></script><script src="dragons/island.js?v=8"></script><script src="dragons/store.js?v=8"></script><script src="dragons/ui.js?v=8"></script><script src="dragons/inspect.js?v=7"></script><script src="dragons/live.js?v=8"></script><script src="dragons/fight.js?v=8"></script>
+<link rel="stylesheet" href="dragons/dragons.css?v=9">
+<script src="dragons/genetics.js?v=4"></script><script src="dragons/draw.js?v=4"></script><script src="dragons/economy.js?v=8"></script><script src="dragons/island.js?v=8"></script><script src="dragons/store.js?v=8"></script><script src="dragons/campaign.js?v=9"></script><script src="dragons/ui.js?v=9"></script><script src="dragons/inspect.js?v=7"></script><script src="dragons/live.js?v=8"></script><script src="dragons/fight.js?v=9"></script>
 <meta charset="utf-8">
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1952,7 +1952,7 @@ function navHTML(){
   const dueCards=T()?0:myDecks().reduce((s,d)=>{const st=deckStats(d,(S.srs[meId()]||{})[d.id]);return s+st.due+st.newToday},0);
   const items=T()
     ?[['home','Главная',pending().length],['cal','Расписание'],['track','Трекер'],['tasks','Задания'],['cards','Карточки'],['nbs','Тетради'],['arena','Арена'],['bio','Биовиз'],['journal','Журнал'],['people','Ученицы']]
-    :[['home','Главная'],['cal','Расписание'],['track','Трекер',tkLate(meId())],['tasks','Задания',myTasks().filter(t=>!inNb(t)&&['todo','late'].includes(status(t,meId()).k)).length],['cards','Карточки',dueCards],['nbs','Тетради',nbBadge()],['arena','Арена'],['bio','Биовиз'],['marks','Журнал',errPile(meId()).length+bvPile(meId()).length]];
+    :[['home','Главная'],['cal','Расписание'],['track','Трекер',tkLate(meId())],['tasks','Задания',myTasks().filter(t=>!inNb(t)&&['todo','late'].includes(status(t,meId()).k)).length],['cards','Карточки',dueCards],['nbs','Тетради',nbBadge()],['arena','Арена'],['bio','Биовиз'],['marks','Журнал',errPile(meId()).length+bvPile(meId()).length]].map(x=>x[0]==='arena'&&DRGUI.on(meId())?['arena','Бои']:x);
   const cur=S.view==='task'?'tasks':['deck','review','stview','island'].includes(S.view)?'cards':S.view==='fix'?'marks':S.view==='arview'?'arena':S.view==='nb'?'nbs':S.view;
   const kb=/Mac|iPhone|iPad/.test(navigator.platform||'')?'⌥':'Alt+';
   return items.map(([v,l,n],i)=>`<button data-act="go" data-v="${v}" aria-current="${cur===v}" aria-label="${l}${n?`, ${n}`:''}" title="${l}${i<9?` (${kb}${i+1})`:''}"><span class="ni" aria-hidden="true"><svg viewBox="0 0 24 24">${IC[v]}</svg></span><span class="nl">${l}</span>${n?`<span class="badge">${n}</span>`:''}</button>`).join('');
@@ -3542,7 +3542,9 @@ function arenaHTML(){
     <div class="row"><button class="btn sm" data-act="arsave">Сохранить</button><button class="btn ${c.open?'':'ghost '}sm" data-act="aropen" aria-pressed="${!!c.open}">${c.open?'✓ Ученицы видят коллекции друг друга':'Коллекции соперниц скрыты'}</button></div></section>
     ${tableHTML()}<section class="sheet"><h2>Участницы</h2>${rivalsHTML(byPow,false)}</section>${RULES}`}
   const me=meId(),rivals=ids.filter(id=>id!==me).sort((a,b)=>armyPower(deckNow(b))-armyPower(deckNow(a))||arName(a).localeCompare(arName(b)));
-  return head+tourHero()+`<section class="sheet"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 style="margin:0">Моя армия</h2>${rsumHTML(me)}</div>${slotsHTML(me,true)}</section>
+  /* в режиме драконов страница «Бои»: сначала оба вида боёв, турнир бактерий ниже целиком */
+  const hub=DRGUI.on(me)?DRGUI.battleHub(me,{n:Object.keys(armyNow(me)).length,total:ALLSP().length}):'';
+  return (hub?`<div class="page-h"><h1>Бои</h1></div>`+hub+`<h2 class="drg-hubh" id="ar-tour">🦠 Турнир бактерий</h2>`:head)+tourHero()+`<section class="sheet"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 style="margin:0">Моя армия</h2>${rsumHTML(me)}</div>${slotsHTML(me,true)}</section>
   ${tableHTML()}
   <section class="sheet"><h2>Соперницы</h2>${c.open?rivalsHTML(rivals,true):'<p class="muted" style="margin:0">Учитель пока не открыл коллекции соперниц.</p>'}</section>
   <section class="sheet"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 style="margin:0">Моя коллекция</h2><span class="muted small">${Object.keys(armyNow(me)).length} из ${ALLSP().length}</span></div><p class="muted small" style="margin:4px 0 12px">Нажми на бактерию, чтобы узнать её способность и поставить в армию.</p>${collHTML(me)}</section>${RULES}`}

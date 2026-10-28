@@ -115,4 +115,34 @@ t('баланс на настоящих драконах: равные кома�
   assert.ok(hard>300*0.55,'трудный против лёгкого: '+hard+' из 300');
   console.log('     раундов медиана',med,', зеркальный',JSON.stringify(wins),', трудный против лёгкого',hard,'из 300')});
 
+/* ---------- особенности противников похода (этап 4) ---------- */
+t('толстая шкура: Удар и Ярость без стихии вдвое слабее, стихия проходит как обычно',()=>{
+  const b=start([F('a',{spd:20,els:['F']})],[F('x',{traits:['thick']}),F('y')],1),a=b.get('a'),x=b.get('x'),y=b.get('y');
+  assert.ok(Math.abs(b.expect(a,{power:1},x)/b.expect(a,{power:1},y)-0.5)<1e-9);
+  assert.ok(Math.abs(b.expect(a,{power:1.25,el:'W'},x)-b.expect(a,{power:1.25,el:'W'},y))<1e-9)});
+t('вожак стаи: при живой свите урон по нему −40 %, без свиты обычный',()=>{
+  const b=start([F('a',{spd:20})],[F('x',{traits:['shield']}),F('y')],1),a=b.get('a'),x=b.get('x');
+  const e1=b.expect(a,{power:1},x);b.get('y').ko=true;const e2=b.expect(a,{power:1},x);assert.ok(Math.abs(e1/e2-0.6)<1e-9)});
+t('регенерация: в начале своего хода +6 % здоровья, не выше максимума, событие видно',()=>{
+  const b=new B.Battle({A:[F('a',{spd:1})],B:[F('x',{spd:30,hp:100,traits:['regen']})],seed:1});b.get('x').hp=50;
+  const ev=b.next();assert.strictEqual(b.cur,'x');const r=ev.find(e=>e.type==='regen');assert.ok(r);assert.strictEqual(r.amt,6);assert.strictEqual(b.get('x').hp,56);
+  const c=new B.Battle({A:[F('a',{spd:1})],B:[F('x',{spd:30,traits:['regen']})],seed:1});assert.ok(!c.next().some(e=>e.type==='regen'),'целому лечиться нечего')});
+t('закалка: эффекты стихий не накладываются, урон проходит',()=>{
+  let seen=0;for(let s=1;s<=40;s++){const b=start([F('a',{spd:20,els:['P'],atk:5})],[F('x',{hp:900,def:30,traits:['ward']})],s);
+    const ev=b.act({skill:'el:P',target:'x'});assert.ok(ev.some(e=>e.type==='hit'));assert.deepStrictEqual(b.get('x').fx,{});if(ev.some(e=>e.type==='resist'))seen++}
+  assert.ok(seen>0,'закалка срабатывает и показывается')});
+t('гнев: с половины здоровья атака +30 % до конца боя, срабатывает один раз',()=>{
+  const b=start([F('a',{spd:20,atk:10})],[F('x',{hp:100,def:5,spd:1,traits:['enrage']})],3),x=b.get('x');const a0=b.atkOf(x);
+  x.hp=70;let ev=b.act({skill:'strike',target:'x'});assert.ok(!ev.some(e=>e.type==='enrage'),'выше половины гнева нет');
+  b.next();if(b.cur==='x'){b.act({skill:'guard',target:'x'});b.next()}
+  ev=b.act({skill:'strike',target:'x'});assert.ok(x.hp>0&&x.hp<=50);assert.ok(ev.some(e=>e.type==='enrage'));assert.ok(Math.abs(b.atkOf(x)/a0-1.3)<1e-9);
+  b.next();if(b.cur==='x'){b.act({skill:'guard',target:'x'});b.next()}
+  ev=b.act({skill:'strike',target:'x'});assert.ok(!ev.some(e=>e.type==='enrage'),'второй раз не срабатывает')});
+t('правило третьей звезды: дольше лимита раундов без потерь — две звезды',()=>{
+  const b=new B.Battle({A:[F('a')],B:[F('x')],star3:4});b.winner='A';b.round=4;assert.strictEqual(b.stars(),3);b.round=5;assert.strictEqual(b.stars(),2);
+  const c=new B.Battle({A:[F('a')],B:[F('x')]});c.winner='A';c.round=29;assert.strictEqual(c.stars(),3)});
+t('неизвестные особенности отбрасываются, компьютер учитывает шкуру и вожака так же, как подсказка',()=>{
+  const b=start([F('a',{spd:20,els:['F']})],[F('x',{traits:['zzz','thick']}),F('y')],1);assert.deepStrictEqual(b.get('x').traits,['thick']);
+  const c=b.ai('hard');assert.ok(!(c.skill==='strike'&&c.target==='x'),'Удар в толстую шкуру не лучший ход')});
+
 console.log(`\n${n-fails}/${n} тестов прошли`);if(fails)process.exit(1);

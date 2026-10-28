@@ -32,6 +32,16 @@ const EFFECT={
 };
 const BURN=0.06,SLOW=0.7,BRK=0.7,WEAKK=0.8,HEAL_L=0.2,HEAL_D=0.15,GUARD=0.5,PERFECT=1.25,DEFK=25,DMG=1.6,SPREAD=0.1;
 const RAGE={hit:25,perfect:10,taken:15,guard:10,max:100};
+/* особенности противников похода (этап 4 доработки): открытые правила, игрок видит их до боя и в бою.
+   Компьютер не получает ничего, чего нет в этом списке, а его оценка ходов учитывает их так же, как подсказки игроку. */
+const THICK=0.5,SHIELD=0.6,REGEN=0.06,ENRAGE=1.3;
+const TRAITS={
+  thick:{name:'Толстая шкура',ic:'🦏',text:'Атаки без стихии (Удар и Ярость дракона без стихии) наносят ему вдвое меньше урона. Бейте стихиями.'},
+  shield:{name:'Вожак стаи',ic:'🛡',text:'Пока в его команде есть кто-то ещё, он получает на 40 % меньше урона. Сначала уберите свиту.'},
+  regen:{name:'Регенерация',ic:'🌱',text:'В начале каждого своего хода восстанавливает 6 % здоровья. Сосредоточьте удары на нём, а не по очереди.'},
+  ward:{name:'Закалка',ic:'💎',text:'Эффекты стихий на него не действуют: ни ожог, ни промок, ни трещина, ни «сбит с толку», ни лоза. Урон стихий проходит как обычно.'},
+  enrage:{name:'Гнев',ic:'💢',text:'Когда здоровье падает до половины, его атака до конца боя растёт на 30 %. Добивайте быстро или закрывайтесь Защитой.'}
+};
 const MAX_ROUNDS=30;
 
 function rng(seed){let a=(typeof seed==='number'?seed:hashStr(String(seed)))>>>0;
@@ -42,7 +52,8 @@ function hashStr(s){let h=1779033703^s.length;for(let i=0;i<s.length;i++){h=Math
 function fighter(s,side,i){
   if(!s||!s.id)throw new Error('боец без id');
   return {id:s.id,name:s.name||s.id,side,slot:i,els:(s.els||[]).slice(),lvl:s.lvl||1,maxHp:s.hp,hp:s.hp,atk:s.atk,def:s.def,spd:s.spd,
-    rage:0,rageUsed:false,guard:false,fx:{},ko:false,ref:s.ref||null}}
+    rage:0,rageUsed:false,guard:false,fx:{},ko:false,ref:s.ref||null,traits:(s.traits||[]).filter(k=>TRAITS[k]),enraged:false}}
+const has=(f,k)=>f.traits.includes(k);
 
 /* приёмы бойца: удар есть у всех, у каждой проявленной стихии своя атака, защита, «Ярость дракона» один раз за бой */
 function skillsOf(f){
@@ -59,11 +70,16 @@ function Battle(o){
   const ids=new Set();[...o.A,...o.B].forEach(s=>{if(ids.has(s.id))throw new Error('дракон дважды в бою: '+s.id);ids.add(s.id)});
   this.f=[...o.A.map((s,i)=>fighter(s,'A',i)),...o.B.map((s,i)=>fighter(s,'B',i))];
   this.rnd=rng(o.seed==null?1:o.seed);this.round=0;this.queue=[];this.qi=0;this.over=false;this.winner=null;this.cur=null;this.log=[];this.acts=0;
-  this.maxRounds=o.maxRounds||MAX_ROUNDS}
+  this.maxRounds=o.maxRounds||MAX_ROUNDS;
+  /* правило третьей звезды узла: победа без потерь не позже такого-то раунда (0 — без ограничения) */
+  this.star3=o.star3>0?o.star3:0}
 Battle.prototype.get=function(id){return this.f.find(x=>x.id===id)||null};
 Battle.prototype.alive=function(side){return this.f.filter(x=>!x.ko&&(!side||x.side===side))};
 Battle.prototype.spd=function(f){return f.spd*(f.fx.slow?SLOW:1)};
-Battle.prototype.atkOf=function(f){return f.atk*(f.fx.weak?WEAKK:1)};
+Battle.prototype.atkOf=function(f){return f.atk*(f.fx.weak?WEAKK:1)*(f.enraged?ENRAGE:1)};
+/* множитель особенностей цели: толстая шкура против атак без стихии, вожак при живой свите */
+Battle.prototype.traitK=function(skill,t){
+  return (has(t,'thick')&&!skill.el?THICK:1)*(has(t,'shield')&&this.alive(t.side).length>1?SHIELD:1)};
 Battle.prototype.defOf=function(f){return f.def*(f.fx.brk?BRK:1)};
 /* очередь раунда: по скорости, при равенстве выше уровень, дальше жребий раунда (с зерном боя), чтобы при равных
    драконах ни одна сторона не ходила первой всегда */
@@ -85,6 +101,7 @@ Battle.prototype.next=function(){
     f.guard=false;
     if(f.fx.burn){const d=Math.max(1,Math.round(f.maxHp*BURN));f.hp=Math.max(0,f.hp-d);ev.push({type:'dot',id:f.id,dmg:d,hp:f.hp,fx:'burn'});
       if(f.hp<=0){f.ko=true;f.fx={};ev.push({type:'ko',id:f.id});if(this.checkEnd(ev))return ev;continue}}
+    if(has(f,'regen')&&f.hp<f.maxHp){const h=Math.min(f.maxHp-f.hp,Math.max(1,Math.round(f.maxHp*REGEN)));f.hp+=h;ev.push({type:'regen',id:f.id,amt:h,hp:f.hp})}
     if(f.fx.root){tick(f);ev.push({type:'skip',id:f.id,why:'root'});continue}
     this.cur=f.id;ev.push({type:'turn',id:f.id,side:f.side});return ev}
   throw new Error('очередь не сходится')};
@@ -98,7 +115,7 @@ Battle.prototype.options=function(){
 /* ожидаемый урон без разброса и без точного удара: им пользуются подсказка игроку и компьютер */
 Battle.prototype.expect=function(a,skill,t){
   if(!skill.power)return 0;
-  return DMG*skill.power*this.atkOf(a)*DEFK/(DEFK+this.defOf(t))*mult(skill.el,t.els)*(t.guard?GUARD:1)};
+  return DMG*skill.power*this.atkOf(a)*DEFK/(DEFK+this.defOf(t))*mult(skill.el,t.els)*(t.guard?GUARD:1)*this.traitK(skill,t)};
 /* действие текущего бойца: {skill:'strike'|'el:F'|'guard'|'rage', target, perfect}. Возвращает события; урон один раз */
 Battle.prototype.act=function(a){
   if(this.over)throw new Error('бой окончен');
@@ -120,13 +137,16 @@ Battle.prototype.act=function(a){
   const E=s.el&&EFFECT[s.el];
   if(E&&(s.id==='rage'||this.rnd()<E.chance)){
     if(E.k==='heal'||E.k==='drain'){const h=Math.min(f.maxHp-f.hp,Math.round(dealt*(E.k==='heal'?HEAL_L:HEAL_D)));if(h>0){f.hp+=h;ev.push({type:'heal',id:f.id,amt:h,hp:f.hp})}
-      if(E.k==='drain'&&t.hp>0){t.fx.weak=Math.max(t.fx.weak||0,1);ev.push({type:'effect',target:t.id,fx:'weak',turns:t.fx.weak,name:E.name})}}
-    else if(t.hp>0){t.fx[E.k]=Math.max(t.fx[E.k]||0,E.turns);ev.push({type:'effect',target:t.id,fx:E.k,turns:E.turns,name:E.name})}}
+      if(E.k==='drain'&&t.hp>0){if(has(t,'ward'))ev.push({type:'resist',target:t.id,name:E.name});else{t.fx.weak=Math.max(t.fx.weak||0,1);ev.push({type:'effect',target:t.id,fx:'weak',turns:t.fx.weak,name:E.name})}}}
+    else if(t.hp>0){if(has(t,'ward'))ev.push({type:'resist',target:t.id,name:E.name});else{t.fx[E.k]=Math.max(t.fx[E.k]||0,E.turns);ev.push({type:'effect',target:t.id,fx:E.k,turns:E.turns,name:E.name})}}}
+  if(t.hp>0&&has(t,'enrage')&&!t.enraged&&t.hp<=t.maxHp/2){t.enraged=true;ev.push({type:'enrage',id:t.id})}
   if(t.hp<=0){t.ko=true;t.fx={};t.guard=false;ev.push({type:'ko',id:t.id})}
   tick(f);this.checkEnd(ev);this.log.push(ev);return ev};
-/* звёзды за победу: 3 — никто из команды не выбыл, 2 — выбыл один, 1 — остальные победы */
+/* звёзды за победу: 3 — никто из команды не выбыл, 2 — выбыл один, 1 — остальные победы.
+   Если у узла есть правило star3, третья звезда ещё и требует закончить бой не позже этого раунда */
 Battle.prototype.stars=function(){
-  if(this.winner!=='A')return 0;const lost=this.f.filter(x=>x.side==='A'&&x.ko).length;return lost===0?3:lost===1?2:1};
+  if(this.winner!=='A')return 0;const lost=this.f.filter(x=>x.side==='A'&&x.ko).length,s=lost===0?3:lost===1?2:1;
+  return s===3&&this.star3&&this.round>this.star3?2:s};
 
 /* ---------- компьютер ----------
    Смотрит на стихии, оставшееся здоровье, возможность добить и защиту цели. Уровень: easy часто ошибается
@@ -143,7 +163,7 @@ Battle.prototype.score=function(f,op,tid){
   if(kill)v+=60+this.atkOf(t);                                   /* добить: минус один противник */
   else if(e>=t.hp)v+=25;                                         /* может добить, если повезёт */
   v+=(1-t.hp/t.maxHp)*10;                                         /* раненых сначала */
-  if(s.el&&EFFECT[s.el]&&EFFECT[s.el].k!=='heal'&&t.hp>e)v+=EFFECT[s.el].chance*8;
+  if(s.el&&EFFECT[s.el]&&EFFECT[s.el].k!=='heal'&&t.hp>e&&!has(t,'ward'))v+=EFFECT[s.el].chance*8;
   if(s.id==='rage'&&!kill&&e<t.hp*0.6)v-=20;                      /* «Ярость» не тратить на крепкую цель */
   return v};
 Battle.prototype.ai=function(level){
@@ -153,11 +173,11 @@ Battle.prototype.ai=function(level){
   if(L.top>1&&this.rnd()<L.mist){const k=Math.min(all.length,L.top);return all[Math.floor(this.rnd()*k)]}
   return all[0]};
 /* сыграть бой целиком компьютером за обе стороны (для проверок баланса) */
-function simulate(A,B,o){o=o||{};const b=new Battle({A,B,seed:o.seed,maxRounds:o.maxRounds});let n=0;
+function simulate(A,B,o){o=o||{};const b=new Battle({A,B,seed:o.seed,maxRounds:o.maxRounds,star3:o.star3});let n=0;
   b.next();while(!b.over&&n++<500){const c=b.ai(b.get(b.cur).side==='A'?o.aiA||'normal':o.aiB||'normal');b.act(c);b.next()}
   return b}
 
-const DRBATTLE={Battle,BEATS,EL_NAME,EFFECT,POWER,RAGE,mult,skillsOf,simulate,rng,
-  K:{STRONG,WEAK,BURN,SLOW,BRK,WEAKK,HEAL_L,HEAL_D,GUARD,PERFECT,DEFK,DMG,SPREAD,MAX_ROUNDS}};
+const DRBATTLE={Battle,BEATS,EL_NAME,EFFECT,POWER,RAGE,TRAITS,mult,skillsOf,simulate,rng,
+  K:{STRONG,WEAK,BURN,SLOW,BRK,WEAKK,HEAL_L,HEAL_D,GUARD,PERFECT,DEFK,DMG,SPREAD,MAX_ROUNDS,THICK,SHIELD,REGEN,ENRAGE}};
 if(typeof module!=='undefined'&&module.exports)module.exports=DRBATTLE;else root.DRBATTLE=DRBATTLE;
 })(typeof window!=='undefined'?window:globalThis);

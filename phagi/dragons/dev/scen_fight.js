@@ -10,7 +10,8 @@ module.exports=async(page,{OUT,store,UID})=>{
   log('экран',(await st()).screen);await shot('1-map');
   const ow=()=>page.evaluate(()=>{const e=document.querySelector('.drf');return {page:document.documentElement.scrollWidth>innerWidth,drf:e?e.scrollWidth>e.clientWidth:null}});
   log('гориз. прокрутка',JSON.stringify(await ow()));
-  await page.click('[data-fk="prep"][data-id="e1"]');await page.waitForTimeout(2500);
+  log('карта: выбран',(await st()).sel,'(старые звёзды e1…e5, цель — новый e7)');
+  await page.click('.drf-pin[data-id="e1"]');await page.waitForTimeout(300);await page.click('.drf-nc [data-fk="prep"]');await page.waitForTimeout(2500);
   log('подготовка',JSON.stringify((await st()).pick));await shot('2-prep');log('гориз. прокрутка',JSON.stringify(await ow()));
   await page.click('[data-fk="start"]');await page.waitForTimeout(3500);
   let s=await st();log('бой: построение',s.form,'бойцы',JSON.stringify(s.f));await shot('3-fight');
@@ -41,5 +42,5 @@ module.exports=async(page,{OUT,store,UID})=>{
   log('после перезагрузки остров на месте',!!await page.$('.drg-map.full'));
   if(!await page.$('.drg-map.full')){await page.click('[data-act="go"][data-v="cards"]').catch(()=>{});await page.waitForTimeout(600);await page.click('[data-act="drgopen"][data-full]');await page.waitForTimeout(1500)}
   await page.click('.drg-dock [data-act="drgfight"]');await page.waitForTimeout(2000);
-  log('после перезагрузки звёзды',await page.evaluate(()=>document.querySelector('.drf-tot').textContent),'e2 открыт',await page.evaluate(()=>!document.querySelector('[data-id=e2]').disabled));
+  log('после перезагрузки звёзды',await page.evaluate(()=>document.querySelector('.drf-tot').textContent),'e2 открыт',await page.evaluate(()=>!document.querySelector('.drf-pin[data-id=e2]').classList.contains('lock')));
   await shot('7-reload')};

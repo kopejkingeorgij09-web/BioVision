@@ -130,6 +130,21 @@ function hero(uid,compact){
   <div class="drg-go">${notes.length?`<span class="drg-notes">${notes.join(' · ')}</span>`:'<span class="muted small">Остров ждёт новых карточек.</span>'}<span class="drg-gob"><button class="btn ghost" data-act="drgopen" data-uid="${uid}">${own?'На остров':'Открыть остров'}</button><button class="btn" data-act="drgopen" data-uid="${uid}" data-full="1">🏝 Отправиться на остров</button></span></div>
   </section>`}
 
+/* ---------- «Бои»: общий вход в два вида боёв (этап 4 доработки) ----------
+   Поход драконов и Турнир бактерий — разные системы, и страница так и говорит. Сражений драконов между игроками нет.
+   bact: {n — видов в коллекции, total — всего видов} из страницы, где живёт турнир */
+function battleHub(uid,bact){
+  const x=stateOf(uid);if(!x||!window.DRCAMP)return '';const d=docOf(uid),p=DRCAMP.progress(d),g=DRCAMP.goal(p),gr=g&&DRCAMP.region(g.region);
+  const n=x.st.dragons.length,b=bact||{n:0,total:0};
+  return `<section class="drg-hub" aria-label="Два вида боёв">
+  <div class="drg-hubc drg-hubd"><div class="st-k">🐉 Поход драконов</div><p>Ваши драконы против диких: бой 3 на 3, ходы по очереди, стихии, Защита и Ярость. Четыре региона, ${DRCAMP.NODES.length} боёв. Награда — звёзды, ресурсы острова за бои не начисляются.</p>
+    <p class="small"><b>★ ${DRCAMP.total(p)} из ${DRCAMP.max()}</b> · ${g?`следующий бой: «${esc(g.name)}», ${esc(gr.name)}, ${g.rec}-й уровень`:'все бои пройдены, можно переигрывать ради трёх звёзд'}</p>
+    <button class="btn" data-act="drgfight"${n?'':' disabled'}>${n?'Открыть карту похода':'Сначала нужен дракон на острове'}</button></div>
+  <div class="drg-hubc drg-hubb"><div class="st-k">🦠 Турнир бактерий</div><p>Коллекция бактерий из чашки Петри. Она растёт от тех же дней с ${GOAL} карточками, что и остров, и в режиме драконов тоже. Армия до четырёх видов сражается сама, бои турнира проходят ночью.</p>
+    <p class="small"><b>${b.n} из ${b.total}</b> видов в коллекции${b.n?'':'. Пока пусто: первая колония вырастет в день, когда повторено '+GOAL+' карточек'}</p>
+    <a class="btn ghost" href="#ar-tour" data-act="arjump">К турниру ниже ↓</a></div>
+  <p class="muted small drg-hubn">Боёв драконов между ученицами нет: в походе соперник — компьютер, а с соперницами сражаются бактерии в турнире.</p></section>`}
+
 function switchHTML(){
   if(T())return '';const dr=on(meId());
   return `<div class="drg-sw"><span class="muted small">Мотивация</span><div class="cvs" role="group" aria-label="Мотивация"><button data-act="drgmode" data-v="petri" aria-pressed="${!dr}">🧫 Бактерии</button><button data-act="drgmode" data-v="dragons" aria-pressed="${dr}">🐉 Драконы</button></div></div>`}
@@ -521,16 +536,24 @@ window.addEventListener('resize',()=>camApply());
    Каждый шаг вглубь игры (страница острова → весь экран → панель или здание → бой или осмотр) — своя запись истории.
    «Назад» закрывает верхний шаг. Закрытие кнопкой откатывает свои записи, чтобы «Назад» не открывал закрытое снова.
    После перезагрузки страница возвращается на остров с той же панелью; бой и осмотр не восстанавливаются. */
-function navNow(){if(S.view!=='island')return null;const fo=!!document.querySelector('.drf'),io=!!document.querySelector('.dri:not(.out)');
+function navNow(){const fo=!!document.querySelector('.drf');
+  if(S.view!=='island')return fo?{drg:1,v:S.view,ov:'fight'}:null;const io=!!document.querySelector('.dri:not(.out)');
   return {drg:1,uid:S.drgUid||null,full:!!S.drgFull,panel:S.drgPanel||null,sel:S.drgSel||null,ov:fo?'fight':io?'insp':null}}
-const navDepth=n=>n?1+(n.full?1:0)+(n.panel||n.sel?1:0)+(n.ov?1:0):0;
-const navKey=n=>n?[n.uid,n.full,n.panel,n.sel,n.ov].join('|'):'';
+const navDepth=n=>!n?0:n.v?1:1+(n.full?1:0)+(n.panel||n.sel?1:0)+(n.ov?1:0);
+const navKey=n=>n?[n.v,n.uid,n.full,n.panel,n.sel,n.ov].join('|'):'';
 const navURL=n=>location.pathname+location.search+(n?'#drg':'');
-const navPut=(n,push)=>{const st=n?Object.assign({d:navDepth(n)},n):null;try{push?history.pushState(st,'',navURL(n)):history.replaceState(st,'',navURL(n))}catch(e){}};
+/* ds — глубины всех записей истории, которые положила игра, по порядку. Шаг вглубь может быть сразу на два уровня
+   (с «Карточек» прямо на весь экран), поэтому назад откатываем по числу своих записей, а не по разнице глубин:
+   иначе history.go ушёл бы за начало страницы, на предыдущий сайт */
+const navDs=()=>{const h=history.state;return h&&h.drg&&Array.isArray(h.ds)?h.ds.slice(0,20):h&&h.drg?[h.d||navDepth(h)]:[]};
+const navPut=(n,push)=>{const cur=navDs(),ds=n?(push?cur:cur.slice(0,-1)).concat(navDepth(n)):[],st=n?Object.assign({d:navDepth(n),ds},n):null;
+  try{push?history.pushState(st,'',navURL(n)):history.replaceState(st,'',navURL(n))}catch(e){}};
 let navSkip=false,navBoot=history.state&&history.state.drg?history.state:null,navT0=Date.now();
 function navSync(){try{navSync0()}catch(e){}}   /* до объявления S в странице наблюдатель уже работает */
 function navSync0(){
   if(navBoot){const b=navBoot,ok=S.mode&&S.mode!=='loading'&&stateOf(b.uid||meId());
+    /* после перезагрузки бой не восстанавливается: страница, с которой его открыли, без записи истории */
+    if(ok&&b.v){navBoot=null;S.view=b.v;navPut(null,false);render();return}
     if(ok){navBoot=null;S.view='island';S.drgUid=b.uid;S.drgFull=b.full;S.drgPanel=b.panel;S.drgSel=b.sel;S.drgCam=null;navPut(navNow()||Object.assign({},b,{ov:null}),false);render()}
     else if(Date.now()-navT0>8000){navBoot=null;navPut(null,false)}
     return}
@@ -538,7 +561,8 @@ function navSync0(){
   const n=navNow(),h=history.state&&history.state.drg?history.state:null;if(navKey(n)===navKey(h))return;
   const dn=navDepth(n),dh=navDepth(h);
   if(dn>dh)navPut(n,true);
-  else if(dn<dh&&h&&(h.d||0)-dn>0&&(h.d||0)-dn<=4){navSkip=true;history.go(-((h.d||dh)-dn))}
+  else if(dn<dh&&h){const ds=navDs();let k=0;while(k<ds.length&&ds[ds.length-1-k]>dn)k++;
+    if(k>0){navSkip=true;history.go(-k)}else navPut(n,false)}
   else navPut(n,false)}
 window.addEventListener('popstate',e=>{const h=e.state&&e.state.drg?e.state:null;
   if(navSkip){navSkip=false;const n=navNow();if(navKey(n)!==navKey(h))navPut(n,false);return}
@@ -546,6 +570,7 @@ window.addEventListener('popstate',e=>{const h=e.state&&e.state.drg?e.state:null
   if((!h||h.ov!=='fight')&&window.DRFIGHT&&document.querySelector('.drf'))DRFIGHT.close();
   if((!h||h.ov!=='insp')&&window.DRGINSP&&document.querySelector('.dri'))DRGINSP.close();
   if(!h){if(S.view==='island'){S.view='cards';S.drgFull=false;S.drgPanel=null;S.drgSel=null;S.drgPlace=null}}
+  else if(h.v){S.view=h.v}
   else{S.view='island';S.drgUid=h.uid;if(S.drgFull!==h.full)S.drgCam=null;S.drgFull=h.full;S.drgPanel=h.panel;S.drgSel=h.sel;S.drgPlace=null}
   render()});
 /* Enter и пробел на постройке, участке или препятствии карты нажимают её, как мышь */
@@ -602,12 +627,14 @@ function fightApi(){
       return {p,saved:save(uid,Object.assign({},x.st,{mode:d.mode,periods:d.periods,pve:p}))}},
     saveState:()=>{const st=storeOf(uid);return st?st.status:'ok'},
     retry:()=>{const st=storeOf(uid);return st?st.retry():Promise.resolve('ok')},
+    /* «Турнир бактерий» из шапки похода: страница «Бои» платформы */
+    openArena:()=>{S.drgFull=false;S.drgPanel=null;S.drgSel=null;S.drgPlace=null;S.view='arena';window.scrollTo(0,0);render()},
     onClose:()=>render()}}
 function fight(dragon){if(S.drgPlace||!window.DRFIGHT||!stateOf(meId()))return;DRFIGHT.open(fightApi(),{dragon})}
 
 /* ---------- действия ---------- */
 const num=v=>v==null||v===''?undefined:Number(v);
-window.DRGUI={on,hero,switchHTML,reviewBadge,dayDoneHTML,onSnap,islandView,stateOf,founders,setMode,saveHTML,storeOf,classesOf};
+window.DRGUI={on,hero,switchHTML,reviewBadge,dayDoneHTML,onSnap,islandView,stateOf,founders,setMode,saveHTML,storeOf,classesOf,battleHub};
 window.DRG_ACTIONS={
   drgmode:async el=>{const v=el.dataset.v;await setMode(v);toast(v==='dragons'?'Включены драконы. Чашка Петри никуда не делась, вернуться можно в любой момент.':'Включены бактерии. Драконы ждут на острове.')},
   drgopen:el=>{S.drgUid=el.dataset.uid||meId();S.view='island';S.drgSel=null;S.drgPanel=null;S.drgPlace=null;window.scrollTo(0,0);
@@ -622,6 +649,7 @@ window.DRG_ACTIONS={
   drgsel:el=>{if(S.drgPlace)return;S.drgSel=el.dataset.id||null;S.drgPanel=null},
   drginsp:inspect,
   drgfight:el=>fight(el.dataset.dragon||null),
+  arjump:()=>{const t=document.getElementById('ar-tour');if(t)t.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'})},
   drgsave:el=>{const st=storeOf(meId());if(!st)return;const v=el.dataset.v;
     if(v==='retry')st.retry().then(s=>{if(s==='ok')toast('Сохранено')});
     else if(v==='discard'){st.discard();toast('Вернулась последняя сохранённая версия острова')}

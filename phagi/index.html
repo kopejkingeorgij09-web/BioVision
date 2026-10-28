@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<script src="cloud.js?v=5"></script>
+<script src="cloud.js?v=6"></script>
 <link rel="stylesheet" href="dragons/dragons.css?v=17">
 <script src="dragons/genetics.js?v=17"></script><script src="dragons/draw.js?v=17"></script><script src="dragons/puzzles.js?v=17"></script><script src="dragons/economy.js?v=17"></script><script src="dragons/island.js?v=17"></script><script src="dragons/store.js?v=17"></script><script src="dragons/battle.js?v=17"></script><script src="dragons/campaign.js?v=17"></script><script src="dragons/ui.js?v=17"></script><script src="dragons/inspect.js?v=17"></script><script src="dragons/live.js?v=17"></script><script src="dragons/fight.js?v=17"></script>
 <meta charset="utf-8">
-<meta name="ph-ver" content="2026-10-28.10">
+<meta name="ph-ver" content="2026-10-28.11">
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Фаги естественных наук</title>
@@ -1554,12 +1554,12 @@ function filesHTML(list,removeAct){
     return `<span class="file">${removeAct?`<button class="x" ${removeAct} data-i="${i}" aria-label="Убрать файл ${esc(f.name||'')}">×</button>`:''}<a href="${u}" data-fid="${f.id}" data-fn="${esc(f.name||'файл')}" data-ft="${esc(f.type||'')}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${img?`<img src="${u}" alt="${esc(f.name||'Фото')}" loading="lazy">`:`<span class="doc">${esc(((f.name||'').split('.').pop()||'файл').toUpperCase().slice(0,4))}</span>`}<span>${esc(f.name||'файл')}</span></a></span>`}).join('')}</div>`;
 }
 function uplErr(e){const c=e&&e.code;
-  if(c==='unsupported_type')toast('Такой тип файла не поддерживается. Подойдут фото (JPG, PNG), PDF или текст.');
+  if(c==='unsupported_type')toast('Такой тип файла не поддерживается. Подойдут фото (JPG, PNG, WebP, GIF, HEIC), PDF или текст.');
   else if(c==='too_large')toast('Файл больше 20 МБ. Уменьшите фото или разделите PDF.');
   else if(c==='quota_or_state')toast('Место для файлов закончилось.');
   else if(c==='not_granted')toast('Нет прав на загрузку файлов. Нужен доступ «Редактор».');
   else{console.warn(e);toast('Не получилось загрузить файл'+(c?' ('+c+')':'')+'. Попробуйте ещё раз.',6000)}}
-const EXT_TYPE={pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',gif:'image/gif',txt:'text/plain',csv:'text/csv',md:'text/markdown',json:'application/json'};
+const EXT_TYPE={pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',gif:'image/gif',heic:'image/heic',heif:'image/heif',bmp:'image/bmp',txt:'text/plain',csv:'text/csv',md:'text/markdown',json:'application/json'};
 const fileType=f=>{const t=(f.type||'').split(';')[0].trim().toLowerCase();if(t&&t!=='application/octet-stream'&&t!=='application/x-pdf')return t;
   return EXT_TYPE[((f.name||'').split('.').pop()||'').toLowerCase()]||t||'application/pdf'};
 // ids of files already referenced somewhere, so a recovered upload never grabs someone else's file

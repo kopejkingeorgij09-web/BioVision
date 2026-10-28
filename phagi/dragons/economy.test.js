@@ -297,6 +297,37 @@ t('награда похода: первая победа полная, повт
   assert.ok(E.apply(s,c,{t:'pvewin',node:n,stars:0}).err);
 });
 
+t('ДЗ (4.4): золото и опыт за ДЗ начисляются один раз, подарок за 95 %+ один на задание и всегда тот же дракон',()=>{
+  let s=E.normalize(start0(founders()),0,null);const g0=s.bal.gold,x0=s.bal.xp;
+  const inc={K:0,food:0,gems:0,hw:{gems:6,food:250,gold:900,xp:220,list:[{id:'t1',egg:1,pc:96,d:'2026-10-29',title:'Тест'}]}};
+  s=E.normalize(s,0,inc);assert.strictEqual(s.bal.gold,g0+900);assert.ok(s.bal.xp>=x0+220);
+  const again=E.normalize(s,0,inc);assert.strictEqual(again.bal.gold,s.bal.gold,'второй раз не начисляется');
+  const c=ctx(0,{inc,uid:'u1'});const n0=s.dragons.length;
+  const r=ok(E.apply(s,c,{t:'hwgift',id:'t1'}));assert.strictEqual(r.dragons.length,n0+1);const d=r.dragons.find(x=>x.id===r.last);assert.strictEqual(d.from,'hw:t1');
+  assert.ok(E.apply(r,c,{t:'hwgift',id:'t1'}).err,'второй раз нельзя');assert.ok(E.apply(s,c,{t:'hwgift',id:'t2'}).err,'за чужое задание нельзя');
+  assert.deepStrictEqual(E.hwGiftGenome('t1','u1'),E.hwGiftGenome('t1','u1'));assert.ok(G.rarity(G.phenotype(d.genome))>=2,'подарок редкий');
+});
+
+t('задания недели (4.4): три задания, прогресс по карточкам, ДЗ и действиям, награда один раз, новая неделя — заново',()=>{
+  let s=E.normalize(start0(founders()),0,null);const day='2026-10-28',c=ctx(0,{today:day,inc:{week:{cards:160,hw85:0}}});
+  const L=E.wqList(s,day);assert.strictEqual(L.length,3);assert.strictEqual(L[0],'cards1');assert.strictEqual(L[1],'hw');assert.strictEqual(E.weekOf(day),'2026-10-26');
+  const g0=s.bal.gold;s=ok(E.apply(s,c,{t:'wq',id:'cards1'}));assert.strictEqual(s.bal.gold,g0+E.WQ.cards1.r.gold);
+  assert.ok(E.apply(s,c,{t:'wq',id:'cards1'}).err,'второй раз нельзя');assert.ok(/Ещё не выполнено/.test(E.apply(s,c,{t:'wq',id:'hw'}).err));
+  /* действия считаются: кормление */
+  s.bal.food=1e5;const d=s.dragons[0];for(let i=0;i<3;i++)s=ok(E.apply(s,c,{t:'feed',dragon:d.id}));assert.strictEqual(E.wqState(s,day).c.feed,3);
+  /* следующая неделя: счётчики с нуля, полученные награды не мешают */
+  const c2=ctx(0,{today:'2026-11-03',inc:{week:{cards:0}}});assert.ok(!E.wqProgress(s,c2,'cards1').got);assert.strictEqual(E.wqState(s,'2026-11-03').c.feed||0,0);
+});
+
+t('головоломки дня (4.4): верное решение даёт 100 золота один раз в день за каждую, неверное — ничего',()=>{
+  const P=require('./puzzles.js');let s=E.normalize(start0(founders()),0,null);const day='2026-10-28',c=ctx(0,{today:day,uid:'u1'});const g0=s.bal.gold;
+  P.KINDS.forEach(k=>{const p=P.make(k.kind,P.seedOf('u1',day));const bad=p.sol.map(r=>r.slice());bad[0][0]=k.kind==='bin'?1-bad[0][0]:bad[0][0]%p.N+1;
+    assert.ok(E.apply(s,c,{t:'puzzle',kind:k.kind,ans:bad}).err);s=ok(E.apply(s,c,{t:'puzzle',kind:k.kind,ans:p.sol}));
+    assert.ok(E.apply(s,c,{t:'puzzle',kind:k.kind,ans:p.sol}).err,'второй раз за день нельзя')});
+  assert.strictEqual(s.bal.gold,g0+300,'до 300 в день');
+  const p2=P.make('sky',P.seedOf('u1','2026-10-29'));assert.ok(!E.apply(s,ctx(0,{today:'2026-10-29',uid:'u1'}),{t:'puzzle',kind:'sky',ans:p2.sol}).err,'на следующий день снова можно');
+});
+
 t('рынок: текст «большинство обычные, около десятой редкие, около сотой сверхредкие» совпадает с генератором',()=>{
   /* выборка генератора на 2000 seed для каждой стихии, а не настоящие покупки */
   for(const k of ['F','W','N','T','A','P']){const c=[0,0,0,0,0];let two=0;

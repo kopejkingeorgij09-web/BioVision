@@ -702,3 +702,27 @@ button.drg-hud-l:hover .drg-star{filter:brightness(1.1)}button.drg-hud-l:focus-v
 @media(max-width:420px){.fam-kids,.fam-arr{grid-template-columns:repeat(2,minmax(0,1fr))}.fam-arr span:nth-child(n+3){display:none}}
 .dri.sheet.sub .dri-badge,.dri.sheet.sub .dri-nav,.dri.sheet.sub .dri-bar,.dri.sheet.sub .dri-hint{display:none}
 .dri-call{max-width:140px;font-size:11px}
+
+/* ---------- 4.4: задания недели, подарок за ДЗ, головоломки дня, рейтинг, гости ---------- */
+.wq{padding:10px 12px;border:1px solid var(--line);border-radius:14px;margin-top:8px;background:var(--card)}.wq.done{border-color:#46A659}.wq.got{opacity:.7}
+.wq-h{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:6px}.wq-h small{color:var(--muted);white-space:nowrap}
+.wq-f{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px}.wq-ok{color:#2F8C2A;font-weight:700;font-size:13px}
+.hwg{margin-top:14px;padding:10px 12px;border-radius:14px;background:color-mix(in srgb,#F2C94C 18%,var(--card));border:1px solid color-mix(in srgb,#F2C94C 50%,var(--line))}
+.pzbox{margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:16px;background:var(--card)}.pzbox.ok{border-color:#46A659;background:color-mix(in srgb,#46A659 8%,var(--card))}
+.pzh{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.pzh h3{margin:0}.pzh span{font-weight:800;color:#B07A1C}.pzbox.ok .pzh span{color:#2F8C2A}
+.pzr summary{cursor:pointer;color:var(--muted);font-size:13.5px;margin:6px 0}.pzr p{font-size:13.5px;margin:4px 0 8px}
+.pzg{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:3px;max-width:340px;margin:8px auto}
+.pzc{appearance:none;aspect-ratio:1;border:1px solid var(--line);border-radius:8px;background:var(--soft,#E7F0EA);color:var(--text);font:800 19px var(--d,system-ui);cursor:pointer;padding:0;min-width:0}
+.pzc.sel{outline:3px solid #F2B01E;outline-offset:-1px;background:color-mix(in srgb,#F2C94C 25%,var(--card))}.pzc:disabled{cursor:default}
+.pzc.given{background:var(--ink,#0E4A38);color:#fff}.pzg.bin .pzc.v0{background:#DCE8F7}.pzg.bin .pzc.v1{background:#F7E1D2}
+.pzk{display:grid;place-items:center;font:800 15px var(--d,system-ui);color:#B07A1C}
+.pzg.ken{gap:0;border:2px solid var(--text);border-radius:6px;overflow:hidden}
+.pzw{position:relative;border:1px solid color-mix(in srgb,var(--text) 18%,transparent)}.pzw.bt{border-top:2px solid var(--text)}.pzw.bb{border-bottom:2px solid var(--text)}.pzw.bl{border-left:2px solid var(--text)}.pzw.br{border-right:2px solid var(--text)}
+.pzw .pzc{border:0;border-radius:0;width:100%;background:var(--card)}.pzw .pzc.sel{background:color-mix(in srgb,#F2C94C 25%,var(--card))}
+.pzt{position:absolute;left:3px;top:1px;font:700 10.5px var(--f,system-ui);color:var(--muted);pointer-events:none;z-index:1}
+.pzpad{display:flex;gap:6px;justify-content:center;margin:6px 0}.pzn{appearance:none;width:42px;height:42px;border-radius:12px;border:1px solid var(--line);background:var(--card);font:800 18px var(--d,system-ui);cursor:pointer;color:var(--text)}
+.pzn:hover{border-color:var(--ink)}.pzc:focus-visible,.pzn:focus-visible{outline:3px solid #2F80D1;outline-offset:1px}
+.top{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.top li{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:14px;border:1px solid var(--line);background:var(--card)}.top li.me{border-color:#F2B01E;background:color-mix(in srgb,#F2C94C 12%,var(--card))}
+.top-n{width:30px;text-align:center;font:800 18px var(--d,system-ui)}.top-t{flex:1;min-width:0;display:flex;flex-direction:column}.top-t small{color:var(--muted)}
+.drg-guest{padding:0 14px;font-weight:800;color:#fff}

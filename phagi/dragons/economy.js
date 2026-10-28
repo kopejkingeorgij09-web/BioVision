@@ -227,7 +227,10 @@ function normalize(s,K,inc,gk){
     if(df>0){s.bal.food+=df;s.credited.food=inc.food}if(dg>0){s.bal.gems+=dg;s.credited.gems=inc.gems}
     /* бонус за ДЗ (inc.hw: сумма за все засчитанные задания): начисляется только прирост, своё поле учёта, не смешивается с серией */
     if(inc.hw){const hg=(inc.hw.gems|0)-(s.credited.hwg||0),hf=(inc.hw.food|0)-(s.credited.hwf||0);
-      if(hg>0){s.bal.gems+=hg;s.credited.hwg=inc.hw.gems|0}if(hf>0){s.bal.food+=hf;s.credited.hwf=inc.hw.food|0}}
+      if(hg>0){s.bal.gems+=hg;s.credited.hwg=inc.hw.gems|0}if(hf>0){s.bal.food+=hf;s.credited.hwf=inc.hw.food|0}
+      /* 4.4: ДЗ приносит и золото с опытом острова */
+      const hgo=(inc.hw.gold|0)-(s.credited.hwgo||0),hx=(inc.hw.xp|0)-(s.credited.hwx||0);
+      if(hgo>0){s.bal.gold+=hgo;s.credited.hwgo=inc.hw.gold|0}if(hx>0){s.bal.xp+=hx;s.credited.hwx=inc.hw.xp|0}}
     if(!s.slot7&&Math.max(inc.streakBest||0,inc.best||0)>=SLOT7){s.slot7=true;s.slot7new=true}}
   s.bld.forEach(b=>{
     /* момент готовности в часах острова: от него и считается сундук, даже если состояние сохранят позже */
@@ -267,6 +270,10 @@ function repair(d,inc){const fix=[],bad=[];
   if(s.clr!==undefined&&!Array.isArray(s.clr)){s.clr=[];fix.push('расчищенные клетки')}
   if(s.isl2!==undefined&&(!s.isl2||typeof s.isl2!=='object'||!Array.isArray(s.isl2.land)||!s.isl2.land.length||s.isl2.land.some(x=>typeof x!=='string')))bad.push('Огненный остров');
   if(s.pvr!==undefined&&(!s.pvr||typeof s.pvr!=='object'||!int(s.pvr.n))){delete s.pvr;fix.push('счётчик наград похода')}
+  /* 4.4: задания недели и подарки за ДЗ — служебные поля, испорченные сбрасываются (награды недели можно будет забрать снова только за новую неделю) */
+  if(s.wq!==undefined&&(!s.wq||typeof s.wq!=='object'||typeof s.wq.w!=='string'||!s.wq.c||typeof s.wq.c!=='object'||!Array.isArray(s.wq.got))){delete s.wq;fix.push('задания недели')}
+  if(s.hwgift!==undefined&&!(Array.isArray(s.hwgift)&&s.hwgift.every(x=>typeof x==='string'))){bad.push('подарки за ДЗ')}
+  if(s.pz!==undefined&&(!s.pz||typeof s.pz!=='object'||typeof s.pz.d!=='string'||!Array.isArray(s.pz.done))){delete s.pz;fix.push('головоломки дня')}
   /* геномы версии 1 (до гена E2): у драконов, яиц, пар в Гнездовье и в архиве отпущенных добавляется E2 = 0/0.
      Фенотип, остальные аллели и исход уже сформированных яиц не меняются, повторный проход ничего не делает */
   let up=0;const upg=o=>{if(o&&G.isOld(o.genome)){o.genome=G.upgrade(o.genome);up++}};
@@ -407,6 +414,41 @@ function pveGain(n,stars,before){const r=Math.max(1,Math.min(60,+n.rec||1)),k=n.
   if(!before)return {gold,food,gems:(n.boss?3:n.mini||n.elite?1:0)+(stars>=3?1:0),first:true};
   return {gold:Math.round(gold/50)*10,food:Math.round(food/5),gems:stars>=3&&before<3?1:0,first:false}}
 
+/* ---------- подарок за ДЗ на 95 %+ (4.4) ----------
+   Редкий дракон из ДЗ или теста на 95 % и выше: из 40 генотипов с двумя стихиями берётся самый редкий, зерно — ученица и задание,
+   поэтому подарок за одно задание всегда один и тот же. Забирается один раз (s.hwgift — список заданий) */
+function hwGiftGenome(task,uid){let best=null,br=-1;
+  for(let i=0;i<40;i++){const r=G.rng(String(uid||'')+':hwgift:'+task+':'+i),pick=a=>a[Math.floor(r()*a.length)],coin=(a,b)=>r()<0.5?a:b,pair=f=>f()+'/'+f();
+    const els=['F','W','T','A','P','L','D'],e1=pick(els),e2=pick(els.filter(x=>x!==e1)),col=()=>{const x=r();return x<0.4?'C':x<0.75?'Cb':'c'},sex=coin('F','M');
+    const spec={sex,S:'S/S',E:e1+'/'+e1,E2:e2+'/'+pick([e2,'0']),C:col()+'/'+col(),H:pair(()=>coin('H','h')),K:pair(()=>coin('K','k')),R:pair(()=>coin('R1','R2')),
+      Wg:'+/+',Q1:pair(()=>coin('+','-')),Q2:pair(()=>coin('+','-')),Q3:pair(()=>coin('+','-'))};
+    if(sex==='F'){spec.M=coin('M','m');spec.N=coin('n','N');spec.Sp=coin('Sp','sp');spec.G=coin('G','g')}else{spec.M=pair(()=>coin('M','m'));spec.N=pair(()=>coin('n','N'))}
+    const g=G.make(spec),rr=G.rarity(G.phenotype(g));if(rr>br){br=rr;best=g}}
+  return best}
+
+/* ---------- задания недели (4.4) ----------
+   Три задания на неделю (понедельник–воскресенье по дате острова): карточки, ДЗ на 85 %+ и одно из остальных по номеру недели.
+   Карточки и ДЗ считаются по данным страницы (ctx.inc.week), действия на острове — счётчиками s.wq.c. Награда забирается кнопкой, один раз */
+const WQ={
+  cards1:{t:'Повтори 150 карточек за неделю',goal:150,src:'cards',r:{gold:600,gems:3}},
+  cards2:{t:'Повтори 300 карточек за неделю',goal:300,src:'cards',r:{gold:1200,gems:5}},
+  hw:{t:'Сдай ДЗ или тест на 85 % и выше',goal:1,src:'hw',r:{gems:5,food:200}},
+  feed:{t:'Покорми драконов 12 раз',goal:12,src:'feed',r:{gold:400,gems:2}},
+  harvest:{t:'Собери урожай 8 раз',goal:8,src:'harvest',r:{gold:350,gems:2}},
+  win:{t:'Победи в 5 боях похода',goal:5,src:'win',r:{gold:500,gems:2}},
+  hatch:{t:'Вылупи малыша в Инкубаторе',goal:1,src:'hatch',r:{gems:4,food:150}},
+  breed:{t:'Скрести пару в Гнездовье',goal:1,src:'breed',r:{gold:400,food:100}},
+  pz:{t:'Реши 5 головоломок',goal:5,src:'pz',r:{gold:500,gems:3}}};
+const WQ_EXTRA=['feed','harvest','win','hatch','breed','pz'];
+/* понедельник недели (ГГГГ-ММ-ДД) для даты */
+function weekOf(day){const d=new Date((day||'1970-01-01')+'T12:00:00Z'),k=(d.getUTCDay()+6)%7;d.setUTCDate(d.getUTCDate()-k);return d.toISOString().slice(0,10)}
+function wqList(s,day){const w=weekOf(day),n=Math.round(Date.parse(w+'T12:00:00Z')/604800000);return [level(s)<10?'cards1':'cards2','hw',WQ_EXTRA[((n%WQ_EXTRA.length)+WQ_EXTRA.length)%WQ_EXTRA.length]]}
+function wqState(s,day){const w=weekOf(day);return s.wq&&s.wq.w===w?s.wq:{w,c:{},got:[]}}
+function wqProgress(s,c,id){const q=WQ[id],st=wqState(s,c.today),wk=c.inc&&c.inc.week||{};
+  const v=q.src==='cards'?wk.cards||0:q.src==='hw'?wk.hw85||0:st.c[q.src]||0;return {v:Math.min(v,q.goal),goal:q.goal,done:v>=q.goal,got:st.got.includes(id)}}
+const WQ_ACT={feed:'feed',harvest:'harvest',pvewin:'win',hatch:'hatch',breed:'breed',puzzle:'pz'};
+function wqCount(s,c,t){const k=WQ_ACT[t];if(!k||!c.today)return;const st=wqState(s,c.today);st.c[k]=(st.c[k]||0)+1;s.wq=st}
+
 /* ---------- действия ----------
    apply(s, ctx, act) → {s} или {err}. ctx = {K, streak, uid, today}. s не меняется. */
 function pay(s,cost){
@@ -531,6 +573,25 @@ const ACTS={
     const before=s.pve&&s.pve.best&&s.pve.best[node.id]||0,g=pveGain(node,stars,before),d=c.today||'';
     if(!g.first){if(!s.pvr||s.pvr.d!==d)s.pvr={d,n:0};if(s.pvr.n>=PVE_DAY){g.gold=0;g.food=0;g.cap=true}else s.pvr.n++}
     s.bal.gold+=g.gold;s.bal.food+=g.food;s.bal.gems+=g.gems;if(g.gold||g.gems)xp(s,g.gold/20+g.gems*5);s.got={pve:g}},
+  /* подарок за ДЗ на 95 %+: задание должно быть в списке ДЗ этой ученицы (ctx.inc.hw.list) с яйцом */
+  hwgift(s,c,{id}){const task=id;const h=c.inc&&c.inc.hw&&(c.inc.hw.list||[]).find(x=>x.id===task&&x.egg);if(!h)return 'За это задание подарка нет';
+    s.hwgift=s.hwgift||[];if(s.hwgift.includes(task))return 'Подарок уже получен';
+    const genome=hwGiftGenome(task,c.uid),ph=G.phenotype(genome),home=homeFor(s,ph),nc=nurseryCap(level(s));
+    if(!home&&nursery(s)>=nc)return `Нет дома (нужен: ${habNames(ph)}), и ясли заняты. Освободите место и заберите подарок`;
+    settle(s,c.K,GK(c));const nid='d'+(s.seq++);
+    s.dragons.push(Object.assign({id:nid,name:'Отличник',born:c.today,genome,lvl:1,fed:0,home:home?home.id:null,from:'hw:'+task},home?{}:{nurs:true}));
+    s.hwgift.push(task);s.last=nid;s.got=home?{baby:nid}:{baby:nid,nursery:habNames(ph)};xp(s,40)},
+  /* головоломка дня (puzzles.js): задача строится заново из зерна (ученица + дата) и ответ сверяется с её единственным решением.
+     За каждую из трёх — DRPZ.REWARD золота, не больше одного раза в день, то есть до 300 в день */
+  puzzle(s,c,{kind,ans}){const PZ=root.DRPZ||(typeof require!=='undefined'?require('./puzzles.js'):null);if(!PZ)return 'Головоломки не загрузились';
+    if(!PZ.KINDS.some(k=>k.kind===kind))return 'Нет такой головоломки';const d=c.today||'';s.pz=s.pz&&s.pz.d===d?s.pz:{d,done:[]};
+    if(s.pz.done.includes(kind))return 'Эта головоломка сегодня уже решена';
+    if(!PZ.check(kind,c.uid,d,ans))return 'Пока не сходится. Проверьте правила ещё раз';
+    s.pz.done=s.pz.done.concat(kind);s.bal.gold+=PZ.REWARD;xp(s,20);s.got={pz:PZ.REWARD}},
+  /* награда задания недели */
+  wq(s,c,{id}){if(!WQ[id]||!wqList(s,c.today).includes(id))return 'Такого задания на этой неделе нет';const p=wqProgress(s,c,id);
+    if(p.got)return 'Награда уже получена';if(!p.done)return `Ещё не выполнено: ${p.v} из ${p.goal}`;
+    const st=wqState(s,c.today),r=WQ[id].r;st.got=st.got.concat(id);s.wq=st;s.bal.gold+=r.gold||0;s.bal.gems+=r.gems||0;s.bal.food+=r.food||0;xp(s,30);s.got={wq:r}},
   rename(s,c,{dragon,name}){const d=s.dragons.find(x=>x.id===dragon);if(!d)return 'Нет дракона';const n=String(name||'').trim().slice(0,24);if(!n)return 'Пустое имя';d.name=n}
 };
 function streakMult(st){return 1+Math.min(20,st||0)*0.025}
@@ -552,6 +613,7 @@ function apply(s,ctx,act){
   const fn=ACTS[act&&act.t];if(!fn)return {err:'Неизвестное действие'};
   const n=clone(s);delete n.got;delete n.lvup;delete n.last;
   const err=fn(n,ctx,act);if(err)return {err};
+  wqCount(n,ctx,act.t);
   const L0=level(s),r=normalize(n,ctx.K,null,GK(ctx));
   return {s:r,levelUp:level(r)>L0?level(r):0}}
 
@@ -667,6 +729,6 @@ function nextMajor(L){for(let k=L+1;k<=ISLE_MAX;k++){const u=unlocksAt(k).filter
 const DECO={DRAGON_MAX,ISLE_MAX,repair,unlocksAt,nextMajor,MINOR,NURSERY,nurseryCap,homeFor,nursery,breedPath,HATCH_LV,BREED_LV,breedCost,BREED_NEED,HATCH_NEED,PRED_TOL,lvTable,summary,habNames,TYPES,HAB_ORDER,HAB_LV,FARM_LV,CROPS,RAR_GOLD,SKIP_CARDS,GRID,CHUNK,START_LAND,LAND_COST,MILESTONES,FEEDS,RATION,
   ECON,ladderK,ladderNext,todayBonus,SLOT7,hatchCap,firstHatch,maxOf,buildCost,feedPrice,lvlGold,goldRate,goldNow,landState,adjacent,extent,allChunks,zoneSpot,GIFTS,giftGenome,RESEARCH,MASTERY,mastery,hasE2,
   xpFor,levelOf,maxHabs,maxFarms,maxDragonLv,feedCost,income,startState,hosts,dragonKeys,goldPerCard,rate,settle,chestNow,normalize,
-  canPlace,chunkOf,apply,LVL_CHEST,RINGS,SLOT,SLOT0,snap,slots,freeSlots,arrange,growLand,ISLE2,isle,isleOf,isleState,PVE_DAY,pveGain,OBST,OBST_KIND,obstacles,ready,left,level,count,streakMult,marketGenome,habCap,chestCap};
+  canPlace,chunkOf,apply,hwGiftGenome,WQ,wqList,wqProgress,wqState,weekOf,LVL_CHEST,RINGS,SLOT,SLOT0,snap,slots,freeSlots,arrange,growLand,ISLE2,isle,isleOf,isleState,PVE_DAY,pveGain,OBST,OBST_KIND,obstacles,ready,left,level,count,streakMult,marketGenome,habCap,chestCap};
 if(typeof module!=='undefined'&&module.exports)module.exports=DECO;else root.DECO=DECO;
 })(typeof window!=='undefined'?window:globalThis);

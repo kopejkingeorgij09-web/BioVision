@@ -94,7 +94,7 @@ t('характеристики: сумма вкладов, уровень ра�
 
 t('характеристики следуют признакам: рога и булава дают атаку, тяжёлая Земля крепче Воздуха',()=>{
   const ad=12,with_=prof(mk({H:'H/H',K:'K/K'}),ad),none=prof(mk({H:'h/h',K:'k/k'}),ad);
-  assert.strictEqual(ST.of(with_.ph,1,with_.P).atk-ST.of(none.ph,1,none.P).atk,6);
+  const dA=ST.of(with_.ph,1,with_.P).atk-ST.of(none.ph,1,none.P).atk,rk=ST.roleOf(with_.ph).atk;assert.ok(Math.abs(dA-6*rk)<=1,'рога и булава дают +6 с поправкой роли: '+dA);
   const T=prof(mk({E:'T/T'}),ad),A=prof(mk({E:'A/A'}),ad),sT=ST.of(T.ph,ad,T.P),sA=ST.of(A.ph,ad,A.P);
   assert.ok(sT.hp>sA.hp&&sT.def>sA.def,'Земля крепче');
   assert.ok(sA.spd>sT.spd,'Воздух быстрее');

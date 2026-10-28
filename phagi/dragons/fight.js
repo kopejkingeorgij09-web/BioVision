@@ -24,8 +24,12 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const reduced=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 const f1=v=>String(Math.round(v*100)/100).replace('.',',');
 const EL_IC={F:'🔥',W:'💧',T:'🪨',A:'🌪',P:'🌿',L:'✨',D:'🌑'};
-const FX_IC={burn:'🔥',slow:'💧',brk:'🪨',weak:'🌀',root:'🌿'};
-const FX_TXT={burn:'ожог',slow:'промок',brk:'трещина в броне',weak:'сбит с толку',root:'опутан'};
+const FX_IC={burn:'🔥',slow:'💧',brk:'🪨',weak:'🌀',root:'🌿',firm:'🪢'};
+/* справка о стихиях из той же таблицы, что у движка (battle.js), без своей копии правил */
+function matrixText(){const B=root.DRBATTLE,N=B.EL_NAME,ls=a=>a.map(e=>N[e]).join(' и ');
+  return ['F','W','T','A','P'].map(e=>`${N[e]} сильнее против: ${ls(B.strongVs(e))}, слабее против: ${ls(B.weakVs(e))}`).join('. ')+
+    `. Свет и Тьма к пяти простым нейтральны и сильны друг против друга. Сильная стихия бьёт в ${String(B.K.STRONG).replace('.',',')} раза больнее, слабая во столько же раз слабее. У цели с двумя стихиями множитель средний: сильная и слабая гасят друг друга. Это правило игры, у настоящих животных стихий нет.`}
+const FX_TXT={burn:'ожог',slow:'промок',brk:'трещина в броне',weak:'сбит с толку',root:'опутан',firm:'лоза не держит'};
 const LS=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}};
 
 /* ---------- бойцы из драконов модели ---------- */
@@ -218,7 +222,7 @@ function showPrep(id){
     <p class="drf-small">Звёзды: ${esc(bt.stars.text)} Награда: ${esc(bt.reward.text)}</p>
     <details class="drf-rules"><summary>Как идёт бой</summary><ul>
       <li>Ходят по очереди, первым самый быстрый. У каждого дракона есть Удар, атака своей стихии (у гибрида две) и Защита: до своего следующего хода он получает вдвое меньше урона.</li>
-      <li>Стихии идут по кругу: Огонь сильнее Флоры, Флора сильнее Земли, Земля сильнее Воздуха, Воздух сильнее Воды, Вода сильнее Огня. Свет и Тьма сильны друг против друга. Сильная стихия бьёт в полтора раза больнее, слабая на четверть слабее. Это правило игры, у настоящих животных стихий нет.</li>
+      <li>${esc(matrixText())}</li>
       <li>Пока стихия летит, по кругу у дракона бежит кольцо. Нажмите (или пробел), когда оно сойдётся с меткой: Точный удар даёт +25 % урона.</li>
       <li>Шкала ярости копится от ударов. Когда она полна, один раз за бой можно выпустить Ярость дракона.</li>
       <li>Особенности противников (толстая шкура, вожак, регенерация, закалка, гнев) — открытые правила: всё, что о них знает компьютер, написано здесь.</li></ul></details></div>
@@ -388,6 +392,8 @@ function done(c){const P=F.pend;F.pend=null;F.tgtMode=null;F.ops=null;renderSkil
 
 async function perform(f,c,tok){
   const b=F.b,sk=c.skill,a=dOf(f.id);
+  if(sk.startsWith('swap:')){const ev=b.act(c),x=ev.find(e=>e.type==='swap');sfx('tap');num(f.id,'⇄ '+x.load.map(e=>root.DRBATTLE.EL_NAME[e]).join(' + '),'#E6E6FF');
+    say(`${f.name} меняет настройку стихий: ${x.load.map(e=>root.DRBATTLE.EL_NAME[e]).join(' и ')}`);renderTeams();await wait(0.7,tok);return ev}
   if(sk==='guard'){const ev=b.act(c);a.A.play('happy');sfx('guard');num(f.id,'🛡 защита','#8FD3FF');say(`${f.name} встаёт в защиту`);renderTeams();await wait(0.8,tok);return ev}
   const t=dOf(c.target),s=root.DRBATTLE.skillsOf(f).find(x=>x.id===sk),el=s.el,size=sk==='rage'?1.7:1;
   F.acting=f.id;say(`${f.name}: ${sk==='rage'?'Ярость дракона':s.name} → ${b.get(c.target).name}`);
@@ -410,12 +416,13 @@ function hitShow(ev,f){
     if(e.type==='hit'){const m=e.mult,big=m>1||e.perfect||e.skill==='rage';
       num(e.target,'−'+e.dmg,m>1?'#FF8A3D':m<1?'#B8C2CC':'#FFFFFF',big);
       if(e.perfect)num(e.target,'Точный удар!','#FFD34D');
+      if(e.rush)num(e.target,'Натиск +'+Math.round((root.DRBATTLE.EFFECT.A.rush-1)*100)+' %','#BFE8FF');
       if(m>1)num(e.target,'сильная стихия ×'+f1(m),'#FF8A3D');else if(m<1)num(e.target,'слабая стихия ×'+f1(m),'#B8C2CC');
       if(e.guarded)num(e.target,'🛡 ×0,5','#8FD3FF');
       sfx(e.perfect?'perfect':big?'big':'hit')}
     else if(e.type==='heal')num(e.id,'+'+e.amt,'#6BE38A')
     else if(e.type==='effect')num(e.target,(FX_IC[e.fx]||'')+' '+e.name.toLowerCase(),'#E6E6FF')
-    else if(e.type==='resist')num(e.target,'💎 закалка: без эффекта','#D8E6FF')
+    else if(e.type==='resist')num(e.target,e.why==='firm'?'🪢 лоза не держит':'💎 закалка: без эффекта','#D8E6FF')
     else if(e.type==='enrage'){num(e.id,'💢 гнев: атака +30 %','#FF6A5A');say(`${F.b.get(e.id).name} в гневе: атака +30 % до конца боя`)}
     else if(e.type==='ko'){}});
   renderTeams()}
@@ -486,9 +493,9 @@ function renderSkills(){
     const t=F.$('.drf-team.b .drf-fc.tg');if(t)t.focus({preventScroll:true});return}
   const B=root.DRBATTLE,f=F.pend.f;
   el.innerHTML=F.ops.map((o,i)=>{const s=o.skill,E=s.el&&B.EFFECT[s.el],atk=s.el?root.DRATK.ATTACKS[s.el].name:'';
-    const sub=s.id==='strike'?'обычный урон':s.id==='guard'?'урон по нему ×0,5 до своего хода':s.id==='rage'?`урон ×${f1(B.POWER.rage)}, один раз за бой`:
-      `${atk} · урон ×${f1(B.POWER.element)}${E?', '+(E.k==='heal'?'лечит себя':E.k==='drain'?'вытягивает силы':`${Math.round(E.chance*100)} %: ${E.name.toLowerCase()}`):''}`;
-    const ic=s.id==='strike'?'🐾':s.id==='guard'?'🛡':s.id==='rage'?'💥':EL_IC[s.el];
+    const sub=s.swap?'займёт ход, в настройке две стихии':s.id==='strike'?'обычный урон':s.id==='guard'?'урон по нему ×0,5 до своего хода':s.id==='rage'?`урон ×${f1(B.POWER.rage)}, один раз за бой`:
+      `${atk} · урон ×${f1(B.POWER.element)}${E?', '+(E.k==='heal'?'лечит себя':E.k==='drain'?`вытягивает силы, ${Math.round(E.weak*100)} %: ослабляет`:`${Math.round(E.chance*100)} %: ${E.name.toLowerCase()}`):''}${s.el==='A'?', Натиск по тем, кто ещё не ходил':''}`;
+    const ic=s.swap?'⇄':s.id==='strike'?'🐾':s.id==='guard'?'🛡':s.id==='rage'?'💥':EL_IC[s.el];
     return `<button class="drf-skb${s.id==='rage'?' rage':''}" data-fk="skill" data-sk="${s.id}"${i===0?' data-first':''}><span aria-hidden="true">${ic}</span><b>${esc(s.id==='rage'?'Ярость дракона':s.name)}</b><small>${esc(sub)}</small><kbd>${i+1}</kbd></button>`}).join('');
   const b=el.querySelector('[data-first]');if(b&&!F.el.querySelector('.drf-res'))b.focus({preventScroll:true})}
 

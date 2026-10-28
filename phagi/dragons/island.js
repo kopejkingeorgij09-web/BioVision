@@ -504,8 +504,9 @@ function bg(st,opt){opt=opt||{};const D=root.DECO,n=st&&st.land&&D?D.extent(st).
   [[-.1,.3,.75,1],[1.08,.24,.62,1],[.02,.66,.5,0],[.98,.68,.55,1],[-.42,.52,.95,0],[1.42,.46,.9,1],[.78,.04,.34,0]].forEach(([fx0,fy,s,cr],i)=>o.push(farIsle(x0+W*fx0,y0+H*fy,s*W/1320,i%2?'--isl-far1':'--isl-far2','--isl-far3','fi'+i,cr)));
   if(lava)o.push([[-.15,.3,.9],[1.1,.24,.7],[.98,.62,.55]].map(([a,b,s])=>G(x0+W*a,y0+H*b,s*W/1320,`<path d="M-46 0 Q -40 -12 0 -15 Q 40 -12 46 0 Q 30 14 0 16 Q -30 14 -46 0 Z" fill="#4A3D42"/><path d="M-44 2 Q -20 60 0 78 Q 20 60 44 2 Q 22 16 0 18 Q -22 16 -44 2 Z" fill="#2E2529"/><path d="M-30 -4 Q 0 -12 26 -3" stroke="#FF7A1F" stroke-width="3" fill="none" opacity=".8"/>`)).join(''));
   /* море облаков внизу и облака по бокам */
-  const sea=[];for(let i=0;i<16;i++){const a=hrand('cs'+i);sea.push(cloud(x0-W*.6+i*W*.15,y0+H*(.86+a*.12),1.5+a*1.4,1))}
-  o.push(`<g>${sea.join('')}</g><rect x="${f1(x0-W)}" y="${f1(y0+H*.97)}" width="${f1(W*3)}" height="${f1(H*1.2)}" style="fill:var(--isl-cloud2)"/>`);
+  /* три ряда облаков, ниже — сплошная пелена: на высоком экране (планшет стоя) под островом нет плоской полосы */
+  const sea=[];[[.86,1.5],[1.02,1.9],[1.18,2.3]].forEach(([row,sz],k)=>{for(let i=0;i<16;i++){const a=hrand('cs'+k+':'+i);sea.push(cloud(x0-W*.6+i*W*.15+(k%2)*W*.07,y0+H*(row+a*.1),sz+a*1.4,1))}});
+  o.push(`<g>${sea.join('')}</g><rect x="${f1(x0-W)}" y="${f1(y0+H*1.24)}" width="${f1(W*3)}" height="${f1(H*1.5)}" style="fill:var(--isl-cloud)"/>`);
   o.push(`</svg>`);
   return o.join('')}
 /* облака, которые медленно плывут (отдельный слой, двигается целиком) */

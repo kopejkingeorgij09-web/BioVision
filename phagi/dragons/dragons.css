@@ -730,11 +730,11 @@ button.drg-hud-l:hover .drg-star{filter:brightness(1.1)}button.drg-hud-l:focus-v
 .pzstat{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px;font-size:13px;color:var(--muted);margin:4px 0}.pzerr{color:#C0392B;font-weight:700}
 .pzdone{font-weight:800;color:#2F8C2A;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .pzpad{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:8px 0;padding:6px;border-radius:16px}.pzpad.note{background:color-mix(in srgb,var(--ink) 8%,var(--card))}.pzpad.note .pzn{font-size:16px;color:var(--muted)}
-.pzn{appearance:none;min-width:50px;height:50px;border-radius:14px;border:1.5px solid var(--line);background:var(--card);font:800 21px var(--d,system-ui);cursor:pointer;color:var(--text);touch-action:manipulation;display:grid;place-items:center;padding:0 8px;line-height:1}
+.pzn{appearance:none;min-width:46px;height:50px;border-radius:14px;border:1.5px solid var(--line);background:var(--card);font:800 21px var(--d,system-ui);cursor:pointer;color:var(--text);touch-action:manipulation;display:grid;place-items:center;padding:0 8px;line-height:1}
 .pztools .pznote.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 .pztools{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}.pzkeys{margin:8px 0 0}
 @media(hover:none){.pzkeys{display:none}}
-@media(max-width:420px){.pzn{min-width:46px;height:50px;font-size:20px}.pztab{padding:7px 7px}.pztab b{font-size:12.5px}.pztab span{font-size:11px}}
+@media(max-width:420px){.pzn{min-width:44px;height:50px;font-size:20px}.pztab{padding:7px 7px}.pztab b{font-size:12.5px}.pztab span{font-size:11px}}
 /* на телефоне головоломкам нужен почти весь экран: сетка, кнопки и правила помещаются без тесноты */
 @media(max-width:700px){body.drg-fs #main>.drg-pan.drg-pzp{top:calc(env(safe-area-inset-top,0px) + 54px);max-height:none}}
 .pzn:hover{border-color:var(--ink)}.pzc:focus-visible,.pzn:focus-visible{outline:3px solid #2F80D1;outline-offset:1px}

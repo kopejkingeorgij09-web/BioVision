@@ -57,6 +57,13 @@ function of(ph,lvl,P){
   const sum=s=>src[s].reduce((a,[,v])=>a+v,0);
   return {hp:Math.round(sum('hp')*k),atk:Math.round(sum('atk')*k),def:Math.round(sum('def')*k),spd:sum('spd'),lvlK:k,src,note:NOTE,role:R}}
 
-const DSTATS={of,NOTE,NAMES,lvlK,ROLE,HYB,hybKey,roleOf};
+/* подпись для карточек: боевой ранг ✦ по числу разных стихийных атак (не редкость и не звёзды боя ★), сочетание и роль */
+const ELN={F:'Огонь',W:'Вода',T:'Земля',A:'Воздух',P:'Флора',L:'Свет',D:'Тьма'};
+function badge(ph){
+  const n=ph.breath==='element'?ph.elements.length:0,R=roleOf(ph);
+  return {rank:n,stars:n?'✦'.repeat(n):'',title:n?`Боевой ранг ${'✦'.repeat(n)}: ${n} ${n===1?'тип':'типа'} стихийной атаки`:ph.breath==='smoke'?'Дымный: без стихийных атак, бьёт Ударом':'Дремлющий: стихия не проявляется',
+    name:n>2?n+' стихии: '+ph.elements.map(e=>ELN[e]).join(', '):R.hyb?R.hyb+' ('+ph.elements.map(e=>ELN[e]).join(' + ')+')':n?ELN[ph.elements[0]]:ph.breath==='smoke'?'Дымный':'Дремлющий',
+    role:R.name,hyb:R.hyb,k:R.k}}
+const DSTATS={of,NOTE,NAMES,lvlK,ROLE,HYB,hybKey,roleOf,badge};
 if(typeof module!=='undefined'&&module.exports)module.exports=DSTATS;else root.DSTATS=DSTATS;
 })(typeof window!=='undefined'?window:globalThis);

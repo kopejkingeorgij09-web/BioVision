@@ -10,6 +10,10 @@
 const LOCI={
   E:{name:'Стихия',alleles:['F','W','T','A','P','e','L','D']},
   Q1:{name:'Размах крыльев 1',alleles:['+','-']},
+  /* E2 — вторая стихия, расширение модели с 28.10.2026 (версия генома 2). Нейтральный аллель 0 ничего не даёт,
+     стихийные кодоминантны и добавляются к стихиям E. Так у дракона бывает три или четыре стихии, а в одном
+     диплоидном гене по-прежнему две копии. Сами стихии выдуманы, механизм (несколько генов, кодоминирование, эпистаз) настоящий */
+  E2:{name:'Вторая стихия',alleles:['0','F','W','T','A','P','L','D']},
   S:{name:'Искра',alleles:['S','s']},
   C:{name:'Окрас',alleles:['C','Cb','c']},
   H:{name:'Рога',alleles:['H','h']},
@@ -25,13 +29,23 @@ const LOCI={
 };
 /* r[i] — частота рекомбинации между loci[i] и loci[i+1] */
 const CHROMS={
-  A1:{loci:['E','Q1'],r:[0.5]},
+  A1:{loci:['E','Q1','E2'],r:[0.5,0.5]},
   A2:{loci:['S','C'],r:[0.5]},
   A3:{loci:['H','K','R'],r:[0.18,0.5]},
   A4:{loci:['Wg','Q2','Q3'],r:[0.5,0.5]}
 };
 const Z={loci:['M','N'],r:[0.10]};
 const AUTO=Object.keys(CHROMS);
+/* версия генома: 1 — до E2 (в A1 два гена), 2 — с E2 */
+const GV=2;
+/* старый геном (A1 из двух генов, дракон, яйцо или запись архива) получает E2 = 0/0: фенотип, остальные аллели и фаза те же.
+   Детерминированно и повторно безопасно: уже новый геном возвращается как есть. Исходный объект не меняется */
+function upgrade(g){
+  if(!g||typeof g!=='object'||!Array.isArray(g.A1))return g;
+  if(g.A1.every(h=>Array.isArray(h)&&h.length===3))return g;
+  if(!g.A1.every(h=>Array.isArray(h)&&h.length===2))return g;
+  const n=JSON.parse(JSON.stringify(g));n.A1=n.A1.map(h=>h.concat('0'));n.gv=GV;return n}
+const isOld=g=>!!g&&Array.isArray(g.A1)&&g.A1.length===2&&g.A1.every(h=>Array.isArray(h)&&h.length===2);
 
 const ELEM={F:'Огонь',W:'Вода',T:'Земля',A:'Воздух',P:'Флора',L:'Свет',D:'Тьма'};
 const ELEM_ORDER=['F','W','T','A','P','L','D'];
@@ -44,9 +58,9 @@ const MU=1/400;
 function mutate(locus,a,rnd){
   if(rnd()>=MU)return a;
   const al=LOCI[locus].alleles;
-  if(locus==='E'){
+  if(locus==='E'||locus==='E2'){
     if(rnd()<1/3)return LEGEND[rnd()<0.5?0:1];
-    const pool=al.filter(x=>x!==a&&!LEGEND.includes(x));return pool[Math.floor(rnd()*pool.length)];
+    const pool=al.filter(x=>x!==a&&!LEGEND.includes(x)&&!(locus==='E2'&&x==='e'));return pool[Math.floor(rnd()*pool.length)];
   }
   const pool=al.filter(x=>x!==a);return pool[Math.floor(rnd()*pool.length)];
 }
@@ -87,11 +101,11 @@ function make(spec){
     const h=[[],[]];
     loci.forEach((l,i)=>{const v=spec[l]!=null?String(spec[l]):def[i];const [a,b]=v.split('/');h[0].push(a);h[1].push(b==null?a:b)});
     return h};
-  const DEF={E:'e/e',Q1:'-/-',S:'S/S',C:'C/C',H:'H/H',K:'K/K',R:'R1/R1',Wg:'+/+',Q2:'-/-',Q3:'-/-',M:'m/m',N:'N/N'};
+  const DEF={E:'e/e',E2:'0/0',Q1:'-/-',S:'S/S',C:'C/C',H:'H/H',K:'K/K',R:'R1/R1',Wg:'+/+',Q2:'-/-',Q3:'-/-',M:'m/m',N:'N/N'};
   AUTO.forEach(c=>{g[c]=pairOf(CHROMS[c].loci,CHROMS[c].loci.map(l=>DEF[l]))});
   if(spec.sex==='M'){g.Z=pairOf(Z.loci,Z.loci.map(l=>DEF[l]));g.W=null}
   else{const z=pairOf(Z.loci,Z.loci.map(l=>DEF[l]));g.Z=[z[0],null];g.W=spec.Sp||'sp'}
-  g.mt=spec.G||'g';
+  g.mt=spec.G||'g';g.gv=GV;
   const e=validate(g);if(e.length)throw new Error('bad genotype: '+e.join(','));
   return g;
 }
@@ -136,11 +150,11 @@ const has=(p,a)=>p[0]===a||p[1]===a;
 const pairAt=(g,c,l)=>{const i=CHROMS[c].loci.indexOf(l);return [g[c][0][i],g[c][1][i]]};
 
 function phenotype(g){
-  const E=pairAt(g,'A1','E'),S_=pairAt(g,'A2','S'),C=pairAt(g,'A2','C'),H=pairAt(g,'A3','H'),K=pairAt(g,'A3','K'),R=pairAt(g,'A3','R'),Wg=pairAt(g,'A4','Wg');
+  const E=pairAt(g,'A1','E').concat(CHROMS.A1.loci.includes('E2')&&g.A1[0].length===3?pairAt(g,'A1','E2'):[]),S_=pairAt(g,'A2','S'),C=pairAt(g,'A2','C'),H=pairAt(g,'A3','H'),K=pairAt(g,'A3','K'),R=pairAt(g,'A3','R'),Wg=pairAt(g,'A4','Wg');
   const ph={sex:g.sex};
   /* стихия: аллели F W T A P L D кодоминантны, e рецессивен; ss (нет искры) гасит любую стихию */
   if(!has(S_,'S')){ph.breath='dormant';ph.elements=[]}
-  else{const el=[...new Set(E.filter(a=>a!=='e'))].sort((a,b)=>ELEM_ORDER.indexOf(a)-ELEM_ORDER.indexOf(b));
+  else{const el=[...new Set(E.filter(a=>a!=='e'&&a!=='0'))].sort((a,b)=>ELEM_ORDER.indexOf(a)-ELEM_ORDER.indexOf(b));
     ph.elements=el;ph.breath=el.length?'element':'smoke'}
   ph.color=has(C,'C')?'dark':has(C,'Cb')?'bronze':'pale';
   ph.horns=has(H,'H');
@@ -156,7 +170,9 @@ function phenotype(g){
   ph.glow=g.mt==='G';
   return ph}
 
-/* Вид для Книги драконов: по стихиям (или дым/дремлющий). */
+/* боевой ранг: сколько разных стихийных атак доступно (0 — дымный или дремлющий). Не редкость и не частота генотипа */
+function combatRank(ph){return ph.breath==='element'?ph.elements.length:0}
+/* вид: по стихиям (или дым/дремлющий). */
 function speciesKey(ph){return ph.breath==='dormant'?'dormant':ph.breath==='smoke'?'smoke':ph.elements.join('')}
 
 /* Редкость следует из того, насколько трудно вывести фенотип */
@@ -164,7 +180,7 @@ const RARITY=['обычный','редкий','сверхредкий','эпич
 function rarity(ph){
   if(ph.elements.some(a=>LEGEND.includes(a)))return 4;
   let p=0;
-  if(ph.elements.length===2)p+=2;
+  if(ph.elements.length>=2)p+=2;      /* три-четыре стихии экономику не умножают: редкость как у двух */
   if(ph.color==='pale')p+=1;else if(ph.color==='bronze')p+=0.5;
   if(ph.night)p+=1;
   if(ph.glow)p+=1;
@@ -191,7 +207,12 @@ function hapDist(pair,rs){
 /* распределение потомков по частям генома: [{part:{A1:[[..],[..]],...,sex,Z,W,mt}, p}] */
 function offspringParts(mother,father,chroms){
   let acc=[{g:{},p:1}];
-  const mul=list=>{const n=[];acc.forEach(a=>list.forEach(b=>n.push({g:Object.assign({},a.g,b.g),p:a.p*b.p})));acc=n};
+  /* перед перемножением варианты одной хромосомы сливаются, если дают одинаковый фенотип (и одинаковую жизнеспособность)
+     при остальных хромосомах по умолчанию: признаки модели складываются из хромосом независимо, поэтому так ничего не
+     теряется, а перебор остаётся маленьким и с геном E2 (без слияния признак «редкость» перебирал бы десятки миллионов) */
+  const squash=list=>{const m=new Map();list.forEach(b=>{const full=completeOf(b.g),k=JSON.stringify(phenotype(full))+viable(full);
+    const x=m.get(k);if(x)x.p+=b.p;else m.set(k,{g:b.g,p:b.p})});return [...m.values()]};
+  const mul=list=>{list=squash(list);const n=[];acc.forEach(a=>list.forEach(b=>n.push({g:Object.assign({},a.g,b.g),p:a.p*b.p})));acc=n};
   chroms.forEach(c=>{
     if(AUTO.includes(c)){const m=hapDist(mother[c],CHROMS[c].r),f=hapDist(father[c],CHROMS[c].r),l=[];
       m.forEach(x=>f.forEach(y=>l.push({g:{[c]:[x.h,y.h]},p:x.p*y.p})));mul(l)}
@@ -213,8 +234,9 @@ const TRAIT_CHR={
 };
 /* Заполняем недостающие части нейтральным геномом, чтобы звать phenotype() */
 const FILL=make({sex:'M'});
+/* без копирования: phenotype и viable геном не меняют, поэтому части можно брать по ссылке (так в разы быстрее) */
 function completeOf(part){
-  const g=clone(FILL);Object.assign(g,clone(part));
+  const g=Object.assign({},FILL,part);g.Z=part.Z||FILL.Z;
   if(!part.sex){g.sex='M'}
   if(g.sex==='F'&&!part.Z){g.Z=[g.Z[0],null];g.W='sp'}
   if(g.sex==='M'&&g.Z[1]==null){g.Z=[g.Z[0],g.Z[0]]}
@@ -233,7 +255,12 @@ function traitValue(trait,ph){
   }}
 
 /* dist(mother, father, trait) → {значение: вероятность}, с учётом гибели Wg/Wg (условно на выживших) */
+/* одно и то же скрещивание при каждом движении формы прогноза не пересчитывается: последние результаты в памяти */
+const DIST=new Map();
 function dist(mother,father,trait){
+  const key=trait+'|'+JSON.stringify(mother)+'|'+JSON.stringify(father);if(DIST.has(key))return Object.assign({},DIST.get(key));
+  const r=distRaw(mother,father,trait);DIST.set(key,r);if(DIST.size>60)DIST.delete(DIST.keys().next().value);return Object.assign({},r)}
+function distRaw(mother,father,trait){
   const chr=(TRAIT_CHR[trait]||[]).slice();
   if(!chr.length)throw new Error('unknown trait '+trait);
   const parts=offspringParts(mother,father,chr),out={};let alive=0;
@@ -253,11 +280,11 @@ function genoText(g){
   const parts=[];
   AUTO.forEach(c=>{const L=CHROMS[c].loci;
     if(c==='A3')parts.push(at(g.A3[0][0])+at(g.A3[0][1])+'/'+at(g.A3[1][0])+at(g.A3[1][1])+' '+at(g.A3[0][2])+'/'+at(g.A3[1][2]));
-    else L.forEach((l,i)=>parts.push(l==='Q1'||l==='Q2'||l==='Q3'?'':at(g[c][0][i])+'/'+at(g[c][1][i])))});
+    else L.forEach((l,i)=>parts.push(l==='Q1'||l==='Q2'||l==='Q3'||l==='E2'&&g[c][0][i]==='0'&&g[c][1][i]==='0'?'':(l==='E2'?'E2 ':'')+at(g[c][0][i])+'/'+at(g[c][1][i])))});
   const q=[['A1',1],['A4',1],['A4',2]].map(([c,i])=>g[c][0][i]+g[c][1][i]).join(' ');
   const z=g.sex==='M'?'Z^'+g.Z[0].join('')+' Z^'+g.Z[1].join(''):'Z^'+g.Z[0].join('')+' W^'+g.W;
   return parts.filter(Boolean).join(' ')+' · размах '+q+' · '+z+' · мт '+g.mt}
 
-const DRG={LOCI,CHROMS,Z,ELEM,ELEM_ORDER,LEGEND,RARITY,MU,rng,hashStr,make,validate,clone,gamete,fuse,breed,viable,phenotype,speciesKey,rarity,hapDist,dist,lethalShare,genoText};
+const DRG={GV,upgrade,isOld,combatRank,LOCI,CHROMS,Z,ELEM,ELEM_ORDER,LEGEND,RARITY,MU,rng,hashStr,make,validate,clone,gamete,fuse,breed,viable,phenotype,speciesKey,rarity,hapDist,dist,lethalShare,genoText};
 if(typeof module!=='undefined'&&module.exports)module.exports=DRG;else root.DRG=DRG;
 })(typeof window!=='undefined'?window:globalThis);

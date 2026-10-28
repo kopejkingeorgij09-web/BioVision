@@ -181,6 +181,9 @@ const SRC={
   breath: {has:['S'],shape:['E'],color:['E'],why:{has:{S:'дремлющий не дышит'},shape:{E:'у каждой стихии своё дыхание, без стихии дым'}}},
   collar: {has:ARC,shape:['E'],color:['E','C'],why:{has:{E:'воротник бывает у Воды, Воздуха и Флоры',S:'у дремлющего воротника нет'}}}
 };
+/* ген E2 (вторая стихия) добавляет стихии к E, поэтому влияет на те же части и так же */
+Object.values(SRC).forEach(x=>['has','shape','color'].forEach(k=>{if(x[k].includes('E')&&!x[k].includes('E2'))x[k]=x[k].concat('E2');
+  if(x.why&&x.why[k]&&x.why[k].E)x.why[k].E2=x.why[k].E+' (вместе со стихиями E2)'}));
 /* все локусы части без повторов: для подсветки генов при наведении */
 const genesOf=part=>{const s=SRC[part];return s?[...new Set(s.has.concat(s.shape,s.color))]:[]};
 

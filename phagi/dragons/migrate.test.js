@@ -11,10 +11,15 @@ const inc={K:400,food:300,gems:12,best:5};
 const fixtures=fs.readdirSync(path.join(__dirname,'dev')).filter(f=>/^isle-.*\.json$/.test(f)).map(f=>[f,require('./dev/'+f)]);
 const fresh=()=>E.normalize(E.startState([{id:'d1',name:'Ж',born:'2026-10-01',genome:G.make({sex:'F',E:'F/e'})},{id:'d2',name:'П',born:'2026-10-01',genome:G.make({sex:'M',E:'W/e'})}]),0,null);
 
-t('нынешние сохранения из всех сценариев dev/ проходят проверку без единой правки',()=>{
+t('сохранения из всех сценариев dev/ (геном версии 1): единственная правка — ген E2 = 0/0, остальное как было',()=>{
   assert.ok(fixtures.length>=5,'сценариев '+fixtures.length);
-  fixtures.forEach(([f,d])=>{const r=E.repair(d,inc);assert.deepStrictEqual(r.bad,[],f);assert.deepStrictEqual(r.fix,[],f);
-    const keep=k=>JSON.stringify(d[k]);['bal','bld','dragons','land','credited'].forEach(k=>assert.strictEqual(JSON.stringify(r.s[k]),keep(k),f+': '+k))})});
+  fixtures.forEach(([f,d])=>{const r=E.repair(d,inc);assert.deepStrictEqual(r.bad,[],f);
+    assert.ok(r.fix.every(x=>/^геномы: добавлен ген E2/.test(x)),f+': '+r.fix.join('; '));
+    const keep=k=>JSON.stringify(d[k]);['bal','land','credited'].forEach(k=>assert.strictEqual(JSON.stringify(r.s[k]),keep(k),f+': '+k));
+    const strip=g=>{const x=JSON.parse(JSON.stringify(g));if(x.A1[0].length===3)x.A1=x.A1.map(h=>h.slice(0,2));delete x.gv;return x};
+    r.s.dragons.forEach((x,i)=>{assert.deepStrictEqual(strip(x.genome),strip(d.dragons[i].genome),f+': '+x.id);
+      assert.deepStrictEqual(G.phenotype(x.genome),G.phenotype(G.upgrade(d.dragons[i].genome)));assert.deepStrictEqual(G.validate(x.genome),[])});
+    const again=E.repair(r.s,inc);assert.deepStrictEqual(again.fix,[],f+': повторный проход ничего не правит')})});
 
 t('свежий остров: repair ничего не меняет, normalize после него даёт то же, что без него',()=>{
   const s=fresh(),r=E.repair(s,inc);assert.deepStrictEqual(r.fix,[]);assert.deepStrictEqual(r.bad,[]);
@@ -59,8 +64,19 @@ t('поход в тех же документах: старые e1…e6 и ны�
   assert.deepStrictEqual(C.progress({v:2,pve:'битый'}).best,{})});
 
 t('геномы и яйца из сценариев: валидны, яйцо в инкубаторе и пара в гнездовье проходят проверку',()=>{
-  fixtures.forEach(([f,d])=>{d.dragons.forEach(x=>assert.deepStrictEqual(G.validate(x.genome),[],f+': '+x.id));
-    d.bld.forEach(b=>{(b.slots||[]).forEach(e=>{if(e)assert.deepStrictEqual(G.validate(e.genome||e.egg),[],f+': яйцо '+b.id)})})})});
+  fixtures.forEach(([f,d])=>{d.dragons.forEach(x=>assert.deepStrictEqual(G.validate(G.upgrade(x.genome)),[],f+': '+x.id));
+    d.bld.forEach(b=>{(b.slots||[]).forEach(e=>{if(e)assert.deepStrictEqual(G.validate(G.upgrade(e.genome||e.egg)),[],f+': яйцо '+b.id)})})})});
+
+t('E2: старые яйца и пары после миграции вылупляются тем же фенотипом, зерно и исход не меняются',()=>{
+  const d=clone(fixtures.find(([f])=>f==='isle-nurs.json')[1]);const h=d.bld.find(b=>b.type==='hatch');
+  const before=h.slots.filter(Boolean).map(e=>G.phenotype(G.upgrade(e.genome)));
+  const r=E.repair(d,inc);const after=r.s.bld.find(b=>b.type==='hatch').slots.filter(Boolean);
+  assert.deepStrictEqual(after.map(e=>G.phenotype(e.genome)),before);after.forEach(e=>{assert.strictEqual(e.genome.A1[0][2],'0');assert.strictEqual(e.genome.A1[1][2],'0')});
+  assert.deepStrictEqual(after.map(e=>[e.at,e.need,e.viable,e.n]),h.slots.filter(Boolean).map(e=>[e.at,e.need,e.viable,e.n]),'таймеры и номер яйца те же');
+  /* старый геном без E2 у отпущенного в архиве тоже получает 0/0 */
+  const g=clone(fixtures[0][1]);g.gone=[{id:'d99',name:'Старый',genome:clone(g.dragons[0].genome)}];const rg=E.repair(g,inc);
+  assert.strictEqual(rg.s.gone[0].genome.A1[0].length,3)});
+
 
 
 t('здание с недопустимым уровнем (дом 99, ферма 0.5): сохранение блокируется с объяснением, а не падает дальше',()=>{

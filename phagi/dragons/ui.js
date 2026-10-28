@@ -237,7 +237,7 @@ function dragonCard(st,d,own,L){
   const ph=phOf(d),rr=G.rarity(ph),cost=E.feedCost(d.lvl),cap=E.maxDragonLv(L),home=st.bld.find(b=>b.id===d.home);
   const homes=own?st.bld.filter(b=>b.id!==d.home&&!b.build&&E.hosts(b.type,ph)&&st.dragons.filter(x=>x.home===b.id).length<E.habCap(b)):[];
   return `<article class="drg-card ${RCLS[rr]}"><button class="drg-pic" data-act="drginsp" data-dragon="${d.id}" aria-label="Осмотреть: ${esc(d.name)}" title="Осмотреть крупно">${W.svg(ph,{stage:W.stageOf(d.lvl),key:'c'+d.id,size:170,label:esc(d.name)})}</button>
-  <div class="drg-info"><div class="drg-nm"><b>${esc(d.name)}</b><span class="drg-sex" title="${d.genome.sex==='F'?'самка ZW':'самец ZZ'}">${SEX[d.genome.sex]}</span><span class="drg-rar">${G.RARITY[rr]}</span></div>
+  <div class="drg-info"><div class="drg-nm"><b>${esc(d.name)}</b><span class="drg-sex" title="${d.genome.sex==='F'?'самка ZW':'самец ZZ'}">${SEX[d.genome.sex]}</span><span class="drg-rar" title="Редкость: как трудно вывести такой фенотип">${G.RARITY[rr]}</span>${rankHTML(ph)}</div>
   <div class="drg-dl"><span>${d.lvl}-й уровень, ${W.STAGE_NAME[W.stageOf(d.lvl)]}</span><span class="drg-pips" title="Кормлений до следующего уровня">${Array.from({length:E.FEEDS},(_,i)=>`<i${i<(d.fed||0)?' class="on"':''}></i>`).join('')}</span><span class="muted">+${fmt(E.goldPerCard(d))} 🪙 за карточку</span></div>
   <ul>${W.describe(ph).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
   <p class="muted small" style="margin:4px 0 0">${home?'Живёт: '+E.TYPES[home.type].name:d.nurs?`В яслях Инкубатора, ждёт дом: ${E.habNames(ph)}`:'Без дома'}${d.parents?` · ${d.gen}-е поколение, родители ${d.parents.map(id=>esc(dname(st,id))).join(' × ')}`:d.from==='market'?' · с рынка':''}</p>
@@ -245,20 +245,26 @@ function dragonCard(st,d,own,L){
   ${own?`<div class="drg-da">${d.lvl<cap?`<button class="btn sm" data-act="drgdo" data-t="feed" data-dragon="${d.id}"${st.bal.food<cost?' disabled':''}>Покормить: ${cost} 🌾</button>${st.bal.food<cost?`<span class="drg-why">Корма ${fmt(st.bal.food)} из ${cost}. Корм растёт на ферме и приходит паёк за день с карточками.</span>`:''}`:`<span class="muted small">${cap<20?`Следующий уровень откроется, когда остров дорастёт до ${L+1}-го уровня`:'Дракон вырос до наибольшего уровня'}</span>`}
   ${homes.map(b=>`<button class="btn ghost sm" data-act="drgdo" data-t="place" data-dragon="${d.id}" data-home="${b.id}">Переселить: ${E.TYPES[b.type].name}</button>`).join('')}
   <button class="btn ghost sm" data-act="drgrename" data-dragon="${d.id}">Имя</button><button class="btn ghost sm" data-act="drgrelease" data-dragon="${d.id}">Отпустить</button></div>`:''}</div></article>`}
+/* боевой ранг ✦ и сочетание стихий: ранг считает разные стихийные атаки, это не редкость и не звёзды боя ★ */
+function rankHTML(ph){const B=window.DSTATS&&DSTATS.badge(ph);if(!B)return '';
+  return `<span class="drg-rank${B.rank?'':' none'}" title="${esc(B.title)}">${B.rank?`<b aria-hidden="true">${B.stars}</b>`:''}<span>${esc(B.name)}</span><span class="sr"> ${esc(B.title)}</span></span>`}
 function dname(st,id){const d=st.dragons.find(x=>x.id===id)||(st.gone||[]).find(x=>x.id===id);return d?d.name:'?'}
 
 /* ---------- скрещивание ---------- */
 const ELW={F:'огонь',W:'вода',T:'земля',A:'воздух',P:'флора',L:'свет',D:'тьма'};
 const TRAITS={
   elements:'Стихия',color:'Окрас',hornsMace:'Рога и булава',crest:'Гребень',shortWings:'Короткие крылья',span:'Размах крыльев',sex:'Пол',metal:'Блеск чешуи',night:'Ночное зрение',glow:'Свечение глаз',spurs:'Шпоры'};
-const eAlleles=d=>{const i=G.CHROMS.A1.loci.indexOf('E'),g=d&&d.genome;return g&&g.A1?[g.A1[0][i],g.A1[1][i]]:phOf(d).elements};
+/* аллели стихий родителя: E и E2 (у старого генома E2 ещё нет) */
+const eAlleles=d=>{const L=G.CHROMS.A1.loci,g=d&&d.genome;if(!g||!g.A1)return phOf(d).elements;
+  return ['E','E2'].flatMap(l=>{const i=L.indexOf(l);return i>=0&&g.A1[0].length>i?[g.A1[0][i],g.A1[1][i]]:[]}).filter(a=>a!=='e'&&a!=='0')};
+const subsets=(a,k)=>k===0?[[]]:a.flatMap((x,i)=>subsets(a.slice(i+1),k-1).map(r=>[x,...r]));
 function classesOf(trait,m,f){
   const yes=[['true','есть'],['false','нет']];
   switch(trait){
     /* варианты стихии берутся из аллелей обоих родителей (паспорт их и так показывает), а не из проявленных стихий:
        самка F/F с s/s дремлет, но передаёт F, и пара с W/W даёт F+W. Невозможные сочетания тоже в списке, ответ он не выдаёт */
     case 'elements':{const el=[...new Set([m,f].flatMap(d=>eAlleles(d)).filter(a=>a!=='e'))].sort((a,b)=>G.ELEM_ORDER.indexOf(a)-G.ELEM_ORDER.indexOf(b)),out=[];
-      el.forEach(a=>out.push([a,ELW[a]]));for(let i=0;i<el.length;i++)for(let j=i+1;j<el.length;j++)out.push([el[i]+'+'+el[j],ELW[el[i]]+' и '+ELW[el[j]]]);
+      for(let k=1;k<=Math.min(4,el.length);k++)subsets(el,k).forEach(c=>out.push([c.join('+'),c.map(a=>ELW[a]).join(k>2?', ':' и ')]));
       return out.concat([['smoke','дымный, без стихии'],['dormant','дремлющий']])}
     case 'color':return [['dark','тёмный'],['bronze','бронзовый'],['pale','бледный']];
     case 'hornsMace':return [['HK','рога и булава'],['Hk','рога без булавы'],['hK','булава без рогов'],['hk','ни рогов, ни булавы']];

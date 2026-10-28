@@ -40,7 +40,14 @@ function specOf(id,name,genome,lvl,side){
     c={ph,M,els:ph.breath==='element'?ph.elements.slice():[],s,baby:!!P.baby};if(specCache.size>80)specCache.clear();specCache.set(key,c)}
   return {id,name,lvl,els:c.els,hp:c.s.hp,atk:c.s.atk,def:c.s.def,spd:c.s.spd,ref:{ph:c.ph,M:c.M,genome,side}}}
 const foeSpecs=bt=>bt.foes().map(f=>Object.assign(specOf('x:'+f.id,f.name,f.genome,f.lvl,'B'),{traits:(f.traits||[]).slice()}));
-const myDragons=()=>(F&&F.api.dragons()||[]).map(d=>specOf(d.id,d.name,d.genome,d.lvl,'A'));
+/* у дракона с тремя-четырьмя стихиями в бой идёт настройка из двух (выбирается в подготовке, помнится в браузере) */
+const loadKey=id=>'drgLoad:'+id;
+function loadOf(d){if(d.els.length<=2)return d.els.slice();let v=null;try{v=JSON.parse(LS(loadKey(d.id))||'null')}catch(e){}
+  return Array.isArray(v)&&v.length===2&&v.every(e=>d.els.includes(e))&&v[0]!==v[1]?v:d.els.slice(0,2)}
+const myDragons=()=>(F&&F.api.dragons()||[]).map(d=>{const x=specOf(d.id,d.name,d.genome,d.lvl,'A');x.load=loadOf(x);return x});
+/* боевой ранг ✦ и сочетание: подпись в карточке подготовки */
+function rankLine(d){const ph=d.ref&&d.ref.ph,B=ph&&root.DSTATS.badge(ph);if(!B)return '';
+  return `<span class="drf-rk" title="${esc(B.title)}">${B.rank?`<b aria-hidden="true">${B.stars}</b> `:''}${esc(B.hyb||B.role)}</span>`}
 const elsText=els=>els.length?els.map(e=>EL_IC[e]+' '+root.DRBATTLE.EL_NAME[e]).join(' и '):'без стихии';
 /* лучший множитель стихий a против b и обратно: подсказка в подготовке и при выборе цели */
 function edge(a,b){const B=root.DRBATTLE;
@@ -208,8 +215,11 @@ function showPrep(id){
     return (st.length?`<span class="hup">сильнее против: ${esc(st.join(', '))}</span>`:'')+(wk.length?`<span class="hdn">уязвим для: ${esc(wk.join(', '))}</span>`:'')+(!d.els.length?'<span>бьёт Ударом, стихии нет</span>':'')};
   const card=d=>{const i=F.pick.indexOf(d.id);
     return `<button class="drf-pk${i>=0?' on':''}" data-fk="pick" data-id="${esc(d.id)}" aria-pressed="${i>=0}">${i>=0?`<span class="drf-ix" aria-hidden="true">${i+1}</span>`:''}${picHTML(d,104,78)}
-      <b>${esc(d.name)}</b><small>${d.lvl}-й ур. · ${elsText(d.els)}</small><span class="drf-sts"><span title="Здоровье">❤ ${d.hp}</span><span title="Атака">⚔ ${d.atk}</span><span title="Защита">🛡 ${d.def}</span><span title="Скорость">💨 ${d.spd}</span></span><span class="drf-hn">${hint(d)}</span></button>`};
+      <b>${esc(d.name)}</b><small>${d.lvl}-й ур. · ${elsText(d.els)}</small>${rankLine(d)}<span class="drf-sts"><span title="Здоровье">❤ ${d.hp}</span><span title="Атака">⚔ ${d.atk}</span><span title="Защита">🛡 ${d.def}</span><span title="Скорость">💨 ${d.spd}</span></span><span class="drf-hn">${hint(d)}</span></button>`};
   const n=F.pick.length,lv=F.pick.map(x=>mine.find(d=>d.id===x).lvl),tr=[...new Set(foes.flatMap(f=>f.traits))];
+  /* настройка стихий для выбранных драконов с тремя-четырьмя стихиями: в бою атак две, смена настройки занимает ход */
+  const multi=F.pick.map(x=>mine.find(d=>d.id===x)).filter(d=>d&&d.els.length>2);
+  const loadH=multi.length?`<h3>Настройка стихий <small>в бою у дракона две стихийные атаки, сменить настройку можно за ход</small></h3>${multi.map(d=>`<div class="drf-load"><b>${esc(d.name)}</b>${d.els.map(e=>`<button class="drf-le${d.load.includes(e)?' on':''}" data-fk="load" data-id="${esc(d.id)}" data-e="${e}" aria-pressed="${d.load.includes(e)}">${EL_IC[e]} ${esc(root.DRBATTLE.EL_NAME[e])}</button>`).join('')}</div>`).join('')}`:'';
   const word=k=>k===1?'дракона':'драконов';
   setScreen('prep',`<header class="drf-top"><button class="drf-x" data-fk="map">← К карте</button><h2>${esc(bt.name)}</h2><span class="drf-tot">${AI_RU[bt.ai]}</span></header>
     <div class="drf-scroll"><p class="drf-intro">${esc(bt.story)}</p>
@@ -218,7 +228,7 @@ function showPrep(id){
     <h3>Противники</h3><div class="drf-foes">${foes.map(foe).join('')}</div>
     ${tr.length?`<ul class="drf-trl">${tr.map(t=>`<li><b>${TRAIT_IC(t)} ${esc(root.DRBATTLE.TRAITS[t].name)}.</b> ${esc(root.DRBATTLE.TRAITS[t].text)}</li>`).join('')}</ul>`:''}
     <h3>Ваша команда <small>${max===3?'выберите до трёх драконов, первый встанет впереди':max===2?'в этот бой идут только двое':'в этот бой идёт один дракон'}</small></h3>
-    ${mine.length?`<div class="drf-grid">${mine.map(card).join('')}</div>`:'<p class="drf-intro">На острове пока нет драконов.</p>'}
+    ${mine.length?`<div class="drf-grid">${mine.map(card).join('')}</div>`:'<p class="drf-intro">На острове пока нет драконов.</p>'}${loadH}
     <p class="drf-small">Звёзды: ${esc(bt.stars.text)} Награда: ${esc(bt.reward.text)}</p>
     <details class="drf-rules"><summary>Как идёт бой</summary><ul>
       <li>Ходят по очереди, первым самый быстрый. У каждого дракона есть Удар, атака своей стихии (у гибрида две) и Защита: до своего следующего хода он получает вдвое меньше урона.</li>
@@ -515,6 +525,9 @@ async function onClick(e){
   else if(k==='pick'){const id=b.dataset.id,i=F.pick.indexOf(id),max=F.pickMax||3;if(i>=0)F.pick.splice(i,1);else if(F.pick.length<max)F.pick.push(id);else{F.pick[max-1]=id}
     LS(pickKey(max),JSON.stringify(F.pick));const y=(F.$('.drf-scroll')||{}).scrollTop;showPrep(F.bid);const sc=F.$('.drf-scroll');if(sc)sc.scrollTop=y;
     const nb=[...F.el.querySelectorAll('[data-fk=pick]')].find(x=>x.dataset.id===id);if(nb)nb.focus({preventScroll:true})}
+  else if(k==='load'){const d=myDragons().find(x=>x.id===b.dataset.id),e=b.dataset.e;if(!d)return;let l=d.load.slice();
+    if(l.includes(e)){if(l.length>1)return}else{l=[l[1],e]}LS(loadKey(d.id),JSON.stringify(l));const y=(F.$('.drf-scroll')||{}).scrollTop;showPrep(F.bid);const sc=F.$('.drf-scroll');if(sc)sc.scrollTop=y;
+    const nb=[...F.el.querySelectorAll('[data-fk=load]')].find(x=>x.dataset.id===d.id&&x.dataset.e===e);if(nb)nb.focus({preventScroll:true})}
   else if(k==='start')startFight();
   else if(k==='again'){F.tok++;stopFight(F);startFight()}
   else if(k==='next'){F.tok++;stopFight(F);const nx=root.DRCAMP.byId(b.dataset.id),same=nx.region===F.reg;F.sel=nx.id;F.reg=nx.region;

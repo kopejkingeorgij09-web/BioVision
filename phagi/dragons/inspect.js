@@ -17,7 +17,7 @@ const PART={head:'Голова',eyes:'Глаза',horns:'Рога',collar:'Во�
   metal:'Блеск чешуи',wings:'Крылья',legs:'Лапы',spurs:'Шпоры',tailEnd:'Кончик хвоста',mace:'Булава',breath:'Дыхание',aura:'Сияние'};
 const PART_ORDER=Object.keys(PART);
 const ELN={F:'Огонь',W:'Вода',T:'Земля',A:'Воздух',P:'Флора',L:'Свет',D:'Тьма'};
-const ELW={F:'огонь',W:'вода',T:'земля',A:'воздух',P:'флора',L:'свет',D:'тьма',e:'без стихии'};
+const ELW={F:'огонь',W:'вода',T:'земля',A:'воздух',P:'флора',L:'свет',D:'тьма',e:'без стихии','0':'нейтральный (ничего не добавляет)'};
 const AL={Cb:'cᵇ',R1:'R¹',R2:'R²',Wg:'Wgˢ','-':'−'};
 const al=a=>AL[a]||a;
 const num=v=>String(Math.round(v*10)/10).replace('.',',');
@@ -45,6 +45,7 @@ function allelesText(g,l){
 const SPAN=ph=>`размах ${num(ph.spanM)} м, «+» ${ph.span} из 6`;
 const SHOW={
   E:ph=>ph.breath==='dormant'?'не проявляется: ss гасит стихию':ph.elements.length?ph.elements.map(e=>ELN[e]).join(' и '):'стихии нет, дымный',
+  E2:ph=>ph.breath==='dormant'?'не проявляется: ss гасит стихию':ph.elements.length?'стихии вместе с E: '+ph.elements.map(e=>ELN[e]).join(', '):'ничего не добавляет',
   S:ph=>ph.breath==='dormant'?'искры нет, дремлющий':'искра есть',
   C:ph=>({dark:'тёмный',bronze:'бронзовый',pale:'бледный'})[ph.color],
   H:ph=>ph.horns?'рога есть':'рогов нет',K:ph=>ph.mace?'булава есть':'булавы нет',
@@ -61,6 +62,7 @@ const SHOW={
 const TAG={nat:'Как в природе',mod:'Условность модели',art:'Только рисунок'};
 const RULE={
   E:'Аллели стихий F, W, T, A, P, L, D кодоминантны: у F/W видны обе стихии. Аллель e рецессивен, у e/e стихии нет.',
+  E2:'Второй ген стихии на той же аутосоме, расширение модели. Аллель 0 нейтральный, стихийные аллели кодоминантны и добавляются к стихиям E: так бывает три или четыре стихии. s/s гасит и их.',
   S:'S доминантен. У s/s нет искры, и стихия не проявляется при любых аллелях E: это эпистаз.',
   C:'Три аллеля, ряд доминирования C > cᵇ > c: тёмный, бронзовый, бледный.',
   H:'H доминантен: с одной копией рога уже есть.',K:'K доминантен: с одной копией на хвосте булава.',
@@ -78,6 +80,9 @@ const BRIEF={
     if(!ph.elements.length)return 'Обе копии e: стихии нет, дракон дымный.';
     if(ph.elements.length===2)return `${a.map(al).join(' и ')} кодоминантны: видны обе стихии.`;
     return a[0]===a[1]?`Обе копии ${a[0]}: стихия ${ELN[a[0]].toLowerCase()}.`:`${a.find(x=>x!=='e')} проявляется, e рецессивен.`},
+  E2:(g,ph)=>{const a=allelesOf(g,'E2').al.filter(x=>x!=='0');if(!a.length)return 'Обе копии 0: вторых стихий нет, всё решает E.';
+    if(ph.breath==='dormant')return `Аллели ${a.map(al).join('/')} есть, но s/s гасит стихию.`;
+    return `${[...new Set(a)].map(x=>ELN[x]).join(' и ')} из E2 добавляется к стихиям E: всего ${ph.elements.length}.`},
   S:(g,ph)=>ph.breath==='dormant'?'Обе копии s: искры нет, поэтому стихия не проявляется.':'Есть хотя бы один S: искра есть, стихия может проявиться.',
   C:(g,ph)=>{const a=allelesOf(g,'C');return ph.color==='dark'?'Есть C, он доминирует над остальными: окрас тёмный.':ph.color==='bronze'?`${a.al.map(al).join('/')}: cᵇ доминирует над c, окрас бронзовый.`:'Обе копии c: окрас бледный.'},
   H:(g,ph)=>ph.horns?'Есть хотя бы один H: рога есть.':'Обе копии h: рогов нет.',
@@ -93,6 +98,7 @@ const BRIEF={
 /* пример у настоящих организмов к каждому гену: только хрестоматийные случаи, источник в SOURCES */
 const EX={
   E:{t:'Кодоминирование: у человека с группой крови AB проявляются оба аллеля, A и B.',src:['grif']},
+  E2:{t:'Аллель — один из вариантов гена; у признака, который задают несколько генов (полигенный признак), варианты разных генов складываются. Модель берёт этот механизм, а сами стихии выдуманы.',src:['nhgriAl','nhgriPoly']},
   S:{t:'Рецессивный эпистаз: у мышей cc (альбиносы) белые при любых аллелях гена агути, в потомстве дигибридного скрещивания 9 : 3 : 4.',src:['grif']},
   C:{t:'Серия множественных аллелей окраски у кроликов: дикий тип > шиншилла > гималайский > альбинос.',src:['grif','inge']},
   H:{t:'Полное доминирование: у гороха Менделя жёлтая окраска семян доминирует над зелёной, во втором поколении 3 : 1.',src:['grif','inge']},
@@ -130,6 +136,8 @@ const FACTS=[
    t:'Гены одной хромосомы наследуются вместе, пока их не разделит кроссинговер, и чем дальше гены друг от друга, тем чаще это случается. Частота рекомбинации r — это доля рекомбинантных гамет, то есть гамет с новым сочетанием аллелей. Она служит расстоянием на генетической карте: так Стёртевант в 1913 году построил первую карту хромосомы дрозофилы. 50 % рекомбинантных гамет не значит, что перекрёст случается ровно в половине мейозов: между далёкими генами перекрёстов бывает несколько, и чётное их число возвращает прежнее сочетание.'},
   {tag:'mod',h:'Расстояния на карте',l:['H','K','M','N'],src:[],
    t:'Между H и K 18 % рекомбинантных гамет, между M и N 10 %: эти числа выбраны для игры. 50 % означает независимое наследование, как у генов на разных хромосомах.'},
+  {tag:'mod',h:'Ген E2 и три-четыре стихии',l:['E2','E'],src:[],
+   t:'E2 добавлен в модель 28 октября 2026 года, чтобы стихий могло быть больше двух: в одном диплоидном гене всего две копии. E2 лежит на той же хромосоме, что E, с 50 % рекомбинантных гамет к соседнему гену размаха Q1, то есть наследуется независимо. Это параметр игры, а не измерение. У драконов, выведенных раньше, E2 = 0/0, и с ними ничего не поменялось. Число звёздочек ✦ у дракона равно числу его разных стихийных атак.'},
   {tag:'nat',h:'Половые хромосомы ZW',l:['M','N','Sp'],src:['grif'],
    t:'Самка ZW, самец ZZ, как у птиц и бабочек. Самка получает Z от отца, а W от матери, поэтому гены Z у неё в одной копии и проявляются сразу, даже рецессивные.'},
   {tag:'mod',h:'Шпоры на W',l:['Sp'],src:[],
@@ -162,6 +170,8 @@ const SOURCES={
   alb:'Alberts B. и др. Molecular Biology of the Cell. Garland Science, любое издание: генетические системы митохондрий.',
   albm:'Alberts B., Johnson A., Lewis J. и др. Molecular Biology of the Cell. 4-е изд. New York: Garland Science, 2002. Глава «Meiosis». https://www.ncbi.nlm.nih.gov/books/NBK26840/',
   nhgri:'National Human Genome Research Institute. Talking Glossary of Genomic and Genetic Terms: Mitochondrial DNA. https://www.genome.gov/genetics-glossary/Mitochondrial-DNA',
+  nhgriAl:'National Human Genome Research Institute. Talking Glossary of Genomic and Genetic Terms: Allele. https://www.genome.gov/genetics-glossary/Allele',
+  nhgriPoly:'National Human Genome Research Institute. Talking Glossary of Genomic and Genetic Terms: Polygenic Trait. https://www.genome.gov/genetics-glossary/Polygenic-Trait',
   medgen:'NCBI MedGen: Mitochondrial inheritance (определение, гетероплазмия). https://www.ncbi.nlm.nih.gov/medgen/165802'};
 
 /* генотип по хромосомам, сцепление из CHROMS */
@@ -559,8 +569,8 @@ function elText(v){return v.M.breath==='dormant'?'дремлющий, стихи
 function renderHead(v){
   const i=v.info,M=v.M,rr=DRG.rarity(v.ph),f=i.feed;
   const fd=i.own&&f?`<button class="btn sm" data-dk="feed"${f.can?'':' disabled'}>Покормить · ${f.cost} 🌾</button>`:'';
-  setHTML(v.$('.dri-head'),`<div class="dri-hd"><h2 id="dri-t">${esc(i.name)}</h2><span class="dri-sex" title="${i.genome.sex==='F'?'самка, ZW':'самец, ZZ'}">${i.genome.sex==='F'?'♀':'♂'}<span class="sr"> ${i.genome.sex==='F'?'самка':'самец'}</span></span><span class="dri-rar r${rr}">${esc(DRG.RARITY[rr])}</span></div>
-  <p class="dri-sub">${i.lvl}-й уровень · ${esc(M.stageName)} · ${esc(elText(v))}</p>
+  setHTML(v.$('.dri-head'),`<div class="dri-hd"><h2 id="dri-t">${esc(i.name)}</h2><span class="dri-sex" title="${i.genome.sex==='F'?'самка, ZW':'самец, ZZ'}">${i.genome.sex==='F'?'♀':'♂'}<span class="sr"> ${i.genome.sex==='F'?'самка':'самец'}</span></span><span class="dri-rar r${rr}" title="Редкость: как трудно вывести такой фенотип">${esc(DRG.RARITY[rr])}</span>${(()=>{const B=window.DSTATS&&DSTATS.badge(v.ph);return B&&B.rank?`<span class="dri-rank" title="${esc(B.title)}">${B.stars}<span class="sr"> ${esc(B.title)}</span></span>`:''})()}</div>
+  <p class="dri-sub">${i.lvl}-й уровень · ${esc(M.stageName)} · ${esc(elText(v))}${(()=>{const B=window.DSTATS&&DSTATS.badge(v.ph);return B&&B.hyb?' · сочетание «'+esc(B.hyb)+'»':''})()}</p>
   <button class="dri-geno" data-dk="geno" aria-pressed="${v.sub==='geno'}"><span aria-hidden="true">🧬</span> Генетический паспорт</button>
   <div class="dri-acts${fd?'':' two'}">${fd}<button class="btn ghost sm" data-dk="ped" aria-pressed="${v.sub==='ped'}">Родословная</button><button class="btn ghost sm" data-dk="fight">В бой</button></div>
   ${i.own&&f&&!f.can&&f.why?`<p class="dri-why">${esc(f.why)}</p>`:''}<p class="dri-say" aria-live="polite"></p>`)}

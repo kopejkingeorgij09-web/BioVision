@@ -79,14 +79,14 @@ function income(days,fz,periods,goal){
 
 /* ---------- начальное состояние ---------- */
 function startState(founders){
-  const s={v:2,seq:3,bseq:4,bal:{gold:300,food:40,gems:5,xp:0},credited:{food:0,gems:0,lvl:1},land:START_LAND.slice(),
+  const s={v:2,gv:G.GV,seq:3,bseq:4,bal:{gold:300,food:40,gems:5,xp:0},credited:{food:0,gems:0,lvl:1},land:START_LAND.slice(),
     bld:[
       {id:'b1',type:'F',x:4,y:5,lvl:1,chest:{amt:0,k0:null},build:null,up:null},
       {id:'b2',type:'W',x:6,y:5,lvl:1,chest:{amt:0,k0:null},build:null,up:null},
       {id:'b3',type:'farm',x:5,y:3,lvl:1,plots:[null,null],build:null,up:null}
     ],
     dragons:[]};
-  (founders||[]).forEach(d=>{const ph=G.phenotype(d.genome),home=s.bld.find(b=>TYPES[b.type].kind==='hab'&&hosts(b.type,ph));
+  (founders||[]).forEach(d=>{d=Object.assign({},d,{genome:G.upgrade(d.genome)});const ph=G.phenotype(d.genome),home=s.bld.find(b=>TYPES[b.type].kind==='hab'&&hosts(b.type,ph));
     s.dragons.push(Object.assign({lvl:1,fed:0,home:home?home.id:null},d))});
   return s}
 
@@ -147,6 +147,13 @@ function repair(d,inc){const fix=[],bad=[];
   if(!int(s.credited.lvl)||s.credited.lvl<1){s.credited.lvl=num(s.bal.xp)?levelOf(s.bal.xp):1;fix.push('учтённый уровень')}
   if(!Array.isArray(s.land)||!s.land.length){s.land=START_LAND.slice();fix.push('земля')}else{const n=s.land.length;s.land=s.land.filter(x=>typeof x==='string');if(s.land.length<n)fix.push('земля')}
   if(s.clr!==undefined&&!Array.isArray(s.clr)){s.clr=[];fix.push('расчищенные клетки')}
+  /* геномы версии 1 (до гена E2): у драконов, яиц, пар в Гнездовье и в архиве отпущенных добавляется E2 = 0/0.
+     Фенотип, остальные аллели и исход уже сформированных яиц не меняются, повторный проход ничего не делает */
+  let up=0;const upg=o=>{if(o&&G.isOld(o.genome)){o.genome=G.upgrade(o.genome);up++}};
+  (Array.isArray(s.dragons)?s.dragons:[]).forEach(upg);(Array.isArray(s.gone)?s.gone:[]).forEach(upg);
+  (Array.isArray(s.bld)?s.bld:[]).forEach(b=>{if(!b)return;(Array.isArray(b.slots)?b.slots:[]).forEach(upg);if(b.pair&&b.pair.egg)upg(b.pair.egg)});
+  if(up){fix.push('геномы: добавлен ген E2 = 0/0 ('+up+')')}
+  if(s.gv!==G.GV&&(up||s.gv===undefined)){s.gv=G.GV}
   if(!Array.isArray(s.bld)){bad.push('постройки');s.bld=[]}
   /* задание (стройка, улучшение, грядка, пара, яйцо): момент начала и длина в карточках */
   const jobOk=j=>j&&typeof j==='object'&&num(j.at)&&num(j.need)&&(j.skip===undefined||int(j.skip));

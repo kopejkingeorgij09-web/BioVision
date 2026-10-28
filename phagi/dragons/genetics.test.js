@@ -144,5 +144,38 @@ t('редкость: одна стихия обычная, две редкие, 
   assert.ok(D.rarity(ph({sex:'F',E:'F/W',C:'c/c',N:'n',G:'G'}))>=3);
 });
 
+/* ---------- ген E2 (версия генома 2) ---------- */
+t('E2: нейтральный 0 ничего не добавляет, стихийные кодоминантны, s/s гасит и их, ранг = число стихийных атак',()=>{
+  const ph=spec=>D.phenotype(D.make(Object.assign({sex:'M',S:'S/S'},spec)));
+  assert.deepStrictEqual(ph({E:'F/W',E2:'0/0'}).elements,['F','W']);
+  assert.deepStrictEqual(ph({E:'F/W',E2:'T/0'}).elements,['F','W','T']);
+  assert.deepStrictEqual(ph({E:'F/W',E2:'T/A'}).elements,['F','W','T','A']);
+  assert.deepStrictEqual(ph({E:'F/W',E2:'F/0'}).elements,['F','W'],'та же стихия второй раз не считается');
+  assert.deepStrictEqual(ph({E:'e/e',E2:'P/0'}).elements,['P'],'стихия только из E2');
+  assert.strictEqual(ph({E:'F/W',E2:'T/A',S:'s/s'}).breath,'dormant');
+  assert.strictEqual(D.combatRank(ph({E:'F/W',E2:'T/A'})),4);assert.strictEqual(D.combatRank(ph({E:'F/e'})),1);
+  assert.strictEqual(D.combatRank(ph({E:'e/e'})),0);assert.strictEqual(D.combatRank(ph({E:'F/W',S:'s/s'})),0);
+  assert.strictEqual(D.rarity(ph({E:'F/W',E2:'T/A'})),D.rarity(ph({E:'F/W'})),'три-четыре стихии не меняют редкость и доход')});
+
+t('E2: старый геном получает 0/0 детерминированно, фенотип тот же, повтор ничего не меняет',()=>{
+  const g=D.make({sex:'F',E:'F/W',C:'Cb/c'}),old=JSON.parse(JSON.stringify(g));old.A1=old.A1.map(h=>h.slice(0,2));delete old.gv;
+  assert.ok(D.isOld(old));assert.ok(D.validate(old).length,'старый формат без миграции не проходит проверку');
+  const u=D.upgrade(old);assert.deepStrictEqual(u.A1,g.A1);assert.deepStrictEqual(D.phenotype(u),D.phenotype(g));
+  assert.strictEqual(D.upgrade(u),u,'повторная миграция возвращает тот же объект');assert.strictEqual(old.A1[0].length,2,'исходный не тронут')});
+
+t('E2: точные вероятности (сумма 1) и 4000 яиц с зерном совпадают; сцепление с Q1 r = 0,5',()=>{
+  const m=D.make({sex:'F',E:'F/e',E2:'T/0',Q1:'+/-'}),f=D.make({sex:'M',E:'W/e',E2:'A/0',Q1:'-/-'});
+  const d=D.dist(m,f,'elements');near(Object.values(d).reduce((a,b)=>a+b,0),1,1e-9,'сумма');
+  /* E и E2 независимы (r 0,5 через Q1): у каждого родителя 4 гаметы поровну */
+  near(d['F+W+T+A']||0,1/16,1e-9,'все четыре');near(d['smoke']||0,1/16,1e-9,'ни одной');
+  const fr=freq(m,f,'elements',4000,'e2');Object.keys(d).forEach(k=>near(fr[k]||0,d[k],0.025,k));
+  const h=D.hapDist(m.A1,D.CHROMS.A1.r);near(h.reduce((a,x)=>a+x.p,0),1,1e-9);assert.strictEqual(h.length,8)});
+
+t('E2: расчёт распределения быстрый (нет огромного перебора)',()=>{
+  const m=D.make({sex:'F',E:'F/W',E2:'T/A',C:'C/c',H:'H/h',K:'K/k',R:'R1/R2',Q1:'+/-',Q2:'+/-',Q3:'+/-',Wg:'Wg/+'}),
+    f=D.make({sex:'M',E:'P/L',E2:'D/0',C:'Cb/c',H:'H/h',K:'K/k',R:'R1/R2',Q1:'+/-',Q2:'+/-',Q3:'+/-',Wg:'Wg/+',M:'M/m',N:'N/n'});
+  const t0=Date.now();['elements','rarity','span','species'].forEach(tr=>{const d=D.dist(m,f,tr);near(Object.values(d).reduce((a,b)=>a+b,0),1,1e-9,tr)});
+  assert.ok(Date.now()-t0<1500,'долго: '+(Date.now()-t0)+' мс')});
+
 console.log(`\n${n-fails} из ${n} тестов прошли`);
 process.exit(fails?1:0);

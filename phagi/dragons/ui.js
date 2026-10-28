@@ -182,6 +182,21 @@ function reviewBadge(uid){const x=stateOf(uid);if(!x)return '';const info=x.c.in
 function dayDoneHTML(uid){const x=stateOf(uid);if(!x)return '';const inf=x.c.info,first=x.st.dragons[0];
   return `<div class="party-dish">${first?W.svg(phOf(first),{stage:W.stageOf(first.lvl),key:'p'+uid.slice(-6),size:150}):''}<span class="plus">💎</span></div><div class="big">${inf.cur} ${plural(inf.cur,'день','дня','дней')}</div><p><b>Серия продлена!</b> На остров пришёл паёк ${E.RATION(inf.cur)} корма и самоцвет. Чем длиннее серия, тем больше паёк и урожай с грядок.</p>`}
 
+/* ---------- два острова (4.1): какой сейчас на экране ----------
+   S.drgIsle — 0 (Зелёный) или 1 (Огненный, если открыт). Рисунок, клетки стройки, камера и живые драконы берут вид
+   одного острова E.isle(st, i); панели, баланс и драконы общие */
+const curIsle=st=>st&&st.isl2&&S.drgIsle===1?1:0;
+const viewSt=st=>E.isle(st,curIsle(st));
+function isleBtn(st,own){const c=curIsle(st);
+  if(st.isl2)return `<button class="drg-isw${c?'':' to-lava'}" data-act="drgisle" data-v="${c?0:1}" aria-label="Перейти: ${c?'Зелёный остров':E.ISLE2.name}"><i aria-hidden="true">${c?'🏝':'🌋'}</i><span>${c?'Зелёный остров':E.ISLE2.name}</span></button>`;
+  if(!own)return '';
+  return `<button class="drg-isw to-lava lock" data-act="drgpanel" data-v="isle2" aria-label="${E.ISLE2.name}: как открыть"><i aria-hidden="true">🌋</i><span>${E.ISLE2.name}</span><b aria-hidden="true">🔒</b></button>`}
+function isle2HTML(st){const q=E.isleState(st),L=E.level(st);
+  return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>🌋 ${E.ISLE2.name}</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div>
+    <p>Второй остров, когда на первом станет тесно: своя земля под постройки, вулканы, обсидиан и лавопады. Драконы, золото, корм и уровень общие, строить можно на любом острове.</p>
+    <p class="drg-why">${q.open?'Остров уже открыт.':q.ok?`Можно открыть сейчас за ${fmt(E.ISLE2.gold)} 🪙.`:`${q.why}. Сейчас ${L}-й.`}</p>
+    ${!q.open&&q.ok?`<button class="btn" data-act="drgisle2"${st.bal.gold<E.ISLE2.gold?' disabled':''}>Открыть за ${fmt(E.ISLE2.gold)} 🪙</button>${st.bal.gold<E.ISLE2.gold?`<p class="muted small">Не хватает ${fmt(E.ISLE2.gold-st.bal.gold)} золота.</p>`:''}`:''}</section>`}
+
 /* ---------- страница «Остров драконов» ---------- */
 function islandView(){
   const uid=S.drgUid||meId(),own=uid===meId(),x=stateOf(uid);
@@ -192,7 +207,7 @@ function islandView(){
   if(S.drgSel&&!st.bld.some(b=>b.id===S.drgSel))S.drgSel=null;
   const pl=own?S.drgPlace:null;
   const placeBar=pl?`<div class="drg-place"><span>${pl.move?'Нажмите, куда перенести здание':'Нажмите на зелёную клетку, где поставить: '+E.TYPES[pl.type].name}</span><button class="btn sm" data-act="drgauto">${pl.move?'Перенести':'Поставить'} на свободное место</button><button class="btn ghost sm" data-act="drgcancel">Отмена</button></div>`:'';
-  const isl=I.svg(st,{K,sel:S.drgSel,place:pl,key:'isl',readonly:!own,full});
+  const cur=curIsle(st),isl=I.svg(viewSt(st),{K,sel:S.drgSel,place:pl,key:'isl',readonly:!own,full});
   const gl=own&&!pl?goalLine(st,K):null;
   if(full){
     const L=E.level(st),b=E.xpFor(L+1),xp=xpPct(st),bal=st.bal;
@@ -205,18 +220,19 @@ function islandView(){
         +rb('drgpanel','breed','🥚','<b class="lg">Скрещивание</b><b class="sm">Яйца</b>',{lab:'Скрещивание и яйца'})
         +(st.dragons.length?rb('drgfight','','⚔️','Поход',{lab:'Поход: бои драконов'}):'')+rb('drgpanel','shop','🔨','Строить',{big:1})+rb('drgpanel','more','☰','Ещё',{lab:'Ещё: рынок, журнал, мои постройки, справка'})
       :rb('drgfull','0','🏠','Назад')+rb('drgpanel','dragons','📖','Драконы')+rb('drgpanel','journal','📓','Журнал')+rb('drgpanel','blds','🏘','Постройки');
-    return `<div class="drg-map full${pl?' placing':''}">
+    return `<div class="drg-map full${pl?' placing':''}${cur?' lava':''}">
       <div class="drg-hud"><div class="drg-hud-l" title="${L>=E.ISLE_MAX?'Высший уровень острова':`Опыт ${fmt(bal.xp)} из ${fmt(b)}`}"><span class="drg-star" aria-label="Уровень острова ${L}"><b>${L}</b></span><span class="drg-xpbar" role="img" aria-label="Опыт до следующего уровня: ${xp} %"><i style="width:${xp}%"></i></span></div>
       <div class="drg-hud-r">${pill('gold','🪙',bal.gold,'Золото')}${pill('gems','💎',bal.gems,'Самоцветы')}${pill('food','🌾',bal.food,'Корм')}</div></div>
       ${own?`<div class="drg-svw">${saveHTML(uid)}${volHTML(st,c.info,true)}${slot7HTML(st,true)}${gl&&!S.drgPanel&&!S.drgSel?`<button class="drg-goal" data-act="drgpanel" data-v="breed"><small>Цель: первый потомок · шаг ${gl.step} из ${gl.of}</small><b>${gl.text}</b></button>`:''}</div>`:''}
       ${placeBar}
       <div class="drg-dock" role="group" aria-label="Действия на острове">${dock}</div>
       <div class="drg-zm"><button data-act="drgzoom" data-v="in" aria-label="Приблизить">+</button><button data-act="drgzoom" data-v="out" aria-label="Отдалить">−</button><button data-act="drgzoom" data-v="fit" aria-label="Весь остров" title="Весь остров">⤢</button><button data-act="drgpanel" data-v="blds" aria-label="Мои постройки" title="Мои постройки">▤</button></div>
+      ${pl?'':isleBtn(st,own)}
       <div class="drg-stage">${isl}</div>
       </div>`+panel(st,c,own)}
   const head=`${back}${own?saveHTML(uid,true)+slot7HTML(st):''}<div class="drg-ih"><div class="drg-ih-t"><h1>Остров драконов${own?'':': '+esc(name(uid))}</h1><span class="muted small">Время на острове идёт в карточках: повторено ${cards(K)}</span>${own?volHTML(st,c.info,true):''}</div>${lvlHTML(st)}${walletHTML(st)}</div>`;
   const tools=own&&!pl?`<div class="drg-tools"><button class="btn sm" data-act="drgfull" data-v="1">🏝 Отправиться на остров</button><button class="btn ghost sm" data-act="drgpanel" data-v="shop">🔨 Построить</button><button class="btn ghost sm" data-act="drgpanel" data-v="market">🐉 Рынок</button><button class="btn ghost sm" data-act="drgpanel" data-v="dragons">📖 Драконы</button><button class="btn ghost sm" data-act="drgpanel" data-v="breed">🥚 Скрещивание</button>${st.dragons.length?'<button class="btn ghost sm" data-act="drgfight">⚔️ Поход</button>':''}<button class="btn ghost sm" data-act="drgpanel" data-v="journal">📓 Журнал скрещиваний</button><button class="btn ghost sm" data-act="drgpanel" data-v="help">Как это работает</button></div>`:'';
-  const map=`<div class="drg-map${pl?' placing':''}">${placeBar}${isl}<button class="drg-fsb" data-act="drgfull" data-v="1" aria-label="Открыть остров на весь экран">⛶</button></div>`;
+  const map=`<div class="drg-map${pl?' placing':''}${cur?' lava':''}">${placeBar}${pl?'':isleBtn(st,own)}${isl}<button class="drg-fsb" data-act="drgfull" data-v="1" aria-label="Открыть остров на весь экран">⛶</button></div>`;
   const goal=gl?`<button class="drg-goal in" data-act="drgpanel" data-v="breed"><small>Цель: первый потомок · шаг ${gl.step} из ${gl.of}</small><b>${gl.text}</b></button>`:'';
   return head+goal+tools+map+panel(st,c,own);
 }
@@ -230,6 +246,7 @@ function panel(st,c,own){
   if(p==='breed')return breedHTML(st,c,own);
   if(p==='more')return moreHTML(st,own,c);
   if(p==='blds')return bldsHTML(st,c,own);
+  if(own&&p==='isle2')return isle2HTML(st);
   if(own&&p&&p.startsWith('res:'))return resHTML(st,c,p.slice(4));
   if(p==='journal')return journalHTML(st);
   if(p==='research')return researchHTML(st,own);
@@ -490,7 +507,8 @@ function researchHTML(st,own){const L=E.level(st),got=st.goals||{};
     return `<div class="drg-sr${done?' ok':''}"><span><b>${esc(g.name)}</b> · ${esc(g.text)}<br><small class="muted">${done?'награда получена':open?(ok?'выполнено, можно забрать':'ещё не выполнено'):`откроется на ${g.L}-м уровне острова`} · +${g.gems} 💎</small></span>${own&&ok?`<button class="btn sm" data-act="drgdo" data-t="research" data-goal="${g.id}">Забрать</button>`:''}</div>`}).join('')}</div></section>`}
 /* «Мои постройки»: те же здания, что на карте, списком; нажатие открывает то же, что нажатие на карте */
 function bldsHTML(st,c,own){const K=c.K,L=E.level(st);
-  const stat=b=>{const T=E.TYPES[b.type],job=b.build||b.up;if(b.build)return E.ready(b.build,K)?'стройка готова':`строится, ещё ${cards(E.left(b.build,K))}`;
+  const stat=b=>(st.isl2?(E.isleOf(b)?'🌋 Огненный, ':'🏝 Зелёный, '):'')+stat0(b);
+  const stat0=b=>{const T=E.TYPES[b.type],job=b.build||b.up;if(b.build)return E.ready(b.build,K)?'стройка готова':`строится, ещё ${cards(E.left(b.build,K))}`;
     const out=[];if(b.up&&!E.ready(b.up,K))out.push(`улучшается, ещё ${cards(E.left(b.up,K))}`);
     if(T.kind==='hab'){const n=st.dragons.filter(d=>d.home===b.id).length,a=Math.floor(E.chestNow(st,b,K));out.push(n?`драконов ${n} из ${E.habCap(b)}`:'пустует');if(a>=1)out.push(`в сундуке ${fmt(a)} 🪙${a>=E.chestCap(b)?' (полон)':''}`)}
     if(T.kind==='farm'){const r=(b.plots||[]).filter(p=>p&&E.ready(p,K)).length,e=(b.plots||[]).filter(p=>!p).length;out.push(r?`созрело ${r}`:e?`свободных грядок ${e}`:'растёт')}
@@ -516,7 +534,7 @@ function resHTML(st,c,k){const K=c.K,info=c.info,bal=st.bal,close='<button class
     ${farms.map(b=>`<div class="drg-sr"><span>${E.TYPES[b.type].name}: ${(b.plots||[]).filter(p=>p&&E.ready(p,K)).length} созрело, ${(b.plots||[]).filter(p=>!p).length} свободно</span><button class="btn ghost sm" data-act="drgsel" data-id="${b.id}">Открыть ферму</button></div>`).join('')||'<p class="muted small">Фермы пока нет: её можно построить за 100 🪙.</p>'}
     <div class="drg-sa"><button class="btn ghost sm" data-act="drgcards">Повторять карточки</button></div>`}
   else{t='💎 Самоцветы';
-    h=`<p>Самоцветы ускоряют ожидание: один заменяет ${E.SKIP_CARDS} карточек стройки, грядки или яйца. Их дают: засчитанный день (${GOAL} карточек), каждые ${GOAL} карточек сверх цели, рубежи серии ${E.MILESTONES.map(m=>m[0]).join(', ')} дней, новый уровень острова, верный прогноз потомства, расчистка валунов и проверенные ДЗ.</p><p>Бонус за ДЗ начисляется один раз за задание по проценту выполнения: от 60 % +1 💎 и 30 🌾, от 80 % +2 💎 и 60 🌾, от 85 % +3 💎 и 100 🌾, от 90 % +4 💎 и 150 🌾. Пересдача с той же оценкой бонус не повторяет.</p>
+    h=`<p>Самоцветы ускоряют ожидание: один заменяет ${E.SKIP_CARDS} карточек стройки, грядки или яйца. Их дают: засчитанный день (${GOAL} карточек), каждые ${GOAL} карточек сверх цели, рубежи серии ${E.MILESTONES.map(m=>m[0]).join(', ')} дней, новый уровень острова, верный прогноз потомства, первые победы над боссами в походе и проверенные ДЗ.</p><p>Бонус за ДЗ начисляется один раз за задание по проценту выполнения: от 60 % +1 💎 и 30 🌾, от 80 % +2 💎 и 60 🌾, от 85 % +3 💎 и 100 🌾, от 90 % +4 💎 и 150 🌾. Пересдача с той же оценкой бонус не повторяет.</p>
     <p class="muted small">Сегодня ${info.todayN} из ${GOAL}${info.done?', день засчитан':''}.</p><div class="drg-sa"><button class="btn ghost sm" data-act="drgcards">Повторять карточки</button></div>`}
   return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>${t}: ${fmt(bal[k])}</h2>${close}</div>${h}</section>`}
 function helpHTML(st,c){
@@ -548,22 +566,24 @@ function camBox(){const m=document.querySelector('.drg-map.full');return m?m.get
 /* рисунок острова в координатах SVG → пиксели сцены до камеры (viewBox с meet) */
 /* полный вид острова: растёт вместе с открытыми кольцами земли (I.viewOf), берётся для того же документа, что и границы */
 const VB={d:null,v:null};
-function fullView(){const uid=S.drgUid||meId(),d=docOf(uid);if(!(d&&VB.d===d)){VB.d=d;const x=stateOf(uid);VB.v=x?I.viewOf(x.st).full:I.VIEW.full}return VB.v}
+function fullView(){const uid=S.drgUid||meId(),d=docOf(uid),x=stateOf(uid),i=x?curIsle(x.st):0;if(!(d&&VB.d===d&&VB.i===i)){VB.d=d;VB.i=i;VB.v=x?I.viewOf(viewSt(x.st)).full:I.VIEW.full}return VB.v}
 function svgMap(r){const V=fullView(),s0=Math.min(r.width/V[2],r.height/V[3]);return {s0,x:u=>(r.width-V[2]*s0)/2+(u-V[0])*s0,y:v=>(r.height-V[3]*s0)/2+(v-V[1])*s0}}
 /* границы того, что важно видеть: открытая земля и постройки с их высотой (в координатах SVG) */
 /* all — вся открытая земля (для «Весь остров» и ограничения камеры), key — постройки и драконы (первый вид: крупно, но всё важное видно) */
 const IB={d:null,b:null};
-function islBounds(kind){const uid=S.drgUid||meId(),d=docOf(uid);if(!(d&&IB.d===d)){IB.d=d;IB.b=islBounds0(uid)}return IB.b[kind||'all']}
-function islBounds0(uid){const def={all:[0,60,800,520],key:[100,120,600,400]},x=stateOf(uid);if(!x)return def;const st=x.st,C=E.CHUNK;
+function islBounds(kind){const uid=S.drgUid||meId(),d=docOf(uid),x=stateOf(uid),i=x?curIsle(x.st):0;if(!(d&&IB.d===d&&IB.i===i)){IB.d=d;IB.i=i;IB.b=islBounds0(uid)}return IB.b[kind||'all']}
+function islBounds0(uid){const def={all:[0,60,800,520],key:[100,120,600,400],whole:[0,60,800,900]},x=stateOf(uid);if(!x)return def;const st=viewSt(x.st),C=E.CHUNK;
   const box=()=>{let a=[1e9,1e9,-1e9,-1e9];return {add:p=>{a=[Math.min(a[0],p[0]),Math.min(a[1],p[1]),Math.max(a[2],p[0]),Math.max(a[3],p[1])]},get:()=>a}};
   const L=box(),B=box();
   (st.land||[]).forEach(id=>{const [cx,cy]=id.split(',').map(Number);[[0,0],[C,0],[C,C],[0,C]].forEach(([i,j])=>L.add(I.P(cx*C+i,cy*C+j)))});
   st.bld.forEach(b=>{const c=I.P(b.x+1,b.y+1);B.add([c[0]-70,c[1]-(I.HEIGHT[b.type]||70)-26]);B.add([c[0]+70,c[1]+46])});
   let a=L.get();if(a[0]>a[2])return def;const all=[a[0]-36,a[1]-20,a[2]-a[0]+72,a[3]-a[1]+56];
-  let k=B.get();if(k[0]>k[2])return {all,key:all};
+  /* whole — остров целиком с кончиком скалы внизу (кончик скал в island.js на 418 единиц ниже переднего угла) */
+  const n=E.extent(st).n,tip=I.P(n,n)[1]+430,whole=[all[0],all[1],all[2],Math.max(all[3],tip-all[1])];
+  let k=B.get();if(k[0]>k[2])return {all,key:all,whole};
   /* не меньше 420×300 единиц рисунка вокруг середины построек, чтобы пара зданий не заняла весь экран */
   const cx=(k[0]+k[2])/2,cy=(k[1]+k[3])/2,w=Math.max(420,k[2]-k[0]),h=Math.max(300,k[3]-k[1]);
-  return {all,key:[cx-w/2,cy-h/2,w,h]}}
+  return {all,whole,key:[cx-w/2,cy-h/2,w,h]}}
 /* свободная часть экрана: между шапкой с ресурсами, кнопками внизу и открытой панелью */
 function freeRect(r){const q=s=>{const e=document.querySelector(s);return e&&e.getClientRects().length?e.getBoundingClientRect():null};
   let top=r.top+8,bot=r.bottom-8,left=r.left+8,right=r.right-8;
@@ -577,12 +597,12 @@ function freeRect(r){const q=s=>{const e=document.querySelector(s);return e&&e.g
 const ZMIN=0.5,ZMAX=5;
 /* вид «весь остров»: границы острова целиком в свободной части экрана, по центру */
 /* первый вид: на узком экране крупно постройки, на широком весь остров */
-const fitKind=r=>r.width<700?'key':'all';
-function camFit(r,keepZ,kind){const c=cam(),M=svgMap(r),B=islBounds(kind||'all'),F=freeRect(r),fw=F.x1-F.x0,fh=F.y1-F.y0;
+const fitKind=r=>r.width<700?'key':'whole';
+function camFit(r,keepZ,kind){const c=cam(),M=svgMap(r),B=islBounds(kind||'whole'),F=freeRect(r),fw=F.x1-F.x0,fh=F.y1-F.y0;
   if(!keepZ)c.z=Math.max(ZMIN,Math.min(ZMAX,fw/(B[2]*M.s0),fh/(B[3]*M.s0)));
   c.x=(F.x0+fw/2)-c.z*M.x(B[0]+B[2]/2);c.y=(F.y0+fh/2)-c.z*M.y(B[1]+B[3]/2);c.W=r.width;c.H=r.height;c.auto=!keepZ}
 /* камера не уводит остров за край: хотя бы четверть его ширины и высоты остаётся в свободной части */
-function camClamp(c,r){c.z=Math.max(ZMIN,Math.min(ZMAX,c.z));const M=svgMap(r),B=islBounds(),F=freeRect(r);
+function camClamp(c,r){c.z=Math.max(ZMIN,Math.min(ZMAX,c.z));const M=svgMap(r),B=islBounds('whole'),F=freeRect(r);
   const x0=c.x+c.z*M.x(B[0]),x1=c.x+c.z*M.x(B[0]+B[2]),y0=c.y+c.z*M.y(B[1]),y1=c.y+c.z*M.y(B[1]+B[3]),mx=(x1-x0)/4,my=(y1-y0)/4;
   if(x1<F.x0+mx)c.x+=F.x0+mx-x1;if(x0>F.x1-mx)c.x-=x0-(F.x1-mx);if(y1<F.y0+my)c.y+=F.y0+my-y1;if(y0>F.y1-my)c.y-=y0-(F.y1-my)}
 function camApply(){const st=document.querySelector('.drg-map.full .drg-stage'),r=camBox();if(!st||!r)return;const c=cam();
@@ -599,7 +619,7 @@ function camApply(){const st=document.querySelector('.drg-map.full .drg-stage'),
   st.style.setProperty('--lz',Math.max(0.45,Math.min(1.6,11/(12*px))).toFixed(3));
   if(window.DRLIVE)DRLIVE.wake()}   /* при «меньше движения» живые драконы перерисовываются только так */
 /* выбранная постройка не прячется под панелью: если её не видно, остров сдвигается, масштаб тот же */
-function camShow(id){const r=camBox(),x=stateOf(S.drgUid||meId());if(!r||!x)return;const b=x.st.bld.find(z=>z.id===id);if(!b)return;
+function camShow(id){const r=camBox(),x=stateOf(S.drgUid||meId());if(!r||!x)return;const b=x.st.bld.find(z=>z.id===id);if(!b||E.isleOf(b)!==curIsle(x.st))return;
   const c=cam(),M=svgMap(r),F=freeRect(r),p=I.P(b.x+1,b.y+1),sx=c.x+c.z*M.x(p[0]),sy=c.y+c.z*M.y(p[1]-30);
   if(sx<F.x0+30||sx>F.x1-30||sy<F.y0+30||sy>F.y1-30){c.x+=(F.x0+F.x1)/2-sx;c.y+=(F.y0+F.y1)/2-sy;c.auto=false;camApply()}}
 function camZoom(px,py,f){const r=camBox();if(!r)return;const c=cam(),nz=Math.max(ZMIN,Math.min(ZMAX,c.z*f)),k=nz/c.z;c.x=px-(px-c.x)*k;c.y=py-(py-c.y)*k;c.z=nz;c.auto=false;camApply()}
@@ -680,7 +700,7 @@ new MutationObserver(()=>{
   if(fs){camApply();navFocus();if(S.drgSel&&S.drgSel!==camShow.last){camShow.last=S.drgSel;camShow(S.drgSel)}else if(!S.drgSel)camShow.last=null}
   navSync();
   /* живой остров: драконы из рисунка A поверх острова (live.js), состояние берётся то же, что у рисунка острова */
-  if(window.DRLIVE)DRLIVE.scan(()=>{const x=stateOf(S.drgUid||meId());return x&&x.st})}).observe(document.documentElement,{childList:true,subtree:true});
+  if(window.DRLIVE)DRLIVE.scan(()=>{const x=stateOf(S.drgUid||meId());return x&&viewSt(x.st)})}).observe(document.documentElement,{childList:true,subtree:true});
 
 /* ---------- осмотр дракона (inspect.js): данные для сцены и кормление оттуда ---------- */
 function inspInfo(uid,id){
@@ -710,8 +730,10 @@ function fightApi(){
     /* итог: {p — прогресс, который видит игрок, saved — обещание статуса записи: ok, error или conflict} */
     record:(id,stars)=>{const x=stateOf(uid),d=docOf(uid);if(!x||!d)return null;const st=storeOf(uid);
       if(st&&!st.canAct())return {p:DRCAMP.progress(d),saved:Promise.resolve(st.status)};
-      const p=DRCAMP.record(DRCAMP.progress(d),id,stars,today());
-      return {p,saved:save(uid,Object.assign({},x.st,{mode:d.mode,periods:d.periods,pve:p}))}},
+      const p=DRCAMP.record(DRCAMP.progress(d),id,stars,today()),n=DRCAMP.byId(id);
+      /* награда (4.1): золото, корм и самоцветы считает экономика по звёздам до боя из документа; запись одна вместе со звёздами */
+      let st2=x.st,gain=null;if(n){const r=E.apply(x.st,x.c,{t:'pvewin',node:{id,rec:n.rec,boss:!!n.boss,mini:!!n.mini,elite:!!n.elite},stars});if(!r.err){st2=r.s;gain=r.s.got&&r.s.got.pve||null}}
+      return {p,gain,saved:save(uid,Object.assign({},st2,{mode:d.mode,periods:d.periods,pve:p}))}},
     /* подарок похода (носитель E2): есть ли у узла, получен ли, можно ли забрать сейчас */
     gift:node=>{const g=E.GIFTS[node],x=stateOf(uid);if(!g||!x)return null;const got=!!(x.st.gifts||{})[node];
       return {name:g.name,got,can:!got&&!!DRCAMP.progress(docOf(uid)).best[node]&&canAct(uid)}},
@@ -724,9 +746,19 @@ function fightApi(){
     onClose:()=>render()}}
 function fight(dragon){if(S.drgPlace||!window.DRFIGHT||!stateOf(meId()))return;DRFIGHT.open(fightApi(),{dragon})}
 
+/* постройка на другом острове: перейти туда, чтобы её было видно */
+function onIsleOf(id){const x=stateOf(S.drgUid||meId());const b=x&&id&&x.st.bld.find(z=>z.id===id);if(!b)return;const i=E.isleOf(b);if(i!==curIsle(x.st)){S.drgIsle=i;S.drgCam=null}}
 /* ---------- действия ---------- */
 const num=v=>v==null||v===''?undefined:Number(v);
-window.DRGUI={on,hero,switchHTML,reviewBadge,dayDoneHTML,onSnap,islandView,stateOf,founders,setMode,saveHTML,storeOf,classesOf,battleHub};
+/* стабильность (4.1): ошибка в коде драконов не роняет платформу. Рисунок острова показывает понятное сообщение,
+   остальные кусочки (шапка карточек, бои) просто пропадают, нажатие на кнопку острова пишет в тост; прогресс не трогается */
+let errShown=0;
+const guard=(fn,fb)=>function(){try{return fn.apply(this,arguments)}catch(e){console.error('драконы:',e);return typeof fb==='function'?fb(e):fb}};
+const islandFail=()=>`<button class="back" data-act="go" data-v="cards">← К карточкам</button><div class="empty">Остров не нарисовался из-за ошибки на странице. Прогресс не потерян: он хранится в облаке. <a class="btn sm" href="">Обновить страницу</a></div>`;
+const actGuard=fn=>function(){const err=e=>{console.error('драконы:',e);if(Date.now()-errShown>3000){errShown=Date.now();toast('Не получилось из-за ошибки на странице. Попробуйте ещё раз или обновите страницу')}};
+  try{const r=fn.apply(this,arguments);if(r&&typeof r.catch==='function')return r.catch(err);return r}catch(e){err(e)}};
+window.DRGUI={on:guard(on,false),hero:guard(hero,''),switchHTML:guard(switchHTML,''),reviewBadge:guard(reviewBadge,''),dayDoneHTML:guard(dayDoneHTML,''),onSnap:guard(onSnap,undefined),
+  islandView:guard(islandView,islandFail),stateOf,founders,setMode,saveHTML,storeOf,classesOf,battleHub:guard(battleHub,'')};
 window.DRG_ACTIONS={
   drgmode:async el=>{const v=el.dataset.v;await setMode(v);toast(v==='dragons'?'Включены драконы. Чашка Петри никуда не делась, вернуться можно в любой момент.':'Включены бактерии. Драконы ждут на острове.')},
   drgopen:el=>{S.drgUid=el.dataset.uid||meId();S.view='island';S.drgSel=null;S.drgPanel=null;S.drgPlace=null;window.scrollTo(0,0);
@@ -738,7 +770,10 @@ window.DRG_ACTIONS={
   drgobs:async el=>{const x=stateOf(meId());if(!x)return;const o=E.obstacles(x.st).find(z=>z.id===el.dataset.c);if(!o)return;const k=E.OBST_KIND[o.kind];
     if(!await askConfirm(`${k.name}: расчистить за ${k.gold} золота? Освободится место для построек${k.gems?', а под валуном найдётся самоцвет':''}.`,'Расчистить'))return;
     const r=act({t:'clear',cell:o.id});if(r)toast(k.gems?`Расчищено! +${k.gems} 💎`:'Расчищено')},
-  drgsel:el=>{if(S.drgPlace)return;S.drgSel=el.dataset.id||null;S.drgPanel=null},
+  drgsel:el=>{if(S.drgPlace)return;S.drgSel=el.dataset.id||null;S.drgPanel=null;onIsleOf(S.drgSel)},
+  /* переход между островами: камера подгоняется заново */
+  drgisle:el=>{S.drgIsle=el.dataset.v==='1'?1:0;S.drgSel=null;S.drgPanel=null;S.drgPlace=null;S.drgCam=null},
+  drgisle2:()=>{const r=act({t:'isle2'});if(!r)return;S.drgIsle=1;S.drgPanel=null;S.drgCam=null;S.drgSel=null;toast(`🌋 ${E.ISLE2.name} открыт! Стройте на нём, когда на первом станет тесно`)},
   drginsp:inspect,
   drgfight:el=>fight(el.dataset.dragon||null),
   arjump:()=>{const t=document.getElementById('ar-tour');if(t)t.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'})},
@@ -751,20 +786,20 @@ window.DRG_ACTIONS={
   /* из ожидания на острове прямо к повторению: время острова идёт только в карточках */
   drgcards:()=>{S.drgFull=false;S.drgPanel=null;S.drgSel=null;S.drgPlace=null;S.view='cards';window.scrollTo(0,0)},
   drgbuild:el=>{S.drgPlace={type:el.dataset.type};S.drgPanel=null;S.drgSel=null;if(!S.drgFull)window.scrollTo(0,0)},
-  drgmove:el=>{S.drgPlace={move:el.dataset.id};S.drgSel=null;if(!S.drgFull)window.scrollTo(0,0)},
+  drgmove:el=>{onIsleOf(el.dataset.id);S.drgPlace={move:el.dataset.id};S.drgSel=null;if(!S.drgFull)window.scrollTo(0,0)},
   drgcancel:()=>{S.drgPlace=null},
   /* то же, что нажать на клетку, но клетку выбирает игра: ближайшая к середине открытой земли. Путь для клавиатуры */
-  drgauto:()=>{const p=S.drgPlace,x=stateOf(meId());if(!p||!x)return;const st=x.st,C=E.CHUNK,cells=[];
+  drgauto:()=>{const p=S.drgPlace,x=stateOf(meId());if(!p||!x)return;const st=viewSt(x.st),C=E.CHUNK,cells=[];
     (st.land||[]).forEach(id=>{const [cx,cy]=id.split(',').map(Number);for(let i=0;i<C;i++)for(let j=0;j<C;j++)cells.push([cx*C+i,cy*C+j])});
     const m=cells.reduce((a,c)=>[a[0]+c[0]/cells.length,a[1]+c[1]/cells.length],[0,0]);
     const ok=cells.filter(([i,j])=>E.canPlace(st,i,j,p.move||null)).sort((a,b)=>Math.hypot(a[0]-m[0],a[1]-m[1])-Math.hypot(b[0]-m[0],b[1]-m[1]));
-    if(!ok.length){toast('Свободного места нет: расчистите препятствие или откройте участок');return}
+    if(!ok.length){toast(x.st.isl2||E.level(x.st)<E.ISLE2.L?'Свободного места нет: откройте участок или стройте на другом острове':`Свободного места нет: откройте участок или ${E.ISLE2.name} (кнопка 🌋)`);return}
     window.DRG_ACTIONS.drgtile({dataset:{x:ok[0][0],y:ok[0][1]}})},
   drgtile:el=>{const p=S.drgPlace;if(!p)return;const x=+el.dataset.x,y=+el.dataset.y;
-    const r=p.move?act({t:'move',id:p.move,x,y}):act({t:'build',type:p.type,x,y});
+    const xs=stateOf(meId()),r=p.move?act({t:'move',id:p.move,x,y}):act({t:'build',type:p.type,x,y,isl:xs?curIsle(xs.st):0});
     if(r){S.drgPlace=null;if(!p.move){S.drgSel=r.s.last;toast(`Стройка началась: ${E.TYPES[p.type].name}`)}}},
   drgland:async el=>{const c=el.dataset.c,cost=E.LAND_COST[c];if(!cost)return;
-    if(!await askConfirm(`Расчистить участок за ${cost.gold?fmt(cost.gold)+' золота':cost.gems+' самоцветов'}?`,'Расчистить'))return;if(act({t:'expand',chunk:c}))toast('Участок расчищен')},
+    if(!await askConfirm(`Расчистить участок за ${cost.gold?fmt(cost.gold)+' золота':cost.gems+' самоцветов'}?`,'Расчистить'))return;const xs=stateOf(meId());if(act({t:'expand',chunk:c,isl:xs?curIsle(xs.st):0}))toast('Участок расчищен')},
   drgdo:el=>{const d=el.dataset,a={t:d.t,id:d.id,dragon:d.dragon,home:d.home,crop:d.crop,type:d.type,plot:num(d.plot),what:d.what,goal:d.goal,node:d.node};
     const r=act(a);if(!r)return;
     if(r.s.got&&r.s.got.gold)toast(`+${fmt(r.s.got.gold)} золота`);
@@ -789,4 +824,5 @@ window.DRG_ACTIONS={
   drgrename:el=>{const x=stateOf(meId()),d=x&&x.st.dragons.find(z=>z.id===el.dataset.dragon);if(!d)return;
     const n=prompt('Имя дракона',d.name);if(n!=null&&n.trim())act({t:'rename',dragon:d.id,name:n})}
 };
+Object.keys(window.DRG_ACTIONS).forEach(k=>{window.DRG_ACTIONS[k]=actGuard(window.DRG_ACTIONS[k])});
 })();

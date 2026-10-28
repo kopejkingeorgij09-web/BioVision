@@ -217,17 +217,54 @@ t('потомство двух гетерозигот по окраске: ок�
   assert.ok(Math.abs(pale/all-0.25)<0.07,pale/all);
 });
 
-t('препятствия: места постоянные, мешают стройке, расчищаются за золото',()=>{
+t('препятствий нет (4.1): вся открытая земля свободна, старые расчищенные клетки не мешают',()=>{
   let s=E.normalize(start0([]),0,null);s.bal.gold=1000;
-  const obs=E.obstacles(s);assert.ok(obs.length>=9,obs.length);assert.ok(!obs.some(o=>E.chunkOf(o.x,o.y)==='1,1'));
-  const o=obs.find(z=>z.kind==='rock')||obs[0],x=Math.min(o.x,E.GRID-2),y=Math.min(o.y,E.GRID-2);
-  assert.ok(!E.canPlace(s,x,y));
-  const gm=s.bal.gems,s2=ok(E.apply(s,ctx(0),{t:'clear',cell:o.id}));
-  assert.strictEqual(s2.bal.gold,1000-E.OBST_KIND[o.kind].gold);assert.strictEqual(s2.bal.gems,gm+(E.OBST_KIND[o.kind].gems||0));
-  assert.ok(!E.obstacles(s2).some(z=>z.id===o.id));
-  assert.ok(E.apply(s2,ctx(0),{t:'clear',cell:o.id}).err);
-  /* закрытый участок: препятствий не видно, пока его не откроют */
-  assert.ok(!obs.some(z=>E.chunkOf(z.x,z.y)==='0,0'));
+  assert.deepStrictEqual(E.obstacles(s),[]);
+  /* любая свободная клетка открытой земли годится: на стартовой земле нет ни дерева, ни валуна */
+  E.OBST.filter(o=>s.land.includes(E.chunkOf(o.x,o.y))).forEach(o=>{const x=Math.min(o.x,E.GRID-2),y=Math.min(o.y,E.GRID-2);
+    if(!s.bld.some(b=>x<b.x+2&&b.x<x+2&&y<b.y+2&&b.y<y+2)&&[0,1].every(dx=>[0,1].every(dy=>s.land.includes(E.chunkOf(x+dx,y+dy)))))assert.ok(E.canPlace(s,x,y),o.id)});
+  assert.ok(E.apply(s,ctx(0),{t:'clear',cell:'0,4'}).err);
+  const old=Object.assign(E.normalize(start0([]),0,null),{clr:['0,4','5,9']});assert.deepStrictEqual(E.obstacles(old),[]);
+});
+
+t('Огненный остров: открывается с 10-го уровня за золото, своя земля, постройки не пересекаются с первым островом',()=>{
+  let s=E.normalize(start0(founders()),0,null);s.bal.gold=100000;s.bal.gems=500;
+  assert.ok(E.apply(s,ctx(0),{t:'isle2'}).err,'на 1-м уровне закрыт');
+  assert.ok(E.apply(s,ctx(0),{t:'build',type:'farm',x:5,y:9,isl:1}).err,'строить на закрытом нельзя');
+  s.bal.xp=E.xpFor(E.ISLE2.L);
+  const g0=s.bal.gold;s=ok(E.apply(s,ctx(0),{t:'isle2'}));assert.strictEqual(s.bal.gold,g0-E.ISLE2.gold);assert.deepStrictEqual(s.isl2.land,E.START_LAND);
+  assert.ok(E.apply(s,ctx(0),{t:'isle2'}).err,'второй раз не открыть');
+  /* клетка занята на первом острове (Кальдера 4,5), а на втором свободна */
+  assert.ok(!E.canPlace(E.isle(s,0),4,5));assert.ok(E.canPlace(E.isle(s,1),4,5));
+  s=ok(E.apply(s,ctx(0),{t:'build',type:'farm',x:4,y:5,isl:1}));const b=s.bld.find(x=>x.id===s.last);assert.strictEqual(b.isl,1);
+  assert.ok(E.isle(s,1).bld.some(x=>x.id===b.id));assert.ok(!E.isle(s,0).bld.some(x=>x.id===b.id));
+  assert.ok(E.apply(s,ctx(0),{t:'build',type:'farm',x:4,y:5,isl:1}).err,'занято на втором');
+  /* перенос внутри своего острова */
+  s=ok(E.apply(s,ctx(0),{t:'move',id:b.id,x:6,y:7}));assert.strictEqual(s.bld.find(x=>x.id===b.id).x,6);
+  /* участок второго острова покупается отдельно и в свою землю */
+  s=ok(E.apply(s,ctx(0),{t:'expand',chunk:'0,0',isl:1}));assert.ok(s.isl2.land.includes('0,0'));assert.ok(!s.land.includes('0,0'));
+  /* сохранение с Огненным островом проходит проверку, а постройка с isl:1 без острова — нет */
+  const r=E.repair(JSON.parse(JSON.stringify(s)));assert.deepStrictEqual(r.bad,[]);
+  const bad=JSON.parse(JSON.stringify(s));delete bad.isl2;assert.ok(E.repair(bad).bad.length);
+  assert.ok(E.unlocksAt(E.ISLE2.L).some(x=>x.startsWith(E.ISLE2.name)));
+});
+
+t('награда похода: первая победа полная, повтор пятая часть и не больше 5 в день, звёзды до боя из документа',()=>{
+  let s=E.normalize(start0(founders()),0,null);const c=ctx(0,{today:'2026-10-28'}),n={id:'e3',rec:4};
+  const g0=s.bal.gold,f0=s.bal.food,m0=s.bal.gems;
+  s=ok(E.apply(s,c,{t:'pvewin',node:n,stars:2}));const g=s.got.pve;assert.ok(g.first);assert.ok(g.gold>=100&&g.food>0);
+  assert.strictEqual(s.bal.gold,g0+g.gold);assert.strictEqual(s.bal.food,f0+g.food);assert.strictEqual(s.bal.gems,m0);
+  /* звёзды в документе: следующая победа уже повтор */
+  s.pve={v:1,best:{e3:2},wins:{e3:1},at:{}};
+  const r1=ok(E.apply(s,c,{t:'pvewin',node:n,stars:3})).got.pve;assert.ok(!r1.first);assert.strictEqual(r1.gems,1,'первые три звезды');
+  assert.ok(r1.gold>0&&r1.gold<g.gold);
+  let x=s;for(let i=0;i<E.PVE_DAY;i++)x=ok(E.apply(x,c,{t:'pvewin',node:n,stars:2}));
+  const capd=ok(E.apply(x,c,{t:'pvewin',node:n,stars:2})).got.pve;assert.ok(capd.cap);assert.strictEqual(capd.gold,0);
+  /* на следующий день повторы снова награждаются */
+  assert.ok(ok(E.apply(x,ctx(0,{today:'2026-10-29'}),{t:'pvewin',node:n,stars:2})).got.pve.gold>0);
+  /* босс больше обычного боя и даёт самоцветы */
+  const bs=E.pveGain({rec:4,boss:true},1,0);assert.ok(bs.gold>g.gold&&bs.gems>=3);
+  assert.ok(E.apply(s,c,{t:'pvewin',node:n,stars:0}).err);
 });
 
 t('рынок: текст «большинство обычные, около десятой редкие, около сотой сверхредкие» совпадает с генератором',()=>{

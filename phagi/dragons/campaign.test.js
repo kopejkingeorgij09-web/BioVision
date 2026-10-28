@@ -20,7 +20,7 @@ t('десять регионов по шестнадцать узлов, все�
     assert.strictEqual(ns.filter(x=>x.boss).length,1,r.id);assert.ok(r.pal&&r.intro&&r.land,r.id);
     const main=ns.filter(x=>!x.side);assert.strictEqual(main.length,OLD.includes(r.id)?8:10,'главный путь: '+r.id);assert.strictEqual(main.length-1,main.findIndex(x=>x.boss),'босс в конце: '+r.id)});
   C.NODES.forEach(x=>{assert.ok(x.name&&x.story&&x.idea,x.id);assert.ok(['easy','normal','hard'].includes(x.ai),x.id);
-    assert.ok(x.team.max>=1&&x.team.max<=3,x.id);assert.ok(x.stars&&x.stars.text,x.id);assert.strictEqual(x.reward.type,'stars');
+    assert.ok(x.team.max>=1&&x.team.max<=3,x.id);assert.ok(x.stars&&x.stars.text,x.id);assert.strictEqual(x.reward.type,'loot');
     assert.ok(x.x>=8&&x.x<=92&&x.y>=8&&x.y<=142,'на карте: '+x.id);if(x.boss||x.mini)assert.ok(x.bossNote,'босс объясняет механику: '+x.id)});
   assert.strictEqual(new Set(C.REGIONS.map(r=>r.pal.land)).size,10,'палитры регионов разные')});
 

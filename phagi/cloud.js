@@ -195,9 +195,9 @@ gate.then(()=>{const go=()=>bar();document.readyState==='loading'?document.addEv
 window.PHCLOUD={rpc,get me(){return me},sync,codes:()=>me&&me.isOwner&&codes(),fresh:path=>rpc('ph_get',{p_code:getCode(),p_path:path}),
   /* тот ли код входа, с которым открыта страница: в другой вкладке могли выйти или войти под другим кодом */
   session:()=>getCode()===BOOT,
-  /* запись «только если в базе та же версия» (ph_set_if, supabase/proposals). Пока функция не применена в базе, CAS выключен
-     и остров пишется обычным ph_set; включать вместе с применением функции, см. supabase/proposals/CAS-PLAN-RU.md */
-  CAS:false,
+  /* запись «только если в базе та же версия» (ph_set_if, supabase/migrations/20261028_ph_set_if_rev.sql, применена 28.10.2026).
+     Остров пишется одной атомарной записью; false вернёт обычный ph_set. План и откат: supabase/proposals/CAS-PLAN-RU.md */
+  CAS:true,
   casSet:async(path,data,rev,op)=>{const r=await rpc('ph_set_if',{p_code:getCode(),p_path:path,p_data:data,p_rev:rev,p_op:op});
     if(r&&r.ok){put(path,clone(data),r.t);notify([path])}return r}};
 window.claude={use:async name=>{await gate;

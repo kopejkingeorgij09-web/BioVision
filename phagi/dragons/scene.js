@@ -8,7 +8,7 @@ const AN=()=>root.ANIM,RIG=()=>root.RIG,ATK=()=>root.DRATK;
 const clamp=(x,a,b)=>x<a?a:x>b?b:x;
 
 function Scene(cv,o){
-  o=o||{};this.cv=cv;this.o=o;this.ds=[];this.runs=[];this.t=0;this.reduce=!!o.reduce;this.dpr=o.dpr||Math.min(2,root.devicePixelRatio||1);
+  o=o||{};this.cv=cv;this.o=o;this.ds=[];this.runs=[];this.t=0;this.reduce=!!o.reduce;this.dpr=o.dpr||Math.min(3,root.devicePixelRatio||1);   /* 4.1: бой на экранах 3× без размытия */
   this.w=o.width||200;this.top=o.top||90;this.px=1;this.stats={draw:[],frame:[],parts:0};this.raf=0;this.alive=true;this.seed=o.seed||11;this.paused=false}
 /* слот: ph — фенотип, lvl, x — место по оси сцены, face 1 вправо / −1 влево */
 Scene.prototype.add=async function(ph,lvl,x,face,extra){

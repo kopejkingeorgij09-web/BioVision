@@ -587,3 +587,23 @@ body.drf-open .drg-isl .an,body.drf-open .drg-isl .drift,body.drf-open .drg-isl 
 .drf-le.on{background:rgba(242,201,76,.22);border-color:#F2C94C}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]) .drg-rank b,:root:not([data-theme=light]) .dri-rank{color:#F2C94C}}
 :root[data-theme=dark] .drg-rank b,:root[data-theme=dark] .dri-rank{color:#F2C94C}
+
+/* ---------- 4.1: Огненный остров, переход между островами, награда похода ---------- */
+.drg-map.lava{--isl-sky1:#3B2440;--isl-sky2:#C9704E;--isl-cloud:#B9A9AE;--isl-cloud2:#8C7C84}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .drg-map.lava{--isl-sky1:#160E1C;--isl-sky2:#6A2E2A;--isl-cloud:#6E6168;--isl-cloud2:#4E434A}}
+:root[data-theme="dark"] .drg-map.lava{--isl-sky1:#160E1C;--isl-sky2:#6A2E2A;--isl-cloud:#6E6168;--isl-cloud2:#4E434A}
+.drg-map.lava.full{background:radial-gradient(ellipse 90% 70% at 50% 85%,#E0874F 0%,var(--isl-sky2) 35%,var(--isl-sky1) 100%)}
+.drg-isw{all:unset;box-sizing:border-box;position:absolute;z-index:3;left:10px;top:10px;display:flex;align-items:center;gap:6px;min-height:40px;padding:6px 12px 6px 8px;border-radius:14px;
+  background:rgba(255,255,255,.9);color:#24402A;font:800 13px/1.1 var(--f,system-ui);cursor:pointer;box-shadow:0 4px 12px -4px rgba(0,0,0,.4)}
+.drg-isw i{font-style:normal;font-size:20px}.drg-isw b{font-size:12px;opacity:.75}.drg-isw span{white-space:nowrap}
+.drg-isw.to-lava{background:linear-gradient(180deg,#5A3A3E,#2E1E22);color:#FFE2C2;box-shadow:0 4px 14px -4px rgba(255,100,30,.55),inset 0 0 0 1.5px #FF7A1F}
+.drg-isw.lock{opacity:.92}
+.drg-isw:hover{filter:brightness(1.08)}.drg-isw:focus-visible{outline:3px solid #FFE27A;outline-offset:2px}
+.drg-map.full .drg-isw{left:12px;top:50%;transform:translateY(-50%)}
+@media(max-width:700px){.drg-map.full .drg-isw{top:auto;transform:none;bottom:calc(env(safe-area-inset-bottom,0px) + 76px)}}
+@media(max-width:420px){.drg-map.full .drg-isw{padding:6px 10px 6px 7px;font-size:12px}}
+.drg-map:not(.full) .drg-isw{top:10px;left:10px}
+.drg-map.full.lava .drg-svw>.drg-vol{color:#FFE9D6;text-shadow:0 1px 3px rgba(0,0,0,.8)}
+.drf-loot{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;align-items:center;margin:8px 0 2px;font-weight:800}
+.drf-loot span{padding:4px 10px;border-radius:999px;background:color-mix(in srgb,#F2C94C 28%,transparent);animation:drf-fade .5s ease both}
+.drf-loot.cap{font-weight:600;font-size:13px;opacity:.85}

@@ -173,6 +173,8 @@ function think(d,dt){
   const A=d.A,P=A.P;
   if(d.turn>0){d.turn=Math.max(0,d.turn-dt/0.32);if(d.turn===0)d.face=d.nface}
   if(d.cover)return;
+  /* 4.2: страховка — дракон вольера никогда не стоит за бортиком: если оказался снаружи, возвращается во двор */
+  if(d.mode==='hab'&&d.state!=='fly'&&yardOf(L.map,root.ISL,d)&&!yardHas(L.map,root.ISL,d,d.p)){d.to=null;d.state='idle';A.play('idle');settle(L.map,root.ISL,d,[...L.ds.values()]);return}
   if(d.state==='turn'){if(d.turn===0){d.state='walk';d.ax=A.x;A.play('walk')}return}
   /* полёт над своим двором: дракон поднимается, медленно перелетает к точке двора и садится */
   if(d.state==='fly'){

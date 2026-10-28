@@ -24,7 +24,7 @@ t('ходить можно только по открытой земле: не �
   s.bld.forEach(b=>{for(let dx=0;dx<2;dx++)for(let dy=0;dy<2;dy++)assert.ok(!m.free(b.x+dx+.5,b.y+dy+.5),b.type)});
   D.obstacles(s).forEach(o=>assert.ok(!m.free(o.x+.5,o.y+.5),o.id));
   for(let i=0;i<D.GRID;i++)for(let j=0;j<D.GRID;j++){const ch=Math.floor(i/D.CHUNK)+','+Math.floor(j/D.CHUNK);if(!s.land.includes(ch))assert.ok(!m.free(i+.5,j+.5),ch)}
-  assert.ok(!m.free(-0.5,3)&&!m.free(3,12.2))});
+  assert.ok(!m.free(-0.5,3)&&!m.free(3,16.2),"за краем острова 16×16")});
 
 t('цель прогулки: свободна, не заслонена, путь свободен и не заслонён, идёт боком к зрителю, не на другом драконе',()=>{
   const s=crowded(),m=LV.mapOf(s,D,I),r=rng(7);let found=0,tries=0;

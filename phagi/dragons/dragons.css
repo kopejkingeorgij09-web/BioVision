@@ -607,3 +607,33 @@ body.drf-open .drg-isl .an,body.drf-open .drg-isl .drift,body.drf-open .drg-isl 
 .drf-loot{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;align-items:center;margin:8px 0 2px;font-weight:800}
 .drf-loot span{padding:4px 10px;border-radius:999px;background:color-mix(in srgb,#F2C94C 28%,transparent);animation:drf-fade .5s ease both}
 .drf-loot.cap{font-weight:600;font-size:13px;opacity:.85}
+
+/* ---------- 4.2: ячейки стройки, справка уровня, клавиши, компоновка на компьютере ---------- */
+.drg-slot{cursor:pointer;outline:none}
+.drg-slot .drg-cell.ok{fill:rgba(124,214,122,.32);stroke:#fff;stroke-width:2.4;stroke-dasharray:8 6}
+.drg-slot:hover .drg-cell.ok,.drg-slot:focus-visible .drg-cell.ok{fill:rgba(124,214,122,.7);stroke:#FFE27A;stroke-dasharray:none}
+.drg-isl.lava .drg-slot .drg-cell.ok{fill:rgba(255,160,90,.3)}
+button.drg-hud-l{all:unset;pointer-events:auto;box-sizing:border-box;display:flex;align-items:center;cursor:pointer;border-radius:14px}
+button.drg-hud-l:hover .drg-star{filter:brightness(1.1)}button.drg-hud-l:focus-visible{outline:3px solid #FFE27A;outline-offset:2px}
+.drg-lv[data-act]{cursor:pointer}
+.drg-lvi h3{margin:14px 0 6px;font-size:15px}.drg-lvl-ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.drg-xp.big{height:12px;border-radius:6px}
+.drg-keys{border-collapse:collapse;width:100%}.drg-keys td{padding:5px 6px;border-bottom:1px solid var(--line)}
+.drg-keys kbd,.drg-kb{font:700 11px/1 ui-monospace,Menlo,monospace;padding:3px 6px;border-radius:6px;background:rgba(0,0,0,.08);border:1px solid rgba(0,0,0,.15)}
+.drg-kb{display:none}
+@media(min-width:901px) and (hover:hover){
+  /* на компьютере: компактная колонка разделов слева, остров занимает весь экран, у кнопок видны клавиши */
+  .drg-dock{left:12px;right:auto;top:50%;bottom:auto;transform:translateY(-50%);flex-direction:column;align-items:stretch;gap:6px}
+  .drg-rb{flex:none;width:96px;height:auto;min-height:0;flex-direction:row;justify-content:flex-start;gap:8px;padding:9px 10px;font-size:12.5px;border-radius:14px;position:relative}
+  .drg-rb i{font-size:20px}.drg-rb.big{height:auto;flex-basis:auto}.drg-rb.big i{font-size:22px}
+  .drg-rb .kb,.drg-kb{display:inline-block;position:absolute;right:5px;top:5px;padding:1px 4px;font-size:9.5px;background:rgba(255,255,255,.22);border-color:rgba(255,255,255,.35);color:#fff}
+  .drg-rb span{max-width:58px}
+  .drg-map.full .drg-isw{left:12px;top:auto;transform:none;bottom:18px}
+  body.drg-fs #main>.drg-pan{top:calc(env(safe-area-inset-top,0px) + 70px);bottom:16px;right:72px;width:min(420px,38vw)}
+}
+@media(min-width:901px) and (hover:hover){
+  .drg-rb{width:148px;justify-content:flex-start}.drg-rb span{max-width:none;overflow:visible}
+  .drg-rb .drg-kb{position:static;margin-left:auto;align-self:center}
+}
+@media(hover:none){.drg-kh{display:none!important}}
+@media(min-width:901px) and (hover:hover){.drg-rb{width:172px}}

@@ -587,8 +587,6 @@ function svg(st,opt){
       else if(T.kind==='hatch'){const r=(b.slots||[]).filter(p=>p&&D.ready(p,K)).length;if(r)bubs.push(bubble(x,y,'baby','×'+r,true))}}
   });
   if(!opt.bare)out.push(rimDecor(false,g,lava,k));
-  /* ночь в тёмной теме: лунный оттенок поверх острова (днём прозрачный); подписи и пузыри остаются яркими */
-  if(!opt.bare)out.push(`<rect x="${vb[0]-vb[2]}" y="${vb[1]-vb[3]}" width="${vb[2]*3}" height="${vb[3]*3}" style="fill:var(--isl-night,transparent)" pointer-events="none"/>`);
   out.push(`<g class="drg-drs">${HITS.join('')}</g>`);HITS=[];
   out.push(`<g class="drg-labs">${labs.join('')}</g>`);
   out.push(`<g class="drg-bubs">${bubs.join('')}</g>`);

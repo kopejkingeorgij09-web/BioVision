@@ -726,3 +726,6 @@ button.drg-hud-l:hover .drg-star{filter:brightness(1.1)}button.drg-hud-l:focus-v
 .top li{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:14px;border:1px solid var(--line);background:var(--card)}.top li.me{border-color:#F2B01E;background:color-mix(in srgb,#F2C94C 12%,var(--card))}
 .top-n{width:30px;text-align:center;font:800 18px var(--d,system-ui)}.top-t{flex:1;min-width:0;display:flex;flex-direction:column}.top-t small{color:var(--muted)}
 .drg-guest{padding:0 14px;font-weight:800;color:#fff}
+/* счётчик на кнопке «Ещё» (4.4): нерешённые головоломки и награды, которые можно забрать */
+.drg-rb{position:relative}.drg-bdg{position:absolute;top:-6px;right:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:#E0245E;color:#fff;font:800 12px/20px var(--f,system-ui);box-shadow:0 2px 6px rgba(0,0,0,.35);text-align:center}
+@media(min-width:901px) and (hover:hover){.drg-bdg{position:static;margin-left:4px;align-self:center}}

@@ -5,7 +5,7 @@
 <link rel="stylesheet" href="dragons/dragons.css?v=15">
 <script src="dragons/genetics.js?v=15"></script><script src="dragons/draw.js?v=15"></script><script src="dragons/economy.js?v=15"></script><script src="dragons/island.js?v=15"></script><script src="dragons/store.js?v=15"></script><script src="dragons/battle.js?v=15"></script><script src="dragons/campaign.js?v=15"></script><script src="dragons/ui.js?v=15"></script><script src="dragons/inspect.js?v=15"></script><script src="dragons/live.js?v=15"></script><script src="dragons/fight.js?v=15"></script>
 <meta charset="utf-8">
-<meta name="ph-ver" content="2026-10-28.7">
+<meta name="ph-ver" content="2026-10-28.8">
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Фаги естественных наук</title>
@@ -969,6 +969,16 @@ nav:empty{display:none}
 /* статус сохранения ответа и плашка новой версии (4.4) */
 .svst{margin:0 0 10px;font-size:13.5px;color:var(--muted);display:flex;gap:6px;align-items:flex-start}.svst.ok{color:var(--ink)}
 .svst.err{color:#9A2B12;background:color-mix(in srgb,#E4572E 14%,transparent);padding:8px 10px;border-radius:10px;font-weight:600}
+/* сводка учителя (4.4) */
+.sum-c h3{margin:14px 0 6px;font-size:14.5px}.sum-avg{font:800 22px var(--d);color:var(--c)}
+.sum-k{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:10px}
+.sum-k span{display:flex;flex-direction:column;align-items:center;padding:8px 4px;border-radius:12px;background:var(--soft);font-size:12px;color:var(--muted);text-align:center}
+.sum-k b{font:800 20px var(--d);color:var(--text)}.sum-k .on{background:color-mix(in srgb,var(--chem) 18%,var(--soft))}.sum-k .bad{background:color-mix(in srgb,var(--accent) 18%,var(--soft))}
+@media(max-width:520px){.sum-k{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.sum-s{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:10px;font-size:13.5px}
+.sum-ls{display:flex;flex-wrap:wrap;gap:6px}.sum-l{font:inherit;font-size:13.5px;text-align:left;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:6px 10px;cursor:pointer}
+.sum-l:hover{border-color:var(--ink)}.sum-l small{color:var(--muted)}.sum-w{font-size:13.5px;padding:6px 10px;border-radius:10px;background:var(--soft)}
+.sum-t .sum-l{margin-right:8px}.sum-t{padding:10px 0;border-top:1px solid var(--line)}.sum-t:first-of-type{border-top:0}.sum-t p{margin:6px 0 0}
 #ph-upd{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 10px);transform:translateX(-50%);z-index:9998;background:var(--ink,#0E4A38);color:#fff;padding:10px 12px 10px 16px;border-radius:14px;box-shadow:0 10px 30px -10px rgba(0,0,0,.5);font-size:14.5px;display:flex;gap:10px;align-items:center;max-width:calc(100vw - 24px)}
 #ph-upd button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:6px 12px;background:#fff;color:var(--ink,#0E4A38);cursor:pointer}
 .srbtn{all:unset;box-sizing:border-box;flex:none;cursor:pointer;display:flex;align-items:center;gap:9px;height:40px;padding:0 8px 0 12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--muted);font-size:14px;min-width:230px;transition:border-color .15s,color .15s}
@@ -1953,7 +1963,7 @@ function myRsvp(uid,evId,date){return(((S.rsvp[uid]||{})[evId]||{}).occ||{})[dat
 const RS={yes:'Приду',late:'Опоздаю',no:'Не смогу'};
 
 /* ---------- views ---------- */
-const IC={
+const IC={sum:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   home:'<path d="M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5H15v-5.5H9v5.5H5.5A1.5 1.5 0 0 1 4 19z"/>',
   cal:'<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/>',
   tasks:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
@@ -1972,7 +1982,7 @@ function navHTML(){
   if(!['teacher','student'].includes(S.mode)||(S.mode==='student'&&!S.joined))return'';
   const dueCards=T()?0:myDecks().reduce((s,d)=>{const st=deckStats(d,(S.srs[meId()]||{})[d.id]);return s+st.due+st.newToday},0);
   const items=T()
-    ?[['home','Главная',pending().length],['cal','Расписание'],['track','Трекер'],['tasks','Задания'],['cards','Карточки'],['nbs','Тетради'],['arena','Арена'],['bio','Биовиз'],['journal','Журнал'],['people','Ученицы']]
+    ?[['home','Главная',pending().length],['sum','Сводка',sumAlerts()],['cal','Расписание'],['track','Трекер'],['tasks','Задания'],['cards','Карточки'],['nbs','Тетради'],['arena','Арена'],['bio','Биовиз'],['journal','Журнал'],['people','Ученицы']]
     :[['home','Главная'],['cal','Расписание'],['track','Трекер',tkLate(meId())],['tasks','Задания',myTasks().filter(t=>!inNb(t)&&['todo','late'].includes(status(t,meId()).k)).length],['cards','Карточки',dueCards],['nbs','Тетради',nbBadge()],['arena','Арена'],['bio','Биовиз'],['marks','Журнал',errPile(meId()).length+bvPile(meId()).length]].map(x=>x[0]==='arena'&&DRGUI.on(meId())?['arena','Бои']:x);
   const cur=S.view==='task'?'tasks':['deck','review','stview','island'].includes(S.view)?'cards':S.view==='fix'?'marks':S.view==='arview'?'arena':S.view==='nb'?'nbs':S.view;
   const kb=/Mac|iPhone|iPad/.test(navigator.platform||'')?'⌥':'Alt+';
@@ -2970,6 +2980,39 @@ function marksHTML(){
   if(!ts.length)return head+`<div class="empty">Проверенных работ пока нет.</div>`;
   return head+`<div class="list">${ts.map(t=>{const g=status(t,meId()).g;return `<button class="item" data-act="open" data-id="${t.id}"><span class="grow"><span class="t">${esc(t.title)}</span><br>${subj(t.subject)}${g.feedback?`<br><span class="muted small">${esc(g.feedback.replace(/\*\*/g,'').slice(0,90))}</span>`:''}</span>${markHTML(g,maxOf(t),'sm')||'<span class="st graded">Проверено</span>'}</button>`}).join('')}</div>`;
 }
+/* ---------- сводка учителя (4.4): кто что сдал, что ждёт проверки, просрочки, проценты по предметам, слабые темы,
+   трудные вопросы последних тестов. Только чтение: всё считается из тех же данных, что видит учитель в заданиях ---------- */
+function sumRows(uid){
+  const ts=S.tasks.filter(t=>t.kind!=='material'&&!inNb(t)&&(t.to||[]).includes(uid));
+  const by=k=>ts.filter(t=>status(t,uid).k===k);
+  const pcs=ts.map(t=>{const st=status(t,uid);if(st.k!=='graded'||!st.g)return null;const pc=hwPct(st.g.score,maxOf(t));return pc==null?null:{t,pc}}).filter(Boolean);
+  const subj={};pcs.forEach(x=>{const k=x.t.subject||'other';(subj[k]=subj[k]||[]).push(x.pc)});
+  const avg=a=>a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):null;
+  const weak=tagStats(uid).filter(x=>x.n>=3&&x.ok/x.n<0.6).sort((a,b)=>a.ok/a.n-b.ok/b.n).slice(0,5);
+  return {ts,wait:by('sub'),late:by('late'),todo:by('todo'),graded:by('graded'),avg:avg(pcs.map(x=>x.pc)),subj:Object.entries(subj).map(([k,a])=>[k,avg(a),a.length]),weak}}
+function sumAlerts(){if(!T())return 0;return S.people.reduce((n,p)=>{const r=sumRows(p.id);return n+r.wait.length+r.late.length},0)}
+function sumHTML(){
+  if(!T())return `<div class="empty">Сводка видна учителю.</div>`;
+  const link=t=>`<button class="sum-l" data-act="open" data-id="${esc(t.id)}">${esc(t.title||'Задание')}${t.due?` <small>до ${fmtDay(t.due)}</small>`:''}</button>`;
+  const pcC=pc=>pc==null?'var(--muted)':pc>=85?'var(--bio)':pc>=60?'var(--chem)':'var(--accent)';
+  const cards=S.people.map(p=>{const r=sumRows(p.id);
+    return `<section class="sheet sum-c"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 style="margin:0">${esc(p.label||'Без имени')}</h2>${r.avg!=null?`<b class="sum-avg" style="--c:${pcC(r.avg)}">${r.avg}%</b>`:''}</div>
+      <div class="sum-k"><span><b>${r.ts.length}</b>задано</span><span><b>${r.graded.length}</b>проверено</span><span class="${r.wait.length?'on':''}"><b>${r.wait.length}</b>ждут проверки</span><span class="${r.late.length?'bad':''}"><b>${r.late.length}</b>просрочено</span><span><b>${r.todo.length}</b>в работе</span></div>
+      ${r.subj.length?`<div class="sum-s">${r.subj.map(([k,a,n])=>`<span>${subj(k)} <b style="color:${pcC(a)}">${a}%</b> <small>${n} ${plural(n,'работа','работы','работ')}</small></span>`).join('')}</div>`:''}
+      ${r.wait.length?`<h3>Ждут проверки</h3><div class="sum-ls">${r.wait.map(link).join('')}</div>`:''}
+      ${r.late.length?`<h3>Просрочено</h3><div class="sum-ls">${r.late.map(link).join('')}</div>`:''}
+      ${r.weak.length?`<h3>Слабые темы по тестам</h3><div class="sum-ls">${r.weak.map(x=>`<span class="sum-w">${esc(x.tag)} <b style="color:${pcC(Math.round(x.ok/x.n*100))}">${x.ok} из ${x.n}</b></span>`).join('')}</div>`:''}
+    </section>`}).join('');
+  /* трудные вопросы: последние тесты, где сдали хотя бы двое или одна ученица из одной */
+  const tests=S.tasks.filter(t=>t.kind==='test'&&!inNb(t)&&(t.to||[]).some(u=>{const x=(S.subs[u]||{})[t.id];return x&&x.status==='submitted'}))
+    .sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))).slice(0,6);
+  const hardRows=tests.map(t=>{const subs=(t.to||[]).map(u=>(S.subs[u]||{})[t.id]).filter(x=>x&&x.status==='submitted'&&Array.isArray(x.answers));if(!subs.length)return '';
+    const hard=(t.q||[]).map((q,i)=>({i,p:subs.filter(x=>checkQ(q,x.answers[i])).length/subs.length,q})).filter(x=>x.p<0.5);
+    return `<div class="sum-t"><button class="sum-l" data-act="open" data-id="${esc(t.id)}">${esc(t.title||'Тест')}</button><span class="muted small">сдали ${subs.length} из ${(t.to||[]).length}</span>
+      ${hard.length?`<p class="small">Трудные: ${hard.slice(0,8).map(x=>`№${x.i+1}${x.q.tag?' ('+esc(x.q.tag)+')':''}`).join(', ')}${hard.length>8?' и ещё '+(hard.length-8):''}. Полный разбор — в тесте.</p>`:'<p class="small muted">Все вопросы решены хотя бы в половине работ.</p>'}</div>`}).join('');
+  return `<div class="page-h"><h1>Сводка</h1></div><p class="muted">Кто что сдал, что ждёт проверки и где ошибаются чаще всего. Нажмите на задание, чтобы открыть его.</p>
+    ${S.people.length?cards:'<div class="empty">Учениц пока нет.</div>'}
+    ${hardRows?`<section class="sheet"><h2>Трудные вопросы последних тестов</h2>${hardRows}</section>`:''}`}
 function peopleHTML(){
   return `<div class="page-h"><h1>Ученицы</h1></div>
   ${S.people.length?S.people.map(p=>`<section class="sheet"><div class="row"><label class="grow" style="margin:0">Имя в классе<input id="lbl-${p.id}" value="${esc(val('lbl-'+p.id,p.label))}" maxlength="40"></label>
@@ -2993,7 +3036,7 @@ function mainHTML(){
     <p class="muted">Напиши, как тебя зовут, чтобы учитель понимал, чья работа.</p>
     <label>Имя<input id="joinname" maxlength="40" value="${esc(val('joinname'))}" autocomplete="given-name"></label>
     <button class="btn" data-act="join">Войти в класс</button></section>`;
-  const html=({home:homeHTML,cal:calHTML,tasks:tasksHTML,task:taskHTML,cards:cardsHTML,deck:deckHTML,review:reviewHTML,stview:stViewHTML,journal:journalHTML,marks:marksHTML,fix:fixHTML,people:peopleHTML,arena:arenaHTML,arview:arviewHTML,island:DRGUI.islandView,bio:bioHTML,nbs:nbsHTML,nb:nbHTML,track:trackHTML}[S.view]||homeHTML)();
+  const html=({home:homeHTML,cal:calHTML,tasks:tasksHTML,task:taskHTML,cards:cardsHTML,deck:deckHTML,review:reviewHTML,stview:stViewHTML,journal:journalHTML,marks:marksHTML,fix:fixHTML,people:peopleHTML,arena:arenaHTML,arview:arviewHTML,island:DRGUI.islandView,sum:sumHTML,bio:bioHTML,nbs:nbsHTML,nb:nbHTML,track:trackHTML}[S.view]||homeHTML)();
   const c=PHC[S.view];
   return c&&IC[S.view]?html.replace('<div class="page-h"><h1>',`<div class="page-h"><h1><span class="phi" style="--c:${c}" aria-hidden="true"><svg viewBox="0 0 24 24">${IC[S.view]}</svg></span>`):html;
 }

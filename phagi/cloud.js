@@ -172,6 +172,50 @@ function colRef(col){checkCol(col);const base=query(col,{where:[],order:null,lim
     async add(data){const r=docRef(col+'/'+newId());await r.set(data);return r}})}
 const db={doc:docRef,collection:colRef};
 
+/* ---------- файлы в базе (29.10.2026): фото решений и файлы учителя ----------
+   Раньше файлы лежали только статикой в _blob/ (класть через VS Code). Теперь загрузка с платформы: файл режется на куски
+   по CH символов base64 (ph_set принимает документ до 400 000 байт) и пишется в документы базы:
+   ученица — subs/<uid>/blob/<r> (читают она и учитель), учитель — files/<r> (читают все). <r>.0, <r>.1… — куски, <r> — опись.
+   id файла: 'dbs' + r + uid или 'dbf' + r (r — 12 символов [a-z0-9]), подходит под safeId страницы.
+   Страница по-прежнему обращается к '_blob/<id>': fetch таких адресов перехватывается и собирает файл из базы, а у картинок
+   и ссылок адрес подменяется на готовый объект. Фото перед загрузкой сжимается (до 1800 px, JPEG). */
+const CH=300000,FMAX=12e6,BL=new Map(),BU=new Map();
+const DBID=/^db([sf])([0-9a-z]{12})([0-9A-Za-z_-]*)$/;
+function blobPath(id){const m=DBID.exec(id);if(!m)return null;return m[1]==='s'?`subs/${m[3]}/blob/${m[2]}`:`files/${m[2]}`}
+const nativeFetch=window.fetch.bind(window);
+function blobGet(id){if(BL.has(id))return BL.get(id);
+  const p=(async()=>{const path=blobPath(id);if(!path)throw new Error('не файл базы');const m=await rpc('ph_get',{p_code:getCode(),p_path:path});
+    if(!m||!m.n)throw new Error('файла нет');const parts=await Promise.all(Array.from({length:m.n},(_,k)=>rpc('ph_get',{p_code:getCode(),p_path:path+'.'+k})));
+    const r=await nativeFetch('data:'+(m.type||'application/octet-stream')+';base64,'+parts.map(x=>x&&x.b||'').join(''));return await r.blob()})();
+  BL.set(id,p);p.catch(()=>BL.delete(id));return p}
+const blobIdOf=u=>{const m=/(?:^|\/)_blob\/(db[sf][0-9A-Za-z_-]+)$/.exec(String(u||'').split('?')[0]);return m?m[1]:null};
+window.fetch=function(u,o){const id=blobIdOf(typeof u==='string'?u:u&&u.url);
+  if(id)return blobGet(id).then(b=>new Response(b,{status:200,headers:{'content-type':b.type||'application/octet-stream'}}),()=>new Response('',{status:404}));
+  return nativeFetch(u,o)};
+function hydrate(el){if(!el||!el.querySelectorAll)return;
+  const one=x=>{const at=x.tagName==='IMG'?'src':'href',id=blobIdOf(x.getAttribute(at));if(!id)return;
+    if(BU.has(id)){x.setAttribute(at,BU.get(id));return}if(at==='src')x.removeAttribute('src');
+    blobGet(id).then(b=>{let u=BU.get(id);if(!u){u=window.URL.createObjectURL(b);BU.set(id,u)}x.setAttribute(at,u)}).catch(()=>{if(at==='src')x.alt='Файл не загрузился'})};
+  if(el.matches&&el.matches('img[src*="_blob/db"],a[href*="_blob/db"]'))one(el);el.querySelectorAll('img[src*="_blob/db"],a[href*="_blob/db"]').forEach(one)}
+new MutationObserver(ms=>{for(const m of ms){if(m.type==='attributes')hydrate(m.target);else m.addedNodes.forEach(n=>hydrate(n))}})
+  .observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['src','href']});
+function rand12(){const a='abcdefghijklmnopqrstuvwxyz0123456789',r=crypto.getRandomValues(new Uint8Array(12));return Array.from(r,x=>a[x%36]).join('')}
+/* фото: самая длинная сторона до 1800 px, JPEG; если картинку не прочитать (редкий формат), грузится как есть */
+async function shrink(file){try{const bm=await createImageBitmap(file),k=Math.min(1,1800/Math.max(bm.width,bm.height)),w=Math.round(bm.width*k),h=Math.round(bm.height*k);
+  const cv=document.createElement('canvas');cv.width=w;cv.height=h;const c=cv.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,w,h);c.drawImage(bm,0,0,w,h);
+  let q=0.82,b=null;for(let i=0;i<3;i++){b=await new Promise(r=>cv.toBlob(r,'image/jpeg',q));if(b&&b.size<900000)break;q-=0.15}
+  return b&&b.size<file.size?b:null}catch(e){return null}}
+const toB64=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]||'');r.onerror=()=>rej(r.error);r.readAsDataURL(b)});
+const assets={
+  async upload(file,opt){if(!me)throw Object.assign(new Error('Нет входа'),{code:'not_granted'});let type=(opt&&opt.type)||file.type||'application/octet-stream',blob=file;
+    if(/^image\//.test(type)&&!/gif|svg/.test(type)){const s2=await shrink(file);if(s2){blob=s2;type='image/jpeg'}}
+    if(blob.size>FMAX)throw Object.assign(new Error('Файл больше 12 МБ'),{code:'too_large'});
+    const b64=await toB64(blob),r=rand12(),id=me.isOwner?'dbf'+r:'dbs'+r+me.id,path=blobPath(id),n=Math.max(1,Math.ceil(b64.length/CH));
+    for(let k=0;k<n;k++)await rpc('ph_set',{p_code:getCode(),p_path:path+'.'+k,p_data:{b:b64.slice(k*CH,(k+1)*CH)}});
+    await rpc('ph_set',{p_code:getCode(),p_path:path,p_data:{type,name:String(file.name||'файл').slice(0,120),size:blob.size,n,at:new Date().toISOString()}});
+    BL.set(id,Promise.resolve(blob));return {id,contentType:type}},
+  async list(){return {assets:[]}}};
+
 /* ---------- пользователь и скачивание ---------- */
 const prof={};
 const user={
@@ -208,5 +252,6 @@ window.claude={use:async name=>{await gate;
   if(name==='db')return db;
   if(name==='user')return user;
   if(name==='downloads')return downloads;
+  if(name==='assets')return assets;
   return null}};
 })();

@@ -237,6 +237,12 @@ const assets={
       for(let k=0;k<h.parts;k++){const c=await rpc('ph_get',{p_code:getCode(),p_path:path+'~'+k});if(!c)return null;data+=c.d}
       const bin=atob(data),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return window.URL.createObjectURL(new Blob([u],{type:h.type}))})();
     fCache.set(id,p);const u=await p.catch(()=>null);fCache.set(id,u);if(!u)fCache.delete(id);return u}};
+/* fetch('_blob/<id>') для файлов из базы (29.10): просмотрщик файлов, PDF тетрадей и пометки на фото берут файл через fetch,
+   а GitHub Pages такого файла не знает. Здесь он собирается из базы; остальные запросы идут как обычно */
+const nativeFetch=window.fetch.bind(window);
+window.fetch=function(u,o){const s=typeof u==='string'?u:u&&u.url||'',m=/(?:^|\/)_blob\/([^/?#]+)$/.exec(s.split(/[?#]/)[0]);
+  if(m&&isDbFile(m[1]))return Promise.resolve(assets.url(m[1])).then(x=>x?nativeFetch(x):new Response('',{status:404}));
+  return nativeFetch(u,o)};
 /* ссылки и картинки на файлы из базы: _blob/<id> → blob:-адрес */
 function fixBlobs(root){(root||document).querySelectorAll('a[href^="_blob/"],img[src^="_blob/"]').forEach(el=>{const at=el.tagName==='A'?'href':'src',id=el.getAttribute(at).slice(6);
   if(!isDbFile(id))return;const c=fCache.get(id);

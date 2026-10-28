@@ -157,7 +157,7 @@ t('догоняющий рост: молодой дракон ест вдвое 
   s.dragons[0].lvl=30;const g=JSON.stringify(s.dragons[1].genome);s.dragons[1].lvl=5;
   const p=E.feedPrice(s,s.dragons[1]);assert.ok(p.catchUp);assert.strictEqual(p.cost,Math.ceil(E.feedCost(5)/2));
   const xp0=s.bal.xp,f0=s.bal.food;s=ok(E.apply(s,ctx(0),{t:'feed',dragon:'d2'}));
-  assert.strictEqual(f0-s.bal.food,p.cost);assert.strictEqual(s.bal.xp-xp0,Math.round(p.cost/4));assert.strictEqual(JSON.stringify(s.dragons[1].genome),g);
+  assert.strictEqual(f0-s.bal.food,p.cost);assert.strictEqual(s.bal.xp-xp0,Math.round(p.cost/4*Math.pow(20/60,E.ECON.xpFall)),'опыт от заплаченного, с понижением после 20-го уровня');assert.strictEqual(JSON.stringify(s.dragons[1].genome),g);
   assert.ok(!E.feedPrice(s,s.dragons[0]).catchUp,'самому сильному скидки нет');
   s.dragons[1].lvl=25;assert.ok(!E.feedPrice(s,s.dragons[1]).catchUp,'разрыв меньше 10 уровней');
 });
@@ -213,6 +213,14 @@ t('бонус за ДЗ: начисляется только прирост су
   s=E.normalize(s,0,{K:0,food:0,gems:0,best:0,hw:{gems:2,food:60}});assert.strictEqual(s.bal.gems,g0,'снижение суммы не отнимает');
   s=E.normalize(s,0,{K:0,food:0,gems:0,best:0,hw:{gems:9,food:330}});assert.strictEqual(s.bal.gems,g0+4);assert.strictEqual(s.bal.food,f0+150);
   assert.strictEqual(s.credited.gems,0,'учёт серии не тронут')});
+
+t('опыт за повторение: прошлые карточки не дают опыта задним числом, повтор не удваивает, после 20-го уровня опыт за действие падает',()=>{
+  let s=E.startState(founders(),100);const inc=K=>E.income({'2026-10-26':K},{},[{from:'2026-10-01',to:null}],15,{K:100});
+  s=E.normalize(s,100,inc(100));assert.strictEqual(s.bal.xp,0,'первый раз только отметка');
+  const a=E.normalize(s,130,inc(130)),b=E.normalize(a,130,inc(130));assert.ok(a.bal.xp>0);assert.strictEqual(b.bal.xp,a.bal.xp,'повтор не добавляет');
+  assert.strictEqual(a.credited.cx,inc(130).gk(130));
+  for(const L of [1,10,20])assert.strictEqual(E.xpFor(L),Math.round(30*Math.pow(Math.max(0,L-1),1.9)),'кривая опыта прежняя');
+  assert.ok(Math.pow(20/40,E.ECON.xpFall)<0.5)});
 
 t('цели исследования: награда один раз и только за выполненное',()=>{
   let s=E.normalize(E.startState(founders(),0),0,null);

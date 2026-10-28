@@ -136,7 +136,7 @@ function volHTML(st,info,mini){const n=info.todayN||0,b=E.todayBonus(n,GOAL),on=
   if(mini)return `<span class="drg-vol" title="Бонус за объём повторения сегодня">📈 ${n} · ${kTxt(b.k)}</span>`;
   return `<div class="drg-vol" role="status"><b>Сегодня повторено ${n}</b><span>Бонус к золоту ${kTxt(b.k)} · ${nx}</span>${b.food?`<span>Корм сверх ${GOAL} карточек: +${fmt(b.food)} 🌾 сегодня</span>`:''}
     ${hwIsleHTML(info)}
-    <small class="muted">Каждая карточка двигает стройки, грядки и яйца на одну карточку. Карточки с 16-й приносят золото с бонусом ${kTxt(E.ladderK(16))}, с 31-й ${kTxt(E.ladderK(31))}, с 61-й ${kTxt(E.ladderK(61))}, после 120-й ${kTxt(E.ladderK(121))}, и ещё ${E.ECON.foodX} корма с тем же бонусом. 30 карточек дают примерно вдвое больше золота, чем 15, и около ${fmt(E.todayBonus(30,GOAL).food)} корма сверх пайка.</small></div>`}
+    <small class="muted">Каждая карточка двигает стройки, грядки и яйца на одну карточку и даёт опыт острова (с бонусом дня). Карточки с 16-й приносят золото с бонусом ${kTxt(E.ladderK(16))}, с 31-й ${kTxt(E.ladderK(31))}, с 61-й ${kTxt(E.ladderK(61))}, после 120-й ${kTxt(E.ladderK(121))}, и ещё ${E.ECON.foodX} корма с тем же бонусом. 30 карточек дают примерно вдвое больше золота, чем 15, и около ${fmt(E.todayBonus(30,GOAL).food)} корма сверх пайка.</small></div>`}
 
 /* ---------- «Карточки»: сводка вместо чашки ---------- */
 function hero(uid,compact){

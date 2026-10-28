@@ -16,7 +16,9 @@ const ECON={
   goldX:2,                                                     /* золото драконов за карточку вдвое больше прежнего */
   ladder:[[15,1],[30,1.15],[60,1.3],[120,1.5],[Infinity,1.6]], /* [до какой карточки дня, множитель этой карточки] */
   foodX:2,                                                     /* корм за каждую карточку сверх цели, тоже по лесенке */
-  catchUp:{gap:10,k:0.5}                                       /* дракон на 10+ уровней ниже самого сильного: корм вдвое дешевле */
+  catchUp:{gap:10,k:0.5},                                     /* дракон на 10+ уровней ниже самого сильного: корм вдвое дешевле */
+  xpFall:2.6,                                                  /* опыт острова после 20-го уровня: множитель (20/L)^xpFall */
+  cardXp:6                                                     /* опыт острова за единицу часов золота (карточка до 15-й в дне = 2 единицы = 12 опыта) */
 };
 const ladderK=j=>{for(const [to,k] of ECON.ladder)if(j<=to)return k;return 1};
 /* следующий порог лесенки после n карточек за день: {at, k} или null */
@@ -233,6 +235,9 @@ function normalize(s,K,inc,gk){
     /* ячейки Инкубатора только добавляются, занятые не трогаются */
     if(b.slots&&!b.build)while(b.slots.length<hatchCap(s,b))b.slots.push(null);
   });
+  /* опыт за повторение: после точки перехода каждая карточка даёт опыт по лесенке дня (часы золота gk). Первый раз только
+     запоминается отметка, поэтому прошлые карточки опыта задним числом не дают, а повтор normalize ничего не добавляет */
+  if(inc&&typeof s.evK==='number'){const g=gk(K);if(typeof s.credited.cx!=='number')s.credited.cx=g;else if(g>s.credited.cx){xp(s,(g-s.credited.cx)*ECON.cardXp);s.credited.cx=g}}
   const L=level(s);if(L>(s.credited.lvl||1)){s.bal.gems+=2*(L-(s.credited.lvl||1));s.credited.lvl=L}
   if(gk!==ID)Object.defineProperty(s,'_gk',{value:gk,enumerable:false,configurable:true});
   return s}
@@ -346,7 +351,9 @@ function pay(s,cost){
   const c={gold:cost.gold||0,food:cost.food||0,gems:cost.gems||0};
   if(s.bal.gold<c.gold)return 'Не хватает золота';if(s.bal.food<c.food)return 'Не хватает корма';if(s.bal.gems<c.gems)return 'Не хватает самоцветов';
   s.bal.gold-=c.gold;s.bal.food-=c.food;s.bal.gems-=c.gems;return null}
-const xp=(s,n)=>{s.bal.xp+=Math.max(0,Math.round(n))};
+/* опыт острова: до 20-го уровня как раньше, дальше каждое действие даёт меньше (кривая xpFor не меняется, уже набранные уровни не падают) */
+const xpK=L=>L<=20?1:Math.pow(20/L,ECON.xpFall);
+const xp=(s,n)=>{s.bal.xp+=Math.max(0,Math.round(n*xpK(levelOf(s.bal.xp))))};
 const GK=c=>c&&(c.gk||(c.inc&&c.inc.gk))||ID;
 
 const ACTS={
@@ -582,7 +589,7 @@ const MINOR=/^(ещё|драконы растут)/;
 function nextMajor(L){for(let k=L+1;k<=ISLE_MAX;k++){const u=unlocksAt(k).filter(x=>!MINOR.test(x));if(u.length)return {L:k,list:u}}return null}
 
 const DECO={DRAGON_MAX,ISLE_MAX,repair,unlocksAt,nextMajor,MINOR,NURSERY,nurseryCap,homeFor,nursery,breedPath,HATCH_LV,BREED_LV,breedCost,BREED_NEED,HATCH_NEED,PRED_TOL,lvTable,summary,habNames,TYPES,HAB_ORDER,HAB_LV,FARM_LV,CROPS,RAR_GOLD,SKIP_CARDS,GRID,CHUNK,START_LAND,LAND_COST,MILESTONES,FEEDS,RATION,
-  ECON,ladderK,ladderNext,todayBonus,SLOT7,hatchCap,firstHatch,maxOf,buildCost,feedPrice,lvlGold,goldRate,goldNow,landState,adjacent,extent,zoneSpot,GIFTS,giftGenome,RESEARCH,MASTERY,mastery,hasE2,
+  ECON,ladderK,ladderNext,todayBonus,SLOT7,hatchCap,firstHatch,maxOf,buildCost,feedPrice,lvlGold,goldRate,goldNow,landState,adjacent,extent,allChunks,zoneSpot,GIFTS,giftGenome,RESEARCH,MASTERY,mastery,hasE2,
   xpFor,levelOf,maxHabs,maxFarms,maxDragonLv,feedCost,income,startState,hosts,dragonKeys,goldPerCard,rate,settle,chestNow,normalize,
   canPlace,chunkOf,apply,OBST,OBST_KIND,obstacles,ready,left,level,count,streakMult,marketGenome,habCap,chestCap};
 if(typeof module!=='undefined'&&module.exports)module.exports=DECO;else root.DECO=DECO;

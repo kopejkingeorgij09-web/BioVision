@@ -212,14 +212,13 @@ function wake(){if(!L.raf&&running())L.raf=requestAnimationFrame(tick)}
 function stop(){if(L.raf)cancelAnimationFrame(L.raf);L.raf=0;L.last=0}
 function tick(ts){
   L.raf=0;if(!running()){L.last=0;return}
+  /* при «меньше движения» цикл не крутится: кадр рисуется по запросу (камера сдвинулась, пришли текстуры), см. nudge */
+  if(reduced()){const V=islandView(),key=[V.s.toFixed(4),V.ox.toFixed(1),V.oy.toFixed(1),Math.round(V.cw),Math.round(V.ch)].join();
+    if(L.dirty||key!==L.lastKey){L.lastKey=key;draw()}L.last=0;return}
   L.raf=requestAnimationFrame(tick);
   if(L.last&&ts-L.last<FPS_MIN-1)return;
   const dt=L.last?clamp((ts-L.last)/1000,0,0.1):1/30;if(L.last){L.stats.frame.push(ts-L.last);if(L.stats.frame.length>240)L.stats.frame.shift()}
   L.last=ts;
-  if(reduced()){
-    /* меньше движения: стоят, кадр только когда камера сдвинулась или пришли текстуры */
-    const V=islandView(),key=[V.s.toFixed(4),V.ox.toFixed(1),V.oy.toFixed(1),Math.round(V.cw),Math.round(V.ch)].join();
-    if(L.dirty||key!==L.lastKey){L.lastKey=key;draw()}return}
   L.ds.forEach(d=>{think(d,dt);d.A.update(dt);place(d)});
   draw()}
 if(typeof document!=='undefined'){

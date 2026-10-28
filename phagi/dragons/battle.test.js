@@ -17,18 +17,62 @@ const start=(A,Bb,seed)=>{const b=new B.Battle({A,B:Bb,seed});b.next();return b}
 /* текущему бойцу сделать ход по выбору f(b) */
 function play(b,pick){let k=0;while(!b.over&&k++<600){b.act(pick(b));b.next()}return b}
 
-t('стихии: круг из пяти, Свет и Тьма друг против друга, гибриды перемножаются, без стихии ×1',()=>{
-  assert.strictEqual(B.mult('F',['P']),1.5);assert.strictEqual(B.mult('P',['F']),0.75);assert.strictEqual(B.mult('W',['F']),1.5);
-  assert.strictEqual(B.mult('L',['D']),1.5);assert.strictEqual(B.mult('D',['L']),1.5);assert.strictEqual(B.mult('L',['F']),1);
-  assert.strictEqual(B.mult('W',['F','T']),1.5);assert.strictEqual(B.mult('F',['P','W']),1.5*0.75);assert.strictEqual(B.mult(null,['P']),1);
-  Object.keys(B.BEATS).forEach(e=>{const wins=Object.keys(B.BEATS).filter(x=>B.mult(e,[x])>1);assert.strictEqual(wins.length,1,e)})});
+t('стихии: каждая из пяти сильна против двух и слаба против двух, треугольник Вода > Огонь > Флора > Вода',()=>{
+  const S=1.4,W=1/1.4,near=(x,y)=>Math.abs(x-y)<1e-5;
+  assert.ok(near(B.mult('W',['F']),S)&&near(B.mult('F',['P']),S)&&near(B.mult('P',['W']),S),'треугольник');
+  assert.ok(near(B.mult('F',['W']),W)&&near(B.mult('P',['F']),W)&&near(B.mult('W',['P']),W));
+  ['F','W','T','A','P'].forEach(e=>{const five=['F','W','T','A','P'].filter(x=>x!==e);
+    assert.strictEqual(five.filter(x=>near(B.mult(e,[x]),S)).length,2,e+' сильна против двух');
+    assert.strictEqual(five.filter(x=>near(B.mult(e,[x]),W)).length,2,e+' слаба против двух');
+    assert.ok(near(B.mult(e,['L']),1)&&near(B.mult(e,['D']),1)&&near(B.mult('L',[e]),1)&&near(B.mult('D',[e]),1),e+' и Свет/Тьма нейтральны')});
+  assert.ok(near(B.mult('L',['D']),S)&&near(B.mult('D',['L']),S),'Свет и Тьма уязвимы друг для друга');
+  /* таблица ТЗ целиком */
+  const T={W:[['F','T'],['P','A']],F:[['P','A'],['W','T']],P:[['W','T'],['F','A']],T:[['F','A'],['W','P']],A:[['W','P'],['F','T']]};
+  Object.entries(T).forEach(([e,[st,wk]])=>{st.forEach(x=>assert.ok(near(B.pair(e,x),S),e+'>'+x));wk.forEach(x=>assert.ok(near(B.pair(e,x),W),e+'<'+x))});
+  assert.strictEqual(B.mult(null,['P']),1);assert.strictEqual(B.mult('F',[]),1)});
+
+t('гибрид цели: среднее геометрическое, сильное и слабое гасят друг друга, четыре стихии не дают ×1,4⁴',()=>{
+  const near=(x,y)=>Math.abs(x-y)<1e-5;
+  assert.ok(near(B.mult('W',['F','T']),1.4),'обе слабы к Воде: ×1,4, а не ×1,96');
+  assert.ok(near(B.mult('F',['P','W']),1),'сильное и слабое: ×1');
+  assert.ok(near(B.mult('W',['F','A']),1));
+  assert.ok(near(B.mult('A',['W','P','F','T']),1),'две сильные и две слабые: ×1');
+  for(const a of 'FWTAPLD')for(const d1 of 'FWTAPLD')for(const d2 of 'FWTAPLD')for(const d3 of 'FWTAPLD'){const m=B.mult(a,[d1,d2,d3]);assert.ok(m>=1/1.4-1e-9&&m<=1.4+1e-9,a+'→'+d1+d2+d3+' '+m)}});
+
+t('Натиск Воздуха: +12 % только по цели, которая в этом раунде ещё не ходила',()=>{
+  const b=start([F('a',{els:['A'],spd:20})],[F('d',{spd:1,hp:999})],7);
+  const e1=b.expect(b.get('a'),{power:1.25,el:'A'},b.get('d'));
+  b.act({skill:'guard'});b.next();assert.strictEqual(b.cur,'d');b.act({skill:'strike',target:'a'});b.next();
+  /* новый раунд: d снова ещё не ходил */
+  assert.strictEqual(b.cur,'a');const e2=b.expect(b.get('a'),{power:1.25,el:'A'},b.get('d'));assert.ok(Math.abs(e1-e2)<1e-9);
+  const c=start([F('a',{els:['A'],spd:1,hp:999})],[F('d',{spd:20,hp:999})],7);c.act({skill:'strike',target:'a'});c.next();assert.strictEqual(c.cur,'a');
+  const e3=c.expect(c.get('a'),{power:1.25,el:'A'},c.get('d'));assert.ok(Math.abs(e1/e3-B.EFFECT.A.rush)<1e-6,'после хода цели Натиска нет')});
+
+t('лоза Флоры не держит цель подряд: после пропуска хода 2 своих хода защита',()=>{
+  const b=start([F('a',{els:['P'],spd:20,atk:1})],[F('d',{spd:1,hp:99999})],3);b.get('d').fx.root=1;
+  b.act({skill:'guard'});b.next();assert.ok(b.get('d').fx.firm>=1,'после лозы защита');
+  for(let i=0;i<60&&b.get('d').fx.firm;i++){if(b.cur==='a'){b.get('a').rage=100;b.get('a').rageUsed=false;const ev=b.act({skill:'rage',target:'d'});
+      assert.ok(!ev.some(e=>e.type==='effect'&&e.fx==='root'),'во время защиты не опутать');}else b.act({skill:'guard'});b.next()}});
+
+t('Промок: замедление и сразу −15 ярости, полезен и без смены порядка; Тьма ослабляет не каждым ударом',()=>{
+  const b=start([F('a',{els:['W'],spd:20})],[F('d',{spd:1,hp:9999})],5);b.get('d').rage=60;b.get('a').rage=100;
+  b.act({skill:'rage',target:'d'});assert.strictEqual(b.get('d').fx.slow,2);assert.strictEqual(b.get('d').rage,60+15-15);
+  let weak=0,n=0;for(let seed=1;seed<400;seed++){const c=start([F('a',{els:['D'],spd:20})],[F('d',{spd:1,hp:99999})],seed);c.act({skill:'el:D',target:'d'});n++;if(c.get('d').fx.weak)weak++}
+  assert.ok(weak/n>0.15&&weak/n<0.35,'ослабление '+weak/n)});
+
+t('настройка двух стихий у дракона с четырьмя: атак не больше двух, смена занимает ход, одно действие за ход',()=>{
+  const b=start([F('a',{els:['F','W','T','A'],spd:20})],[F('d',{spd:1,hp:999})],5);
+  const ids=b.options().map(o=>o.skill.id);assert.deepStrictEqual(ids.filter(x=>x.startsWith('el:')),['el:F','el:W']);
+  assert.ok(ids.includes('swap:FT'));const ev=b.act({skill:'swap:FT'});assert.ok(ev.some(e=>e.type==='swap'));assert.deepStrictEqual(b.get('a').load,['T','W']);
+  b.next();assert.strictEqual(b.cur,'d','смена настройки заняла ход');
+  const s4=B.skillsOf(b.get('a')).filter(x=>x.power&&x.id!=='rage').length;assert.strictEqual(s4,3,'Удар и две стихии')});
 
 t('урон: формула с разбросом ±10 %, не меньше 1, здоровье не уходит ниже нуля, событие попадания одно на действие',()=>{
   for(let seed=1;seed<200;seed++){const a=F('a',{els:['F']}),d=F('d',{els:['P'],hp:500,spd:1});const b=start([a],[d],seed);
     assert.strictEqual(b.cur,'a');const e0=b.expect(b.get('a'),{power:1.25,el:'F'},b.get('d'));
     const ev=b.act({skill:'el:F',target:'d'}),hits=ev.filter(e=>e.type==='hit');assert.strictEqual(hits.length,1);
     const h=hits[0];assert.ok(h.dmg>=Math.round(e0*0.9)-1&&h.dmg<=Math.round(e0*1.1)+1,`${h.dmg} при ожидании ${e0}`);
-    assert.strictEqual(b.get('d').hp,500-h.dmg);assert.strictEqual(h.mult,1.5)}
+    assert.strictEqual(b.get('d').hp,500-h.dmg);assert.ok(Math.abs(h.mult-1.4)<1e-6)}
   const b=start([F('a',{atk:200})],[F('d',{hp:5,spd:1})],3),ev=b.act({skill:'strike',target:'d'});
   assert.strictEqual(b.get('d').hp,0);assert.strictEqual(ev.find(e=>e.type==='hit').dealt,5);
   const w=start([F('a',{atk:1})],[F('d',{def:999,spd:1})],3).act({skill:'strike',target:'d'});assert.strictEqual(w.find(e=>e.type==='hit').dmg,1)});
@@ -114,5 +158,35 @@ t('баланс на настоящих драконах: равные кома�
   let hard=0;for(let s=1;s<=300;s++){const b=B.simulate(teamA(),teamB(),{seed:s,aiA:'hard',aiB:'easy'});if(b.winner==='A')hard++}
   assert.ok(hard>300*0.55,'трудный против лёгкого: '+hard+' из 300');
   console.log('     раундов медиана',med,', зеркальный',JSON.stringify(wins),', трудный против лёгкого',hard,'из 300')});
+
+/* ---------- особенности противников похода (этап 4) ---------- */
+t('толстая шкура: Удар и Ярость без стихии вдвое слабее, стихия проходит как обычно',()=>{
+  const b=start([F('a',{spd:20,els:['F']})],[F('x',{traits:['thick']}),F('y')],1),a=b.get('a'),x=b.get('x'),y=b.get('y');
+  assert.ok(Math.abs(b.expect(a,{power:1},x)/b.expect(a,{power:1},y)-0.5)<1e-9);
+  assert.ok(Math.abs(b.expect(a,{power:1.25,el:'W'},x)-b.expect(a,{power:1.25,el:'W'},y))<1e-9)});
+t('вожак стаи: при живой свите урон по нему −40 %, без свиты обычный',()=>{
+  const b=start([F('a',{spd:20})],[F('x',{traits:['shield']}),F('y')],1),a=b.get('a'),x=b.get('x');
+  const e1=b.expect(a,{power:1},x);b.get('y').ko=true;const e2=b.expect(a,{power:1},x);assert.ok(Math.abs(e1/e2-0.6)<1e-9)});
+t('регенерация: в начале своего хода +6 % здоровья, не выше максимума, событие видно',()=>{
+  const b=new B.Battle({A:[F('a',{spd:1})],B:[F('x',{spd:30,hp:100,traits:['regen']})],seed:1});b.get('x').hp=50;
+  const ev=b.next();assert.strictEqual(b.cur,'x');const r=ev.find(e=>e.type==='regen');assert.ok(r);assert.strictEqual(r.amt,6);assert.strictEqual(b.get('x').hp,56);
+  const c=new B.Battle({A:[F('a',{spd:1})],B:[F('x',{spd:30,traits:['regen']})],seed:1});assert.ok(!c.next().some(e=>e.type==='regen'),'целому лечиться нечего')});
+t('закалка: эффекты стихий не накладываются, урон проходит',()=>{
+  let seen=0;for(let s=1;s<=40;s++){const b=start([F('a',{spd:20,els:['P'],atk:5})],[F('x',{hp:900,def:30,traits:['ward']})],s);
+    const ev=b.act({skill:'el:P',target:'x'});assert.ok(ev.some(e=>e.type==='hit'));assert.deepStrictEqual(b.get('x').fx,{});if(ev.some(e=>e.type==='resist'))seen++}
+  assert.ok(seen>0,'закалка срабатывает и показывается')});
+t('гнев: с половины здоровья атака +30 % до конца боя, срабатывает один раз',()=>{
+  const b=start([F('a',{spd:20,atk:10})],[F('x',{hp:100,def:5,spd:1,traits:['enrage']})],3),x=b.get('x');const a0=b.atkOf(x);
+  x.hp=70;let ev=b.act({skill:'strike',target:'x'});assert.ok(!ev.some(e=>e.type==='enrage'),'выше половины гнева нет');
+  b.next();if(b.cur==='x'){b.act({skill:'guard',target:'x'});b.next()}
+  ev=b.act({skill:'strike',target:'x'});assert.ok(x.hp>0&&x.hp<=50);assert.ok(ev.some(e=>e.type==='enrage'));assert.ok(Math.abs(b.atkOf(x)/a0-1.3)<1e-9);
+  b.next();if(b.cur==='x'){b.act({skill:'guard',target:'x'});b.next()}
+  ev=b.act({skill:'strike',target:'x'});assert.ok(!ev.some(e=>e.type==='enrage'),'второй раз не срабатывает')});
+t('правило третьей звезды: дольше лимита раундов без потерь — две звезды',()=>{
+  const b=new B.Battle({A:[F('a')],B:[F('x')],star3:4});b.winner='A';b.round=4;assert.strictEqual(b.stars(),3);b.round=5;assert.strictEqual(b.stars(),2);
+  const c=new B.Battle({A:[F('a')],B:[F('x')]});c.winner='A';c.round=29;assert.strictEqual(c.stars(),3)});
+t('неизвестные особенности отбрасываются, компьютер учитывает шкуру и вожака так же, как подсказка',()=>{
+  const b=start([F('a',{spd:20,els:['F']})],[F('x',{traits:['zzz','thick']}),F('y')],1);assert.deepStrictEqual(b.get('x').traits,['thick']);
+  const c=b.ai('hard');assert.ok(!(c.skill==='strike'&&c.target==='x'),'Удар в толстую шкуру не лучший ход')});
 
 console.log(`\n${n-fails}/${n} тестов прошли`);if(fails)process.exit(1);

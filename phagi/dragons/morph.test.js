@@ -125,6 +125,8 @@ t('карта генов src совпадает с рисунком: меняе�
       Wg:i%5===4?'Wg/+':'+/+',Q1:'+/-',Q2:['+/+','-/-','+/-'][i%3],Q3:'+/-',G:i%4===3?'G':'g'};
     if(f){s.M=i%3?'M':'m';s.N=i%4===1?'n':'N';s.Sp=i%3===1?'Sp':'sp'}else{s.M=i%3?'M/m':'m/m';s.N=i%4===0?'n/n':'N/n'}
     return s});
+  /* дымный без булавы: на нём видно, что E2 даёт стихию и кончик хвоста */
+  bases.push({sex:'M',E:'e/e',S:'S/S',C:'C/c',H:'H/h',K:'k/k',R:'R1/R2',Wg:'+/+',Q1:'+/-',Q2:'+/-',Q3:'+/-',M:'m/m',N:'N/n',G:'g'});
   const bad=[],seen={},note=(k,l)=>{(seen[k]||(seen[k]=new Set())).add(l)};
   bases.forEach(b=>{const p0=D.phenotype(D.make(b));
     Object.keys(D.LOCI).forEach(L=>{
@@ -145,7 +147,7 @@ t('карта генов src совпадает с рисунком: меняе�
   /* и обратно: каждый записанный ген хоть где-то меняет то, что про него сказано */
   const idle=[];Object.keys(MO.SRC).forEach(part=>['has','shape','color'].forEach(k=>MO.SRC[part][k].forEach(L=>{
     if(!(seen[part+'.'+k]||new Set()).has(L))idle.push(part+'.'+k+' '+L)})));
-  assert.deepStrictEqual(idle,[],'записано, но не влияет')});
+  assert.deepStrictEqual(idle,[],'записано, но не влияет: '+idle.join('; '))});
 
 t('силуэт: SVG силуэта не выдаёт цвет, части подписаны для подсветки',()=>{
   const p=ph({E:'F/F',G:'G'}),s=A.dragon(p,12,{sil:true,key:'s'}),c=A.dragon(p,12,{key:'c'});

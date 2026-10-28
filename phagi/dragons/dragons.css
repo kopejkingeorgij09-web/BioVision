@@ -159,26 +159,49 @@ body.drg-fs #main>:not(.drg-map):not(.drg-pan){display:none}
 .drg-xpbar{display:block;width:110px;height:16px;margin-left:-12px;border-radius:0 9px 9px 0;background:rgba(20,40,60,.7);border:2px solid rgba(255,255,255,.75);overflow:hidden}
 .drg-xpbar i{display:block;height:100%;background:linear-gradient(180deg,#9CF0FF,#2FB4E0)}
 .drg-hud-r{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
-.drg-pill{display:flex;align-items:center;gap:6px;height:36px;padding:0 4px 0 6px;border-radius:10px;background:rgba(20,40,60,.72);border:2px solid rgba(255,255,255,.6);color:#fff;box-shadow:0 3px 8px -3px rgba(0,0,0,.4)}
-.drg-pill i{font-style:normal;font-size:20px}.drg-pill b{font:800 15px var(--d);min-width:44px;text-align:right}
-.drg-pill button{all:unset;box-sizing:border-box;width:26px;height:26px;display:grid;place-items:center;border-radius:7px;background:linear-gradient(180deg,#FFE27A,#F2B01E);color:#5A3A00;font-weight:900;font-size:17px;cursor:pointer}
-.drg-bl,.drg-br{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);display:flex;gap:8px;align-items:flex-end}
-.drg-bl{left:12px}.drg-br{right:12px}
-.drg-rb{all:unset;box-sizing:border-box;cursor:pointer;width:68px;height:68px;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:linear-gradient(180deg,#3E7FA0,#255A78);border:2px solid rgba(255,255,255,.75);color:#fff;box-shadow:0 5px 12px -4px rgba(0,0,0,.5);font-weight:800;font-size:12px;text-shadow:0 1px 1px rgba(0,0,0,.5)}
+.drg-pill{display:flex;align-items:center;gap:6px;height:40px;padding:0 4px 0 6px;border-radius:10px;background:rgba(20,40,60,.72);border:2px solid rgba(255,255,255,.6);color:#fff;box-shadow:0 3px 8px -3px rgba(0,0,0,.4);font:inherit}
+button.drg-pill{cursor:pointer}button.drg-pill:hover{background:rgba(20,40,60,.85)}button.drg-pill:focus-visible{outline:3px solid #FFE27A;outline-offset:2px}
+.drg-pill i{font-style:normal;font-size:20px}.drg-pill>span{display:flex;flex-direction:column;align-items:flex-end;line-height:1.05}
+.drg-pill b{font:800 15px var(--d);min-width:40px;text-align:right}.drg-pill small{font-size:9.5px;font-weight:600;opacity:.85;letter-spacing:.02em}
+.drg-pill em{font-style:normal;width:24px;height:24px;display:grid;place-items:center;border-radius:7px;background:linear-gradient(180deg,#FFE27A,#F2B01E);color:#5A3A00;font-weight:900;font-size:16px}
+/* один нижний ряд кнопок: все действия доступны и на 320 px, второстепенные в «Ещё» */
+.drg-dock{position:absolute;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);z-index:3;display:flex;justify-content:center;align-items:flex-end;gap:6px;pointer-events:none}
+.drg-dock>*,.drg-dock>.drg-rb{pointer-events:auto}
+.drg-rb{all:unset;box-sizing:border-box;cursor:pointer;flex:0 1 76px;min-width:0;height:68px;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0 2px;background:linear-gradient(180deg,#3E7FA0,#255A78);border:2px solid rgba(255,255,255,.75);color:#fff;box-shadow:0 5px 12px -4px rgba(0,0,0,.5);font-weight:800;font-size:12px;text-shadow:0 1px 1px rgba(0,0,0,.5);text-align:center}
+.drg-rb span{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.drg-rb span b{font:inherit}.drg-rb .sm{display:none}
 .drg-rb i{font-style:normal;font-size:26px;line-height:1}
-.drg-rb.big{width:84px;height:84px;background:linear-gradient(180deg,#F2A33A,#C4641A)}.drg-rb.big i{font-size:32px}
+.drg-rb.big{flex-basis:84px;height:78px;background:linear-gradient(180deg,#F2A33A,#C4641A)}.drg-rb.big i{font-size:30px}
+.drg-rb[aria-current]{background:linear-gradient(180deg,#5FA9CC,#2F6F92);border-color:#FFE27A}
 .drg-rb:hover{filter:brightness(1.08)}.drg-rb:focus-visible,.drg-zm button:focus-visible,.drg-pill button:focus-visible{outline:3px solid #FFE27A;outline-offset:2px}
-.drg-zm{position:absolute;right:12px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px}
+.drg-zm{position:absolute;right:12px;top:50%;transform:translateY(-50%);z-index:3;display:flex;flex-direction:column;gap:6px}
 .drg-zm button{all:unset;box-sizing:border-box;cursor:pointer;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.88);color:#24402A;font-weight:900;font-size:22px;box-shadow:0 4px 10px -4px rgba(0,0,0,.4)}
 .drg-map.full .drg-place{position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 64px);transform:translateX(-50%);border-radius:14px;box-shadow:0 6px 16px -6px rgba(0,0,0,.4);max-width:calc(100vw - 24px)}
 body.drg-fs #main>.drg-pan{position:fixed;z-index:42;right:12px;top:calc(env(safe-area-inset-top,0px) + 62px);bottom:calc(env(safe-area-inset-bottom,0px) + 100px);width:min(430px,calc(100vw - 24px));margin:0;overflow:auto;box-shadow:0 18px 50px -12px rgba(0,0,0,.55);border-radius:20px;animation:drgsheet .2s ease-out}
 @media(max-width:700px){
-  .drg-rb{width:56px;height:56px;font-size:10.5px}.drg-rb i{font-size:22px}.drg-rb.big{width:66px;height:66px}.drg-rb.big i{font-size:26px}
-  .drg-pill{height:32px}.drg-pill b{font-size:13px;min-width:30px}.drg-pill i{font-size:16px}.drg-xpbar{width:60px}.drg-star{width:44px;height:44px}
+  .drg-rb{height:56px;font-size:10.5px;border-radius:14px}.drg-rb i{font-size:22px}.drg-rb.big{height:62px}.drg-rb.big i{font-size:25px}
+  .drg-dock{gap:4px;left:6px;right:6px}
+  .drg-pill{height:36px;gap:4px}.drg-pill b{font-size:13px;min-width:28px}.drg-pill i{font-size:16px}.drg-pill small{font-size:8.5px}.drg-pill em{width:20px;height:20px;font-size:14px}
+  .drg-xpbar{width:60px}.drg-star{width:44px;height:44px}
   .drg-hud-r{max-width:calc(100vw - 120px)}
-  .drg-zm{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 92px);transform:none}
+  .drg-zm{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 76px);transform:none}.drg-zm button{width:40px;height:40px;font-size:20px}
   body.drg-fs #main>.drg-pan{left:8px;right:8px;width:auto;top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);max-height:62vh;border-radius:20px 20px 16px 16px}
 }
+@media(max-width:420px){.drg-rb .lg{display:none}.drg-rb .sm{display:inline}.drg-pill em{display:none}.drg-pill{padding:0 6px}}
+@media(max-width:340px){.drg-rb{font-size:9.5px}.drg-rb i{font-size:20px}.drg-pill small{display:none}.drg-pill{height:32px}}
+@media(min-width:601px) and (max-width:900px){body.drg-fs #main>.drg-pan{width:min(380px,46vw)}}
+/* панель на весь экран: шапка с «Закрыть» всегда видна, прокрутка своя и не уходит на страницу */
+body.drg-fs #main>.drg-pan{overscroll-behavior:contain;padding-top:0}
+body.drg-fs #main>.drg-pan>.drg-pan-h{position:sticky;top:0;z-index:2;background:var(--card);margin:0 -2px;padding:14px 2px 10px}
+.drg-map.full{background:linear-gradient(180deg,var(--isl-sky1),var(--isl-sky2))}
+.drg-map.full .drg-stage{z-index:0}.drg-hud,.drg-svw,.drg-place{z-index:3}
+.drg-map.full.zlo .drg-lab{display:none}
+/* «Ещё» и «Мои постройки» */
+.drg-menu,.drg-bls{display:flex;flex-direction:column;gap:6px;margin:8px 0 0;padding:0;list-style:none}
+.drg-mi{all:unset;box-sizing:border-box;cursor:pointer;width:100%;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--card)}
+.drg-mi:hover{border-color:var(--ink)}.drg-mi:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.drg-mi i{font-style:normal;font-size:22px;width:30px;text-align:center}.drg-mi span{display:flex;flex-direction:column;min-width:0}
+.drg-mi b{font:700 14.5px var(--d);color:var(--ink)}.drg-mi small{font-size:12.5px;color:var(--muted)}
+
 
 /* ---------- осмотр дракона (inspect.js): отдельная сцена поверх страницы ---------- */
 .drg-dr{cursor:zoom-in}
@@ -341,6 +364,65 @@ body.drf-open .drg-isl .an,body.drf-open .drg-isl .drift,body.drf-open .drg-isl 
 .drf-node.done .drf-n{background:color-mix(in srgb,var(--bio) 24%,var(--card))}
 .drf-nt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.drf-nt b{font-size:15.5px}.drf-nt small{color:var(--muted);font-size:12.5px}
 .drf-st{flex:none;color:#E2A814;font-size:18px;letter-spacing:1px}
+/* поход: два вида боёв, вкладки регионов, карта региона (этап 4 доработки) */
+.drf-kinds{flex:none;display:flex;gap:6px;padding:8px 12px 0;background:var(--card);overflow-x:auto;scrollbar-width:none}
+.drf-kinds>*{appearance:none;font:inherit;font-size:13.5px;font-weight:700;display:flex;flex-direction:column;gap:1px;padding:6px 12px 8px;border-radius:12px 12px 0 0;border:1px solid var(--line);border-bottom:0;background:var(--soft);color:var(--muted);white-space:nowrap;flex:none}
+.drf-kinds>* small{font-weight:400;font-size:11.5px}
+.drf-kinds>.on{background:var(--bg);color:var(--ink)}
+.drf-kinds>button{cursor:pointer}.drf-kinds>button:hover{color:var(--text)}
+.drf-rts{flex:none;display:flex;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--bg);overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:thin;overscroll-behavior-x:contain}
+.drf-rts>.drf-rt{flex:0 0 auto;width:clamp(96px,26vw,150px);scroll-snap-align:start}
+.drf-rt{appearance:none;font:inherit;min-width:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:2px;padding:6px 7px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);cursor:pointer;text-align:left}
+.drf-rt b{font-size:12px;line-height:1.2;hyphens:auto;-webkit-hyphens:auto}.drf-rt small{font-size:11px;color:var(--muted);white-space:nowrap}
+@media(min-width:600px){.drf-rt b{font-size:13.5px}.drf-rt{padding:6px 10px}}
+.drf-rt.on{border-color:var(--ra);box-shadow:inset 0 -3px 0 var(--ra);background:color-mix(in srgb,var(--ra) 10%,var(--card))}
+.drf-rt.lock{opacity:.7}
+.drf-mapw{display:flex;flex-direction:column;gap:12px}
+.drf-map{position:relative;width:100%;aspect-ratio:2/3;border-radius:18px;overflow:hidden;border:1px solid var(--line);box-shadow:var(--sh1,0 2px 8px rgba(0,0,0,.08))}
+.drf-msv{position:absolute;inset:0;width:100%;height:100%;display:block}
+:root[data-theme=dark] .drf-msv{filter:brightness(.62) saturate(.9)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]) .drf-msv{filter:brightness(.62) saturate(.9)}}
+.drf-pin{appearance:none;position:absolute;transform:translate(-50%,-50%);width:46px;height:46px;padding:0;border:0;background:none;cursor:pointer;font:inherit;display:grid;place-items:center;-webkit-tap-highlight-color:transparent}
+.drf-pc{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:15px;background:#fff;color:var(--pi);border:3px solid var(--pa);box-shadow:0 2px 6px rgba(0,0,0,.25);transition:transform .15s}
+.drf-pin:hover .drf-pc{transform:scale(1.08)}
+.drf-pin.done .drf-pc{background:var(--pa);color:#fff;border-color:#fff}
+.drf-pin.lock{cursor:pointer}.drf-pin.lock .drf-pc{background:#E4E4E4;border-color:#B9B9B9;color:#777;font-size:13px;box-shadow:none}
+.drf-pin.boss .drf-pc{width:46px;height:46px;font-size:20px;border-width:4px}
+.drf-pin.sel .drf-pc{outline:3px solid var(--ink);outline-offset:2px}
+.drf-pin.goal .drf-pc{animation:drfGoal 1.6s ease-in-out infinite}
+@keyframes drfGoal{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--pa) 70%,transparent),0 2px 6px rgba(0,0,0,.25)}50%{box-shadow:0 0 0 9px color-mix(in srgb,var(--pa) 0%,transparent),0 2px 6px rgba(0,0,0,.25)}}
+@media(prefers-reduced-motion:reduce){.drf-pin.goal .drf-pc{animation:none;box-shadow:0 0 0 4px color-mix(in srgb,var(--pa) 45%,transparent)}}
+.drf-pg{position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:10.5px;font-weight:800;color:#fff;background:var(--pp);padding:1px 6px;border-radius:999px;white-space:nowrap;pointer-events:none}
+.drf-ps{position:absolute;top:calc(100% - 4px);left:50%;transform:translateX(-50%);font-size:11px;letter-spacing:-.5px;color:#E2A814;text-shadow:0 0 2px #fff,0 0 3px #fff;white-space:nowrap;pointer-events:none}
+.drf-pin.boss .drf-ps{top:100%}
+.drf-nc{border:1px solid var(--line);border-radius:16px;background:var(--card);padding:12px 14px}
+/* на телефоне карточка выбранного боя прилипает к низу, пока карта прокручивается */
+@media(max-width:759px){.drf-ncw{position:sticky;bottom:-24px;z-index:2;padding-bottom:12px;margin-bottom:-12px}.drf-nc{box-shadow:0 -4px 18px rgba(0,0,0,.14)}.drf-nc p:not(.drf-small):not(.drf-lock){display:none}}
+.drf-nc.boss{border-color:color-mix(in srgb,#E2B33C 60%,var(--line));background:color-mix(in srgb,#FFE27A 9%,var(--card))}
+.drf-nc h3{margin:4px 0 4px;font-size:17px}.drf-nc p{margin:0 0 8px;font-size:14px;line-height:1.4}
+.drf-nch{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+.drf-nch b{color:var(--ink)}
+.drf-nc .btn{width:100%;margin-top:4px}
+.drf-lock{color:var(--muted);font-weight:600}
+.drf-pin.side .drf-pc{width:32px;height:32px;font-size:13px;border-width:2px}
+.drf-pin.mini .drf-pc{border-style:double;border-width:4px}
+.drf-rule{margin:8px 0;padding:8px 10px;border-radius:10px;font-size:14px;background:color-mix(in srgb,var(--pa,#6A8CFF) 10%,var(--card));border:1px solid color-mix(in srgb,var(--pa,#6A8CFF) 35%,var(--line))}
+.drf-rule.bad{background:color-mix(in srgb,#E5484D 12%,var(--card));border-color:color-mix(in srgb,#E5484D 55%,var(--line));font-weight:600}
+.drf-gift{margin:8px 0;font-size:14px}.drf-gift.got{color:var(--muted)}
+.drf-want{margin:0 auto 10px;padding:8px 12px;border-radius:12px;background:color-mix(in srgb,#F2C94C 18%,var(--card));border:1px solid color-mix(in srgb,#E2B33C 50%,var(--line));font-size:14px}
+.drf-ls{margin-top:14px}.drf-ls .drf-path{margin-top:10px}
+.drf-tac{margin:0 auto 10px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--bio) 9%,var(--card));border:1px solid color-mix(in srgb,var(--bio) 30%,var(--line));font-size:14px;line-height:1.45}
+.drf-tac.boss{background:color-mix(in srgb,#FFE27A 14%,var(--card));border-color:color-mix(in srgb,#E2B33C 55%,var(--line))}
+.drf-trs{display:flex;flex-wrap:wrap;justify-content:center;gap:3px;margin-top:3px}
+.drf-trs>span{font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;background:color-mix(in srgb,#8A63D2 14%,var(--card));color:var(--ink);border:1px solid color-mix(in srgb,#8A63D2 35%,var(--line))}
+.drf-trl{margin:8px auto 0;padding-left:20px;font-size:13.5px;line-height:1.45;display:flex;flex-direction:column;gap:4px}
+.drf-tr{margin-left:2px}.drf-tr.hot{filter:drop-shadow(0 0 3px #FF5A4A)}
+@media(min-width:760px){
+  .drf-mapw{flex-direction:row;align-items:flex-start}
+  .drf-map{width:min(440px,calc((100vh - 300px)*2/3));flex:none}
+  .drf-ncw{flex:1;min-width:0;position:sticky;top:0}}
+@media(max-width:599px){.drf-kinds>*{padding:5px 10px 6px;font-size:13px}.drf-scroll>.drf-intro{font-size:13.5px}}
+@media(max-width:340px){.drf-kinds>* small{display:none}.drf-rts{gap:4px;padding:6px 8px}.drf-rt{padding:5px 6px}.drf-rt b{font-size:11.5px}}
 .drf-foes{display:flex;flex-wrap:wrap;gap:8px}
 .drf-foe{flex:1 1 140px;max-width:220px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px;border-radius:14px;background:color-mix(in srgb,#E8604C 7%,var(--card));border:1px solid var(--line);text-align:center}
 .drf-foe small,.drf-pk small{color:var(--muted);font-size:12px}
@@ -420,3 +502,88 @@ body.drf-open .drg-isl .an,body.drf-open .drg-isl .drift,body.drf-open .drg-isl 
   .drf-path::before{left:29px}.drf-node{padding:10px 12px}
   .drf-team{gap:4px;padding:5px 6px}.drf-fc{padding:5px 6px;gap:2px 4px}.drf-fn{font-size:12px}.drf-hpn{font-size:10px}
   .drf-sk{grid-template-columns:repeat(2,minmax(0,1fr))}.drf-skb{padding:6px 7px}.drf-skb small{font-size:11px}.drf-bt,.drf-wide{display:none}.drf-go .btn{flex:1}}
+
+/* ---------- состояние сохранения острова (store.js) ---------- */
+.drg-sv{font-size:12.5px;font-weight:600}
+.drg-sv.ok{color:var(--muted)}.drg-sv.saving{color:var(--ink)}
+.drg-sv.err{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:10px 12px;margin:0 0 12px;border-radius:14px;font-weight:500;font-size:13.5px;line-height:1.4;
+  background:color-mix(in srgb,#E8604C 12%,var(--card));border:1px solid color-mix(in srgb,#E8604C 45%,var(--line));color:var(--text)}
+.drg-sv.err span{flex:1 1 220px;min-width:0}
+.drg-svw{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 58px);z-index:3;max-width:min(560px,calc(100% - 24px));pointer-events:auto}
+.drg-svw .drg-sv.ok,.drg-svw .drg-sv.saving{display:inline-block;padding:3px 10px;border-radius:999px;background:color-mix(in srgb,var(--card) 88%,transparent);box-shadow:0 2px 8px -4px rgba(0,0,0,.4)}
+.drg-svw .drg-sv.err{margin:0;box-shadow:0 8px 20px -10px rgba(0,0,0,.5)}
+.drf-svl{margin:10px 0 0;font-size:13px;color:var(--muted);min-height:1.3em}
+.drf-svl.ok{color:#2E8540}.drf-svl.error,.drf-svl.conflict{color:#C0392B}
+:root[data-theme=dark] .drf-svl.ok{color:#7ED492}:root[data-theme=dark] .drf-svl.error,:root[data-theme=dark] .drf-svl.conflict{color:#FF8A7A}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]) .drf-svl.ok{color:#7ED492}:root:not([data-theme=light]) .drf-svl.error,:root:not([data-theme=light]) .drf-svl.conflict{color:#FF8A7A}}
+.drf-svl .btn{margin-left:6px}
+/* при ошибке строка сохранения выше открытой панели; на широком экране панель справа, строка уходит левее */
+.drg-svw:has(.drg-sv.err){z-index:46}
+@media(min-width:601px){body.drg-fs:has(#main>.drg-pan) .drg-svw{left:12px;transform:none;max-width:min(560px,calc(100vw - 470px))}}
+.drg-shop-i.built .drg-price{color:var(--accent);font-weight:700}
+/* «Скрещивание»: цель и шаги первого потомка */
+.drg-svw{display:flex;flex-direction:column;align-items:center;gap:6px}
+.drg-goal{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:1px;max-width:100%;padding:7px 14px;border-radius:14px;text-align:center;
+  background:color-mix(in srgb,var(--card) 92%,transparent);box-shadow:0 4px 14px -6px rgba(0,0,0,.45);border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line))}
+.drg-goal small{font-size:11px;color:var(--muted)}.drg-goal b{font:700 13.5px/1.3 var(--d);color:var(--ink)}
+.drg-goal:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.drg-goal.in{display:flex;margin:0 0 10px;text-align:left;padding:9px 14px}
+.drg-steps{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:8px;counter-reset:st}
+.drg-st{counter-increment:st;position:relative;padding:10px 12px 10px 40px;border-radius:14px;border:1px solid var(--line);background:var(--card)}
+.drg-st::before{content:counter(st);position:absolute;left:10px;top:9px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font:700 12px var(--d);background:var(--line);color:var(--ink)}
+.drg-st.ok::before{content:'✓';background:#2f9e5b;color:#fff}
+.drg-st.now{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 25%,transparent)}
+.drg-st.now::before{background:var(--accent);color:#fff}
+.drg-st.later{opacity:.72}
+.drg-st>b{font:700 14px var(--d)}.drg-st.ok>b{color:var(--muted);font-weight:600}
+.drg-sd{margin-top:4px;font-size:13.5px;line-height:1.45}
+.drg-sr{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:6px 0;border-top:1px dashed var(--line)}.drg-sr:first-child{border-top:0}
+.drg-sr>span:first-child{flex:1 1 180px;min-width:0}
+.drg-sa{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.drg-why{display:block;flex-basis:100%;font-size:12.5px;line-height:1.4;color:var(--muted)}
+.drg-why.ok{color:var(--ink);background:color-mix(in srgb,#2f9e5b 12%,var(--card));padding:10px 12px;border-radius:12px;margin:8px 0}
+.drg-bp h3{margin:16px 0 6px;font-size:15px}
+/* карта с клавиатуры: видимый фокус на постройке, участке, препятствии */
+.drg-isl [tabindex]{outline:none}
+.drg-isl [tabindex]:focus-visible{outline:3px solid #FFE27A;outline-offset:3px}
+.drg-isl .drg-b:focus-visible>path:first-of-type{fill:rgba(255,227,122,.28)}
+#main>.drg-pan h2:focus{outline:none}
+.drg-labi{transform:scale(var(--lz,1))}
+@media(max-width:340px){.drg-rb{font-size:9px;letter-spacing:-.01em}}
+@media(min-width:701px){.drg-rb{flex-basis:92px}.drg-rb.big{flex-basis:96px}}
+@media(max-width:340px){.drg-dock{gap:3px;left:4px;right:4px}.drg-rb{padding:0;font-size:8.6px;letter-spacing:-.02em}}
+/* страница «Бои» в режиме драконов: два вида боёв рядом, турнир бактерий ниже (этап 4 доработки) */
+.drg-hub{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px;margin-bottom:18px}
+.drg-hubc{display:flex;flex-direction:column;gap:6px;padding:16px 18px;border-radius:20px;border:1px solid var(--line);background:var(--card);box-shadow:var(--sh1,none)}
+.drg-hubc p{margin:0;line-height:1.45}.drg-hubc .btn{align-self:flex-start;margin-top:auto}
+.drg-hubd{background:radial-gradient(120% 140% at 100% 0%,color-mix(in srgb,#E4572E 11%,var(--card)) 0%,var(--card) 60%)}
+.drg-hubb{background:radial-gradient(120% 140% at 100% 0%,color-mix(in srgb,#2D9C8A 12%,var(--card)) 0%,var(--card) 60%)}
+.drg-hubn{grid-column:1/-1;margin:0}
+.drg-hubh{margin:8px 0 12px;font-family:var(--d);font-size:22px;scroll-margin-top:70px}
+/* журнал: сравнение с теорией (этап 5 доработки) */
+.drg-th{margin:8px 0 4px}.drg-th summary{cursor:pointer;font-weight:600;font-size:14px}
+.drg-th[open] summary{margin-bottom:6px}
+.drg-off{font-size:11px;font-weight:700;padding:0 6px;border-radius:999px;background:color-mix(in srgb,#8A63D2 16%,var(--card));border:1px solid color-mix(in srgb,#8A63D2 35%,var(--line))}
+.dri-jump{font-weight:600}
+
+/* этап 5: три шкалы на странице «Ещё» */
+.drg-scl{display:grid;gap:8px;margin:8px 0 4px}
+.drg-sc{border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--card);display:flex;flex-direction:column;gap:6px;min-width:0}
+.drg-sc small{font-size:12.5px;color:var(--muted);line-height:1.45}
+.drg-scr{list-style:none;margin:0;padding:0;display:grid;gap:4px}.drg-scr li{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px}.drg-scr li span{color:var(--muted)}
+@media(min-width:760px){.drg-scl{grid-template-columns:1fr 1fr}.drg-scl>.drg-sc:last-child{grid-column:1/-1}}
+.drg-broken{border:2px solid #C0392B;border-radius:16px;padding:14px 16px;margin:10px 0}.drg-broken h2{margin:0 0 6px;font-size:18px;color:#C0392B}
+:root[data-theme=dark] .drg-broken h2{color:#FF8A7A}@media(prefers-color-scheme:dark){:root:not([data-theme=light]) .drg-broken h2{color:#FF8A7A}}
+.drg-tt{font-size:13px;width:100%}.drg-tt th,.drg-tt td{padding:6px 8px;white-space:normal;vertical-align:top}.drg-tt th{font-size:12px}.drg-tt td small{display:block;color:var(--muted);font-size:11.5px}
+
+/* боевой ранг ✦ (число типов стихийных атак) и сочетание стихий; настройка двух стихий в подготовке */
+.drg-rank{flex-basis:100%;display:flex;gap:6px;align-items:baseline;font-size:12px;color:var(--muted);min-width:0}
+.drg-rank b{color:#B07A12;letter-spacing:1px;font-size:12.5px}.drg-rank span{overflow-wrap:anywhere}
+.drg-rank .sr,.dri-rank .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.dri-rank{flex:none;color:#B07A12;font-weight:700;letter-spacing:1px;font-size:13px;padding:2px 6px}
+.drf-rk{display:block;font-size:11.5px;opacity:.85;overflow-wrap:anywhere}.drf-rk b{color:#F2C94C;letter-spacing:1px}
+.drf-load{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}.drf-load b{flex-basis:100%;font-size:13px}
+.drf-le{border:1px solid rgba(255,255,255,.25);background:transparent;color:inherit;border-radius:999px;padding:6px 10px;font:inherit;font-size:13px;min-height:36px;cursor:pointer}
+.drf-le.on{background:rgba(242,201,76,.22);border-color:#F2C94C}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .drg-rank b,:root:not([data-theme=light]) .dri-rank{color:#F2C94C}}
+:root[data-theme=dark] .drg-rank b,:root[data-theme=dark] .dri-rank{color:#F2C94C}

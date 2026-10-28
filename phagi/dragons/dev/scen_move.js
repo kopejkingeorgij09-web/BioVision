@@ -25,6 +25,7 @@ module.exports=async(page,{need,store,UID,OUT})=>{const w=t=>page.waitForTimeout
   await page.evaluate(id=>document.querySelector(`.drg-world .drg-b[data-id="${id}"]`).dispatchEvent(new MouseEvent('click',{bubbles:true})),b0);await w(500);
   await page.keyboard.press('g');await w(400);await page.keyboard.press('a');await w(300);console.log('тост',await page.evaluate(()=>(document.querySelector('#toast')||{}).textContent));await w(900);
   need(await page.evaluate(()=>!document.querySelector('.drg-place')),'A ставит на свободное место');await shot('3-done');
-  const keys=await page.evaluate(()=>{const b=document.querySelector('[data-act=drgpanel][data-v=keys]');return !!b});
+  /* подсказка клавиш есть только там, где есть клавиатура (на сенсорном экране кнопки нет) */
+  const keys=!process.env.TOUCH&&await page.evaluate(()=>{const b=document.querySelector('[data-act=drgpanel][data-v=keys]');return !!b&&!!b.offsetParent});
   if(keys){await page.click('[data-act=drgpanel][data-v=keys]');await w(400);need(await page.evaluate(()=>/Перенести/.test(document.querySelector('#main>.drg-pan').textContent)),'в подсказке клавиш есть G — перенести')}
 };

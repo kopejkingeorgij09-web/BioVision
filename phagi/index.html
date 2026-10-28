@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<script src="cloud.js?v=4"></script>
+<script src="cloud.js?v=5"></script>
 <link rel="stylesheet" href="dragons/dragons.css?v=14">
 <script src="dragons/genetics.js?v=14"></script><script src="dragons/draw.js?v=14"></script><script src="dragons/economy.js?v=14"></script><script src="dragons/island.js?v=14"></script><script src="dragons/store.js?v=14"></script><script src="dragons/battle.js?v=14"></script><script src="dragons/campaign.js?v=14"></script><script src="dragons/ui.js?v=14"></script><script src="dragons/inspect.js?v=14"></script><script src="dragons/live.js?v=14"></script><script src="dragons/fight.js?v=14"></script>
 <meta charset="utf-8">
@@ -2767,7 +2767,8 @@ function hwLocal(id){if(T())return;try{const d=JSON.parse(localStorage.getItem(h
 function hwClear(id){try{localStorage.removeItem(hwKey(id))}catch(e){}}
 function draftTaskOf(el){
   if(T()||(S.view!=='task'&&S.view!=='nb'))return null;const k=el&&(el.dataset.q||el.id)||'';
-  const m=/^ta-([0-9a-zA-Z_]+)-\d+$/.exec(k)||/^(?:ans|lnk)-([0-9a-zA-Z_]+)$/.exec(k);if(!m)return null;
+  /* id заданий бывают с дефисами (seh-bio-w3-test): номер вопроса — последнее число после дефиса */
+  const m=/^ta-(.+)-\d+$/.exec(k)||/^(?:ans|lnk)-(.+)$/.exec(k);if(!m)return null;
   const t=S.tasks.find(x=>x.id===m[1]);if(!t)return null;
   const s=(S.subs[meId()]||{})[t.id];if(s&&s.status==='submitted'&&t.kind==='test')return null;
   if(t.kind==='test'&&t.time&&!(s&&s.startedAt))return null;return t}
@@ -5435,7 +5436,10 @@ Object.assign(actions,{
    потому что подписки на данные у учителя и ученика разные */
 const ROLE_K='ph_role';
 function roleGet(){try{return localStorage.getItem(ROLE_K)||''}catch{return ''}}
-async function roleSet(r){if(!S.dual||r===S.mode)return;const sw=$('#rolesw');sw.classList.add('busy');
+async function roleSet(r){if(!S.dual||r===S.mode)return;
+  /* вошли ученическим кодом: для учителя нужен код учителя, ответы ученика сначала сохраняются */
+  if(r==='teacher'&&!S.me.isOwner){try{if(draftTask)draftSave()}catch{}if(dirty.size||streakDirty)flush();if(window.PHCLOUD&&PHCLOUD.teacherLogin)PHCLOUD.teacherLogin();return}
+  const sw=$('#rolesw');sw.classList.add('busy');
   try{if(draftTask)draftSave()}catch{}
   if(dirty.size||streakDirty)flush();
   try{await Promise.race([chain,new Promise(f=>setTimeout(f,4000))])}catch{}
@@ -5457,7 +5461,11 @@ $('#rolesw').addEventListener('click',e=>{const b=e.target.closest('button[data-
   claude.use('sample').then(s=>{S.sample=s||null;if(S.view==='review')render()}).catch(()=>{S.sample=null});
   if(!S.me.isOwner&&!S.me.id){S.mode='noid';return render()}
   /* учитель и его ученический профиль это один аккаунт: режим выбирается переключателем в шапке */
-  S.dual=!!S.me.isOwner;
+  /* вход по ученическому коду Георгия — тот же профиль: переключатель виден, «Учитель» просит код учителя.
+     Признак берётся из базы (teach) или с устройства, где уже входили кодом учителя */
+  try{if(S.me.isOwner)localStorage.setItem('ph_teach_dev',S.me.id)}catch{}
+  let devT=false;try{devT=localStorage.getItem('ph_teach_dev')===S.me.id}catch{}
+  S.dual=!!S.me.isOwner||!!S.me.teach||devT;
   S.mode=S.me.isOwner&&roleGet()!=='student'?'teacher':'student';
   subscribe();render();
   loadScript('https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js').then(()=>{KX=window.katex||null;render()}).catch(()=>{});

@@ -48,21 +48,25 @@ function css(){if(document.getElementById('ph-css'))return;const s=document.crea
 #ph-codes .row{display:flex;gap:8px}#ph-codes input{flex:1;min-width:0;font:inherit;padding:6px 10px;border-radius:10px;border:1px solid var(--line,#D2E1D7);background:var(--bg,#F1F6F2);color:inherit}
 `;document.head.append(s)}
 
-function loginScreen(){css();const d=document.createElement('div');d.id='ph-login';
-  d.innerHTML=`<form><h1>Фаги естественных наук</h1><p>Введите код, который дал учитель. Он выглядит так: FAG-XXXX-XXXX.</p>
+function loginScreen(teach){css();const d=document.createElement('div');d.id='ph-login';
+  d.innerHTML=`<form><h1>Фаги естественных наук</h1><p>${teach?'Введите код учителя, чтобы перейти в режим учителя. Ответы и прогресс ученика сохранены.':'Введите код, который дал учитель. Он выглядит так: FAG-XXXX-XXXX.'}</p>
   <input id="ph-code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="FAG-XXXX-XXXX" aria-label="Код входа">
   <button type="submit">Войти</button><div class="err" role="alert"></div></form>`;
   document.body.append(d);const f=d.querySelector('form'),inp=d.querySelector('input'),er=d.querySelector('.err');inp.focus();
   f.onsubmit=async e=>{e.preventDefault();const c=inp.value.trim().toUpperCase();if(!c){er.textContent='Введите код.';return}
     er.textContent='Проверяю…';let r;try{r=await rpc('ph_login',{p_code:c})}catch(x){er.textContent='Нет связи с облаком. Проверьте интернет.';return}
     if(!r){er.textContent='Такого кода нет. Проверьте буквы: они латинские.';return}
-    setCode(c);location.reload()}}
+    if(teach&&!r.isOwner){er.textContent='Это ученический код. Для режима учителя нужен код учителя.';return}
+    if(teach)try{localStorage.setItem('ph_role','teacher')}catch(x){}
+    setCode(c);location.reload()}
+  if(teach){const x=document.createElement('button');x.type='button';x.textContent='Отмена';x.style.cssText='margin-top:8px;background:transparent;color:inherit;border:1px solid currentColor';x.onclick=()=>d.remove();f.append(x)}}
 
 function bar(){css();if(document.getElementById('ph-bar'))return;const b=document.createElement('div');b.id='ph-bar';
   b.innerHTML=(me.isOwner?'<button type="button" data-a="codes">Коды учениц</button>':'')+`<button type="button" data-a="out">Выйти</button>`;
   b.onclick=e=>{const a=e.target.closest('button');if(!a)return;
     if(a.dataset.a==='out'){if(!confirm('Выйти? На этом устройстве нужно будет снова ввести код.'))return;setCode('');
-      try{Object.keys(localStorage).forEach(k=>{if(k!=='theme')localStorage.removeItem(k)})}catch(x){}location.reload()}
+      /* черновики ответов (hwd:…) и признак учителя на устройстве не стираются: несданные ответы не должны пропадать */
+      try{Object.keys(localStorage).forEach(k=>{if(k!=='theme'&&!k.startsWith('hwd:')&&k!=='ph_teach_dev')localStorage.removeItem(k)})}catch(x){}location.reload()}
     else codes()};
   const place=()=>{const w=document.getElementById('who');if(!w||!w.parentNode)return false;if(b.parentNode!==w.parentNode||b.previousElementSibling!==w)w.after(b);return true};
   if(!place()){b.style.cssText='position:fixed;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:40';document.body.append(b)}
@@ -172,7 +176,7 @@ const db={doc:docRef,collection:colRef};
 const prof={};
 const user={
   async id(){return me?me.id:null},
-  async me(){return{id:me.id,isOwner:!!me.isOwner,name:me.name||''}},
+  async me(){return{id:me.id,isOwner:!!me.isOwner,name:me.name||'',teach:!!me.teach}},
   async isOwner(){return !!(me&&me.isOwner)},
   async canEdit(){return !!(me&&me.isOwner)},
   async can(){return !!me},
@@ -192,7 +196,7 @@ const gate=ready.then(m=>{if(m)return m;
 gate.then(()=>{const go=()=>bar();document.readyState==='loading'?document.addEventListener('DOMContentLoaded',go):go()});
 
 /* fresh — документ прямо с сервера, мимо кеша страницы (кеш может держать неподтверждённую запись): нужен сохранению острова */
-window.PHCLOUD={rpc,get me(){return me},sync,codes:()=>me&&me.isOwner&&codes(),fresh:path=>rpc('ph_get',{p_code:getCode(),p_path:path}),
+window.PHCLOUD={rpc,teacherLogin:()=>loginScreen(true),get me(){return me},sync,codes:()=>me&&me.isOwner&&codes(),fresh:path=>rpc('ph_get',{p_code:getCode(),p_path:path}),
   /* тот ли код входа, с которым открыта страница: в другой вкладке могли выйти или войти под другим кодом */
   session:()=>getCode()===BOOT,
   /* запись «только если в базе та же версия» (ph_set_if, supabase/migrations/20261028_ph_set_if_rev.sql, применена 28.10.2026).

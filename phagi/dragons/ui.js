@@ -354,7 +354,7 @@ function nestHTML(st,b,c,own){
   const K=c.K;
   if(b.pair){const p=b.pair,m=st.dragons.find(x=>x.id===p.m),f=st.dragons.find(x=>x.id===p.f),rd=E.ready(p,K),lf=E.left(p,K);
     const pr=p.pred?`<p class="drg-pred ${p.pred.ok?'ok':'no'}">${p.pred.ok?'✓':'✗'} Прогноз: ${TRAITS[p.pred.trait].toLowerCase()} «${esc((classesOf(p.pred.trait,m||st.dragons[0],f||st.dragons[0]).find(x=>x[0]===p.pred.value)||[0,p.pred.value])[1])}» у ${Math.round(p.pred.p*100)} % вылупившихся потомков. ${p.pred.ok?`Верно! Скрещивание идёт вдвое быстрее, и пришёл самоцвет.`:`На самом деле ${Math.round(p.pred.truth*1000)/10} %. Подумай, какие генотипы у родителей могли бы дать такое число.`}</p>`:'';
-    return `<div class="drg-pair">${[m,f].map(d=>d?`<span class="drg-chip">${W.svg(phOf(d),{stage:W.stageOf(d.lvl),key:'np'+d.id,size:56})}<small>${esc(d.name)} ${SEX[d.genome.sex]}</small></span>`:'').join('<b>×</b>')}</div>${pr}
+    return `${m&&f?famHTML(m,f,'np'):`<div class="drg-pair">${[m,f].map(d=>d?`<span class="drg-chip">${W.svg(phOf(d),{stage:W.stageOf(d.lvl),key:'np'+d.id,size:56})}<small>${esc(d.name)} ${SEX[d.genome.sex]}</small></span>`:'').join('<b>×</b>')}</div>`}${pr}
       <p>${rd?'Яйцо готово. Перенесите его в Инкубатор.':`Яйцо будет готово через ${cardsAcc(lf)}.`}</p>
       ${own?`<div class="actions" style="justify-content:flex-start">${rd?`<button class="btn sm" data-act="drgdo" data-t="egg" data-id="${b.id}">Забрать яйцо в Инкубатор</button>`:`<button class="btn ghost sm" data-act="drgdo" data-t="speed" data-id="${b.id}">Ускорить за ${Math.ceil(lf/E.SKIP_CARDS)} 💎</button>`}</div>`:''}`}
   if(!own)return '<p class="muted small">Гнездовье пустует.</p>';
@@ -365,12 +365,31 @@ function nestHTML(st,b,c,own){
   const tr=TRAITS[fv.drgPt]?fv.drgPt:'',cls=tr?classesOf(tr,m,f):[],cv=cls.some(x=>x[0]===fv.drgPc)?fv.drgPc:(cls[0]||[])[0];
   const low=[m,f].filter(d=>!ok(d));
   return `<div class="drg-breed"><label>Самка ${sel('drgM',fs.map(d=>[d.id,`${d.name} ♀ · ${d.lvl}-й ур.`]),mid)}</label><label>Самец ${sel('drgF',ms.map(d=>[d.id,`${d.name} ♂ · ${d.lvl}-й ур.`]),fid)}</label></div>
-  <div class="drg-pair">${[m,f].map(d=>`<span class="drg-chip">${W.svg(phOf(d),{stage:W.stageOf(d.lvl),key:'bp'+d.id,size:56})}<small>${esc(d.name)}</small></span>`).join('<b>×</b>')}</div>
+  ${famHTML(m,f,'bp')}
   <details class="drg-predbox" data-k="drgpred"${tr?' open':''}><summary>Сделать прогноз (по желанию)</summary>
     <p class="muted small">Если догадалась о генотипах родителей, предскажи долю потомков с признаком. Доля считается среди вылупившихся потомков этой пары (яйца, которые не развились, в неё не входят) и без учёта редких мутаций. Пример: у двух короткокрылых родителей Wgˢ/+ четверть всех яиц (Wgˢ/Wgˢ) не развивается, а среди вылупившихся короткокрылых 2/3. Среди всех яиц короткокрылых 1/2, но в прогноз идёт 2/3. Ошибка до ${Math.round(E.PRED_TOL*100)} процентных пунктов засчитывается: скрещивание вдвое быстрее и самоцвет. Неверный прогноз ничего не стоит.</p>
     <div class="drg-breed"><label>Признак ${sel('drgPt',[['','без прогноза'],...Object.entries(TRAITS)],tr)}</label>${tr?`<label>Вариант ${sel('drgPc',cls,cv)}</label><label>Доля, % <input id="drgPp" class="drg-in" type="number" min="0" max="100" step="0.1" inputmode="decimal" value="${esc(fv.drgPp||'')}" placeholder="например 25"></label>`:''}</div></details>
   ${low.length?`<p class="muted small">${low.map(d=>`${esc(d.name)} (${d.lvl}-й ур.)`).join(' и ')}: для скрещивания нужен ${E.BREED_LV}-й уровень. Кормят дракона кнопкой «Покормить» в его карточке, корм для этого растёт на ферме.</p><div class="actions" style="justify-content:flex-start"><button class="btn ghost sm" data-act="drgpanel" data-v="dragons">Открыть драконов</button></div>`:''}
   <div class="actions" style="justify-content:flex-start"><button class="btn sm" data-act="drgbreed" data-id="${b.id}" data-m="${mid}" data-f="${fid}"${low.length||st.bal.gold<cost?' disabled':''}>Скрестить: ${fmt(cost)} 🪙, ${cards(E.BREED_NEED)}</button>${!low.length&&st.bal.gold<cost?`<span class="drg-why">Не хватает ${fmt(cost-Math.floor(st.bal.gold))} 🪙. Золото копится в сундуках домов за каждую повторённую карточку.</span>`:''}</div>`}
+
+/* ---------- схема «родители → возможное потомство» (4.3) ----------
+   Примеры потомков считает настоящий мейоз (G.breed), но со своими зёрнами, а не с зерном яйца: настоящий результат
+   яйца они не выдают. Показываются только разные фенотипы из жизнеспособных яиц, без долей: прогноз остаётся загадкой */
+const ELI2={F:'🔥',W:'💧',T:'⛰️',A:'🌬️',P:'🌿',L:'☀️',D:'🌙'};
+const cap=t=>t?t[0].toUpperCase()+t.slice(1):t;
+const elName=ph=>ph.breath==='element'?ph.elements.map(e=>cap(W.ELN[e])).join(' + '):ph.breath==='smoke'?'Дымный':'Дремлющий';
+function genoShort(d){const T=window.DRGINSP&&DRGINSP.allelesText;if(!T)return '';return ['E','C','H'].map(l=>`${l} = ${esc(T(d.genome,l))}`).join(' · ')}
+function offspring(m,f,n){const out=[],seen=new Set();
+  for(let i=0;i<80&&out.length<n;i++){const e=G.breed(m.genome,f.genome,G.rng('ex:'+m.id+':'+f.id+':'+i));if(!e||!e.viable)continue;
+    const ph=G.phenotype(e.genome),k=JSON.stringify(E.summary(ph));if(seen.has(k))continue;seen.add(k);out.push(ph)}
+  return out}
+function famHTML(m,f,key){const kids=offspring(m,f,4),par=[m,f].map(phOf);
+  const note=ph=>{const B=window.DSTATS&&DSTATS.badge(ph);if(B&&B.hyb)return B.hyb;if(par.every(p=>p.color!==ph.color))return 'новый окрас';if(par.every(p=>p.horns!==ph.horns))return ph.horns?'с рогами':'без рогов';return ''};
+  const pc=(d,i)=>`<div class="fam-p"><span class="fam-pic">${W.svg(phOf(d),{stage:W.stageOf(d.lvl),key:key+'p'+i+d.id,size:84})}</span><small>Родитель ${i+1} ${SEX[d.genome.sex]}</small><b>${esc(d.name)} · ${esc(elName(phOf(d)))}</b><code>${genoShort(d)}</code></div>`;
+  return `<div class="fam"><div class="fam-top">${pc(m,0)}<div class="fam-mid" aria-hidden="true"><span class="fam-heart">❤</span><span class="fam-x">×</span></div>${pc(f,1)}</div>
+    <div class="fam-arr" aria-hidden="true">${kids.map(()=>'<span>↓</span>').join('')}</div>
+    <div class="fam-kids">${kids.map((ph,i)=>`<div class="fam-k"><span class="fam-pic">${W.svg(ph,{stage:0,key:key+'k'+i,size:70})}</span><small>Потомок ${i+1}</small><b>${ph.breath==='element'?ph.elements.map(e=>ELI2[e]).join(''):''} ${esc(elName(ph))}</b>${note(ph)?`<em>${esc(note(ph))}</em>`:''}</div>`).join('')}</div>
+    <p class="muted small">Так могут выглядеть малыши этой пары: каждый раз мейоз даёт новое сочетание. Какой вылупится, станет ясно в Инкубаторе.</p></div>`}
 
 /* куда пойдёт малыш из готового яйца: проверка до нажатия «Вылупить» */
 const nursCap=st=>E.nurseryCap(E.level(st));
@@ -772,6 +791,8 @@ function inspect(el){
   if(S.drgPlace||!window.DRGINSP)return;
   const uid=S.drgUid||meId(),info=inspInfo(uid,el.dataset.dragon);if(!info)return;
   DRGINSP.open(info,{info:id=>inspInfo(uid,id),
+    /* 4.3: стрелки осмотра листают драконов острова по порядку */
+    list:()=>{const x=stateOf(uid);return x?x.st.dragons.map(d=>d.id):[]},
     feed:id=>{const r=act({t:'feed',dragon:id});if(!r)return null;render();return {lvup:r.s.lvup===id}},
     fight:uid===meId()&&window.DRFIGHT?id=>fight(id):null},el)}
 

@@ -20,12 +20,13 @@ module.exports=async(page,{OUT,store,UID,writes,need})=>{
   await click('[data-act=drgpanel][data-v=dragons]');await w(600);
   log('кормление:',await txt('.drg-feedi'));await page.evaluate(()=>{const e=document.querySelector('.drg-feedi');if(e)e.scrollIntoView({block:'center'})});await w(300);await shot('3-feed');
   await click('button[data-act=drginsp]');await w(2500);
-  await click('.dri-geno');await w(900);await page.evaluate(()=>{const b=document.querySelector('.dri-body');if(b)b.scrollTop=0});
+  /* 4.3: паспорт с вкладками; источники на вкладке «Наследование» */
+  await click('.dri-bb.geno');await w(1200);need(await page.evaluate(()=>!!document.querySelector('.dri-tab[aria-selected=true][data-t=gt]')&&!!document.querySelector('.dri-chs')),'паспорт: вкладка «Генотип» со схемой хромосом');
+  await click('.dri-tab[data-t=law]');await w(700);
   log('паспорт открыт',await page.evaluate(()=>!!document.querySelector('#dri-law')),'источников',await page.evaluate(()=>document.querySelectorAll('ol.dri-src li').length));
   need(await page.evaluate(()=>document.querySelectorAll('ol.dri-src li').length)>=2,'у паспорта есть источники');
   await shot('4-passport');
-  await page.click('.dri-jump');await w(900);log('адрес после ссылки',await page.evaluate(()=>location.hash));
-  log('после «Закон»: фокус',await page.evaluate(()=>{const a=document.activeElement;return a?(a.closest('#dri-law')?'в разделе':a.tagName):'—'}),'прокрутка',await over());
+  log('вкладка «Наследование»: адрес',await page.evaluate(()=>location.hash),'фокус',await page.evaluate(()=>{const a=document.activeElement;return a?(a.dataset&&a.dataset.t||a.tagName):'—'}),'прокрутка',await over());
   await shot('5-law');
   await page.keyboard.press('Escape');await w(600);
   /* испорченное сохранение: генотип первого дракона испорчен в базе */

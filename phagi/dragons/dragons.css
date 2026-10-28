@@ -637,3 +637,68 @@ button.drg-hud-l:hover .drg-star{filter:brightness(1.1)}button.drg-hud-l:focus-v
 }
 @media(hover:none){.drg-kh{display:none!important}}
 @media(min-width:901px) and (hover:hover){.drg-rb{width:172px}}
+
+/* ---------- 4.3: экран дракона — плашка, стрелки, ряд кнопок, колонка характеристик ---------- */
+.dri-badge{position:absolute;left:max(12px,env(safe-area-inset-left,0px));top:calc(env(safe-area-inset-top,0px) + 58px);display:flex;align-items:center;gap:10px;padding:8px 14px 8px 8px;border-radius:16px;
+  background:linear-gradient(180deg,rgba(30,38,60,.88),rgba(18,24,40,.88));color:#fff;box-shadow:0 8px 24px -10px rgba(0,0,0,.6);opacity:0;transition:opacity .3s;max-width:calc(var(--stw) - 24px)}
+.dri.on .dri-badge{opacity:1}
+.dri-bi{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:22px;background:radial-gradient(circle at 35% 30%,#fff6,transparent 60%),var(--c);box-shadow:inset 0 0 0 2px #fff8}
+.dri-bt{display:flex;flex-direction:column;line-height:1.15;min-width:0}.dri-bt b{font:800 18px var(--d,system-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dri-bt small{opacity:.8;font-size:12px}
+.dri-stars i{font-style:normal;color:#5C6478;font-size:14px}.dri-stars i.on{color:#FFC93C;text-shadow:0 0 6px #ffb30066}
+.dri-nav{position:absolute;left:0;width:var(--stw);top:calc(var(--sy) - 26px);height:0;opacity:0;transition:opacity .3s}.dri.on .dri-nav{opacity:1}.dri-nav[hidden]{display:none}
+.dri-arr{position:absolute;top:0;width:44px;height:52px;border:0;border-radius:14px;cursor:pointer;font:700 30px/1 system-ui;color:#fff;background:rgba(18,24,40,.62);box-shadow:0 6px 18px -8px rgba(0,0,0,.6)}
+.dri-arr.l{left:12px}.dri-arr.r{right:12px}.dri-arr:hover{background:rgba(18,24,40,.82)}.dri-arr:focus-visible{outline:3px solid #FFE27A}
+.dri-bar{position:absolute;left:0;width:var(--stw);box-sizing:border-box;top:calc(var(--sth) - 82px);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:0 12px;opacity:0;transition:opacity .3s;pointer-events:none}
+.dri-bar.n3{grid-template-columns:repeat(3,minmax(0,1fr))}.dri.on .dri-bar{opacity:1}.dri-bar>*{pointer-events:auto}
+.dri-bb{appearance:none;border:0;cursor:pointer;height:68px;border-radius:16px;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font:inherit;
+  box-shadow:inset 0 -4px 0 rgba(0,0,0,.22),inset 0 2px 0 rgba(255,255,255,.25),0 8px 18px -10px rgba(0,0,0,.7);text-shadow:0 1px 1px rgba(0,0,0,.35);min-width:0}
+.dri-bb span{font-size:24px;line-height:1}.dri-bb b{font:800 13.5px/1.15 var(--d,system-ui);text-align:center}.dri-bb small{font-size:11px;opacity:.9}
+.dri-bb.feed{background:linear-gradient(180deg,#5BC24A,#2F8C2A)}.dri-bb.fight{background:linear-gradient(180deg,#E8503A,#B0241A)}
+.dri-bb.ped{background:linear-gradient(180deg,#3E86D9,#1F55A6)}.dri-bb.geno{background:linear-gradient(180deg,#9B5BE6,#6A2FB8)}
+.dri-bb:hover{filter:brightness(1.08)}.dri-bb:disabled{filter:grayscale(.6);opacity:.65;cursor:default}.dri-bb[aria-pressed=true]{box-shadow:inset 0 0 0 3px #FFE27A,0 8px 18px -10px rgba(0,0,0,.7)}
+.dri-bb:focus-visible{outline:3px solid #FFE27A;outline-offset:2px}
+@media(max-width:480px){.dri-bar{gap:5px;padding:0 6px;top:calc(var(--sth) - 72px)}.dri-bb{height:60px;border-radius:14px}.dri-bb span{font-size:20px}.dri-bb b{font-size:11.5px}}
+.dri-hint{top:calc(var(--sth) - 108px)}
+.dri-side{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;padding:10px;border-radius:16px;background:linear-gradient(180deg,#1E263C,#141A2B);color:#fff;margin:4px 0 12px}
+.dri-sr2{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:10px;background:rgba(255,255,255,.06)}
+.dri-sr2 small{display:block;font-size:11.5px;opacity:.75}.dri-sr2 b{font:800 17px var(--d,system-ui)}
+.dri-si{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:16px;background:var(--c,rgba(255,255,255,.12))}
+.dri-sep{grid-column:1/-1;height:1px;background:rgba(255,255,255,.12)}
+/* ---------- паспорт: вкладки, дракон с подписями, схема хромосом, карточка гена ---------- */
+.dri-tabs{display:flex;gap:4px;overflow-x:auto;margin:8px 0 12px;padding-bottom:2px;border-bottom:2px solid var(--line)}
+.dri-tab{appearance:none;border:0;background:transparent;cursor:pointer;font:600 14px var(--f,system-ui);color:var(--muted);padding:9px 12px;border-radius:10px 10px 0 0;white-space:nowrap}
+.dri-tab[aria-selected=true]{background:var(--ink,#0E4A38);color:#fff}.dri-tab:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+.dri-gt{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:16px;align-items:start}
+@media(max-width:700px){.dri-gt{grid-template-columns:1fr}}
+.dri-gpic{position:relative;min-height:220px;border-radius:16px;background:radial-gradient(ellipse at 50% 60%,color-mix(in srgb,var(--soft,#E7F0EA) 70%,#fff),var(--soft,#E7F0EA));padding:20px 0}
+.dri-gpic>svg:first-child{display:block;margin:0 auto;max-width:72%;height:auto}
+.dri-cl2{position:absolute;left:0;top:0;pointer-events:none}.dri-cl2 line{stroke:var(--ink,#0E4A38);stroke-width:1.4;opacity:.7}.dri-cl2 circle{fill:var(--ink,#0E4A38)}
+.dri-call{position:absolute;transform:translateY(-50%);appearance:none;border:1px solid var(--line);background:var(--card);color:var(--text);font:600 11.5px var(--f,system-ui);padding:3px 7px;border-radius:8px;cursor:pointer;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis}
+.dri-call.L{left:4px}.dri-call.R{right:4px}.dri-call.on,.dri-call:hover{background:var(--ink,#0E4A38);color:#fff}
+.dri-chs{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start}
+.dri-chc{display:flex;flex-direction:column;align-items:center;gap:4px}.dri-chc>b{font-size:11.5px;color:var(--muted)}
+.dri-chg{display:grid;grid-template-columns:12px 12px auto;column-gap:3px;row-gap:3px;padding:6px 6px;border-radius:12px;background:var(--soft,#E7F0EA)}
+.dri-chg .sg{width:12px;height:22px;border-radius:6px;background:var(--c);box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)}.dri-chg .sg.no{background:transparent;box-shadow:none}
+.dri-chg .lb{appearance:none;border:0;background:transparent;cursor:pointer;font:700 12px ui-monospace,Menlo,monospace;color:var(--text);padding:0 3px;border-radius:5px;text-align:left}
+.dri-chg .lb[aria-pressed=true],.dri-chg .lb:hover{background:var(--ink,#0E4A38);color:#fff}
+.dri-gc{margin-top:12px;padding:12px;border-radius:14px;border:1px solid var(--line);background:var(--card)}.dri-gc h4{margin:0 0 8px}
+.dri-gcr{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.dri-gbox{font:800 22px ui-monospace,Menlo,monospace;padding:4px 14px;border-radius:10px;border:1px solid var(--line);background:var(--soft,#E7F0EA)}
+.dri-gph{padding:5px 12px;border-radius:999px;background:color-mix(in srgb,#46A659 22%,transparent);color:var(--ink,#0E4A38);font-weight:700;font-size:13.5px}
+.dri-gor{padding:8px 10px;border-radius:10px;background:color-mix(in srgb,#F2C94C 20%,transparent);font-size:13.5px}
+.dri-more2{appearance:none;border:0;background:transparent;color:var(--link,#1F55A6);font:600 13.5px var(--f,system-ui);cursor:pointer;padding:4px 0}
+/* ---------- 4.3: схема скрещивания «родители → возможное потомство» ---------- */
+.fam{margin:10px 0;padding:12px;border-radius:18px;background:linear-gradient(180deg,color-mix(in srgb,#F6E3C8 55%,var(--card)),var(--card));border:1px solid var(--line)}
+.fam-top{display:grid;grid-template-columns:minmax(0,1fr) 44px minmax(0,1fr);align-items:center;gap:6px}
+.fam-p,.fam-k{display:flex;flex-direction:column;align-items:center;text-align:center;gap:2px;min-width:0}
+.fam-p{padding:8px;border-radius:14px;background:var(--card);box-shadow:0 4px 14px -8px rgba(0,0,0,.35)}
+.fam-p small,.fam-k small{color:var(--muted);font-size:11.5px}.fam-p b,.fam-k b{font-size:13px;line-height:1.2}
+.fam-p code{font:600 11px ui-monospace,Menlo,monospace;color:var(--muted);overflow-wrap:anywhere}
+.fam-pic svg{display:block;height:auto;max-width:100%}
+.fam-mid{display:flex;flex-direction:column;align-items:center;gap:2px}.fam-heart{color:#E0245E;font-size:24px;line-height:1}.fam-x{font:800 24px system-ui;color:var(--muted)}
+.fam-arr{display:grid;grid-template-columns:repeat(4,1fr);text-align:center;color:var(--muted);font-size:18px;margin:4px 0}
+.fam-kids{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.fam-k{padding:6px 4px;border-radius:12px;background:var(--card);border:1px solid var(--line)}.fam-k em{font-style:normal;font-size:11px;color:#8E5BD6}
+@media(max-width:420px){.fam-kids,.fam-arr{grid-template-columns:repeat(2,minmax(0,1fr))}.fam-arr span:nth-child(n+3){display:none}}
+.dri.sheet.sub .dri-badge,.dri.sheet.sub .dri-nav,.dri.sheet.sub .dri-bar,.dri.sheet.sub .dri-hint{display:none}
+.dri-call{max-width:140px;font-size:11px}

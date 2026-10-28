@@ -139,7 +139,7 @@ function habFloor(t,p,k){const o=[`<ellipse cx="0" cy="0" rx="${PRI+.5}" ry="${(
       fx('g',0,0,34,'#9C6BFF',.28);break}
   return o.join('')}
 /* площадка: тень, цоколь, пол, дальнее кольцо плит (под знаком среды) */
-function habPad(t,k){const p=PAD[t],o=[];
+function habPad(t,k,lvl){const p=PAD[t],o=[];
   o.push(`<ellipse cx="0" cy="9" rx="70" ry="32" fill="#0B1A10" opacity=".22"/>`);
   o.push(`<path d="M${-PR} 0 A${PR} ${PR/2} 0 0 0 ${PR} 0 L${PR} 11 A${PR} ${PR/2} 0 0 1 ${-PR} 11 Z" fill="url(#${k}-base${t})"/>`);
   o.push(`<path d="${Array.from({length:8},(_,i)=>{const a=(i+.5)/8*Math.PI,[x,y]=ell(a,PR);return `M${f1(x)} ${f1(y+1)} l0 ${i%2?9:10}`}).join(' ')}" stroke="${p.baseD}" stroke-width="1.2" opacity=".7"/>`);
@@ -147,9 +147,18 @@ function habPad(t,k){const p=PAD[t],o=[];
   o.push(mortar(p,9));
   o.push(habFloor(t,p,k));
   o.push(slabs(p,false,9,'sb'+t));
+  if(lvl>=5)o.push(inlay(-9,Math.PI+.05,Math.PI*2-.05));
+  if(lvl>=2)o.push(banners(t));
   return o.join('')}
 /* ближний низкий бортик: рисуется поверх двора */
-function habFront(t){return slabs(PAD[t],true,4,'sf'+t)}
+function habFront(t,lvl){return slabs(PAD[t],true,4,'sf'+t)+(lvl>=3?lanterns(t):'')+(lvl>=5?inlay(-4,.1,Math.PI-.1):'')}
+const inlay=(h,a0,a1)=>{const r=(PR+PRI)/2;return `<path d="M${pp(ell(a0,r,h))} A${r} ${r/2} 0 0 1 ${pp(ell(a1,r,h))}" stroke="#F2D27A" stroke-width="1.6" fill="none" opacity=".95"/>`};
+/* постройка растёт с уровнем: флажки цвета стихии (2-й), фонари со светом (3-й), золотая инкрустация по кольцу (5-й) */
+const ACC={F:'#FF7A1F',W:'#3FC6E0',N:'#A77BFF',T:'#E8B33C',A:'#7FC2FF',P:'#F06AA8',L:'#FFC93C',D:'#9C6BFF'};
+function banners(t){const c=ACC[t]||'#F2C94C';return [Math.PI*1.12,Math.PI*1.88].map((a,i)=>{const [x,y]=ell(a,PR-4,-9);const s=i?-1:1;
+  return `<g transform="translate(${f1(x)} ${f1(y)})"><path d="M0 0 L0 -30" stroke="#7A5A3A" stroke-width="2.2" stroke-linecap="round"/><path d="M0 -30 L0 -31" stroke="#F2D27A" stroke-width="3" stroke-linecap="round"/><path d="M0 -29 L${12*s} -25 L0 -20 Z" fill="${c}"/><path d="M0 -29 L${6*s} -27 L0 -24.5 Z" fill="#fff" opacity=".35"/></g>`}).join('')}
+function lanterns(t){const c=ACC[t]||'#FFD36A';return [Math.PI*.18,Math.PI*.82].map(a=>{const [x,y]=ell(a,PR-5,-4);fx('g',x,y-12,10,'#FFD36A',.55);
+  return `<g transform="translate(${f1(x)} ${f1(y)})"><path d="M-1.4 0 L-1.4 -9 L1.4 -9 L1.4 0 Z" fill="#5E4428"/><path d="M-3.6 -9 L3.6 -9 L3 -16 L-3 -16 Z" fill="#FFE9A0"/><path d="M-3.6 -9 L3.6 -9 L3 -16 L-3 -16 Z" fill="none" stroke="#5E4428" stroke-width="1"/><path d="M-4.4 -16 L4.4 -16 L0 -20 Z" fill="${c}"/></g>`}).join('')}
 
 /* знаки сред: в глубине площадки (основание около y = −8), шириной до ±42 */
 const MARK={
@@ -557,12 +566,12 @@ function svg(st,opt){
     if(isSel)out.push(`<ellipse cx="0" cy="2" rx="74" ry="37" fill="#FFF3B0" opacity=".22"/><path d="M0 -36 L72 0 L0 36 L-72 0 Z" fill="none" stroke="#FFF3B0" stroke-width="3.4" stroke-dasharray="7 5"/>`);
     if(b.build){out.push(scaffold(b.build,K,D))}
     else{
-      out.push(T.kind==='farm'?farmSprite(b,st,K,D,k):T.kind==='nest'?nestSprite(b,st,k,c,K,D):T.kind==='hatch'?hatchSprite(b,K,D,k):hab?habPad(b.type,k)+habMark(b.type,k):habPad('P',k));
+      out.push(T.kind==='farm'?farmSprite(b,st,K,D,k):T.kind==='nest'?nestSprite(b,st,k,c,K,D):T.kind==='hatch'?hatchSprite(b,K,D,k):hab?habPad(b.type,k,b.lvl||1)+habMark(b.type,k):habPad('P',k));
       if(T.kind==='hab'){
         /* драконы во дворе, перед знаком среды; живой слой потом водит их по двору */
         const ds=st.dragons.filter(d=>d.home===b.id),pos=[[-22,12],[22,14],[0,21],[-38,6],[38,6]];
         ds.forEach((d,n)=>{const [dx,dy]=pos[n%5];out.push(dragonAt(d,dx,dy,hab?44:66,k+b.id+d.id,c,b,'hab',dx>0?-1:1))})
-        if(hab)out.push(habFront(b.type))}
+        if(hab)out.push(habFront(b.type,b.lvl||1))}
       if(b.up)out.push(scaffold(b.up,K,D))}
     if(!fxOn)FX.length=fx0;
     ORG={x:0,y:0,s:1};

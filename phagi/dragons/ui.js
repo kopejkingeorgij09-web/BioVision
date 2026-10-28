@@ -147,21 +147,28 @@ function islandView(){
   const {st,c}=x,K=c.K,full=!!S.drgFull;
   if(S.drgSel&&!st.bld.some(b=>b.id===S.drgSel))S.drgSel=null;
   const pl=own?S.drgPlace:null;
-  const placeBar=pl?`<div class="drg-place"><span>${pl.move?'Нажмите, куда перенести здание':'Нажмите на зелёную клетку, где поставить: '+E.TYPES[pl.type].name}</span><button class="btn ghost sm" data-act="drgcancel">Отмена</button></div>`:'';
+  const placeBar=pl?`<div class="drg-place"><span>${pl.move?'Нажмите, куда перенести здание':'Нажмите на зелёную клетку, где поставить: '+E.TYPES[pl.type].name}</span><button class="btn sm" data-act="drgauto">${pl.move?'Перенести':'Поставить'} на свободное место</button><button class="btn ghost sm" data-act="drgcancel">Отмена</button></div>`:'';
   const isl=I.svg(st,{K,sel:S.drgSel,place:pl,key:'isl',readonly:!own,full});
   const gl=own&&!pl?goalLine(st,K):null;
   if(full){
     const L=E.level(st),a=E.xpFor(L),b=E.xpFor(L+1),xp=Math.round((st.bal.xp-a)/Math.max(1,b-a)*100),bal=st.bal;
-    const pill=(ic,v,t)=>`<span class="drg-pill" title="${t}"><i aria-hidden="true">${ic}</i><b>${fmt(v)}</b>${own?`<button data-act="drgpanel" data-v="help" aria-label="${t}: как получить">+</button>`:''}</span>`;
-    const rb=(act,v,ic,t,big)=>`<button class="drg-rb${big?' big':''}" data-act="${act}" data-v="${v}"><i aria-hidden="true">${ic}</i><span>${t}</span></button>`;
-    return `<div class="drg-map full${pl?' placing':''}"><div class="drg-stage">${isl}</div>
-      <div class="drg-hud"><div class="drg-hud-l" title="Опыт ${fmt(bal.xp)} из ${fmt(b)}"><span class="drg-star"><b>${L}</b></span><span class="drg-xpbar"><i style="width:${xp}%"></i></span></div>
-      <div class="drg-hud-r">${pill('🪙',bal.gold,'Золото')}${pill('💎',bal.gems,'Самоцветы')}${pill('🌾',bal.food,'Корм')}</div></div>
+    /* ресурсы с подписью; нажатие объясняет, откуда берётся именно этот ресурс */
+    const pill=(k,ic,v,t)=>own?`<button class="drg-pill" data-act="drgpanel" data-v="res:${k}" aria-label="${t}: ${fmt(v)}. Как получить"><i aria-hidden="true">${ic}</i><span><b>${fmt(v)}</b><small>${t.toLowerCase()}</small></span><em aria-hidden="true">+</em></button>`
+      :`<span class="drg-pill" title="${t}"><i aria-hidden="true">${ic}</i><span><b>${fmt(v)}</b><small>${t.toLowerCase()}</small></span></span>`;
+    const P=S.drgPanel||'',rb=(act,v,ic,t,o)=>{o=o||{};const on=act==='drgpanel'&&P===v||o.on;
+      return `<button class="drg-rb${o.big?' big':''}" data-act="${act}" data-v="${v}"${o.lab?` aria-label="${o.lab}"`:''}${on?' aria-current="true"':''}><i aria-hidden="true">${ic}</i><span>${t}</span></button>`};
+    const dock=own?rb('drgfull','0','🏠','Домой',{lab:'Домой: из острова на страницу'})+rb('drgpanel','dragons','📖','Драконы')
+        +rb('drgpanel','breed','🥚','<b class="lg">Скрещивание</b><b class="sm">Яйца</b>',{lab:'Скрещивание и яйца'})
+        +(st.dragons.length?rb('drgfight','','⚔️','Поход',{lab:'Поход: бои драконов'}):'')+rb('drgpanel','shop','🔨','Строить',{big:1})+rb('drgpanel','more','☰','Ещё',{lab:'Ещё: рынок, журнал, мои постройки, справка'})
+      :rb('drgfull','0','🏠','Назад')+rb('drgpanel','dragons','📖','Драконы')+rb('drgpanel','journal','📓','Журнал')+rb('drgpanel','blds','🏘','Постройки');
+    return `<div class="drg-map full${pl?' placing':''}">
+      <div class="drg-hud"><div class="drg-hud-l" title="Опыт ${fmt(bal.xp)} из ${fmt(b)}"><span class="drg-star" aria-label="Уровень острова ${L}"><b>${L}</b></span><span class="drg-xpbar" role="img" aria-label="Опыт до следующего уровня: ${xp} %"><i style="width:${xp}%"></i></span></div>
+      <div class="drg-hud-r">${pill('gold','🪙',bal.gold,'Золото')}${pill('gems','💎',bal.gems,'Самоцветы')}${pill('food','🌾',bal.food,'Корм')}</div></div>
       ${own?`<div class="drg-svw">${saveHTML(uid)}${gl&&!S.drgPanel&&!S.drgSel?`<button class="drg-goal" data-act="drgpanel" data-v="breed"><small>Цель: первый потомок · шаг ${gl.step} из ${gl.of}</small><b>${gl.text}</b></button>`:''}</div>`:''}
       ${placeBar}
-      <div class="drg-bl">${rb('drgfull','0','🏠','Домой')}${rb('drgpanel','dragons','📖','Драконы')}${own?rb('drgpanel','breed','🥚','Скрещивание'):''}${rb('drgpanel','journal','📓','Журнал')}${own&&st.dragons.length?rb('drgfight','','⚔️','Поход'):''}</div>
-      ${own?`<div class="drg-br">${rb('drgpanel','market','🐉','Рынок')}${rb('drgpanel','shop','🔨','Строить',1)}</div>`:''}
-      <div class="drg-zm"><button data-act="drgzoom" data-v="in" aria-label="Приблизить">+</button><button data-act="drgzoom" data-v="out" aria-label="Отдалить">−</button><button data-act="drgzoom" data-v="fit" aria-label="Весь остров">⤢</button></div>
+      <div class="drg-dock" role="group" aria-label="Действия на острове">${dock}</div>
+      <div class="drg-zm"><button data-act="drgzoom" data-v="in" aria-label="Приблизить">+</button><button data-act="drgzoom" data-v="out" aria-label="Отдалить">−</button><button data-act="drgzoom" data-v="fit" aria-label="Весь остров" title="Весь остров">⤢</button><button data-act="drgpanel" data-v="blds" aria-label="Мои постройки" title="Мои постройки">▤</button></div>
+      <div class="drg-stage">${isl}</div>
       </div>`+panel(st,c,own)}
   const head=`${back}${own?saveHTML(uid,true):''}<div class="drg-ih"><div class="drg-ih-t"><h1>Остров драконов${own?'':': '+esc(name(uid))}</h1><span class="muted small">Время на острове идёт в карточках: повторено ${cards(K)}</span></div>${lvlHTML(st)}${walletHTML(st)}</div>`;
   const tools=own&&!pl?`<div class="drg-tools"><button class="btn sm" data-act="drgfull" data-v="1">🏝 Отправиться на остров</button><button class="btn ghost sm" data-act="drgpanel" data-v="shop">🔨 Построить</button><button class="btn ghost sm" data-act="drgpanel" data-v="market">🐉 Рынок</button><button class="btn ghost sm" data-act="drgpanel" data-v="dragons">📖 Драконы</button><button class="btn ghost sm" data-act="drgpanel" data-v="breed">🥚 Скрещивание</button>${st.dragons.length?'<button class="btn ghost sm" data-act="drgfight">⚔️ Поход</button>':''}<button class="btn ghost sm" data-act="drgpanel" data-v="journal">📓 Журнал скрещиваний</button><button class="btn ghost sm" data-act="drgpanel" data-v="help">Как это работает</button></div>`:'';
@@ -177,6 +184,9 @@ function panel(st,c,own){
   if(p==='dragons')return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>Драконы острова</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div><div class="drg-list">${st.dragons.map(d=>dragonCard(st,d,own,L)).join('')}</div></section>`;
   if(p==='help')return helpHTML(st,c);
   if(p==='breed')return breedHTML(st,c,own);
+  if(p==='more')return moreHTML(st,own);
+  if(p==='blds')return bldsHTML(st,c,own);
+  if(own&&p&&p.startsWith('res:'))return resHTML(st,c,p.slice(4));
   if(p==='journal')return journalHTML(st);
   if(p==='baby'){const d=st.dragons.find(x=>x.id===S.drgBaby);if(d)return `<section class="sheet drg-pan drg-baby"><div class="drg-pan-h"><h2>🐣 Вылупился ${esc(d.name)}!</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div>${own?saveHTML(meId()):''}${d.nurs&&!d.home?`<p class="drg-why">Подходящего свободного дома пока нет (нужен дом: ${E.habNames(phOf(d))}), поэтому ${esc(d.name)} живёт в яслях Инкубатора. В яслях дракон не приносит золота, но его можно кормить. Когда появится дом, нажмите «Переселить».</p>`:''}<div class="drg-list">${dragonCard(st,d,own,L)}</div><div class="actions" style="justify-content:flex-start"><button class="btn ghost sm" data-act="drgpanel" data-v="journal">📓 Журнал скрещиваний</button><button class="btn ghost sm" data-act="drgpanel" data-v="breed">🥚 Скрещивание</button></div></section>`}
   const b=st.bld.find(x=>x.id===S.drgSel);
@@ -375,6 +385,43 @@ function marketHTML(st,L){
   <p class="muted small">На рынке продают драконов одной стихии, и у каждого свой генотип. Большинство обычные, примерно каждый десятый оказывается редким по окрасу, гребню или рогам, около одного из ста сверхредким. Двух стихий и света или тьмы у рыночных драконов не бывает, такие рождаются только при скрещивании. Какие скрытые аллели несёт дракон, покажет паспорт и потомство.</p>
   <div class="drg-shop">${['F','W','N','T','A','P'].map(row).join('')}</div></section>`}
 
+/* «Ещё»: то, что не поместилось в нижние кнопки */
+function moreHTML(st,own){const it=(act,v,ic,t,d)=>`<button class="drg-mi" data-act="${act}" data-v="${v}"><i aria-hidden="true">${ic}</i><span><b>${t}</b><small>${d}</small></span></button>`;
+  return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>Ещё</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div><div class="drg-menu">
+  ${own?it('drgpanel','market','🐉','Рынок драконов','купить дракона одной стихии'):''}${it('drgpanel','journal','📓','Журнал скрещиваний','потомство пар и доли признаков')}
+  ${it('drgpanel','blds','▤','Мои постройки','список зданий: открыть любое')}${it('drgzoom','fit','⤢','Весь остров','вернуть вид целиком')}
+  ${it('drgcards','','📚','Повторять карточки','время острова идёт в карточках')}${it('drgpanel','help','?','Как это работает','золото, корм, самоцветы, уровни')}</div></section>`}
+/* «Мои постройки»: те же здания, что на карте, списком; нажатие открывает то же, что нажатие на карте */
+function bldsHTML(st,c,own){const K=c.K,L=E.level(st);
+  const stat=b=>{const T=E.TYPES[b.type],job=b.build||b.up;if(b.build)return E.ready(b.build,K)?'стройка готова':`строится, ещё ${cards(E.left(b.build,K))}`;
+    const out=[];if(b.up&&!E.ready(b.up,K))out.push(`улучшается, ещё ${cards(E.left(b.up,K))}`);
+    if(T.kind==='hab'){const n=st.dragons.filter(d=>d.home===b.id).length,a=Math.floor(E.chestNow(st,b,K));out.push(n?`драконов ${n} из ${E.habCap(b)}`:'пустует');if(a>=1)out.push(`в сундуке ${fmt(a)} 🪙${a>=E.chestCap(b)?' (полон)':''}`)}
+    if(T.kind==='farm'){const r=(b.plots||[]).filter(p=>p&&E.ready(p,K)).length,e=(b.plots||[]).filter(p=>!p).length;out.push(r?`созрело ${r}`:e?`свободных грядок ${e}`:'растёт')}
+    if(T.kind==='nest')out.push(b.pair?(E.ready(b.pair,K)?'яйцо готово':`яйцо через ${cards(E.left(b.pair,K))}`):'пара не выбрана');
+    if(T.kind==='hatch'){const r=(b.slots||[]).filter(p=>p&&E.ready(p,K)).length,n=(b.slots||[]).filter(Boolean).length;out.push(r?`готово к вылуплению: ${r}`:n?`яиц ${n}`:'пусто')}
+    return out.join(', ')};
+  const order=[...st.bld].sort((a,b)=>E.HAB_ORDER.indexOf(a.type)-E.HAB_ORDER.indexOf(b.type));
+  return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>Мои постройки</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div>
+  <p class="muted small">${st.bld.length} ${plural(st.bld.length,'постройка','постройки','построек')} на ${L}-м уровне острова. Нажатие открывает здание, как на карте.</p>
+  <ul class="drg-bls">${order.map(b=>`<li><button class="drg-mi" data-act="drgsel" data-id="${b.id}"><i aria-hidden="true">${BICON[E.TYPES[b.type].kind==='hab'?b.type:E.TYPES[b.type].kind]||'🏠'}</i><span><b>${E.TYPES[b.type].name}${b.build?'':` · ${b.lvl}-й ур.`}</b><small>${stat(b)}</small></span></button></li>`).join('')}</ul>
+  ${own?'<div class="drg-sa"><button class="btn ghost sm" data-act="drgpanel" data-v="shop">🔨 Построить ещё</button></div>':''}</section>`}
+const BICON={F:'🌋',W:'🌊',N:'🌑',T:'🏔',A:'☁️',P:'🌳',L:'🌅',D:'🗼',farm:'🌾',nest:'🪺',hatch:'🥚'};
+/* откуда берётся ресурс: у каждого своё объяснение и прямые действия */
+function resHTML(st,c,k){const K=c.K,info=c.info,bal=st.bal,close='<button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button>';
+  const habs=st.bld.filter(b=>E.TYPES[b.type].kind==='hab'&&!b.build),farms=st.bld.filter(b=>b.type==='farm'&&!b.build);
+  let t='',h='';
+  if(k==='gold'){t='🪙 Золото';const rt=rateAll(st);
+    h=`<p>Золото приносят драконы в своих домах: за каждую повторённую карточку сейчас +${fmt(rt)} 🪙. Оно копится в сундуке дома, пока сундук не заполнится, поэтому сундуки надо собирать.</p>
+    ${habs.map(b=>{const a=Math.floor(E.chestNow(st,b,K));return `<div class="drg-sr"><span>${E.TYPES[b.type].name}: ${fmt(a)} из ${fmt(E.chestCap(b))}</span><button class="btn sm" data-act="drgdo" data-t="collect" data-id="${b.id}"${a>=1?'':' disabled'}>Собрать</button></div>`}).join('')}
+    <p class="muted small">Ещё золото дают проводы дракона с острова. Бои и поход золота не дают.</p>`}
+  else if(k==='food'){t='🌾 Корм';
+    h=`<p>Корм нужен, чтобы драконы росли. Он приходит двумя путями: дневной паёк ${E.RATION(info.cur||1)} корма за день, когда набрано ${GOAL} карточек (сегодня ${info.todayN} из ${GOAL}), и урожай с грядок на ферме.</p>
+    ${farms.map(b=>`<div class="drg-sr"><span>${E.TYPES[b.type].name}: ${(b.plots||[]).filter(p=>p&&E.ready(p,K)).length} созрело, ${(b.plots||[]).filter(p=>!p).length} свободно</span><button class="btn ghost sm" data-act="drgsel" data-id="${b.id}">Открыть ферму</button></div>`).join('')||'<p class="muted small">Фермы пока нет: её можно построить за 100 🪙.</p>'}
+    <div class="drg-sa"><button class="btn ghost sm" data-act="drgcards">Повторять карточки</button></div>`}
+  else{t='💎 Самоцветы';
+    h=`<p>Самоцветы ускоряют ожидание: один заменяет ${E.SKIP_CARDS} карточек стройки, грядки или яйца. Их дают: засчитанный день (${GOAL} карточек), каждые ${GOAL} карточек сверх цели, рубежи серии ${E.MILESTONES.map(m=>m[0]).join(', ')} дней, новый уровень острова, верный прогноз потомства и расчистка валунов.</p>
+    <p class="muted small">Сегодня ${info.todayN} из ${GOAL}${info.done?', день засчитан':''}.</p><div class="drg-sa"><button class="btn ghost sm" data-act="drgcards">Повторять карточки</button></div>`}
+  return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>${t}: ${fmt(bal[k])}</h2>${close}</div>${h}</section>`}
 function helpHTML(st,c){
   return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>Как это работает</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div>
   <ul class="drg-help">
@@ -399,21 +446,68 @@ new MutationObserver(()=>{const m=document.querySelector('.drg-map');if(!m||m.da
    Камера живёт вне HTML (S.drgCam), чтобы перерисовка не сбрасывала положение; применяется после каждой перерисовки. */
 const cam=()=>S.drgCam||(S.drgCam={z:0,x:0,y:0});
 function camBox(){const m=document.querySelector('.drg-map.full');return m?m.getBoundingClientRect():null}
-function camClamp(c,r){c.z=Math.max(1,Math.min(4,c.z));c.x=Math.min(0,Math.max(r.width-r.width*c.z,c.x));c.y=Math.min(0,Math.max(r.height-r.height*c.z,c.y))}
-/* начальный вид: остров (800×560 в единицах рисунка) почти во всю ширину или высоту окна, по центру */
-function camFit(r){const c=cam(),V=I.VIEW.full,s0=Math.min(r.width/V[2],r.height/V[3]),ox=(r.width-V[2]*s0)/2,oy=(r.height-V[3]*s0)/2;
-  c.z=Math.max(1,Math.min(4,(r.width<700?1.5:0.96)*r.width/(800*s0),(r.width<700?9:0.9)*r.height/(560*s0)));
-  const cx=ox+(400-V[0])*s0,cy=oy+(320-V[1])*s0;c.x=r.width/2-c.z*cx;c.y=r.height/2-c.z*cy;camClamp(c,r)}
-function camApply(){const st=document.querySelector('.drg-map.full .drg-stage'),r=camBox();if(!st||!r)return;const c=cam();if(!c.z)camFit(r);camClamp(c,r);
-  st.style.transform=`translate(${c.x.toFixed(1)}px,${c.y.toFixed(1)}px) scale(${c.z.toFixed(3)})`}
-function camZoom(px,py,f){const r=camBox();if(!r)return;const c=cam(),nz=Math.max(1,Math.min(4,c.z*f)),k=nz/c.z;c.x=px-(px-c.x)*k;c.y=py-(py-c.y)*k;c.z=nz;camApply()}
+/* рисунок острова в координатах SVG → пиксели сцены до камеры (viewBox с meet) */
+function svgMap(r){const V=I.VIEW.full,s0=Math.min(r.width/V[2],r.height/V[3]);return {s0,x:u=>(r.width-V[2]*s0)/2+(u-V[0])*s0,y:v=>(r.height-V[3]*s0)/2+(v-V[1])*s0}}
+/* границы того, что важно видеть: открытая земля и постройки с их высотой (в координатах SVG) */
+/* all — вся открытая земля (для «Весь остров» и ограничения камеры), key — постройки и драконы (первый вид: крупно, но всё важное видно) */
+const IB={d:null,b:null};
+function islBounds(kind){const uid=S.drgUid||meId(),d=docOf(uid);if(!(d&&IB.d===d)){IB.d=d;IB.b=islBounds0(uid)}return IB.b[kind||'all']}
+function islBounds0(uid){const def={all:[0,60,800,520],key:[100,120,600,400]},x=stateOf(uid);if(!x)return def;const st=x.st,C=E.CHUNK;
+  const box=()=>{let a=[1e9,1e9,-1e9,-1e9];return {add:p=>{a=[Math.min(a[0],p[0]),Math.min(a[1],p[1]),Math.max(a[2],p[0]),Math.max(a[3],p[1])]},get:()=>a}};
+  const L=box(),B=box();
+  (st.land||[]).forEach(id=>{const [cx,cy]=id.split(',').map(Number);[[0,0],[C,0],[C,C],[0,C]].forEach(([i,j])=>L.add(I.P(cx*C+i,cy*C+j)))});
+  st.bld.forEach(b=>{const c=I.P(b.x+1,b.y+1);B.add([c[0]-70,c[1]-(I.HEIGHT[b.type]||70)-26]);B.add([c[0]+70,c[1]+46])});
+  let a=L.get();if(a[0]>a[2])return def;const all=[a[0]-36,a[1]-20,a[2]-a[0]+72,a[3]-a[1]+56];
+  let k=B.get();if(k[0]>k[2])return {all,key:all};
+  /* не меньше 420×300 единиц рисунка вокруг середины построек, чтобы пара зданий не заняла весь экран */
+  const cx=(k[0]+k[2])/2,cy=(k[1]+k[3])/2,w=Math.max(420,k[2]-k[0]),h=Math.max(300,k[3]-k[1]);
+  return {all,key:[cx-w/2,cy-h/2,w,h]}}
+/* свободная часть экрана: между шапкой с ресурсами, кнопками внизу и открытой панелью */
+function freeRect(r){const q=s=>{const e=document.querySelector(s);return e&&e.getClientRects().length?e.getBoundingClientRect():null};
+  let top=r.top+8,bot=r.bottom-8,left=r.left+8,right=r.right-8;
+  ['.drg-hud-l','.drg-hud-r','.drg-svw'].forEach(s=>{const b=q(s);if(b&&b.height)top=Math.max(top,b.bottom+6)});
+  const dk=q('.drg-dock');if(dk)bot=Math.min(bot,dk.top-6);
+  /* панель берётся по её итоговому размеру, а не по кадру анимации появления */
+  const pe=document.querySelector('body.drg-fs #main>.drg-pan'),pn=pe&&pe.offsetWidth?pe:null;
+  if(pn){if(pn.offsetWidth<r.width*0.6)right=Math.min(right,r.right-12-pn.offsetWidth-8);else bot=Math.min(bot,r.bottom-8-pn.offsetHeight-6)}
+  if(bot-top<120)top=Math.max(r.top+8,bot-120);
+  return {x0:left-r.left,y0:top-r.top,x1:right-r.left,y1:bot-r.top}}
+const ZMIN=0.5,ZMAX=5;
+/* вид «весь остров»: границы острова целиком в свободной части экрана, по центру */
+/* первый вид: на узком экране крупно постройки, на широком весь остров */
+const fitKind=r=>r.width<700?'key':'all';
+function camFit(r,keepZ,kind){const c=cam(),M=svgMap(r),B=islBounds(kind||'all'),F=freeRect(r),fw=F.x1-F.x0,fh=F.y1-F.y0;
+  if(!keepZ)c.z=Math.max(ZMIN,Math.min(ZMAX,fw/(B[2]*M.s0),fh/(B[3]*M.s0)));
+  c.x=(F.x0+fw/2)-c.z*M.x(B[0]+B[2]/2);c.y=(F.y0+fh/2)-c.z*M.y(B[1]+B[3]/2);c.W=r.width;c.H=r.height;c.auto=!keepZ}
+/* камера не уводит остров за край: хотя бы четверть его ширины и высоты остаётся в свободной части */
+function camClamp(c,r){c.z=Math.max(ZMIN,Math.min(ZMAX,c.z));const M=svgMap(r),B=islBounds(),F=freeRect(r);
+  const x0=c.x+c.z*M.x(B[0]),x1=c.x+c.z*M.x(B[0]+B[2]),y0=c.y+c.z*M.y(B[1]),y1=c.y+c.z*M.y(B[1]+B[3]),mx=(x1-x0)/4,my=(y1-y0)/4;
+  if(x1<F.x0+mx)c.x+=F.x0+mx-x1;if(x0>F.x1-mx)c.x-=x0-(F.x1-mx);if(y1<F.y0+my)c.y+=F.y0+my-y1;if(y0>F.y1-my)c.y-=y0-(F.y1-my)}
+function camApply(){const st=document.querySelector('.drg-map.full .drg-stage'),r=camBox();if(!st||!r)return;const c=cam();
+  if(!c.z)camFit(r,false,fitKind(r));
+  else if(c.W&&(Math.abs(c.W-r.width)>1||Math.abs(c.H-r.height)>1)){
+    /* поворот телефона или новое окно: нетронутый вид подгоняется заново, сдвинутый сохраняет точку в центре */
+    if(c.auto)camFit(r,false,fitKind(r));else{const o=svgMap({width:c.W,height:c.H}),n=svgMap(r),u=((c.W/2-c.x)/c.z-o.x(0))/o.s0,v=((c.H/2-c.y)/c.z-o.y(0))/o.s0;
+      c.x=r.width/2-c.z*n.x(u);c.y=r.height/2-c.z*n.y(v);c.W=r.width;c.H=r.height}}
+  camClamp(c,r);
+  st.style.transform=`translate(${c.x.toFixed(1)}px,${c.y.toFixed(1)}px) scale(${c.z.toFixed(3)})`;
+  /* мелко: подписи построек прячутся, чтобы не слипались */
+  const m=st.parentElement,px=svgMap(r).s0*c.z,lo=px<0.42;if(m.classList.contains('zlo')!==lo)m.classList.toggle('zlo',lo);
+  /* подписи построек держат экранный размер около 11 px при любом масштабе */
+  st.style.setProperty('--lz',Math.max(0.45,Math.min(1.6,11/(12*px))).toFixed(3));
+  if(window.DRLIVE)DRLIVE.wake()}   /* при «меньше движения» живые драконы перерисовываются только так */
+/* выбранная постройка не прячется под панелью: если её не видно, остров сдвигается, масштаб тот же */
+function camShow(id){const r=camBox(),x=stateOf(S.drgUid||meId());if(!r||!x)return;const b=x.st.bld.find(z=>z.id===id);if(!b)return;
+  const c=cam(),M=svgMap(r),F=freeRect(r),p=I.P(b.x+1,b.y+1),sx=c.x+c.z*M.x(p[0]),sy=c.y+c.z*M.y(p[1]-30);
+  if(sx<F.x0+30||sx>F.x1-30||sy<F.y0+30||sy>F.y1-30){c.x+=(F.x0+F.x1)/2-sx;c.y+=(F.y0+F.y1)/2-sy;c.auto=false;camApply()}}
+function camZoom(px,py,f){const r=camBox();if(!r)return;const c=cam(),nz=Math.max(ZMIN,Math.min(ZMAX,c.z*f)),k=nz/c.z;c.x=px-(px-c.x)*k;c.y=py-(py-c.y)*k;c.z=nz;c.auto=false;camApply()}
 const ptrs=new Map();let moved=0,lastDrag=0,pinch=null;
-const onHud=t=>t.closest&&t.closest('.drg-hud,.drg-bl,.drg-br,.drg-zm,.drg-place,.drg-pan');
+const onHud=t=>t.closest&&t.closest('.drg-hud,.drg-dock,.drg-svw,.drg-zm,.drg-place,.drg-pan');
 window.addEventListener('pointerdown',e=>{const m=e.target.closest&&e.target.closest('.drg-map.full');if(!m||onHud(e.target))return;
   ptrs.set(e.pointerId,[e.clientX,e.clientY]);if(ptrs.size===1)moved=0;if(ptrs.size===2){const [a,b]=[...ptrs.values()];pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1])}}});
 window.addEventListener('pointermove',e=>{const p=ptrs.get(e.pointerId);if(!p)return;const r=camBox();if(!r){ptrs.clear();return}
   const dx=e.clientX-p[0],dy=e.clientY-p[1];ptrs.set(e.pointerId,[e.clientX,e.clientY]);
-  if(ptrs.size===1){moved+=Math.abs(dx)+Math.abs(dy);if(moved>6){const c=cam();c.x+=dx;c.y+=dy;camApply()}}
+  if(ptrs.size===1){moved+=Math.abs(dx)+Math.abs(dy);if(moved>6){const c=cam();c.x+=dx;c.y+=dy;c.auto=false;camApply()}}
   else if(ptrs.size===2&&pinch){const [a,b]=[...ptrs.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]);moved=99;
     camZoom((a[0]+b[0])/2-r.left,(a[1]+b[1])/2-r.top,d/pinch.d);pinch.d=d}});
 const ptrUp=e=>{if(!ptrs.has(e.pointerId))return;ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=null;if(moved>6)lastDrag=Date.now()};
@@ -423,6 +517,47 @@ window.addEventListener('click',e=>{if(Date.now()-lastDrag<350&&e.target.closest
 window.addEventListener('wheel',e=>{const m=e.target.closest&&e.target.closest('.drg-map.full');if(!m||onHud(e.target))return;e.preventDefault();
   const r=camBox();camZoom(e.clientX-r.left,e.clientY-r.top,Math.exp(-e.deltaY*0.0018))},{passive:false});
 window.addEventListener('resize',()=>camApply());
+/* ---------- «Назад» браузера и перезагрузка ----------
+   Каждый шаг вглубь игры (страница острова → весь экран → панель или здание → бой или осмотр) — своя запись истории.
+   «Назад» закрывает верхний шаг. Закрытие кнопкой откатывает свои записи, чтобы «Назад» не открывал закрытое снова.
+   После перезагрузки страница возвращается на остров с той же панелью; бой и осмотр не восстанавливаются. */
+function navNow(){if(S.view!=='island')return null;const fo=!!document.querySelector('.drf'),io=!!document.querySelector('.dri:not(.out)');
+  return {drg:1,uid:S.drgUid||null,full:!!S.drgFull,panel:S.drgPanel||null,sel:S.drgSel||null,ov:fo?'fight':io?'insp':null}}
+const navDepth=n=>n?1+(n.full?1:0)+(n.panel||n.sel?1:0)+(n.ov?1:0):0;
+const navKey=n=>n?[n.uid,n.full,n.panel,n.sel,n.ov].join('|'):'';
+const navURL=n=>location.pathname+location.search+(n?'#drg':'');
+const navPut=(n,push)=>{const st=n?Object.assign({d:navDepth(n)},n):null;try{push?history.pushState(st,'',navURL(n)):history.replaceState(st,'',navURL(n))}catch(e){}};
+let navSkip=false,navBoot=history.state&&history.state.drg?history.state:null,navT0=Date.now();
+function navSync(){try{navSync0()}catch(e){}}   /* до объявления S в странице наблюдатель уже работает */
+function navSync0(){
+  if(navBoot){const b=navBoot,ok=S.mode&&S.mode!=='loading'&&stateOf(b.uid||meId());
+    if(ok){navBoot=null;S.view='island';S.drgUid=b.uid;S.drgFull=b.full;S.drgPanel=b.panel;S.drgSel=b.sel;S.drgCam=null;navPut(navNow()||Object.assign({},b,{ov:null}),false);render()}
+    else if(Date.now()-navT0>8000){navBoot=null;navPut(null,false)}
+    return}
+  if(navSkip)return;
+  const n=navNow(),h=history.state&&history.state.drg?history.state:null;if(navKey(n)===navKey(h))return;
+  const dn=navDepth(n),dh=navDepth(h);
+  if(dn>dh)navPut(n,true);
+  else if(dn<dh&&h&&(h.d||0)-dn>0&&(h.d||0)-dn<=4){navSkip=true;history.go(-((h.d||dh)-dn))}
+  else navPut(n,false)}
+window.addEventListener('popstate',e=>{const h=e.state&&e.state.drg?e.state:null;
+  if(navSkip){navSkip=false;const n=navNow();if(navKey(n)!==navKey(h))navPut(n,false);return}
+  if(navBoot)return;
+  if((!h||h.ov!=='fight')&&window.DRFIGHT&&document.querySelector('.drf'))DRFIGHT.close();
+  if((!h||h.ov!=='insp')&&window.DRGINSP&&document.querySelector('.dri'))DRGINSP.close();
+  if(!h){if(S.view==='island'){S.view='cards';S.drgFull=false;S.drgPanel=null;S.drgSel=null;S.drgPlace=null}}
+  else{S.view='island';S.drgUid=h.uid;if(S.drgFull!==h.full)S.drgCam=null;S.drgFull=h.full;S.drgPanel=h.panel;S.drgSel=h.sel;S.drgPlace=null}
+  render()});
+/* Enter и пробел на постройке, участке или препятствии карты нажимают её, как мышь */
+document.addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;const t=e.target;
+  if(t&&t.closest&&t.closest('svg.drg-isl')&&t.matches('[data-act][tabindex]')){e.preventDefault();t.dispatchEvent(new MouseEvent('click',{bubbles:true}))}});
+/* кто открыл панель: после закрытия фокус возвращается туда, при открытии уходит в заголовок панели */
+let navRet=null,navPan='';
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-act]');if(!b||!b.closest('.drg-map.full,#main>.drg-pan'))return;
+  if(b.closest('.drg-pan'))return;const a=b.dataset.act;if(a==='drgpanel'||a==='drgsel')navRet={act:a,v:b.dataset.v||'',id:b.dataset.id||''}},true);
+function navFocus(){const k=(S.view==='island'&&S.drgFull?(S.drgPanel||'')+'|'+(S.drgSel||''):'');if(k===navPan)return;const was=navPan;navPan=k;
+  if(k&&k!=='|'){const h=document.querySelector('#main>.drg-pan h2');if(h){h.tabIndex=-1;if(!h.contains(document.activeElement))h.focus({preventScroll:true})}}
+  else if(was&&was!=='|'&&navRet){const r=navRet;navRet=null;const q=r.id?`[data-act="${r.act}"][data-id="${r.id}"]`:`[data-act="${r.act}"][data-v="${r.v}"]`;const el=document.querySelector('.drg-map.full '+q);if(el)el.focus({preventScroll:true})}}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.drgFull&&S.view==='island'&&!document.querySelector('dialog[open]')&&!document.querySelector('.dri,.drf')){if(S.drgPanel||S.drgSel){S.drgPanel=null;S.drgSel=null}else S.drgFull=false;render()}});
 /* общие часы анимаций и классы body: на весь экран прокрутка страницы выключена, уведомления наверху */
 new MutationObserver(()=>{
@@ -430,7 +565,8 @@ new MutationObserver(()=>{
   const fs=!!document.querySelector('.drg-map.full'),b=document.body;if(!b)return;
   if(b.classList.contains('drg-fs')!==fs)b.classList.toggle('drg-fs',fs);
   const iv=!!document.querySelector('.drg-map');if(b.classList.contains('drg-islv')!==iv)b.classList.toggle('drg-islv',iv);
-  if(fs)camApply();
+  if(fs){camApply();navFocus();if(S.drgSel&&S.drgSel!==camShow.last){camShow.last=S.drgSel;camShow(S.drgSel)}else if(!S.drgSel)camShow.last=null}
+  navSync();
   /* живой остров: драконы из рисунка A поверх острова (live.js), состояние берётся то же, что у рисунка острова */
   if(window.DRLIVE)DRLIVE.scan(()=>{const x=stateOf(S.drgUid||meId());return x&&x.st})}).observe(document.documentElement,{childList:true,subtree:true});
 
@@ -477,7 +613,9 @@ window.DRG_ACTIONS={
   drgopen:el=>{S.drgUid=el.dataset.uid||meId();S.view='island';S.drgSel=null;S.drgPanel=null;S.drgPlace=null;window.scrollTo(0,0);
     S.drgScroll=null;S.drgFull=!!el.dataset.full;S.drgCam=null},
   drgfull:el=>{S.drgFull=el.dataset.v==='1';S.drgCam=null;S.drgPanel=null;S.drgSel=null;if(!S.drgFull)window.scrollTo(0,0)},
-  drgzoom:el=>{const r=camBox();if(!r)return;const v=el.dataset.v;if(v==='fit'){camFit(r);camApply()}else camZoom(r.width/2,r.height/2,v==='in'?1.35:1/1.35)},
+  drgzoom:el=>{const r=camBox();if(!r)return;const v=el.dataset.v;
+    if(v==='fit'&&el.closest('.drg-pan')){S.drgPanel=null;setTimeout(()=>{const q=camBox();if(q){camFit(q);camApply()}},0);return}
+    if(v==='fit'){camFit(r);camApply()}else camZoom(r.width/2,r.height/2,v==='in'?1.35:1/1.35)},
   drgobs:async el=>{const x=stateOf(meId());if(!x)return;const o=E.obstacles(x.st).find(z=>z.id===el.dataset.c);if(!o)return;const k=E.OBST_KIND[o.kind];
     if(!await askConfirm(`${k.name}: расчистить за ${k.gold} золота? Освободится место для построек${k.gems?', а под валуном найдётся самоцвет':''}.`,'Расчистить'))return;
     const r=act({t:'clear',cell:o.id});if(r)toast(k.gems?`Расчищено! +${k.gems} 💎`:'Расчищено')},
@@ -494,6 +632,13 @@ window.DRG_ACTIONS={
   drgbuild:el=>{S.drgPlace={type:el.dataset.type};S.drgPanel=null;S.drgSel=null;if(!S.drgFull)window.scrollTo(0,0)},
   drgmove:el=>{S.drgPlace={move:el.dataset.id};S.drgSel=null;if(!S.drgFull)window.scrollTo(0,0)},
   drgcancel:()=>{S.drgPlace=null},
+  /* то же, что нажать на клетку, но клетку выбирает игра: ближайшая к середине открытой земли. Путь для клавиатуры */
+  drgauto:()=>{const p=S.drgPlace,x=stateOf(meId());if(!p||!x)return;const st=x.st,C=E.CHUNK,cells=[];
+    (st.land||[]).forEach(id=>{const [cx,cy]=id.split(',').map(Number);for(let i=0;i<C;i++)for(let j=0;j<C;j++)cells.push([cx*C+i,cy*C+j])});
+    const m=cells.reduce((a,c)=>[a[0]+c[0]/cells.length,a[1]+c[1]/cells.length],[0,0]);
+    const ok=cells.filter(([i,j])=>E.canPlace(st,i,j,p.move||null)).sort((a,b)=>Math.hypot(a[0]-m[0],a[1]-m[1])-Math.hypot(b[0]-m[0],b[1]-m[1]));
+    if(!ok.length){toast('Свободного места нет: расчистите препятствие или откройте участок');return}
+    window.DRG_ACTIONS.drgtile({dataset:{x:ok[0][0],y:ok[0][1]}})},
   drgtile:el=>{const p=S.drgPlace;if(!p)return;const x=+el.dataset.x,y=+el.dataset.y;
     const r=p.move?act({t:'move',id:p.move,x,y}):act({t:'build',type:p.type,x,y});
     if(r){S.drgPlace=null;if(!p.move){S.drgSel=r.s.last;toast(`Стройка началась: ${E.TYPES[p.type].name}`)}}},

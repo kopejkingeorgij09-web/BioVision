@@ -37,7 +37,9 @@ module.exports=async(page,{OUT,store,UID})=>{
   await page.click('[data-fk="map"]');await page.waitForTimeout(1000);await shot('6-map2');
   await page.keyboard.press('Escape');await page.waitForTimeout(800);log('поход закрыт',await page.evaluate(()=>!document.querySelector('.drf')),'остров живой',await page.evaluate(()=>DRLIVE.stats().running));
   await page.reload();await page.waitForTimeout(2000);
-  await page.click('[data-act="go"][data-v="cards"]').catch(()=>{});await page.waitForTimeout(600);
-  await page.click('[data-act="drgopen"][data-full]');await page.waitForTimeout(1500);await page.click('[data-act="drgfight"]');await page.waitForTimeout(2000);
+  /* после перезагрузки страница сама возвращается на остров (история), иначе заходим через «Карточки» */
+  log('после перезагрузки остров на месте',!!await page.$('.drg-map.full'));
+  if(!await page.$('.drg-map.full')){await page.click('[data-act="go"][data-v="cards"]').catch(()=>{});await page.waitForTimeout(600);await page.click('[data-act="drgopen"][data-full]');await page.waitForTimeout(1500)}
+  await page.click('.drg-dock [data-act="drgfight"]');await page.waitForTimeout(2000);
   log('после перезагрузки звёзды',await page.evaluate(()=>document.querySelector('.drf-tot').textContent),'e2 открыт',await page.evaluate(()=>!document.querySelector('[data-id=e2]').disabled));
   await shot('7-reload')};

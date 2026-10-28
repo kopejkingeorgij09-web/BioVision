@@ -159,26 +159,49 @@ body.drg-fs #main>:not(.drg-map):not(.drg-pan){display:none}
 .drg-xpbar{display:block;width:110px;height:16px;margin-left:-12px;border-radius:0 9px 9px 0;background:rgba(20,40,60,.7);border:2px solid rgba(255,255,255,.75);overflow:hidden}
 .drg-xpbar i{display:block;height:100%;background:linear-gradient(180deg,#9CF0FF,#2FB4E0)}
 .drg-hud-r{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
-.drg-pill{display:flex;align-items:center;gap:6px;height:36px;padding:0 4px 0 6px;border-radius:10px;background:rgba(20,40,60,.72);border:2px solid rgba(255,255,255,.6);color:#fff;box-shadow:0 3px 8px -3px rgba(0,0,0,.4)}
-.drg-pill i{font-style:normal;font-size:20px}.drg-pill b{font:800 15px var(--d);min-width:44px;text-align:right}
-.drg-pill button{all:unset;box-sizing:border-box;width:26px;height:26px;display:grid;place-items:center;border-radius:7px;background:linear-gradient(180deg,#FFE27A,#F2B01E);color:#5A3A00;font-weight:900;font-size:17px;cursor:pointer}
-.drg-bl,.drg-br{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);display:flex;gap:8px;align-items:flex-end}
-.drg-bl{left:12px}.drg-br{right:12px}
-.drg-rb{all:unset;box-sizing:border-box;cursor:pointer;width:68px;height:68px;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:linear-gradient(180deg,#3E7FA0,#255A78);border:2px solid rgba(255,255,255,.75);color:#fff;box-shadow:0 5px 12px -4px rgba(0,0,0,.5);font-weight:800;font-size:12px;text-shadow:0 1px 1px rgba(0,0,0,.5)}
+.drg-pill{display:flex;align-items:center;gap:6px;height:40px;padding:0 4px 0 6px;border-radius:10px;background:rgba(20,40,60,.72);border:2px solid rgba(255,255,255,.6);color:#fff;box-shadow:0 3px 8px -3px rgba(0,0,0,.4);font:inherit}
+button.drg-pill{cursor:pointer}button.drg-pill:hover{background:rgba(20,40,60,.85)}button.drg-pill:focus-visible{outline:3px solid #FFE27A;outline-offset:2px}
+.drg-pill i{font-style:normal;font-size:20px}.drg-pill>span{display:flex;flex-direction:column;align-items:flex-end;line-height:1.05}
+.drg-pill b{font:800 15px var(--d);min-width:40px;text-align:right}.drg-pill small{font-size:9.5px;font-weight:600;opacity:.85;letter-spacing:.02em}
+.drg-pill em{font-style:normal;width:24px;height:24px;display:grid;place-items:center;border-radius:7px;background:linear-gradient(180deg,#FFE27A,#F2B01E);color:#5A3A00;font-weight:900;font-size:16px}
+/* один нижний ряд кнопок: все действия доступны и на 320 px, второстепенные в «Ещё» */
+.drg-dock{position:absolute;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);z-index:3;display:flex;justify-content:center;align-items:flex-end;gap:6px;pointer-events:none}
+.drg-dock>*,.drg-dock>.drg-rb{pointer-events:auto}
+.drg-rb{all:unset;box-sizing:border-box;cursor:pointer;flex:0 1 76px;min-width:0;height:68px;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0 2px;background:linear-gradient(180deg,#3E7FA0,#255A78);border:2px solid rgba(255,255,255,.75);color:#fff;box-shadow:0 5px 12px -4px rgba(0,0,0,.5);font-weight:800;font-size:12px;text-shadow:0 1px 1px rgba(0,0,0,.5);text-align:center}
+.drg-rb span{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.drg-rb span b{font:inherit}.drg-rb .sm{display:none}
 .drg-rb i{font-style:normal;font-size:26px;line-height:1}
-.drg-rb.big{width:84px;height:84px;background:linear-gradient(180deg,#F2A33A,#C4641A)}.drg-rb.big i{font-size:32px}
+.drg-rb.big{flex-basis:84px;height:78px;background:linear-gradient(180deg,#F2A33A,#C4641A)}.drg-rb.big i{font-size:30px}
+.drg-rb[aria-current]{background:linear-gradient(180deg,#5FA9CC,#2F6F92);border-color:#FFE27A}
 .drg-rb:hover{filter:brightness(1.08)}.drg-rb:focus-visible,.drg-zm button:focus-visible,.drg-pill button:focus-visible{outline:3px solid #FFE27A;outline-offset:2px}
-.drg-zm{position:absolute;right:12px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px}
+.drg-zm{position:absolute;right:12px;top:50%;transform:translateY(-50%);z-index:3;display:flex;flex-direction:column;gap:6px}
 .drg-zm button{all:unset;box-sizing:border-box;cursor:pointer;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.88);color:#24402A;font-weight:900;font-size:22px;box-shadow:0 4px 10px -4px rgba(0,0,0,.4)}
 .drg-map.full .drg-place{position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 64px);transform:translateX(-50%);border-radius:14px;box-shadow:0 6px 16px -6px rgba(0,0,0,.4);max-width:calc(100vw - 24px)}
 body.drg-fs #main>.drg-pan{position:fixed;z-index:42;right:12px;top:calc(env(safe-area-inset-top,0px) + 62px);bottom:calc(env(safe-area-inset-bottom,0px) + 100px);width:min(430px,calc(100vw - 24px));margin:0;overflow:auto;box-shadow:0 18px 50px -12px rgba(0,0,0,.55);border-radius:20px;animation:drgsheet .2s ease-out}
 @media(max-width:700px){
-  .drg-rb{width:56px;height:56px;font-size:10.5px}.drg-rb i{font-size:22px}.drg-rb.big{width:66px;height:66px}.drg-rb.big i{font-size:26px}
-  .drg-pill{height:32px}.drg-pill b{font-size:13px;min-width:30px}.drg-pill i{font-size:16px}.drg-xpbar{width:60px}.drg-star{width:44px;height:44px}
+  .drg-rb{height:56px;font-size:10.5px;border-radius:14px}.drg-rb i{font-size:22px}.drg-rb.big{height:62px}.drg-rb.big i{font-size:25px}
+  .drg-dock{gap:4px;left:6px;right:6px}
+  .drg-pill{height:36px;gap:4px}.drg-pill b{font-size:13px;min-width:28px}.drg-pill i{font-size:16px}.drg-pill small{font-size:8.5px}.drg-pill em{width:20px;height:20px;font-size:14px}
+  .drg-xpbar{width:60px}.drg-star{width:44px;height:44px}
   .drg-hud-r{max-width:calc(100vw - 120px)}
-  .drg-zm{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 92px);transform:none}
+  .drg-zm{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 76px);transform:none}.drg-zm button{width:40px;height:40px;font-size:20px}
   body.drg-fs #main>.drg-pan{left:8px;right:8px;width:auto;top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);max-height:62vh;border-radius:20px 20px 16px 16px}
 }
+@media(max-width:420px){.drg-rb .lg{display:none}.drg-rb .sm{display:inline}.drg-pill em{display:none}.drg-pill{padding:0 6px}}
+@media(max-width:340px){.drg-rb{font-size:9.5px}.drg-rb i{font-size:20px}.drg-pill small{display:none}.drg-pill{height:32px}}
+@media(min-width:601px) and (max-width:900px){body.drg-fs #main>.drg-pan{width:min(380px,46vw)}}
+/* панель на весь экран: шапка с «Закрыть» всегда видна, прокрутка своя и не уходит на страницу */
+body.drg-fs #main>.drg-pan{overscroll-behavior:contain;padding-top:0}
+body.drg-fs #main>.drg-pan>.drg-pan-h{position:sticky;top:0;z-index:2;background:var(--card);margin:0 -2px;padding:14px 2px 10px}
+.drg-map.full{background:linear-gradient(180deg,var(--isl-sky1),var(--isl-sky2))}
+.drg-map.full .drg-stage{z-index:0}.drg-hud,.drg-svw,.drg-place{z-index:3}
+.drg-map.full.zlo .drg-lab{display:none}
+/* «Ещё» и «Мои постройки» */
+.drg-menu,.drg-bls{display:flex;flex-direction:column;gap:6px;margin:8px 0 0;padding:0;list-style:none}
+.drg-mi{all:unset;box-sizing:border-box;cursor:pointer;width:100%;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--card)}
+.drg-mi:hover{border-color:var(--ink)}.drg-mi:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.drg-mi i{font-style:normal;font-size:22px;width:30px;text-align:center}.drg-mi span{display:flex;flex-direction:column;min-width:0}
+.drg-mi b{font:700 14.5px var(--d);color:var(--ink)}.drg-mi small{font-size:12.5px;color:var(--muted)}
+
 
 /* ---------- осмотр дракона (inspect.js): отдельная сцена поверх страницы ---------- */
 .drg-dr{cursor:zoom-in}
@@ -461,3 +484,12 @@ body.drf-open .drg-isl .an,body.drf-open .drg-isl .drift,body.drf-open .drg-isl 
 .drg-why{display:block;flex-basis:100%;font-size:12.5px;line-height:1.4;color:var(--muted)}
 .drg-why.ok{color:var(--ink);background:color-mix(in srgb,#2f9e5b 12%,var(--card));padding:10px 12px;border-radius:12px;margin:8px 0}
 .drg-bp h3{margin:16px 0 6px;font-size:15px}
+/* карта с клавиатуры: видимый фокус на постройке, участке, препятствии */
+.drg-isl [tabindex]{outline:none}
+.drg-isl [tabindex]:focus-visible{outline:3px solid #FFE27A;outline-offset:3px}
+.drg-isl .drg-b:focus-visible>path:first-of-type{fill:rgba(255,227,122,.28)}
+#main>.drg-pan h2:focus{outline:none}
+.drg-labi{transform:scale(var(--lz,1))}
+@media(max-width:340px){.drg-rb{font-size:9px;letter-spacing:-.01em}}
+@media(min-width:701px){.drg-rb{flex-basis:92px}.drg-rb.big{flex-basis:96px}}
+@media(max-width:340px){.drg-dock{gap:3px;left:4px;right:4px}.drg-rb{padding:0;font-size:8.6px;letter-spacing:-.02em}}

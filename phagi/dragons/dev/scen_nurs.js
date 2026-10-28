@@ -8,6 +8,6 @@ module.exports=async(page,{OUT,store,UID})=>{
   log('до:',JSON.stringify(await rows()));await shot('1');
   const b=await page.$('.drg-bp [data-t=hatch]:not([disabled])');if(b){await b.click();await w(800)}
   log('вылупился в ясли:',await page.evaluate(()=>(document.querySelector('.drg-baby .drg-why')||{}).textContent||'—'));await shot('2-baby');
-  await page.click('[data-act=drgpanel][data-v=breed]');await w(500);
+  await page.click('#main>.drg-pan [data-act=drgpanel][data-v=breed]');await w(500);
   log('после:',JSON.stringify(await rows()),'кнопка «Вылупить» закрыта',await page.evaluate(()=>{const b=document.querySelector('.drg-bp [data-t=hatch]');return b?b.disabled:null}));
   const s=store.get(P).d;log('в базе: в яслях',s.dragons.filter(d=>d.nurs&&!d.home).length,'яиц в Инкубаторе',s.bld.find(x=>x.type==='hatch').slots.filter(Boolean).length);await shot('3-full')}

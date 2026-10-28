@@ -2,10 +2,10 @@
 <html lang="ru">
 <head>
 <script src="cloud.js?v=5"></script>
-<link rel="stylesheet" href="dragons/dragons.css?v=15">
-<script src="dragons/genetics.js?v=15"></script><script src="dragons/draw.js?v=15"></script><script src="dragons/economy.js?v=15"></script><script src="dragons/island.js?v=15"></script><script src="dragons/store.js?v=15"></script><script src="dragons/battle.js?v=15"></script><script src="dragons/campaign.js?v=15"></script><script src="dragons/ui.js?v=15"></script><script src="dragons/inspect.js?v=15"></script><script src="dragons/live.js?v=15"></script><script src="dragons/fight.js?v=15"></script>
+<link rel="stylesheet" href="dragons/dragons.css?v=16">
+<script src="dragons/genetics.js?v=16"></script><script src="dragons/draw.js?v=16"></script><script src="dragons/puzzles.js?v=16"></script><script src="dragons/economy.js?v=16"></script><script src="dragons/island.js?v=16"></script><script src="dragons/store.js?v=16"></script><script src="dragons/battle.js?v=16"></script><script src="dragons/campaign.js?v=16"></script><script src="dragons/ui.js?v=16"></script><script src="dragons/inspect.js?v=16"></script><script src="dragons/live.js?v=16"></script><script src="dragons/fight.js?v=16"></script>
 <meta charset="utf-8">
-<meta name="ph-ver" content="2026-10-28.8">
+<meta name="ph-ver" content="2026-10-28.9">
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Фаги естественных наук</title>
@@ -1700,7 +1700,8 @@ const hwPct=(score,max)=>score==null||score===''||!(Number(max)>0)||!isFinite(Nu
    (поле credited.hwg/hwf), поэтому пересдача, повторная проверка и перезагрузка второй раз ничего не дают. Чашка получает
    подкормку: дополнительные колонии в день проверки, если этот день есть в нынешней культуре */
 const HW_FROM='2026-10-28';
-const HW_TIERS=[[90,{gems:4,food:150,col:3}],[85,{gems:3,food:100,col:2}],[80,{gems:2,food:60,col:2}],[60,{gems:1,food:30,col:1}]];
+/* 4.4: ДЗ весит больше — к самоцветам и корму золото и опыт острова, за 95 %+ ещё подарочное яйцо (редкий дракон) */
+const HW_TIERS=[[95,{gems:6,food:250,gold:900,xp:220,col:4,egg:1}],[90,{gems:4,food:150,gold:600,xp:140,col:3}],[85,{gems:3,food:100,gold:400,xp:90,col:2}],[80,{gems:2,food:60,gold:250,xp:60,col:2}],[60,{gems:1,food:30,gold:100,xp:25,col:1}]];
 const hwTier=pc=>{for(const [m,b] of HW_TIERS)if(pc>=m)return b;return null};
 function hwBonus(uid){const out=[];
   (S.tasks||[]).forEach(t=>{if(!(t.to||[]).includes(uid))return;const g=(S.grades[uid]||{})[t.id],sb=(S.subs[uid]||{})[t.id];

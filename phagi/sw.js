@@ -1,7 +1,7 @@
 // Service worker: нужен, чтобы сайт можно было установить как приложение.
 // Стратегия «сначала сеть»: всегда свежая версия, кеш только на случай отсутствия интернета.
 // Запросы к другим доменам (Supabase, шрифты) не трогаем.
-const CACHE = 'phagi-v6';
+const CACHE = 'phagi-v7';
 self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then(c => c.add('./')).catch(() => {})); });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('phagi-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
@@ -17,7 +17,9 @@ self.addEventListener('fetch', e => {
   if (r.method !== 'GET') return;
   const u = new URL(r.url);
   if (u.origin !== location.origin || !u.pathname.startsWith(new URL(self.registration.scope).pathname)) return;
-  e.respondWith(fetch(r).then(res => {
+  // страницу всегда сверяем с сервером (у GitHub Pages кеш браузера на 10 минут), скрипты и картинки берутся как обычно
+  const go = r.mode === 'navigate' ? fetch(r.url, {cache: 'no-cache', credentials: 'same-origin'}) : fetch(r);
+  e.respondWith(go.then(res => {
     if (res.ok && res.type === 'basic') { const copy = res.clone(); caches.open(CACHE).then(c => c.put(r, copy).then(() => prune(c, u))); }
     return res;
   }).catch(() => caches.match(r, {ignoreSearch: r.mode === 'navigate'}).then(m => m || (r.mode === 'navigate' ? caches.match('./') : undefined)).then(m => m || Response.error())));

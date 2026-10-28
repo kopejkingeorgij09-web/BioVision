@@ -5,6 +5,7 @@
 <link rel="stylesheet" href="dragons/dragons.css?v=15">
 <script src="dragons/genetics.js?v=15"></script><script src="dragons/draw.js?v=15"></script><script src="dragons/economy.js?v=15"></script><script src="dragons/island.js?v=15"></script><script src="dragons/store.js?v=15"></script><script src="dragons/battle.js?v=15"></script><script src="dragons/campaign.js?v=15"></script><script src="dragons/ui.js?v=15"></script><script src="dragons/inspect.js?v=15"></script><script src="dragons/live.js?v=15"></script><script src="dragons/fight.js?v=15"></script>
 <meta charset="utf-8">
+<meta name="ph-ver" content="2026-10-28.7">
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Фаги естественных наук</title>
@@ -965,6 +966,11 @@ nav:empty{display:none}
 .rolesw.busy{opacity:.6;pointer-events:none}
 /* hidden должен прятать переключатель: иначе display:flex выше показывал его и ученическому коду, где кнопки ничего не делают */
 .rolesw[hidden]{display:none!important}
+/* статус сохранения ответа и плашка новой версии (4.4) */
+.svst{margin:0 0 10px;font-size:13.5px;color:var(--muted);display:flex;gap:6px;align-items:flex-start}.svst.ok{color:var(--ink)}
+.svst.err{color:#9A2B12;background:color-mix(in srgb,#E4572E 14%,transparent);padding:8px 10px;border-radius:10px;font-weight:600}
+#ph-upd{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 10px);transform:translateX(-50%);z-index:9998;background:var(--ink,#0E4A38);color:#fff;padding:10px 12px 10px 16px;border-radius:14px;box-shadow:0 10px 30px -10px rgba(0,0,0,.5);font-size:14.5px;display:flex;gap:10px;align-items:center;max-width:calc(100vw - 24px)}
+#ph-upd button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:6px 12px;background:#fff;color:var(--ink,#0E4A38);cursor:pointer}
 .srbtn{all:unset;box-sizing:border-box;flex:none;cursor:pointer;display:flex;align-items:center;gap:9px;height:40px;padding:0 8px 0 12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--muted);font-size:14px;min-width:230px;transition:border-color .15s,color .15s}
 .srbtn:hover{border-color:var(--ink);color:var(--text)}
 .srbtn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
@@ -2224,7 +2230,7 @@ function taskHTML(){
         hwLocal(t.id);if(s&&s.draft)Object.entries(s.draft).forEach(([k,v])=>{if(!(k in S.fv))S.fv[k]=v});
         const end=tl?Date.parse(s.startedAt)+tl*60000:0;
         html+=`${end?`<div class="timer" data-end="${end}" data-total="${tl*60000}" data-id="${t.id}" role="timer" aria-live="off"><span class="tl">Осталось</span><b class="tval">${fmtLeft(end-Date.now())}</b><span class="ttrack"><span class="tfill"></span></span></div>`:''}
-        <section class="sheet"><h2>Тест</h2><p class="muted small">Отправить ответы можно один раз, проверка мгновенная. Ответы сохраняются сами по ходу решения.</p>${testBody(t,null,false,'ta-'+t.id)}<div class="actions"><button class="btn" data-act="submittest" data-id="${t.id}">Отправить ответы</button></div></section>`;
+        <section class="sheet"><h2>Тест</h2><p class="muted small">Отправить ответы можно один раз, проверка мгновенная.</p>${svHTML(t.id,s)}${testBody(t,null,false,'ta-'+t.id)}<div class="actions"><button class="btn" data-act="submittest" data-id="${t.id}">Отправить ответы</button></div></section>`;
       }
     }
     return html;
@@ -2240,7 +2246,7 @@ function taskHTML(){
     html+=`<label style="margin-top:12px">Ответ<textarea id="ans-${t.id}" rows="7" placeholder="Напиши ответ здесь">${esc(val('ans-'+t.id,s?s.text:''))}</textarea></label>
     ${S.assets?`<div style="margin-bottom:12px"><span class="small muted">Фото решения или файл</span>${filesHTML(s&&s.files,`data-act="rmfile" data-id="${t.id}"`)}<label class="upl"><input type="file" accept="image/*,application/pdf" multiple data-upload="${t.id}"><span class="btn ghost sm">Прикрепить фото или PDF</span></label></div>`:''}
     <label>Или ссылка на файл (Google Диск, Яндекс Диск)<input id="lnk-${t.id}" type="url" placeholder="https://" value="${esc(val('lnk-'+t.id,s?s.link:''))}"></label>
-    <p class="muted small" style="margin:-4px 0 8px">Ответ сохраняется сам, пока ты пишешь.</p><div class="actions"><button class="btn ghost" data-act="draft" data-id="${t.id}">Сохранить черновик</button><button class="btn" data-act="submit" data-id="${t.id}">${st.k==='graded'?'Сдать заново':'Сдать работу'}</button></div>`;
+    ${svHTML(t.id,s)}<div class="actions"><button class="btn ghost" data-act="draft" data-id="${t.id}">Сохранить черновик</button><button class="btn" data-act="submit" data-id="${t.id}">${st.k==='graded'?'Сдать заново':'Сдать работу'}</button></div>`;
   }
   return html+`</section>`;
 }
@@ -2761,6 +2767,21 @@ setInterval(()=>{document.querySelectorAll('.timer[data-end]').forEach(el=>{
    Kept in localStorage (hwd:<uid>:<task>) at once and on the server 1.2 s after typing; after a refused write the
    server part pauses 10 min so it never loops. Restored by hwLocal() into S.fv before the form is drawn. */
 let draftT=null,draftTask=null,draftFail=0;
+/* статус сохранения ответа (4.4): виден у теста и у ДЗ. SV[id] = {st:'saving'|'ok'|'err', at, n — номер повтора}.
+   При сбое запись повторяется через 5, 15, 30, 60 с, ответы всё это время лежат в браузере (hwd:…) */
+const SV={},SV_DELAY=[5,15,30,60];
+const hhmm=t=>{const d=new Date(t);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
+function svText(id,s){const v=SV[id];
+  if(v&&v.st==='saving')return '<span class="svi">☁️</span> Сохраняю…';
+  if(v&&v.st==='ok')return `<span class="svi">✓</span> Сохранено в облаке в ${hhmm(v.at)}`;
+  if(v&&v.st==='err')return `<span class="svi">⚠️</span> Нет связи с облаком. Ответы сохранены на этом устройстве, не закрывай страницу. Повторю через ${SV_DELAY[Math.min(v.n-1,SV_DELAY.length-1)]} с`;
+  if(s&&(s.draft&&Object.keys(s.draft).length||s.status==='draft'&&(s.text||s.link)))return '<span class="svi">✓</span> Черновик в облаке';
+  return 'Ответы сохраняются сами по ходу решения: в облако и на этом устройстве'}
+const svHTML=(id,s)=>`<p class="svst${SV[id]?' '+SV[id].st:''}" data-sv="${esc(id)}" role="status" aria-live="polite">${svText(id,s)}</p>`;
+function svSet(id,st){const v=SV[id]=Object.assign(SV[id]||{n:0},{st,at:Date.now()});if(st==='err')v.n++;else if(st==='ok')v.n=0;
+  document.querySelectorAll(`[data-sv="${CSS.escape(id)}"]`).forEach(e=>{e.className='svst '+st;e.innerHTML=svText(id,(S.subs[meId()]||{})[id])})}
+/* закрыть вкладку, пока ответ не дошёл до облака: браузер переспросит */
+window.addEventListener('beforeunload',e=>{if(Object.values(SV).some(v=>v.st==='err'||v.st==='saving')||draftTask){try{if(draftTask)draftSave()}catch{}e.preventDefault();e.returnValue=''}});
 const hwKey=id=>'hwd:'+meId()+':'+id;
 function hwFields(t){const d={};if(t.kind==='test'){const pre='ta-'+t.id+'-';Object.keys(S.fv).forEach(k=>{if(k.startsWith(pre))d[k]=S.fv[k]})}
   else['ans-'+t.id,'lnk-'+t.id].forEach(k=>{if(k in S.fv)d[k]=S.fv[k]});return d}
@@ -2777,14 +2798,17 @@ function draftTaskOf(el){
 function draftSave(){
   clearTimeout(draftT);draftT=null;const t=draftTask;draftTask=null;if(!t||T()||!S.db)return;
   const s=(S.subs[meId()]||{})[t.id],f=hwFields(t);if(!Object.keys(f).length)return;
-  if(Date.now()<draftFail)return;
-  const ref=S.db.doc(`subs/${meId()}/items/${t.id}`),bad=()=>{draftFail=Date.now()+600000};
+  const ref=S.db.doc(`subs/${meId()}/items/${t.id}`);
+  /* сбой: повтор с нарастающей паузой, а не молчание; ответы тем временем лежат в браузере */
+  const bad=()=>{svSet(t.id,'err');const v=SV[t.id],d=SV_DELAY[Math.min(v.n-1,SV_DELAY.length-1)]*1000;
+    clearTimeout(v.rt);v.rt=setTimeout(()=>{if(draftTask&&draftTask.id!==t.id)draftSave();draftTask=t;draftSave()},d)};
+  svSet(t.id,'saving');
   let p;
   if(t.kind==='test')p=s?ref.update({draft:f}):ref.set({status:'draft',draft:f,updatedAt:now()});
-  else if(s&&s.status==='submitted')return; // already handed in (resubmitting after a mark): keep it local, «Сдать заново» saves it
+  else if(s&&s.status==='submitted'){SV[t.id]=null;return} // already handed in (resubmitting after a mark): keep it local, «Сдать заново» saves it
   else{const text=val('ans-'+t.id,s?s.text||'':''),link=val('lnk-'+t.id,s?s.link||'':'');
     p=ref.set({text,link,files:(s&&s.files)||[],status:'draft',updatedAt:now()})}
-  p.then(()=>{draftFail=0}).catch(bad);
+  p.then(()=>{draftFail=0;svSet(t.id,'ok')}).catch(bad);
 }
 function draftHook(el){
   const t=draftTaskOf(el);if(!t)return;
@@ -2794,6 +2818,16 @@ function draftHook(el){
 }
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&draftTask)draftSave()});
 window.addEventListener('pagehide',()=>{if(draftTask)draftSave()});
+/* новая версия платформы (4.4): метка ph-ver в index.html. Раз в 5 минут и при возвращении на вкладку страница проверяет сервер.
+   Если вышла новая, сверху плашка «Обновить»; когда несохранённых ответов нет, обновление само при следующем возвращении на вкладку */
+(function(){const cur=(document.querySelector('meta[name="ph-ver"]')||{}).content;if(!cur)return;let shown=false,newer=false;
+  const safe=()=>!draftTask&&!Object.values(SV).some(v=>v&&(v.st==='err'||v.st==='saving'))&&!document.querySelector('.dri,.drf,dialog[open]');
+  async function check(){try{const t=await(await fetch('./?ver='+Date.now(),{cache:'no-store'})).text(),m=/name="ph-ver" content="([^"]+)"/.exec(t);if(m&&m[1]!==cur){newer=true;banner()}}catch{}}
+  function banner(){if(shown)return;shown=true;const b=document.createElement('div');b.id='ph-upd';b.setAttribute('role','status');
+    b.innerHTML='Вышло обновление платформы. <button type="button">Обновить</button>';
+    b.querySelector('button').onclick=()=>{try{if(draftTask)draftSave()}catch{}setTimeout(()=>location.reload(),500)};document.body.append(b)}
+  setTimeout(check,15000);setInterval(check,5*60000);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)return;if(newer&&safe())location.reload();else check()})})();
 function analysisHTML(t){
   const subs=(t.to||[]).map(uid=>({uid,s:(S.subs[uid]||{})[t.id]})).filter(x=>x.s&&x.s.status==='submitted'&&Array.isArray(x.s.answers));
   if(!subs.length)return '';

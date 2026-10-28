@@ -181,14 +181,14 @@ t('вместимость физически помещается: все пос
   assert.strictEqual(k,total);
 });
 
-t('новые участки: открываются по уровню острова и только рядом с открытой землёй, старые координаты на месте',()=>{
+t('земля (4.2): открывается сама кольцами, не покупается, новый остров 16×16',()=>{
   let s=E.normalize(E.startState(founders(),0),0,null);s.bal.gold=1e7;s.bal.gems=1e4;
-  assert.ok(/20-м уровне/.test(E.apply(s,ctx(0),{t:'expand',chunk:'3,1'}).err));
-  s.bal.xp=E.xpFor(100);s=E.normalize(s,0,null);
-  assert.ok(/соседний/.test(E.apply(s,ctx(0),{t:'expand',chunk:'4,4'}).err));
-  s=ok(E.apply(s,ctx(0),{t:'expand',chunk:'3,1'}));assert.ok(s.land.includes('3,1'));
-  assert.deepStrictEqual(E.extent(E.normalize(E.startState(founders(),0),0,null)),{chunks:3,n:12},'новый остров рисуется как раньше');
-  assert.strictEqual(E.extent(s).n,20);
+  assert.ok(E.apply(s,ctx(0),{t:'expand',chunk:'3,1'}).err);
+  assert.deepStrictEqual(E.extent(s),{chunks:4,n:16},'новый остров 16×16');
+  s.bal.xp=E.xpFor(100);s=E.normalize(s,0,null);assert.strictEqual(E.extent(s).n,24);assert.strictEqual(s.land.length,36);
+  /* сундук уровня: самоцветы один раз */
+  const t=E.normalize(E.startState(founders(),0),0,null);const g0=t.bal.gems;t.bal.xp=E.xpFor(66);const t2=E.normalize(t,0,null);
+  assert.strictEqual(t2.bal.gems-g0,2*65+E.LVL_CHEST[65]);assert.strictEqual(E.normalize(t2,0,null).bal.gems,t2.bal.gems);
 });
 
 /* ---------- подарки E2 и цели исследования ---------- */

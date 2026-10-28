@@ -242,15 +242,7 @@ function cliffs(k,g,lava){const RIM=g.RIM,C0=g.C0;
     out.push(`<path d="M${pt(a)} L${pt(b)} L${pt([c[0],c[1]*0.5+b[1]*0.5])} L${pt([d[0],d[1]*0.6+a[1]*0.4])} Z" fill="${lava?(lt?'#6B5056':'#4A363B'):(lt?'#E8D6AA':'#C9AF80')}" opacity=".7"/>`)}
   for(let i=1;i<front.length-1;i+=3){const a=front[i],d=depth(a);out.push(`<path d="M${f1(a[0])} ${f1(a[1]+8)} l${f1((a[0]<C0[0]?-1:1)*6)} ${f1(d*0.45)} l${f1((a[0]<C0[0]?1:-1)*4)} ${f1(d*0.4)}" stroke="${lava?'#FF6A1A':'#9C8460'}" stroke-width="2" fill="none" opacity="${lava?'.45':'.55'}"/>`)}
   out.push(`<path d="M${front.map((p,i)=>pt([p[0],p[1]+12+hrand('st'+i)*8])).join(' L')}" stroke="${lava?'#2A1E21':'#A88E62'}" stroke-width="3" fill="none" opacity=".5"/>`);
-  /* водопады: с правого и левого края */
-  [front[Math.round(front.length*0.22)],front[Math.round(front.length*0.8)]].forEach((p,i)=>{const h=depth(p)*1.2;
-    if(lava){out.push(`<path d="M${f1(p[0]-28)} ${f1(p[1]+h*.2)} Q ${f1(p[0])} ${f1(p[1]-26)} ${f1(p[0]+28)} ${f1(p[1]+h*.2)} L${f1(p[0]+16)} ${f1(p[1]+h)} L${f1(p[0]-16)} ${f1(p[1]+h)} Z" fill="url(#${k}-glow)" opacity=".55"/>
-      <path d="M${f1(p[0]-8)} ${f1(p[1]-3)} L${f1(p[0]+8)} ${f1(p[1]-3)} L${f1(p[0]+11)} ${f1(p[1]+h)} L${f1(p[0]-11)} ${f1(p[1]+h)} Z" fill="url(#${k}-lava)"/>
-      <path class="an wfl" d="M${f1(p[0]-3)} ${f1(p[1])} L${f1(p[0]-4)} ${f1(p[1]+h)} M${f1(p[0]+4)} ${f1(p[1])} L${f1(p[0]+5)} ${f1(p[1]+h)}" stroke="#FFF1A8" stroke-width="2.4" stroke-dasharray="10 12" fill="none" opacity=".9"/>
-      <ellipse cx="${f1(p[0])}" cy="${f1(p[1]-2)}" rx="13" ry="4.5" fill="#FFB347"/>${embers(p[0],p[1]+h,'lf'+i)}`);return}
-    out.push(`<path d="M${f1(p[0]-7)} ${f1(p[1]-3)} L${f1(p[0]+7)} ${f1(p[1]-3)} L${f1(p[0]+10)} ${f1(p[1]+h)} L${f1(p[0]-10)} ${f1(p[1]+h)} Z" fill="#BFE6FF" opacity=".85"/>
-      <path class="an wfl" d="M${f1(p[0]-3)} ${f1(p[1])} L${f1(p[0]-4)} ${f1(p[1]+h)} M${f1(p[0]+4)} ${f1(p[1])} L${f1(p[0]+5)} ${f1(p[1]+h)}" stroke="#fff" stroke-width="2.4" stroke-dasharray="10 12" fill="none" opacity=".9"/>
-      <ellipse cx="${f1(p[0])}" cy="${f1(p[1]-2)}" rx="12" ry="4" fill="#7CC4FF"/>`)});
+  /* 4.2: водопадов и лавопадов нет — отвлекали и нагружали страницу анимацией */
   return out.join('')}
 function rimRocks(back,g,lava){const out=[],RIM=g.RIM,C0=g.C0;
   RIM.forEach((p,i)=>{const isBack=p[2]===0||p[2]===3;if(isBack!==back)return;if(!back&&i%3)return;
@@ -311,25 +303,12 @@ function svg(st,opt){
         else if(r>0.9)out.push(crack(c[0],c[1],'ck'+i+':'+j));else if(r>0.86)out.push(embers(c[0],c[1],'em'+i+':'+j));continue}
       if(r<0.22)out.push(`<ellipse cx="${f1(c[0])}" cy="${f1(c[1])}" rx="${f1(18+r*40)}" ry="${f1(8+r*16)}" fill="${r<0.11?'#fff':'#2F6A1E'}" opacity=".07"/>`);
       else if(r>0.86)out.push(tuft(c[0]+(r-.9)*80,c[1]));else if(r>0.8)out.push(flowers(c[0],c[1],'f'+i+j))}
-    /* закрытые участки: густой лес и табличка с ценой */
-    for(let cx=0;cx<n/D.CHUNK;cx++)for(let cy=0;cy<n/D.CHUNK;cy++){
-      const id=cx+','+cy;if(st.land.includes(id))continue;const x=cx*D.CHUNK,y=cy*D.CHUNK;
-      out.push(`<polygon points="${dia(x,y,D.CHUNK,D.CHUNK)}" fill="${lava?'#140C0E':'#1F4A14'}" opacity="${lava?'.3':'.16'}"/>`);
-      const items=[];for(let a=0;a<D.CHUNK;a++)for(let b=0;b<D.CHUNK;b++){const r=hrand('lf'+id+a+b),p=P(x+a+.3+r*.4,y+b+.3+hrand('lg'+id+a+b)*.4);items.push([p,r])}
-      items.sort((u,v)=>u[0][1]-v[0][1]).forEach(([p,r],n)=>{if(r>0.72)return;
-        out.push(lava?(r<0.05?lavaPool(p[0],p[1],1.2+r*4,k):r<0.3?obsidian(p[0],p[1],1+r):r<0.4?rock(p[0],p[1],1+r,LAVA_ROCK):charTree(p[0],p[1],0.95+r*0.4,n)):r<0.14?rock(p[0],p[1],1+r*2):r<0.3?bush(p[0],p[1],1.1,k):tree(p[0],p[1],0.95+r*0.4,k,n))});
-      const cost=D.LAND_COST[id],m=P(x+2,y+2),o=P(cx===0?x:x+D.CHUNK,cy===0?y:y+D.CHUNK),c=[m[0]+(o[0]-m[0])*.4,m[1]+(o[1]-m[1])*.4];
-      /* участок нового кольца, до которого остров ещё не дорос или рядом нет открытой земли: табличка без нажатия */
-      const q=cost&&D.landState?D.landState(st,id):{ok:!!cost};
-      if(cost&&!ro&&!q.ok)out.push(`<g class="drg-land off" transform="translate(${f1(c[0])} ${f1(c[1]-10)})" aria-hidden="true"><path d="M-2 22 L-2 2 M2 22 L2 2" stroke="#6E4A28" stroke-width="3"/><rect x="-44" y="-16" width="88" height="24" rx="6" fill="#8C7A5E" stroke="#5A4A30" stroke-width="2"/><text x="0" y="1" font-size="11" font-weight="800" fill="#fff" text-anchor="middle">🔒 ${q.L?'с '+q.L+'-го ур.':'рядом нет земли'}</text></g>`);
-      if(cost&&!ro&&q.ok)out.push(`<g class="drg-land" data-act="drgland" data-c="${id}" tabindex="0" role="button" aria-label="Закрытый участок: расчистить за ${cost.gold?cost.gold+' золота':cost.gems+' самоцветов'}" transform="translate(${f1(c[0])} ${f1(c[1]-10)})"><polygon points="${dia(x,y,D.CHUNK,D.CHUNK).split(' ').map(s=>{const [a,b]=s.split(',').map(Number);return f1(a-c[0])+','+f1(b-c[1]+10)}).join(' ')}" fill="rgba(255,255,255,.001)"/>
-        <path d="M-2 22 L-2 2 M2 22 L2 2" stroke="#6E4A28" stroke-width="3"/><rect x="-38" y="-16" width="76" height="24" rx="6" fill="#B5833F" stroke="#6E4A28" stroke-width="2"/><text x="0" y="1" font-size="12" font-weight="800" fill="#fff" text-anchor="middle">🔒 ${cost.gold?cost.gold+' 🪙':cost.gems+' 💎'}</text></g>`)}
+    /* 4.2: закрытых участков нет, земля открывается сама с уровнем */
   }
-  /* клетки для установки */
+  /* ячейки для установки (4.2): размером со здание 2×2, только свободные; нажатие ставит здание в эту ячейку */
   if(place){
-    const cells=[];for(let i=0;i<n-1;i++)for(let j=0;j<n-1;j++){
-      const okp=D.canPlace(st,i,j,place.move||null);
-      cells.push(`<polygon class="drg-cell${okp?' ok':''}" points="${dia(i,j,1,1)}" ${okp?`data-act="drgtile" data-x="${i}" data-y="${j}"`:''}/>`)}
+    const cells=D.freeSlots(st,place.move||null).map(p=>{const c=P(p.x+1,p.y+1);
+      return `<g class="drg-slot" data-act="drgtile" data-x="${p.x}" data-y="${p.y}" tabindex="0" role="button" aria-label="Свободная ячейка"><polygon class="drg-cell ok" points="${dia(p.x,p.y,2,2)}"/><path d="M${f1(c[0]-9)} ${f1(c[1])} h18 M${f1(c[0])} ${f1(c[1]-9)} v18" stroke="#fff" stroke-width="3.4" stroke-linecap="round" pointer-events="none"/></g>`});
     out.push(`<g class="drg-cells">${cells.join('')}</g>`)}
   /* постройки и препятствия по глубине */
   const obs=opt.bare?[]:D.obstacles(st).map(o=>({o,d:o.x+o.y+1,x:o.x}));
@@ -369,7 +348,7 @@ function svg(st,opt){
   out.push(`<g class="drg-labs">${labs.join('')}</g>`);
   out.push(`<g class="drg-bubs">${bubs.join('')}</g>`);
   /* ближние облака: проплывают у краёв, нажатиям не мешают */
-  if(!opt.bare)out.push(`<g class="an drift d2" pointer-events="none">${cloud(-60,470,.9,.92)}${cloud(860,430,.8,.9)}${cloud(330,590,1.1,.95)}</g>`);
+  /* 4.2: ближних облаков поверх острова нет — закрывали постройки у переднего края */
   out.push(`</svg>`);
   return out.join('')}
 

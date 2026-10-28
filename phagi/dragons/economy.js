@@ -72,7 +72,7 @@ const RAR_GOLD=[3,5,8,12,20];          /* золото за карточку у 
 const SKIP_CARDS=10;                    /* один самоцвет заменяет 10 карточек ожидания */
 /* остров до 20×20 клеток, земля открывается участками 4×4. Прежние участки 3×3 и их координаты не меняются,
    новые кольца (столбец и строка 3, потом 4) открываются с ростом острова (L) и только рядом с открытой землёй */
-const GRID=20,CHUNK=4;
+const GRID=24,CHUNK=4;   /* 4.2: остров до 24×24 клеток (6×6 участков) */
 const START_LAND=['1,1','0,1','1,0','2,1','1,2'];
 const LAND_COST={'0,0':{gold:1500},'2,0':{gold:3000},'0,2':{gems:20},'2,2':{gems:40},
   '3,1':{gold:8000,L:20},'1,3':{gold:12000,L:24},'3,0':{gold:18000,L:28},'0,3':{gems:60,L:32},'3,2':{gold:30000,L:36},'2,3':{gold:45000,L:40},'3,3':{gems:100,L:45},
@@ -149,7 +149,7 @@ function todayBonus(n,goal){goal=goal||15;const k=ladderK(n+1),nx=ladderNext(n);
    Гнездовье и Инкубатор (одно место для яйца) уже построены на стартовой земле. K — часы острова в момент создания:
    с него считается новый доход (evK) */
 function startState(founders,K){
-  const s={v:2,gv:G.GV,ev:1,evK:K||0,seq:3,bseq:6,bal:{gold:300,food:40,gems:5,xp:0},credited:{food:0,gems:0,lvl:1},land:START_LAND.slice(),
+  const s={v:2,gv:G.GV,ev:1,evK:K||0,seq:3,bseq:6,bal:{gold:300,food:40,gems:5,xp:0},credited:{food:0,gems:0,lvl:1},land:growLand(START_LAND,1),
     bld:[
       {id:'b1',type:'F',x:4,y:5,lvl:1,chest:{amt:0,k0:null},build:null,up:null},
       {id:'b2',type:'W',x:6,y:5,lvl:1,chest:{amt:0,k0:null},build:null,up:null},
@@ -157,7 +157,8 @@ function startState(founders,K){
       {id:'b4',type:'nest',x:2,y:4,lvl:1,pair:null,build:null,up:null},
       {id:'b5',type:'hatch',x:1,y:6,lvl:1,slots:[null],build:null,up:null}
     ],
-    dragons:[]};
+    dragons:[],lay:1};
+  arrange(s);
   (founders||[]).forEach(d=>{d=Object.assign({},d,{genome:G.upgrade(d.genome)});const ph=G.phenotype(d.genome),home=s.bld.find(b=>TYPES[b.type].kind==='hab'&&hosts(b.type,ph));
     s.dragons.push(Object.assign({lvl:1,fed:0,home:home?home.id:null},d))});
   return s}
@@ -234,11 +235,18 @@ function normalize(s,K,inc,gk){
     if(b.up&&ready(b.up,K)){const kc=doneAt(b.up);if(b.chest)settleOne(s,b,kc,gk);b.lvl=b.up.to;b.up=null;if(b.plots)while(b.plots.length<FARM_LV[b.lvl].plots)b.plots.push(null)}
     /* ячейки Инкубатора только добавляются, занятые не трогаются */
     if(b.slots&&!b.build)while(b.slots.length<hatchCap(s,b))b.slots.push(null);
+    /* 4.2: урожай на грядках готов сразу, в том числе посаженный до обновления */
+    if(b.plots)b.plots.forEach(p=>{if(p&&p.need)p.need=0});
   });
   /* опыт за повторение: после точки перехода каждая карточка даёт опыт по лесенке дня (часы золота gk). Первый раз только
      запоминается отметка, поэтому прошлые карточки опыта задним числом не дают, а повтор normalize ничего не добавляет */
   if(inc&&typeof s.evK==='number'){const g=gk(K);if(typeof s.credited.cx!=='number')s.credited.cx=g;else if(g>s.credited.cx){xp(s,(g-s.credited.cx)*ECON.cardXp);s.credited.cx=g}}
-  const L=level(s);if(L>(s.credited.lvl||1)){s.bal.gems+=2*(L-(s.credited.lvl||1));s.credited.lvl=L}
+  const L=level(s);if(L>(s.credited.lvl||1)){const L0=s.credited.lvl||1;s.bal.gems+=2*(L-L0);
+    Object.entries(LVL_CHEST).forEach(([l,g])=>{if(+l>L0&&+l<=L)s.bal.gems+=g});s.credited.lvl=L}
+  /* 4.2: земля растёт сама с уровнем, на обоих островах */
+  s.land=growLand(s.land,L);if(s.isl2)s.isl2.land=growLand(s.isl2.land,L);
+  /* 4.2: малыш из яслей сам заселяется, как только появился подходящий дом со свободным местом */
+  s.dragons.forEach(d=>{if(!d.nurs||d.home)return;const h=homeFor(s,phOf(d));if(!h)return;settleOne(s,h,K,gk);d.home=h.id;delete d.nurs});
   if(gk!==ID)Object.defineProperty(s,'_gk',{value:gk,enumerable:false,configurable:true});
   return s}
 
@@ -314,6 +322,9 @@ function repair(d,inc){const fix=[],bad=[];
       const p=zoneSpot(s);if(!p){fix.push(TYPES[type].name+': нет места');return}
       const id='b'+(s.bseq++);s.bld.push(type==='nest'?{id,type,x:p.x,y:p.y,lvl:1,pair:null,build:null,up:null}:{id,type,x:p.x,y:p.y,lvl:1,slots:[null],build:null,up:null});
       fix.push(TYPES[type].name+': поставлено'+(p.land?' на новом участке '+p.land:''))})}
+  /* 4.2: один раз — земля по уровню и постройки по ячейкам с промежутками */
+  if(!bad.length&&!s.lay){const L=levelOf(num(s.bal.xp)?s.bal.xp:0);s.land=growLand(s.land,L);if(s.isl2)s.isl2.land=growLand(s.isl2.land,L);
+    const n=arrange(s);s.lay=1;if(n)fix.push('постройки расставлены по ячейкам: '+n)}
   return {s,fix,bad}}
 
 /* ---------- место на карте ---------- */
@@ -333,14 +344,14 @@ const allChunks=()=>{const a=[];for(let cx=0;cx<GRID/CHUNK;cx++)for(let cy=0;cy<
 /* участок рядом с открытой землёй (по стороне, не по углу) */
 function adjacent(s,id){const [cx,cy]=id.split(',').map(Number);return [[1,0],[-1,0],[0,1],[0,-1]].some(([a,b])=>s.land.includes((cx+a)+','+(cy+b)))}
 /* можно ли сейчас открыть участок: есть цена, дорос остров, рядом открытая земля */
-function landState(s,id){const c=LAND_COST[id];if(!c)return {ok:false,why:'Этот участок не открыть'};if(s.land.includes(id))return {ok:false,why:'Уже открыто'};
+function landState(s,id){if(s.land.includes(id))return {ok:false,why:'Уже открыто'};return {ok:false,why:'Земля открывается сама с ростом острова'};
+  const c=LAND_COST[id];if(!c)return {ok:false,why:'Этот участок не открыть'};
   if(c.L&&level(s)<c.L)return {ok:false,why:`Откроется на ${c.L}-м уровне острова`,L:c.L};
   if(!adjacent(s,id))return {ok:false,why:'Сначала откройте соседний участок'};return {ok:true,cost:c}}
 /* какие участки рисовать: открытые, прежние 3×3 и новые, до которых дорос остров (с запасом в 10 уровней, чтобы было видно, что впереди).
    n — сторона рисунка в клетках (12, 16 или 20) */
-function extent(s){const L=level(s);let m=3;
-  Object.entries(LAND_COST).forEach(([id,c])=>{if(!c.L||c.L<=L+10||s.land.includes(id)){const [x,y]=id.split(',').map(Number);m=Math.max(m,x+1,y+1)}});
-  s.land.forEach(id=>{const [x,y]=id.split(',').map(Number);m=Math.max(m,x+1,y+1)});return {chunks:m,n:m*CHUNK}}
+/* сторона острова (4.2): только открытая земля, закрытых участков на рисунке нет. n — сторона в клетках (12, 16 или 20) */
+function extent(s){let m=3;s.land.forEach(id=>{const [x,y]=id.split(',').map(Number);m=Math.max(m,x+1,y+1)});m=Math.min(m,GRID/CHUNK);return {chunks:m,n:m*CHUNK}}
 /* Драконы 4.1: препятствий на островах больше нет, вся открытая земля свободна. OBST и s.clr остаются для старых сохранений */
 const obstacles=s=>[];
 function canPlace(s,x,y,skipId){
@@ -348,6 +359,34 @@ function canPlace(s,x,y,skipId){
   for(let dx=0;dx<2;dx++)for(let dy=0;dy<2;dy++)if(!s.land.includes(chunkOf(x+dx,y+dy)))return false;
   const obs=obstacles(s);if(obs.some(o=>o.x>=x&&o.x<x+2&&o.y>=y&&o.y<y+2))return false;
   return !s.bld.some(b=>b.id!==skipId&&x<b.x+2&&b.x<x+2&&y<b.y+2&&b.y<y+2)}
+
+/* ---------- разметка острова (Драконы 4.2) ----------
+   Земля открывается сама кольцами: 4×4 участка (16 клеток) с начала, 5×5 с 12-го уровня, 6×6 с 30-го. Покупать участки не нужно.
+   Постройки стоят в ячейках SLOT×SLOT: здание 2×2 и две клетки промежутка, левый верхний угол на SLOT0+4k. Поэтому здания
+   не касаются и не наезжают друг на друга. Старые острова один раз расставляются по ячейкам (arrange, флаг s.lay) */
+const RINGS=[{L:1,m:4},{L:12,m:5},{L:30,m:6}],SLOT=4,SLOT0=1;
+/* сундук уровня (4.2): разовые самоцветы на уровнях, где раньше открывались платные участки и больше ничего нет */
+const LVL_CHEST={65:15,73:15,95:25};
+const ringM=L=>RINGS.filter(r=>L>=r.L).pop().m;
+function growLand(land,L){const m=ringM(L),out=land.slice();for(let x=0;x<m;x++)for(let y=0;y<m;y++){const id=x+','+y;if(!out.includes(id))out.push(id)}return out}
+const snap=v=>SLOT0+SLOT*Math.max(0,Math.round((v-SLOT0)/SLOT));
+/* все ячейки острова-вида и свободные из них (skip — постройка, которую переносят) */
+const onLand=(s,x,y)=>[0,1].every(dx=>[0,1].every(dy=>s.land.includes(chunkOf(x+dx,y+dy))));
+function slots(s){const n=extent(s).n,out=[];for(let x=SLOT0;x+2<=n;x+=SLOT)for(let y=SLOT0;y+2<=n;y+=SLOT)if(onLand(s,x,y))out.push({x,y});return out}
+const freeSlots=(s,skip)=>slots(s).filter(p=>canPlace(s,p.x,p.y,skip));
+/* порядок расстановки: Гнездовье и Инкубатор в середине, вокруг дома по стихиям, фермы по краям */
+const ORD=b=>{const k=TYPES[b.type].kind;return k==='nest'?0:k==='hatch'?1:k==='hab'?2+HAB_ORDER.indexOf(b.type)/10:k==='farm'?4:5};
+function arrange(s){let moved=0;const over=[];
+  (s.isl2?[0,1]:[0]).forEach(i=>{const v=isle(s,i),n=extent(v).n,c=n/2-1;
+    const sl=slots(v).sort((a,b)=>Math.hypot(a.x-c,a.y-c)-Math.hypot(b.x-c,b.y-c)||a.y-b.y||a.x-b.x);
+    v.bld.slice().sort((a,b)=>ORD(a)-ORD(b)||String(a.id).localeCompare(String(b.id),undefined,{numeric:true}))
+      .forEach((b,k)=>{const p=sl[k];if(!p){over.push(b);b.x=-9;b.y=-9;return}if(b.x!==p.x||b.y!==p.y)moved++;b.x=p.x;b.y=p.y})});
+  /* не влезли (бывает, если построек больше ячеек): на второй остров, если он открыт, иначе в ближайшее свободное место */
+  over.forEach(b=>{const tryI=s.isl2&&!isleOf(b)?[1,0]:[isleOf(b)];
+    for(const i of tryI){const v=isle(s,i),f=freeSlots(v,b.id)[0];if(f){b.x=f.x;b.y=f.y;if(i)b.isl=1;else delete b.isl;moved++;return}}
+    const v=isle(s,isleOf(b)),n=extent(v).n;for(let x=0;x+2<=n;x++)for(let y=0;y+2<=n;y++)if(canPlace(v,x,y,b.id)){b.x=x;b.y=y;moved++;return}
+    b.x=0;b.y=0});
+  return moved}
 
 /* ---------- второй остров (Драконы 4.1) ----------
    «Огненный остров» открывается с ISLE2.L-го уровня за золото. Сетка и участки как у первого острова, стартовая земля та же.
@@ -386,13 +425,15 @@ const ACTS={
     if(t.kind==='hab'&&count(s,'hab')>=maxHabs(L))return 'На этом уровне больше сред обитания не построить';
     if(t.kind==='farm'&&count(s,'farm')>=maxFarms(L))return 'На этом уровне больше ферм не построить';
     if(t.max&&count(s,t.kind)>=maxOf(t,L))return t.more&&L<t.more.L?`${t.name} на острове уже есть, второе откроется на ${t.more.L}-м уровне острова`:`${t.name} на острове уже есть`;
-    if(!canPlace(isle(s,i),x,y))return 'Сюда не поставить';
+    x=snap(x);y=snap(y);if(!canPlace(isle(s,i),x,y))return 'Сюда не поставить';
     const bc=buildCost(s,type),e=pay(s,{gold:bc.gold,gems:bc.gems});if(e)return e;
     const id='b'+(s.bseq++);
     const b={id,type,x,y,lvl:1,build:{at:c.K,need:bc.need,skip:0},up:null};if(i)b.isl=1;
     if(t.kind==='hab')b.chest={amt:0,k0:null};if(t.kind==='farm')b.plots=[null,null];if(t.kind==='hatch')b.slots=Array(HATCH_LV[1].slots).fill(null);if(t.kind==='nest')b.pair=null;
     s.bld.push(b);xp(s,bc.gold/10);s.last=id},
-  move(s,c,{id,x,y}){const b=B(s,id);if(!b)return 'Нет постройки';if(!canPlace(isle(s,isleOf(b)),x,y,id))return 'Сюда не поставить';b.x=x;b.y=y},
+  move(s,c,{id,x,y}){const b=B(s,id);if(!b)return 'Нет постройки';x=snap(x);y=snap(y);if(!canPlace(isle(s,isleOf(b)),x,y,id))return 'Сюда не поставить';b.x=x;b.y=y},
+  /* расставить постройки по ячейкам заново (кнопка в «Мои постройки») */
+  arrange(s,c){if(!arrange(s))return 'Постройки уже стоят по ячейкам'},
   upgrade(s,c,{id}){const b=B(s,id);if(!b)return 'Нет постройки';if(b.build||b.up)return 'Уже строится';
     const T=lvTable(b.type);if(!T)return 'Не улучшается';
     const nx=T[b.lvl+1];if(!nx)return 'Уже максимальный уровень';
@@ -407,7 +448,7 @@ const ACTS={
   plant(s,c,{id,plot,crop}){const b=B(s,id),cr=CROPS[crop];if(!b||!b.plots||b.build)return 'Ферма не готова';if(!cr)return 'Нет такой культуры';
     if(level(s)<cr.unlock)return `Откроется на ${cr.unlock}-м уровне острова`;
     if(b.plots[plot]===undefined)return 'Нет грядки';if(b.plots[plot])return 'Грядка занята';
-    const e=pay(s,{gold:cr.cost});if(e)return e;b.plots[plot]={crop,at:c.K,need:cr.need,skip:0}},
+    const e=pay(s,{gold:cr.cost});if(e)return e;b.plots[plot]={crop,at:c.K,need:0,skip:0}},   /* 4.2: урожай готов сразу после посадки */
   harvest(s,c,{id,plot}){const b=B(s,id),p=b&&b.plots&&b.plots[plot];if(!p)return 'Пусто';if(!ready(p,c.K))return 'Ещё не созрело';
     const f=Math.round(CROPS[p.crop].food*streakMult(c.streak));s.bal.food+=f;b.plots[plot]=null;xp(s,f/10);s.got={food:f}},
   feed(s,c,{dragon}){const d=s.dragons.find(x=>x.id===dragon);if(!d)return 'Нет дракона';
@@ -426,7 +467,7 @@ const ACTS={
     s.dragons.push({id,name:NAMES[type][Math.floor(G.rng(c.uid+':n:'+id)()*NAMES[type].length)],born:c.today,genome,lvl:1,fed:0,home:home.id,from:'market'});xp(s,20);s.last=id},
   clear(s,c,{cell}){const o=obstacles(s).find(z=>z.id===cell);if(!o)return 'Препятствий на острове больше нет';if(!o)return 'Здесь нечего расчищать';const k=OBST_KIND[o.kind];
     const e=pay(s,{gold:k.gold});if(e)return e;s.clr=(s.clr||[]).concat(o.id);xp(s,k.xp);if(k.gems)s.bal.gems+=k.gems;s.got={clear:o.kind,gems:k.gems||0}},
-  expand(s,c,{chunk,isl}){const i=isl===1?1:0;if(i&&!s.isl2)return ISLE2.name+' ещё не открыт';const q=landState(isle(s,i),chunk);if(!q.ok)return q.why;
+  expand(s,c,{chunk,isl}){return 'Земля открывается сама с ростом острова';const i=isl===1?1:0;if(i&&!s.isl2)return ISLE2.name+' ещё не открыт';const q=landState(isle(s,i),chunk);if(!q.ok)return q.why;
     const e=pay(s,{gold:q.cost.gold,gems:q.cost.gems});if(e)return e;(i?s.isl2.land:s.land).push(chunk);xp(s,50+(q.cost.gold||0)/40+(q.cost.gems||0)*10)},
   /* скрещивание: яйцо считается сразу от генотипов родителей (мейоз, кроссинговер, мутации) с зерном,
      поэтому одно и то же скрещивание нельзя «перебросить»; результат скрыт до вылупления */
@@ -483,7 +524,7 @@ const ACTS={
     s.goals[goal]=c.today||'1';s.bal.gems+=g.gems;xp(s,g.xp||0);s.got={gems:g.gems}},
   /* открыть Огненный остров */
   isle2(s,c){const q=isleState(s);if(q.open)return ISLE2.name+' уже открыт';if(!q.ok)return q.why;
-    const e=pay(s,q.cost);if(e)return e;s.isl2={land:START_LAND.slice()};xp(s,100);s.got={isle2:true}},
+    const e=pay(s,q.cost);if(e)return e;s.isl2={land:growLand(START_LAND,level(s))};xp(s,100);s.got={isle2:true}},
   /* победа в походе: награда по pveGain. Звёзды до боя берутся из самого документа (s.pve), поэтому первая победа
      награждается один раз, даже если запись повторили */
   pvewin(s,c,{node,stars}){if(!node||typeof node.id!=='string'||!(stars>=1&&stars<=3))return 'Нет такого боя';
@@ -609,7 +650,8 @@ function unlocksAt(L){const out=[];if(L<=1)return out;
   HAB_LV.forEach((x,i)=>{if(x&&x.L===L)out.push(`дома ${i}-го уровня: ${x.cap} ${plRu(x.cap,'дракон','дракона','драконов')}, сундук ${x.chest}`)});
   FARM_LV.forEach((x,i)=>{if(x&&x.L===L)out.push(`фермы ${i}-го уровня: ${x.plots} ${plRu(x.plots,'грядка','грядки','грядок')}`)});
   HATCH_LV.forEach((x,i)=>{if(x&&x.L===L)out.push(`Инкубатор ${i}-го уровня: ${x.slots} ${plRu(x.slots,'место','места','мест')} и место за серию`)});
-  Object.entries(LAND_COST).forEach(([id,c])=>{if(c.L===L)out.push(`новый участок земли ${id} за ${c.gold?c.gold+' золота':c.gems+' самоцветов'}`)});
+  if(LVL_CHEST[L])out.push(`сундук уровня: +${LVL_CHEST[L]} 💎`);
+  RINGS.forEach(r=>{if(r.L===L&&L>1)out.push(`остров растёт: земля ${r.m*CHUNK}×${r.m*CHUNK} клеток, новые ячейки под постройки`)});
   if(L===ISLE2.L)out.push(`${ISLE2.name}: второй остров за ${ISLE2.gold} золота`);
   if(nurseryCap(L)>nurseryCap(L-1))out.push('ясли на '+nurseryCap(L)+' '+plRu(nurseryCap(L),'место','места','мест'));
   RESEARCH.forEach(g=>{if(g.L===L)out.push('цель исследования «'+g.name+'» (+'+g.gems+' 💎)')});
@@ -625,6 +667,6 @@ function nextMajor(L){for(let k=L+1;k<=ISLE_MAX;k++){const u=unlocksAt(k).filter
 const DECO={DRAGON_MAX,ISLE_MAX,repair,unlocksAt,nextMajor,MINOR,NURSERY,nurseryCap,homeFor,nursery,breedPath,HATCH_LV,BREED_LV,breedCost,BREED_NEED,HATCH_NEED,PRED_TOL,lvTable,summary,habNames,TYPES,HAB_ORDER,HAB_LV,FARM_LV,CROPS,RAR_GOLD,SKIP_CARDS,GRID,CHUNK,START_LAND,LAND_COST,MILESTONES,FEEDS,RATION,
   ECON,ladderK,ladderNext,todayBonus,SLOT7,hatchCap,firstHatch,maxOf,buildCost,feedPrice,lvlGold,goldRate,goldNow,landState,adjacent,extent,allChunks,zoneSpot,GIFTS,giftGenome,RESEARCH,MASTERY,mastery,hasE2,
   xpFor,levelOf,maxHabs,maxFarms,maxDragonLv,feedCost,income,startState,hosts,dragonKeys,goldPerCard,rate,settle,chestNow,normalize,
-  canPlace,chunkOf,apply,ISLE2,isle,isleOf,isleState,PVE_DAY,pveGain,OBST,OBST_KIND,obstacles,ready,left,level,count,streakMult,marketGenome,habCap,chestCap};
+  canPlace,chunkOf,apply,LVL_CHEST,RINGS,SLOT,SLOT0,snap,slots,freeSlots,arrange,growLand,ISLE2,isle,isleOf,isleState,PVE_DAY,pveGain,OBST,OBST_KIND,obstacles,ready,left,level,count,streakMult,marketGenome,habCap,chestCap};
 if(typeof module!=='undefined'&&module.exports)module.exports=DECO;else root.DECO=DECO;
 })(typeof window!=='undefined'?window:globalThis);

@@ -16,17 +16,19 @@ const fresh=()=>E.normalize(E.startState([{id:'d1',name:'Ж',born:'2026-10-01',g
 t('сохранения из всех сценариев dev/ (геном версии 1, экономика до этапа D): правки только E2 = 0/0 и переход на новый доход, остальное как было',()=>{
   assert.ok(fixtures.length>=5,'сценариев '+fixtures.length);
   fixtures.forEach(([f,d])=>{const r=E.repair(d,inc);assert.deepStrictEqual(r.bad,[],f);
-    assert.ok(r.fix.every(x=>/^(геномы: добавлен ген E2|экономика: новый доход|Инкубатор: прежние места сохранены|(Гнездовье|Инкубатор): (поставлено|достроено))/.test(x)),f+': '+r.fix.join('; '));
+    assert.ok(r.fix.every(x=>/^(геномы: добавлен ген E2|экономика: новый доход|Инкубатор: прежние места сохранены|(Гнездовье|Инкубатор): (поставлено|достроено)|постройки расставлены по ячейкам)/.test(x)),f+': '+r.fix.join('; '));
     assert.strictEqual(r.s.evK,inc.K,f+': точка перехода — нынешние часы острова');
     const keep=k=>JSON.stringify(d[k]);['bal','credited'].forEach(k=>assert.strictEqual(JSON.stringify(r.s[k]),keep(k),f+': '+k));
     assert.ok(d.land.every(x=>r.s.land.includes(x)),f+': земля не убавилась');
     /* прежние постройки на тех же местах с теми же уровнями, ячейками и сундуками; Гнездовье и Инкубатор добавлены, только если их не было */
-    d.bld.forEach(b=>{const x=r.s.bld.find(z=>z.id===b.id);assert.ok(x,f+': '+b.id);['type','x','y','lvl','chest','plots','slots','pair','up'].forEach(k=>assert.deepStrictEqual(strip2(x[k]),strip2(b[k]),f+': '+b.id+'.'+k))});
+    d.bld.forEach(b=>{const x=r.s.bld.find(z=>z.id===b.id);assert.ok(x,f+': '+b.id);/* 4.2: места (x, y) меняет расстановка по ячейкам, всё остальное прежнее */
+    ['type','lvl','chest','plots','slots','pair','up'].forEach(k=>assert.deepStrictEqual(strip2(x[k]),strip2(b[k]),f+': '+b.id+'.'+k))});
     ['nest','hatch'].forEach(t=>assert.strictEqual(r.s.bld.filter(b=>b.type===t).length,1,f+': '+t+' ровно одно'));
     const h0=d.bld.find(b=>b.type==='hatch');if(h0){assert.strictEqual(r.s.slot7,'legacy');const h=r.s.bld.find(b=>b.id===h0.id);assert.strictEqual(E.hatchCap(r.s,h),Math.max(h0.slots.length,E.HATCH_LV[h0.lvl].slots+1),f+': мест в Инкубаторе не меньше')}
     const strip=g=>{const x=JSON.parse(JSON.stringify(g));if(x.A1[0].length===3)x.A1=x.A1.map(h=>h.slice(0,2));delete x.gv;return x};
     r.s.dragons.forEach((x,i)=>{assert.deepStrictEqual(strip(x.genome),strip(d.dragons[i].genome),f+': '+x.id);
       assert.deepStrictEqual(G.phenotype(x.genome),G.phenotype(G.upgrade(d.dragons[i].genome)));assert.deepStrictEqual(G.validate(x.genome),[])});
+    r.s.bld.forEach(p=>r.s.bld.forEach(q=>{if(p!==q&&(p.isl||0)===(q.isl||0))assert.ok(Math.abs(p.x-q.x)>=2||Math.abs(p.y-q.y)>=2,f+': '+p.id+' и '+q.id+' наложены')}));
     const again=E.repair(r.s,inc);assert.deepStrictEqual(again.fix,[],f+': повторный проход ничего не правит')})});
 
 t('свежий остров: repair ничего не меняет, normalize после него даёт то же, что без него',()=>{

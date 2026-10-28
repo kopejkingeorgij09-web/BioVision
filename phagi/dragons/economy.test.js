@@ -11,6 +11,8 @@ function t(name,fn){n++;try{fn();console.log('ok  ',name)}catch(e){fails++;conso
 const founders=()=>[{id:'d1',name:'Ж',born:'2026-10-26',genome:G.make({sex:'F',E:'F/e'})},{id:'d2',name:'П',born:'2026-10-26',genome:G.make({sex:'M',E:'W/W'})}];
 const ctx=(K,extra)=>Object.assign({K,streak:0,uid:'u1',today:'2026-10-26'},extra||{});
 const ok=r=>{assert.ok(!r.err,r.err);return r.s};
+/* свободная ячейка под постройку на острове i (4.2) */
+const fr=(s,i)=>E.freeSlots(E.isle(s,i||0))[0];
 
 t('доход за дни: K, паёк растёт с серией, самоцветы и рекорд',()=>{
   const days={'2026-10-20':20,'2026-10-21':31,'2026-10-22':5,'2026-10-23':15,'2026-10-24':16};
@@ -45,38 +47,68 @@ t('стартовый остров: драконы в своих средах, �
 
 t('стройка идёт в карточках и ускоряется самоцветами',()=>{
   let s=E.normalize(E.startState(founders()),0,null);E.settle(s,0);
-  s=ok(E.apply(s,ctx(0),{t:'build',type:'farm',x:4,y:8}));
-  assert.ok(E.apply(s,ctx(0),{t:'build',type:'farm',x:6,y:8}).err,'третья ферма на 1-м уровне нельзя');
+  s=ok(E.apply(s,ctx(0),Object.assign({t:'build',type:'farm'},fr(s))));
+  assert.ok(E.apply(s,ctx(0),Object.assign({t:'build',type:'farm'},fr(s))).err,'третья ферма на 1-м уровне нельзя');
   const b=s.bld.find(x=>x.id===s.last);assert.ok(b.build);
   assert.strictEqual(E.left(b.build,3),3);
   s=E.normalize(s,6,null);assert.ok(!s.bld.find(x=>x.id===b.id).build,'готово через 6 карточек');
   s=E.normalize(E.startState(founders()),0,null);
   s.bal.gold=5000;s.bal.xp=E.xpFor(3);s=E.normalize(s,0,null);
-  s=ok(E.apply(s,ctx(0),{t:'build',type:'T',x:4,y:8}));
+  s=ok(E.apply(s,ctx(0),Object.assign({t:'build',type:'T'},fr(s))));
   const id=s.last,g0=s.bal.gems;
   s=ok(E.apply(s,ctx(3),{t:'speed',id}));
   assert.strictEqual(g0-s.bal.gems,2,'15 карточек ожидания = 2 самоцвета');
   assert.ok(!s.bld.find(x=>x.id===id).build);
 });
 
-t('нельзя ставить на занятое место и за границу открытой земли',()=>{
+t('разметка (4.2): постройки в ячейках с промежутком, координата притягивается к ячейке, на занятое нельзя',()=>{
   const s=E.normalize(E.startState(founders()),0,null);
-  assert.ok(!E.canPlace(s,4,5),'занято Кальдерой');
-  assert.ok(!E.canPlace(s,0,0),'угол закрыт');
-  assert.ok(!E.canPlace(s,2,5),'занято Гнездовьем');
-  assert.ok(E.canPlace(s,4,8));
-  assert.ok(E.apply(s,ctx(0),{t:'move',id:'b1',x:5,y:5}).err,'наезжает на Лагуну');
-  assert.ok(!E.apply(s,ctx(0),{t:'move',id:'b1',x:4,y:8}).err);
+  assert.strictEqual(E.extent(s).n,16);assert.strictEqual(E.slots(s).length,16);
+  const onSlot=b=>(b.x-E.SLOT0)%E.SLOT===0&&(b.y-E.SLOT0)%E.SLOT===0;
+  assert.ok(s.bld.every(onSlot),'стартовые постройки в ячейках');
+  /* никакие две постройки не касаются: между ними хотя бы клетка */
+  s.bld.forEach(a=>s.bld.forEach(b=>{if(a!==b)assert.ok(Math.abs(a.x-b.x)>=4||Math.abs(a.y-b.y)>=4,a.id+' касается '+b.id)}));
+  const b1=s.bld[0],b2=s.bld[1];assert.ok(!E.canPlace(s,b1.x,b1.y),'занято');
+  assert.ok(E.apply(s,ctx(0),{t:'move',id:b1.id,x:b2.x,y:b2.y}).err,'на чужую ячейку нельзя');
+  const f=fr(s);const m=ok(E.apply(s,ctx(0),{t:'move',id:b1.id,x:f.x+1,y:f.y-1}));
+  const nb=m.bld.find(x=>x.id===b1.id);assert.deepStrictEqual([nb.x,nb.y],[f.x,f.y],'притянулось к ячейке');
+  assert.ok(E.apply(s,ctx(0),{t:'expand',chunk:'3,1'}).err,'участки не покупаются');
 });
 
-t('грядки: созревают за карточки, урожай больше с серией',()=>{
+t('земля растёт сама (4.2): 16 клеток, с 12-го уровня 20, с 30-го 24, на обоих островах',()=>{
+  let s=E.normalize(E.startState(founders()),0,null);assert.strictEqual(E.extent(s).n,16);
+  s.bal.xp=E.xpFor(12);s=E.normalize(s,0,null);assert.strictEqual(E.extent(s).n,20);assert.strictEqual(E.slots(s).length,25);
+  s.bal.gold=1e5;s=ok(E.apply(s,ctx(0),{t:'isle2'}));assert.strictEqual(E.extent(E.isle(s,1)).n,20);
+  s.bal.xp=E.xpFor(30);s=E.normalize(s,0,null);assert.strictEqual(E.extent(s).n,24);assert.strictEqual(E.extent(E.isle(s,1)).n,24);assert.strictEqual(E.slots(s).length,36);
+  assert.ok(E.unlocksAt(12).some(x=>/остров растёт/.test(x)));
+});
+
+t('расстановка (4.2): старый остров с постройками вплотную один раз раскладывается по ячейкам, ничего не теряется',()=>{
+  const s0=E.normalize(E.startState(founders()),0,null);const d=JSON.parse(JSON.stringify(s0));delete d.lay;
+  /* как было до 4.2: постройки вплотную друг к другу */
+  d.bld.forEach((b,i)=>{b.x=2+2*(i%4);b.y=4+2*Math.floor(i/4)});d.dragons.forEach(x=>{x.home=d.bld[0].id});
+  const r=E.repair(d);assert.deepStrictEqual(r.bad,[]);assert.strictEqual(r.s.lay,1);assert.ok(r.fix.some(x=>/расставлены/.test(x)));
+  assert.strictEqual(r.s.bld.length,d.bld.length);assert.deepStrictEqual(r.s.bld.map(b=>b.id).sort(),d.bld.map(b=>b.id).sort());
+  r.s.bld.forEach(a=>{assert.ok(E.slots(r.s).some(p=>p.x===a.x&&p.y===a.y),'в ячейке '+a.id);
+    r.s.bld.forEach(b=>{if(a!==b)assert.ok(Math.abs(a.x-b.x)>=4||Math.abs(a.y-b.y)>=4)})});
+  assert.ok(r.s.dragons.every(x=>x.home===d.bld[0].id),'драконы в своих домах');
+  const r2=E.repair(JSON.parse(JSON.stringify(r.s)));assert.ok(!r2.fix.some(x=>/расставлены/.test(x)),'второй раз ничего не двигает');
+});
+
+t('малыш из яслей сам заселяется в появившийся дом (4.2)',()=>{
   let s=E.normalize(E.startState(founders()),0,null);
-  s=ok(E.apply(s,ctx(0),{t:'plant',id:'b3',plot:0,crop:'ember'}));
+  s.dragons.push({id:'dx',name:'Б',born:'2026-10-26',genome:G.make({sex:'F',E:'W/W'}),lvl:1,fed:0,home:null,nurs:true});
+  s=E.normalize(s,0,null);const d=s.dragons.find(x=>x.id==='dx');
+  const lag=s.bld.find(b=>b.type==='W');assert.strictEqual(d.home,lag.id);assert.ok(!d.nurs);
+});
+
+t('грядки (4.2): урожай готов сразу после посадки, больше с серией',()=>{
+  let s=E.normalize(E.startState(founders()),0,null);const fm=s.bld.find(b=>b.type==='farm').id;
+  s=ok(E.apply(s,ctx(0),{t:'plant',id:fm,plot:0,crop:'ember'}));
   assert.strictEqual(s.bal.gold,280);
-  assert.ok(E.apply(s,ctx(4),{t:'harvest',id:'b3',plot:0}).err);
-  const r=E.apply(s,ctx(5,{streak:10}),{t:'harvest',id:'b3',plot:0});s=ok(r);
+  const r=E.apply(s,ctx(0,{streak:10}),{t:'harvest',id:fm,plot:0});s=ok(r);
   assert.strictEqual(r.s.got.food,Math.round(24*1.25));
-  assert.ok(E.apply(s,ctx(5),{t:'plant',id:'b3',plot:0,crop:'vine'}).err,'лоза с 4-го уровня');
+  assert.ok(E.apply(s,ctx(0),{t:'plant',id:fm,plot:0,crop:'vine'}).err,'лоза с 4-го уровня');
 });
 
 t('кормление: 4 кормления на уровень, золото за карточку растёт',()=>{
@@ -112,11 +144,11 @@ t('переселение: только в подходящую среду и п
 
 t('уровень острова: опыт открывает постройки и даёт самоцветы',()=>{
   let s=E.normalize(E.startState(founders()),0,null);const g=s.bal.gems;
-  assert.ok(E.apply(s,ctx(0),{t:'build',type:'N',x:4,y:8}).err);
+  assert.ok(E.apply(s,ctx(0),Object.assign({t:'build',type:'N'},fr(s))).err);
   s.bal.xp=E.xpFor(2);s=E.normalize(s,0,null);
   assert.strictEqual(E.level(s),2);assert.strictEqual(s.bal.gems,g+2);
-  s=ok(E.apply(s,ctx(0),{t:'build',type:'N',x:4,y:8}));
-  assert.ok(E.apply(s,ctx(0),{t:'build',type:'nest',x:8,y:8}).err);
+  s=ok(E.apply(s,ctx(0),Object.assign({t:'build',type:'N'},fr(s))));
+  assert.ok(E.apply(s,ctx(0),Object.assign({t:'build',type:'nest'},fr(s))).err);
 });
 
 t('доход за дни зачисляется один раз',()=>{
@@ -230,19 +262,17 @@ t('препятствий нет (4.1): вся открытая земля св�
 t('Огненный остров: открывается с 10-го уровня за золото, своя земля, постройки не пересекаются с первым островом',()=>{
   let s=E.normalize(start0(founders()),0,null);s.bal.gold=100000;s.bal.gems=500;
   assert.ok(E.apply(s,ctx(0),{t:'isle2'}).err,'на 1-м уровне закрыт');
-  assert.ok(E.apply(s,ctx(0),{t:'build',type:'farm',x:5,y:9,isl:1}).err,'строить на закрытом нельзя');
-  s.bal.xp=E.xpFor(E.ISLE2.L);
-  const g0=s.bal.gold;s=ok(E.apply(s,ctx(0),{t:'isle2'}));assert.strictEqual(s.bal.gold,g0-E.ISLE2.gold);assert.deepStrictEqual(s.isl2.land,E.START_LAND);
+  assert.ok(E.apply(s,ctx(0),{t:'build',type:'farm',x:4,y:4,isl:1}).err,'строить на закрытом нельзя');
+  s.bal.xp=E.xpFor(E.ISLE2.L);s=E.normalize(s,0,null);
+  const g0=s.bal.gold;s=ok(E.apply(s,ctx(0),{t:'isle2'}));assert.strictEqual(s.bal.gold,g0-E.ISLE2.gold);assert.strictEqual(E.extent(E.isle(s,1)).n,16);
   assert.ok(E.apply(s,ctx(0),{t:'isle2'}).err,'второй раз не открыть');
-  /* клетка занята на первом острове (Кальдера 4,5), а на втором свободна */
-  assert.ok(!E.canPlace(E.isle(s,0),4,5));assert.ok(E.canPlace(E.isle(s,1),4,5));
-  s=ok(E.apply(s,ctx(0),{t:'build',type:'farm',x:4,y:5,isl:1}));const b=s.bld.find(x=>x.id===s.last);assert.strictEqual(b.isl,1);
+  /* ячейка занята на первом острове, а на втором свободна */
+  const b0=s.bld[0];assert.ok(!E.canPlace(E.isle(s,0),b0.x,b0.y));assert.ok(E.canPlace(E.isle(s,1),b0.x,b0.y));
+  s=ok(E.apply(s,ctx(0),{t:'build',type:'farm',x:b0.x,y:b0.y,isl:1}));const b=s.bld.find(x=>x.id===s.last);assert.strictEqual(b.isl,1);
   assert.ok(E.isle(s,1).bld.some(x=>x.id===b.id));assert.ok(!E.isle(s,0).bld.some(x=>x.id===b.id));
-  assert.ok(E.apply(s,ctx(0),{t:'build',type:'farm',x:4,y:5,isl:1}).err,'занято на втором');
+  assert.ok(E.apply(s,ctx(0),{t:'build',type:'farm',x:b0.x,y:b0.y,isl:1}).err,'занято на втором');
   /* перенос внутри своего острова */
-  s=ok(E.apply(s,ctx(0),{t:'move',id:b.id,x:6,y:7}));assert.strictEqual(s.bld.find(x=>x.id===b.id).x,6);
-  /* участок второго острова покупается отдельно и в свою землю */
-  s=ok(E.apply(s,ctx(0),{t:'expand',chunk:'0,0',isl:1}));assert.ok(s.isl2.land.includes('0,0'));assert.ok(!s.land.includes('0,0'));
+  const f=fr(s,1);s=ok(E.apply(s,ctx(0),{t:'move',id:b.id,x:f.x,y:f.y}));assert.strictEqual(s.bld.find(x=>x.id===b.id).x,f.x);
   /* сохранение с Огненным островом проходит проверку, а постройка с isl:1 без острова — нет */
   const r=E.repair(JSON.parse(JSON.stringify(s)));assert.deepStrictEqual(r.bad,[]);
   const bad=JSON.parse(JSON.stringify(s));delete bad.isl2;assert.ok(E.repair(bad).bad.length);

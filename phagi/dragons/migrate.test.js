@@ -62,4 +62,30 @@ t('геномы и яйца из сценариев: валидны, яйцо в
   fixtures.forEach(([f,d])=>{d.dragons.forEach(x=>assert.deepStrictEqual(G.validate(x.genome),[],f+': '+x.id));
     d.bld.forEach(b=>{(b.slots||[]).forEach(e=>{if(e)assert.deepStrictEqual(G.validate(e.genome||e.egg),[],f+': яйцо '+b.id)})})})});
 
+
+t('здание с недопустимым уровнем (дом 99, ферма 0.5): сохранение блокируется с объяснением, а не падает дальше',()=>{
+  const s=fresh();const d=clone(s);d.bld[0].lvl=99;let r;assert.doesNotThrow(()=>{r=E.repair(d,inc)});
+  assert.ok(r.bad.some(x=>/уровень 99/.test(x)),r.bad.join('; '));
+  const d2=clone(s);d2.bld[2].lvl=0.5;assert.ok(E.repair(d2,inc).bad.length)});
+
+t('испорченные таймеры, координаты вне карты, повтор номера, улучшение не на следующий уровень',()=>{
+  const s=fresh();
+  const a=clone(s);a.bld[0].build={at:'вчера',need:10};assert.ok(E.repair(a,inc).bad.some(x=>/стройка/.test(x)));
+  const b=clone(s);b.bld[0].x=E.GRID-1;assert.ok(E.repair(b,inc).bad.some(x=>/вне карты/.test(x)));
+  const c=clone(s);c.bld[1].id=c.bld[0].id;assert.ok(E.repair(c,inc).bad.some(x=>/повтор/.test(x)));
+  const e=clone(s);e.dragons[1].id=e.dragons[0].id;assert.ok(E.repair(e,inc).bad.some(x=>/повтор/.test(x)));
+  const f=clone(s);f.bld[0].up={at:0,need:10,skip:0,to:3};assert.ok(E.repair(f,inc).bad.some(x=>/улучшение/.test(x)))});
+
+t('неполный геном яйца в инкубаторе и в гнездовье: блокируется, яйцо не подменяется догадкой',()=>{
+  const lab=clone(fixtures.find(([f])=>f==='isle-nurs.json')[1]);
+  const h=lab.bld.find(b=>b.type==='hatch'),k=h.slots.findIndex(Boolean);assert.ok(k>=0,'в сценарии есть яйцо');
+  delete h.slots[k].genome.A1;const r=E.repair(lab,inc);assert.ok(r.bad.some(x=>/яйцо/.test(x)),r.bad.join('; '));
+  const s=fresh();s.bld.push({id:'b9',type:'nest',x:1,y:5,lvl:1,build:null,up:null,pair:{m:'d1',f:'d2',at:0,need:10,skip:0,n:1,egg:{viable:true,genome:{sex:'F'}}}});
+  assert.ok(E.repair(s,inc).bad.some(x=>/пара/.test(x)))});
+
+t('дракон ссылается на дом, которого нет: переходит в ясли, геном и уровень на месте',()=>{
+  const s=fresh();const d=clone(s);d.dragons[0].home='b77';d.dragons[0].lvl=4;const r=E.repair(d,inc);
+  assert.deepStrictEqual(r.bad,[]);assert.strictEqual(r.s.dragons[0].home,null);assert.strictEqual(r.s.dragons[0].nurs,true);
+  assert.strictEqual(r.s.dragons[0].lvl,4);assert.deepStrictEqual(r.s.dragons[0].genome,d.dragons[0].genome)});
+
 console.log(`\n${n-fails}/${n} тестов прошли`);if(fails)process.exit(1);

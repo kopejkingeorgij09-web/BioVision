@@ -1,5 +1,5 @@
 /* регресс платформы: вход, «Карточки» без документа драконов, повтор 5 карточек, запись srs и серии, бактерии по умолчанию, перезагрузка */
-module.exports=async(page,{OUT,store,UID})=>{
+module.exports=async(page,{OUT,store,UID,need})=>{
   const W=process.env.W||1280,tag=(process.env.TAG||'')+W;const log=(...a)=>console.log('·',...a);
   log('вход: шапка',await page.evaluate(()=>!!document.querySelector('header,#top,.top')),'имя',await page.evaluate(()=>document.body.innerText.includes('Тестовая')));
   await page.click('[data-act="go"][data-v="cards"]');await page.waitForTimeout(800);
@@ -17,4 +17,6 @@ module.exports=async(page,{OUT,store,UID})=>{
   await page.reload();await page.waitForTimeout(2000);await page.click('[data-act="go"][data-v="cards"]');await page.waitForTimeout(800);
   log('после перезагрузки серия',JSON.stringify((store.get(`srs/${UID}/meta/streak`)||{}).d.days));
   await page.screenshot({path:`${OUT}/reg-${tag}-3-reload.png`});
-  log('гориз. прокрутка',await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))};
+  const sd=(store.get(`srs/${UID}/meta/streak`)||{}).d;need(sd&&sd.days&&sd.days[new Date().toISOString().slice(0,10)]>=8,'повторённые карточки засчитаны в серию дня');
+  need(keys.length>before,'прогресс карточек записан');
+  const hs=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);log('гориз. прокрутка',hs);need(!hs,'нет горизонтальной прокрутки')};

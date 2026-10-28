@@ -48,7 +48,7 @@ t('запись дошла, а ответ потерялся: «Повторит
   const {sv,st}=mk({food:40,fed:0});
   sv.fail.lost=1;st.apply(feed);assert.strictEqual(await st.settled(),'error');
   assert.strictEqual(sv.doc.fed,1,'на сервере запись уже есть');
-  assert.strictEqual(await st.retry(),'ok');assert.strictEqual(sv.doc.fed,1);assert.strictEqual(sv.doc.food,35);
+  const w0=sv.writes;assert.strictEqual(await st.retry(),'ok');assert.strictEqual(sv.writes,w0,'второй записи нет');assert.strictEqual(sv.doc.fed,1);assert.strictEqual(sv.doc.food,35);assert.strictEqual(sv.doc.rev,1);
   assert.strictEqual(st.status,'ok');assert.strictEqual(st.conf.fed,1)});
 
 t('запоздалый снимок (старый документ) во время записи не откатывает то, что видит игрок',async()=>{
@@ -90,6 +90,68 @@ t('старый документ без rev и op и неизвестные по
 t('первый документ (на сервере пусто), и пустой сервер при непустом conf считается конфликтом',async()=>{
   const {sv,st}=mk(null);st.apply(()=>({food:40}));assert.strictEqual(await st.settled(),'ok');assert.strictEqual(sv.doc.rev,1);
   const x=mk({food:5,rev:4});x.sv.doc=null;x.st.apply(feed);assert.strictEqual(await x.st.settled(),'conflict')});
+
+t('запоздалый снимок rev 1 после подтверждённой записи rev 2 не принимается и не меняет статус',async()=>{
+  const {sv,st}=mk({food:40,fed:0});
+  st.apply(feed);await st.settled();const r1=JSON.parse(JSON.stringify(sv.doc));assert.strictEqual(r1.rev,1);
+  st.apply(feed);await st.settled();assert.strictEqual(st.conf.rev,2);
+  st.snap(r1);assert.strictEqual(st.tip.rev,2,'остался rev 2');assert.strictEqual(st.tip.fed,2);assert.strictEqual(st.status,'ok')});
+
+t('чужой документ с тем же rev и другим op: конфликт, ничего не подменено',async()=>{
+  const {st}=mk({food:40,fed:0,rev:3,by:'A',op:'a3'});
+  st.snap({food:1,fed:9,rev:3,by:'B',op:'b3'});assert.strictEqual(st.status,'conflict');assert.strictEqual(st.tip.food,40);
+  st.takeRemote();assert.strictEqual(st.tip.food,1)});
+
+t('чужой документ с меньшим rev, которого мы не видели (старая вкладка переписала): конфликт',async()=>{
+  const {st}=mk({food:40,fed:0,rev:5,by:'A',op:'a5'});
+  st.snap({food:7,fed:0,rev:2,by:'old',op:'o2'});assert.strictEqual(st.status,'conflict');assert.strictEqual(st.tip.food,40)});
+
+t('документ, переписанный страницей без rev поверх нашего: конфликт, а не тихая замена',async()=>{
+  const {st}=mk({food:40,fed:0,rev:2,by:'A',op:'a2',updatedAt:'x'});
+  st.snap({food:3,fed:0,updatedAt:'y'});assert.strictEqual(st.status,'conflict')});
+
+t('конф без rev и op (старый документ): следующий снимок принимается',async()=>{
+  const {st}=mk({food:40,fed:0});st.snap({food:41,fed:0,updatedAt:'z'});assert.strictEqual(st.tip.food,41);assert.strictEqual(st.status,'ok')});
+
+t('документ удалили на сервере: конфликт без «взять с сервера», «Записать мою версию» продолжает rev',async()=>{
+  const {sv,st}=mk({food:40,fed:0,rev:4,by:'A',op:'a4'});
+  sv.doc=null;st.snap(null);assert.strictEqual(st.status,'conflict');assert.strictEqual(st.remote,null);assert.strictEqual(st.tip.food,40);
+  assert.strictEqual(await st.restore(),'ok');assert.strictEqual(sv.doc.food,40);assert.strictEqual(sv.doc.rev,5)});
+
+t('повтор того же подтверждённого снимка ничего не меняет и не вызывает перерисовку',async()=>{
+  let em=0;const {st}=mk({food:40,fed:0,rev:2,by:'A',op:'a2'},{onChange:()=>em++});em=0;
+  st.snap({food:40,fed:0,rev:2,by:'A',op:'a2'});assert.strictEqual(em,0);assert.strictEqual(st.status,'ok')});
+
+/* сервер с CAS (как ph_set_if): пишет, только если в базе лежит ожидаемая версия; проверка и запись атомарны */
+function casServer(doc){const s=server(doc);s.cas=async(d,rev,op)=>{s.writes++;await tick();
+  if(s.fail.write){s.fail.write--;throw {code:'unavailable'}}
+  const cur=s.doc,cr=cur?(Number.isInteger(cur.rev)?cur.rev:0):null;
+  if((cur==null)!==(rev==null)||cur&&(cr!==rev||(cur.op||null)!==op))return {ok:false,cur:cur&&JSON.parse(JSON.stringify(cur))};
+  if(d.rev!==(rev==null?0:rev)+1)throw {code:'bad rev'};
+  s.doc=JSON.parse(JSON.stringify(d));if(s.fail.lost){s.fail.lost--;throw {code:'unavailable'}}return {ok:true}};return s}
+function mkc(doc,o){const sv=casServer(doc),st=new Store({read:()=>sv.read(),write:d=>sv.write(d),cas:(d,r,p)=>sv.cas(d,r,p)},o);st.snap(doc);return {sv,st}}
+
+t('CAS: обычная запись одним вызовом, без чтения перед ней',async()=>{
+  const {sv,st}=mkc({food:40,fed:0});st.apply(feed);assert.strictEqual(await st.settled(),'ok');
+  assert.strictEqual(sv.reads,0);assert.strictEqual(sv.doc.rev,1);assert.strictEqual(sv.doc.fed,1)});
+
+t('CAS: другое устройство успело записать между нашими действиями: конфликт, его запись цела',async()=>{
+  const {sv,st}=mkc({food:40,fed:0,rev:2,by:'A',op:'a2'});
+  sv.doc={food:10,fed:3,rev:3,by:'B',op:'b3'};st.apply(feed);assert.strictEqual(await st.settled(),'conflict');
+  assert.strictEqual(sv.doc.by,'B');assert.strictEqual(st.remote.food,10)});
+
+t('CAS: ответ потерялся, «Повторить» узнаёт свою запись и не пишет второй раз',async()=>{
+  const {sv,st}=mkc({food:40,fed:0});sv.fail.lost=1;st.apply(feed);assert.strictEqual(await st.settled(),'error');
+  const w0=sv.writes;assert.strictEqual(await st.retry(),'ok');assert.strictEqual(sv.doc.fed,1);assert.strictEqual(sv.doc.rev,1);assert.strictEqual(sv.writes,w0+1,'один вызов CAS, который вернул нашу же запись')});
+
+t('CAS: две вкладки пишут одновременно, проходит ровно одна',async()=>{
+  const sv=casServer({food:40,fed:0});const io={read:()=>sv.read(),write:d=>sv.write(d),cas:(d,r,p)=>sv.cas(d,r,p)};
+  const a=new Store(io,{tab:'A'}),b=new Store(io,{tab:'B'});a.snap(sv.doc);b.snap(sv.doc);
+  a.apply(feed);b.apply(feed);const r=[await a.settled(),await b.settled()].sort();
+  assert.deepStrictEqual(r,['conflict','ok']);assert.strictEqual(sv.doc.fed,1)});
+
+t('CAS: первый документ (в базе пусто) пишется с ожиданием «документа нет»',async()=>{
+  const {sv,st}=mkc(null);st.apply(()=>({food:40}));assert.strictEqual(await st.settled(),'ok');assert.strictEqual(sv.doc.rev,1)});
 
 (async()=>{for(const [name,fn] of q){n++;try{await fn();console.log('ok  ',name)}catch(e){fails++;console.log('FAIL',name,'\n     ',e.stack.split('\n').slice(0,3).join(' '))}}
   console.log(`\n${n-fails}/${n} тестов прошли`);if(fails)process.exit(1)})();

@@ -1,5 +1,5 @@
 /* этап 4: карта похода по регионам, бои на двоих, особенности противников, общий вход «Бои», «Назад», осмотр → «В бой» */
-module.exports=async(page,{OUT,store,UID})=>{
+module.exports=async(page,{OUT,store,UID,need})=>{
   const W=process.env.W||1280,tag=(process.env.TAG||'')+W;const log=(...a)=>console.log('·',...a);const shot=n=>page.screenshot({path:`${OUT}/camp-${tag}-${n}.png`});
   const st=()=>page.evaluate(()=>DRFIGHT.state());
   const ow=()=>page.evaluate(()=>{const e=document.querySelector('.drf');return {page:document.documentElement.scrollWidth>innerWidth,drf:e?e.scrollWidth>e.clientWidth:null}});
@@ -13,7 +13,7 @@ module.exports=async(page,{OUT,store,UID})=>{
     tot:document.querySelector('.drf-tot').textContent,card:(document.querySelector('.drf-nc h3')||{}).textContent,
     pinMin:Math.min(...[...document.querySelectorAll('.drf-pin')].map(p=>p.getBoundingClientRect().width)),
     overlap:(()=>{const r=[...document.querySelectorAll('.drf-pin .drf-pc')].map(p=>p.getBoundingClientRect());let o=0;r.forEach((a,i)=>r.slice(i+1).forEach(b=>{if(a.left<b.right&&b.left<a.right&&a.top<b.bottom&&b.top<a.bottom)o++}));return o})()}));
-  log('карта',JSON.stringify(await mapInfo()));await shot('1-map');
+  const mi=await mapInfo();log('карта',JSON.stringify(mi));need(mi.tabs.length>=4,'на карте вкладки всех регионов');need(!mi.overlap,'метки узлов не перекрываются');need(!(await ow()).page,'нет горизонтальной прокрутки');await shot('1-map');
   /* отмели: цель t3 */
   await page.click('[data-fk="reg"][data-v="tide"]');await page.waitForTimeout(500);s=await st();log('отмели: выбран',s.sel,JSON.stringify(await mapInfo()));await shot('2-tide');
   /* закрытый узел: карточка объясняет, почему */
@@ -33,7 +33,7 @@ module.exports=async(page,{OUT,store,UID})=>{
   await page.click('[data-fk="start"]');await page.waitForTimeout(3000);await page.click('[data-fk="auto"]');await page.click('[data-fk="speed"]');
   let seen=false;const t0=Date.now();while(Date.now()-t0<120000){s=await st();if(!s||s.screen==='result')break;
     if(!seen&&await page.evaluate(()=>!!document.querySelector('.drf-tr'))){seen=true;await shot('6-t3fight')}await page.waitForTimeout(300)}
-  s=await st();log('t3: итог',JSON.stringify(s.result),'раундов',s.round,'значок особенности в бою',seen);
+  s=await st();log('t3: итог',JSON.stringify(s.result),'раундов',s.round,'значок особенности в бою',seen);need(s.screen==='result','бой t3 дошёл до итога');
   await page.waitForTimeout(1500);await shot('7-t3res');
   const saved=(store.get(`srs/${UID}/meta/dragons`)||{}).d;log('в базе pve.best',JSON.stringify(saved&&saved.pve.best));
   await page.click('[data-fk="map"]');await page.waitForTimeout(600);s=await st();log('после боя карта: регион',s.reg,'выбран',s.sel,JSON.stringify(await mapInfo()));
@@ -44,7 +44,7 @@ module.exports=async(page,{OUT,store,UID})=>{
   await shot('8-hub');
   /* поход со страницы «Бои», «Назад» закрывает его и остаётся на «Боях» */
   await page.click('.drg-hub [data-act="drgfight"]');await page.waitForTimeout(1500);log('поход открыт со страницы «Бои»',!!await page.$('.drf'),'история',await page.evaluate(()=>JSON.stringify(history.state)));
-  await page.goBack();await page.waitForTimeout(900);log('«Назад»: поход закрыт',!await page.$('.drf'),'страница',await page.evaluate(()=>(document.querySelector('#main .page-h h1')||{}).textContent));
+  await page.goBack();await page.waitForTimeout(900);need(!await page.$('.drf'),'«Назад» закрывает поход со страницы «Бои»');log('«Назад»: поход закрыт',!await page.$('.drf'),'страница',await page.evaluate(()=>(document.querySelector('#main .page-h h1')||{}).textContent));
   await page.click('.drg-hub [data-act="drgfight"]');await page.waitForTimeout(1200);await page.keyboard.press('Escape');await page.waitForTimeout(600);
   log('Esc: поход закрыт',!await page.$('.drf'),'страница',await page.evaluate(()=>(document.querySelector('#main .page-h h1')||{}).textContent),'история',await page.evaluate(()=>JSON.stringify(history.state)));
   /* осмотр → «В бой»: выбранный дракон первым в составе */
@@ -55,7 +55,7 @@ module.exports=async(page,{OUT,store,UID})=>{
   await page.click('.dri [data-dk="fight"]');await page.waitForTimeout(2000);
   log('из осмотра «'+nm+'»: поход',!!await page.$('.drf'),'подсказка',await page.evaluate(()=>(document.querySelector('.drf-want')||{}).textContent));await shot('9-want');
   await page.click('.drf-nc [data-fk="prep"]');await page.waitForTimeout(1500);s=await st();
-  log('подготовка: первым',s.pick[0],await page.evaluate(()=>(document.querySelector('.drf-pk.on b')||{}).textContent));
+  need(!!s.pick[0],'из осмотра выбранный дракон в составе');log('подготовка: первым',s.pick[0],await page.evaluate(()=>(document.querySelector('.drf-pk.on b')||{}).textContent));
   await page.click('[data-fk="map"]');await page.waitForTimeout(400);await page.click('[data-fk="close"]');await page.waitForTimeout(600);
   await page.click('.drg-dock [data-act="drgfull"][data-v="0"]').catch(()=>{});await page.waitForTimeout(800);
   log('остров закрыт кнопкой: адрес',page.url().replace(/^.*\//,''),'история',await page.evaluate(()=>JSON.stringify(history.state)));

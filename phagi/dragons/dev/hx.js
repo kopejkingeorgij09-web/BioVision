@@ -36,10 +36,23 @@ const rpc=(fn,a)=>{switch(fn){
     const out=rpc(fn,a);
     if(/^ph_(set|update)$/.test(fn)&&fail.lost){fail.lost--;return route.fulfill({status:503,contentType:'application/json',body:'{"message":"ответ потерялся (стенд)"}'})}
     route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(out)})});
-    const page=await ctx.newPage();const errs=[];page.on('pageerror',e=>errs.push(e.message));page.on('console',m=>{if(m.type()==='error')errs.push(m.text())});
+    const page=await ctx.newPage();
+  /* ошибки делятся на ожидаемые (оборванные внешние запросы и 503, которые сценарий сам включил через fail) и все остальные:
+     pageerror, 404 своих файлов, любые другие console.error. Остальные валят прогон так же, как проваленная проверка */
+  const errs=[],expected=[],miss=[];
+  page.on('pageerror',e=>errs.push('pageerror: '+e.message));
+  page.on('response',r=>{if(/^http:\/\/localhost:/.test(r.url())&&r.status()===404)miss.push(r.url().replace(/^http:\/\/localhost:\d+/,''))});
+  page.on('console',m=>{if(m.type()!=='error')return;const t=m.text();
+    if(/net::ERR_FAILED|ERR_BLOCKED|status of 503/.test(t))expected.push(t.slice(0,90));else if(/status of 404/.test(t))return;else errs.push(t)});
   await page.goto(`http://localhost:${srv.address().port}/index.html`);await page.waitForTimeout(1500);
   /* SHOW=1: окно браузера для просмотра руками, без сценария; база та же подставная, закрыть окно — выход */
   if(process.env.SHOW){console.log('Открыто окно стенда. Записи идут только в память стенда. Закройте окно, чтобы выйти.');await page.waitForEvent('close',{timeout:0});console.log('записей:',writes.length);await b.close();srv.close();return}
-  const sc=require(path.resolve(process.env.SCEN||'./scen.js'));try{await sc(page,{OUT,store,UID,ctx,fail,writes,blocked})}catch(e){console.log('SCENARIO FAIL',e.stack)}
-  console.log('errors:',JSON.stringify(errs));console.log('blocked external:',blocked.length,JSON.stringify(blocked.slice(0,5)));
-  await b.close();srv.close()})();
+  /* need(условие, что проверяли): проверка сценария. Провал печатается и делает код выхода ненулевым, сценарий идёт дальше */
+  const bad=[];const need=(ok,what)=>{console.log(ok?'  ✓':'  ✗',what);if(!ok)bad.push(what);return !!ok};
+  const sc=require(path.resolve(process.env.SCEN||'./scen.js'));let crash=null;
+  try{await sc(page,{OUT,store,UID,ctx,fail,writes,blocked,need})}catch(e){crash=e;console.log('SCENARIO FAIL',e.stack)}
+  console.log('errors:',JSON.stringify(errs));if(miss.length)console.log('404:',JSON.stringify(miss));
+  console.log('expected (сеть стенда):',expected.length);console.log('blocked external:',blocked.length,JSON.stringify(blocked.slice(0,5)));
+  const res=crash?'FAIL (сценарий упал)':bad.length?'FAIL ('+bad.length+' проверок: '+bad.join('; ')+')':errs.length||miss.length?'FAIL (ошибки страницы)':'PASS';
+  console.log('RESULT',res);
+  await b.close();srv.close();process.exitCode=res==='PASS'?0:1})().catch(e=>{console.log('HARNESS FAIL',e.stack);process.exitCode=2});

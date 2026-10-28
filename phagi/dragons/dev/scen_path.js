@@ -1,6 +1,6 @@
 /* «Первый потомок» с нового профиля: режим драконов → цель → кормление → стройка → пара → яйцо → вылупление.
    Ресурсы новому профилю дописываются в подставную базу (учебный fixture), ожидание закрывается самоцветами */
-module.exports=async(page,{OUT,store,UID,writes})=>{
+module.exports=async(page,{OUT,store,UID,writes,need})=>{
   const W=process.env.W||1280,tag=(process.env.TAG||'')+W;const log=(...a)=>console.log('·',...a);const shot=n=>page.screenshot({path:`${OUT}/path-${tag}-${n}.png`});
   const w=t=>page.waitForTimeout(t),P=`srs/${UID}/meta/dragons`;
   const inPanel=sel=>page.$(`.drg-bp ${sel}`);
@@ -8,7 +8,7 @@ module.exports=async(page,{OUT,store,UID,writes})=>{
   const open=async()=>{const g=await page.$('.drg-goal');if(g){await g.click()}else await page.click('[data-act=drgpanel][data-v=breed]');await w(500)};
   await page.click('[data-act="go"][data-v="cards"]');await w(600);
   await page.click('[data-act="drgmode"][data-v="dragons"]');await w(1200);
-  log('новый профиль: документ создан',!!store.get(P),'цель в «Карточках»:',await page.evaluate(()=>{const n=document.querySelector('.drg-notes');return n?n.textContent.slice(0,90):'—'}));
+  need(!!store.get(P),'новому профилю создан документ острова');log('новый профиль: документ создан',!!store.get(P),'цель в «Карточках»:',await page.evaluate(()=>{const n=document.querySelector('.drg-notes');return n?n.textContent.slice(0,90):'—'}));
   await shot('0-cards');
   const d=store.get(P).d;d.bal.xp=Math.max(d.bal.xp,112);d.bal.gold=5000;d.bal.food=600;d.bal.gems=200;d.rev=(d.rev||0)+1;d.op='fixture';
   await page.reload();await w(1800);await page.click('[data-act="go"][data-v="cards"]');await w(600);
@@ -34,6 +34,6 @@ module.exports=async(page,{OUT,store,UID,writes})=>{
   if(hb){await hb.click();await w(900)}
   log('панель:',await page.evaluate(()=>(document.querySelector('.drg-pan h2')||{}).textContent),'строка сохранения:',await page.evaluate(()=>(document.querySelector('.drg-baby .drg-sv')||{}).textContent||'—'));
   await shot('5-baby');
-  const s=store.get(P).d;log('в базе: потомков в журнале',(s.log||[]).filter(r=>r.child).length,'драконов',s.dragons.length,'rev',s.rev);
+  const s=store.get(P).d;need((s.log||[]).filter(r=>r.child).length===1,'в базе ровно один потомок в журнале');log('в базе: потомков в журнале',(s.log||[]).filter(r=>r.child).length,'драконов',s.dragons.length,'rev',s.rev);
   await page.click('[data-act=drgpanel][data-v=breed]').catch(()=>{});await w(500);log('после потомка:',await page.evaluate(()=>(document.querySelector('.drg-bp h2')||{}).textContent),'цель в шапке',!!await page.$('.drg-goal'));
   await shot('6-done')}

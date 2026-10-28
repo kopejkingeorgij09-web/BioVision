@@ -1,5 +1,5 @@
 /* остров на весь экран: камера по границам, нижний ряд без перекрытий, «Мои постройки», клавиатура, «Назад» и перезагрузка */
-module.exports=async(page,{OUT})=>{
+module.exports=async(page,{OUT,need})=>{
   const W=+(process.env.W||1280),tag=(process.env.TAG||'')+W;const log=(...a)=>console.log('·',...a);const shot=n=>page.screenshot({path:`${OUT}/isle-${tag}-${n}.png`});const w=t=>page.waitForTimeout(t);
   await page.click('[data-act="go"][data-v="cards"]');await w(600);
   await page.click('[data-act="drgmode"][data-v="dragons"]').catch(()=>{});await w(800);
@@ -12,12 +12,13 @@ module.exports=async(page,{OUT})=>{
     return {ov,off,dock:Math.round(dk.width),build:isl.map(Math.round),freeY:[Math.round(hd.bottom),Math.round(dk.top)],scroll:document.documentElement.scrollWidth>innerWidth,tabs:document.querySelectorAll('.drg-isl [tabindex="0"]').length}});
   const g=await geo();log('перекрытия',JSON.stringify(g.ov),'за краем',JSON.stringify(g.off),'гориз. прокрутка',g.scroll);
   log('постройки на экране',JSON.stringify(g.build),'свободно по высоте',JSON.stringify(g.freeY),'ширина окна',W,'объектов с Tab',g.tabs);
+  need(!g.ov.length,'нижний ряд и кнопки не перекрываются');need(!g.off.length,'кнопки не за краем экрана');need(!g.scroll,'нет горизонтальной прокрутки');need(g.tabs>0,'постройки доступны с клавиатуры');
   await shot('0');
   // клавиатура: фокус на первую постройку, Enter открывает, Escape закрывает и возвращает фокус
   await page.evaluate(()=>document.querySelector('.drg-isl .drg-b[tabindex]').focus());await page.keyboard.press('Enter');await w(600);
   const t1=await page.evaluate(()=>({h:(document.querySelector('#main>.drg-pan h2')||{}).textContent,f:document.activeElement&&document.activeElement.tagName}));
-  log('Enter на постройке: панель',t1.h,'фокус в',t1.f);await shot('1-kbd');
-  await page.keyboard.press('Escape');await w(500);log('Escape: фокус вернулся на постройку',await page.evaluate(()=>!!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('.drg-b'))));
+  log('Enter на постройке: панель',t1.h,'фокус в',t1.f);need(!!t1.h,'Enter открывает панель постройки');await shot('1-kbd');
+  await page.keyboard.press('Escape');await w(500);const fb=await page.evaluate(()=>!!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('.drg-b')));log('Escape: фокус вернулся на постройку',fb);need(fb,'Escape возвращает фокус на постройку');
   // «Мои постройки»
   await page.click('.drg-zm [data-v=blds]');await w(500);log('Мои постройки:',await page.evaluate(()=>document.querySelectorAll('.drg-bls li').length),'строк');await shot('2-blds');
   // история: «Назад» закрывает панель, потом весь экран, потом остров
@@ -25,7 +26,7 @@ module.exports=async(page,{OUT})=>{
   log('перед «Назад»',JSON.stringify(await where()));
   await page.goBack();await w(600);log('«Назад» 1',JSON.stringify(await where()));
   await page.click('[data-act=drgpanel][data-v=shop]');await w(500);log('открыл «Строить»',JSON.stringify(await where()));
-  await page.reload();await w(2500);log('после перезагрузки',JSON.stringify(await where()));await shot('3-reload');
+  await page.reload();await w(2500);const rl=await where();log('после перезагрузки',JSON.stringify(rl));need(rl.view!=='other','после перезагрузки снова остров');await shot('3-reload');
   await page.click('#main>.drg-pan [data-act=drgpanel][data-v=""]');await w(500);log('закрыл кнопкой',JSON.stringify(await where()));
   await page.goBack();await w(700);log('«Назад» 2',JSON.stringify(await where()));
   await page.goBack();await w(700);log('«Назад» 3',JSON.stringify(await where()));

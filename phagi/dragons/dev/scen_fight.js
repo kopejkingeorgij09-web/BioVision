@@ -1,5 +1,5 @@
 /* поход: карта → подготовка → бой (игрок жмёт приёмы, точный удар) → итог → запись звёзд → перезагрузка */
-module.exports=async(page,{OUT,store,UID})=>{
+module.exports=async(page,{OUT,store,UID,need})=>{
   const W=process.env.W||1280,tag=(process.env.TAG||'')+W;const log=(...a)=>console.log('·',...a);const shot=n=>page.screenshot({path:`${OUT}/fight-${tag}-${n}.png`});
   const st=()=>page.evaluate(()=>DRFIGHT.state());
   await page.click('[data-act="go"][data-v="cards"]').catch(()=>{});await page.waitForTimeout(600);
@@ -32,9 +32,10 @@ module.exports=async(page,{OUT,store,UID})=>{
   s=await st();log('итог',JSON.stringify(s.result),'раундов',s.round,'приёмы',[...usedSk].join(','),'точных',perfects,'из',presses);
   const m=a=>{a=a.slice().sort((x,y)=>x-y);return a.length?+a[a.length>>1].toFixed(2):null},p95=a=>{a=a.slice().sort((x,y)=>x-y);return a.length?+a[Math.floor(a.length*.95)].toFixed(2):null};
   log('кадр: отрисовка мед',m(s.draw),'p95',p95(s.draw),'интервал мед',m(s.frame));
+  need(s.result&&s.result.won,'бой e1 выигран');need(perfects<=presses,'точных ударов не больше нажатий');
   await page.waitForTimeout(1200);await shot('5-result');
   const saved=(store.get(`srs/${UID}/meta/dragons`)||{}).d;log('в базе pve',JSON.stringify(saved&&saved.pve),'драконов',saved&&saved.dragons.length,'золото',saved&&Math.floor(saved.bal.gold),'корм',saved&&Math.floor(saved.bal.food));
-  const mem=await page.evaluate(()=>performance.memory?Math.round(performance.memory.usedJSHeapSize/1e6):null);log('JS-память, МБ',mem);
+  need(saved&&saved.pve&&saved.pve.best&&saved.pve.best.e1>=1,'звёзды e1 записаны');const mem=await page.evaluate(()=>performance.memory?Math.round(performance.memory.usedJSHeapSize/1e6):null);log('JS-память, МБ',mem);
   await page.click('[data-fk="map"]');await page.waitForTimeout(1000);await shot('6-map2');
   await page.keyboard.press('Escape');await page.waitForTimeout(800);log('поход закрыт',await page.evaluate(()=>!document.querySelector('.drf')),'остров живой',await page.evaluate(()=>DRLIVE.stats().running));
   await page.reload();await page.waitForTimeout(2000);
@@ -43,4 +44,5 @@ module.exports=async(page,{OUT,store,UID})=>{
   if(!await page.$('.drg-map.full')){await page.click('[data-act="go"][data-v="cards"]').catch(()=>{});await page.waitForTimeout(600);await page.click('[data-act="drgopen"][data-full]');await page.waitForTimeout(1500)}
   await page.click('.drg-dock [data-act="drgfight"]');await page.waitForTimeout(2000);
   log('после перезагрузки звёзды',await page.evaluate(()=>document.querySelector('.drf-tot').textContent),'e2 открыт',await page.evaluate(()=>!document.querySelector('.drf-pin[data-id=e2]').classList.contains('lock')));
+  need(await page.evaluate(()=>!document.querySelector('.drf-pin[data-id=e2]').classList.contains('lock')),'после перезагрузки e2 открыт');
   await shot('7-reload')};

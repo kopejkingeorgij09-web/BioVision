@@ -12,6 +12,7 @@ const HAB_LV=[null,{cap:2,chest:300},{cap:3,chest:900,cost:500,need:20},{cap:4,c
 const FARM_LV=[null,{plots:2},{plots:3,cost:300,need:10},{plots:4,cost:1000,need:25}];
 const HATCH_LV=[null,{slots:2},{slots:3,cost:600,need:15},{slots:4,cost:1800,need:30}];
 /* скрещивание */
+const DRAGON_MAX=20;                    /* предельный уровень дракона */
 const BREED_LV=3;                       /* родители не ниже 3-го уровня */
 const breedCost=(rm,rf)=>50*(1+rm+rf);
 const BREED_NEED=10;                    /* пара в Гнездовье: карточек до яйца */
@@ -147,19 +148,37 @@ function repair(d,inc){const fix=[],bad=[];
   if(!Array.isArray(s.land)||!s.land.length){s.land=START_LAND.slice();fix.push('земля')}else{const n=s.land.length;s.land=s.land.filter(x=>typeof x==='string');if(s.land.length<n)fix.push('земля')}
   if(s.clr!==undefined&&!Array.isArray(s.clr)){s.clr=[];fix.push('расчищенные клетки')}
   if(!Array.isArray(s.bld)){bad.push('постройки');s.bld=[]}
+  /* задание (стройка, улучшение, грядка, пара, яйцо): момент начала и длина в карточках */
+  const jobOk=j=>j&&typeof j==='object'&&num(j.at)&&num(j.need)&&(j.skip===undefined||int(j.skip));
+  const geneOk=g=>!!g&&typeof g==='object'&&!G.validate(g).length;
+  const bids=new Set(),dids=new Set();
   s.bld.forEach((b,i)=>{const t=b&&TYPES[b.type],nm='постройка '+(b&&b.id||i+1);
     if(!t||typeof b.id!=='string'||!int(b.x)||!int(b.y)){bad.push(nm);return}
-    if(!int(b.lvl)||b.lvl<1){b.lvl=1;fix.push(nm+': уровень')}
-    if(t.kind==='hab'&&(!b.chest||typeof b.chest!=='object')){b.chest={amt:0,k0:null};fix.push(nm+': сундук')}
-    if(t.kind==='farm'&&!Array.isArray(b.plots)){b.plots=Array(FARM_LV[Math.min(b.lvl,3)].plots).fill(null);fix.push(nm+': грядки')}
-    if(t.kind==='hatch'&&!Array.isArray(b.slots)){b.slots=Array(HATCH_LV[Math.min(b.lvl,3)].slots).fill(null);fix.push(nm+': ячейки')}
-    if(t.kind==='nest'&&b.pair===undefined)b.pair=null});
+    if(bids.has(b.id)){bad.push(nm+': повтор номера');return}bids.add(b.id);
+    if(b.x+2>GRID||b.y+2>GRID){bad.push(nm+': вне карты');return}
+    if(b.lvl===undefined){b.lvl=1;fix.push(nm+': уровень')}
+    const T=lvTable(b.type),top=T?T.length-1:1;
+    if(!int(b.lvl)||b.lvl<1||b.lvl>top){bad.push(nm+': уровень '+b.lvl+' (бывает 1–'+top+')');return}
+    if(b.build!=null&&!jobOk(b.build))bad.push(nm+': стройка');
+    if(b.up!=null&&(!jobOk(b.up)||b.up.to!==b.lvl+1||b.up.to>top))bad.push(nm+': улучшение');
+    if(t.kind==='hab'){if(!b.chest||typeof b.chest!=='object'){b.chest={amt:0,k0:null};fix.push(nm+': сундук')}
+      else if(!num(b.chest.amt)||!(b.chest.k0===null||num(b.chest.k0)))bad.push(nm+': сундук')}
+    if(t.kind==='farm'){if(!Array.isArray(b.plots)){b.plots=Array(FARM_LV[b.lvl].plots).fill(null);fix.push(nm+': грядки')}
+      else if(b.plots.length>FARM_LV[top].plots||b.plots.some(p=>p!==null&&(!jobOk(p)||!CROPS[p.crop])))bad.push(nm+': грядки')}
+    if(t.kind==='hatch'){if(!Array.isArray(b.slots)){b.slots=Array(HATCH_LV[b.lvl].slots).fill(null);fix.push(nm+': ячейки')}
+      else if(b.slots.length>HATCH_LV[top].slots)bad.push(nm+': ячейки');
+      else b.slots.forEach((e,k)=>{if(e!==null&&(!jobOk(e)||!geneOk(e.genome)||typeof e.viable!=='boolean'))bad.push(nm+': яйцо в ячейке '+(k+1))})}
+    if(t.kind==='nest'){if(b.pair===undefined)b.pair=null;
+      else if(b.pair!==null&&(!jobOk(b.pair)||typeof b.pair.m!=='string'||typeof b.pair.f!=='string'||!b.pair.egg||!geneOk(b.pair.egg.genome)))bad.push(nm+': пара и яйцо')}});
   if(!Array.isArray(s.dragons)){bad.push('драконы');s.dragons=[]}
   s.dragons.forEach((x,i)=>{const nm='дракон '+(x&&x.name||i+1);
-    if(!x||typeof x.id!=='string'||G.validate(x.genome).length){bad.push(nm);return}
-    if(x.lvl===undefined){x.lvl=1;fix.push(nm+': уровень')}else if(!int(x.lvl)||x.lvl<1||x.lvl>20)bad.push(nm+': уровень');
+    if(!x||typeof x.id!=='string'||!geneOk(x.genome)){bad.push(nm);return}
+    if(dids.has(x.id)){bad.push(nm+': повтор номера');return}dids.add(x.id);
+    if(x.lvl===undefined){x.lvl=1;fix.push(nm+': уровень')}else if(!int(x.lvl)||x.lvl<1||x.lvl>DRAGON_MAX)bad.push(nm+': уровень');
     if(!int(x.fed)){x.fed=0;fix.push(nm+': кормления')}
-    if(x.home===undefined)x.home=null});
+    if(x.home===undefined)x.home=null;
+    /* дом, которого нет или который не дом: дракон не теряется, он переходит в ясли и ждёт переселения */
+    else if(x.home!==null){const h=s.bld.find(b=>b&&b.id===x.home);if(!h||!TYPES[h.type]||TYPES[h.type].kind!=='hab'){x.home=null;x.nurs=true;fix.push(nm+': дом не найден, в яслях')}}});
   const ids=a=>Math.max(0,...a.map(z=>+String(z&&z.id||'').replace(/\D/g,'')||0))+1;
   if(!int(s.seq)){s.seq=ids(s.dragons);fix.push('счётчик драконов')}else s.seq=Math.max(s.seq,ids(s.dragons));
   if(!int(s.bseq)){s.bseq=ids(s.bld);fix.push('счётчик построек')}else s.bseq=Math.max(s.bseq,ids(s.bld));
@@ -358,7 +377,7 @@ function unlocksAt(L){const out=[];if(L<=1)return out;
 /* ближайший уровень после L, на котором открывается что-то кроме мест и ферм (до 60) */
 function nextMajor(L){for(let k=L+1;k<=60;k++){const u=unlocksAt(k).filter(x=>!/^ещё/.test(x));if(u.length)return {L:k,list:u}}return null}
 
-const DECO={repair,unlocksAt,nextMajor,NURSERY,homeFor,nursery,breedPath,HATCH_LV,BREED_LV,breedCost,BREED_NEED,HATCH_NEED,PRED_TOL,lvTable,summary,habNames,TYPES,HAB_ORDER,HAB_LV,FARM_LV,CROPS,RAR_GOLD,SKIP_CARDS,GRID,CHUNK,START_LAND,LAND_COST,MILESTONES,FEEDS,RATION,
+const DECO={DRAGON_MAX,repair,unlocksAt,nextMajor,NURSERY,homeFor,nursery,breedPath,HATCH_LV,BREED_LV,breedCost,BREED_NEED,HATCH_NEED,PRED_TOL,lvTable,summary,habNames,TYPES,HAB_ORDER,HAB_LV,FARM_LV,CROPS,RAR_GOLD,SKIP_CARDS,GRID,CHUNK,START_LAND,LAND_COST,MILESTONES,FEEDS,RATION,
   xpFor,levelOf,maxHabs,maxFarms,maxDragonLv,feedCost,income,startState,hosts,dragonKeys,goldPerCard,rate,settle,chestNow,normalize,
   canPlace,chunkOf,apply,OBST,OBST_KIND,obstacles,ready,left,level,count,streakMult,marketGenome,habCap,chestCap};
 if(typeof module!=='undefined'&&module.exports)module.exports=DECO;else root.DECO=DECO;

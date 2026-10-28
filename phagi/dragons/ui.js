@@ -44,7 +44,8 @@ function storeOf(uid){
   if(!STORES[uid]){const path=`srs/${uid}/meta/dragons`;
     STORES[uid]=new DRSTORE.Store({read:()=>window.PHCLOUD&&PHCLOUD.fresh?PHCLOUD.fresh(path):S.db.doc(path).get().then(x=>x.exists?x.data():null),
       /* запись уходит только под тем кодом, с которым открыта страница: после выхода или чужого входа в другой вкладке не пишем */
-      write:d=>window.PHCLOUD&&PHCLOUD.session&&!PHCLOUD.session()?Promise.reject({code:'session'}):S.db.doc(path).set(d)},{onChange:st=>{S.drag=S.drag||{};S.drag[uid]=st.tip;
+      write:d=>window.PHCLOUD&&PHCLOUD.session&&!PHCLOUD.session()?Promise.reject({code:'session'}):S.db.doc(path).set(d),
+      cas:window.PHCLOUD&&PHCLOUD.CAS?(d,rev,op)=>PHCLOUD.session()?PHCLOUD.casSet(path,d,rev,op):Promise.reject({code:'session'}):null},{onChange:st=>{S.drag=S.drag||{};S.drag[uid]=st.tip;
         /* об ошибке говорит строка сохранения с кнопками; всплывающее сообщение закрывало бы её на телефоне */
         clearTimeout(storeOf.h);storeOf.h=setTimeout(()=>render(),0)}})}
   return STORES[uid]}
@@ -63,6 +64,7 @@ function canAct(uid){const st=storeOf(uid);if(!st||st.canAct())return true;
 /* строка состояния сохранения: в шапке острова и в «Карточках», если что-то не так */
 function saveHTML(uid,quiet){const st=storeOf(uid);if(!st||!st.loaded)return '';
   if(st.status==='error')return `<div class="drg-sv err" role="status"><span>Последнее действие не сохранилось${st.err&&st.err.code==='unavailable'?': нет связи с облаком':st.err&&st.err.code==='session'?': в другой вкладке вышли или вошли под другим кодом. Обновите страницу':''}.</span><button class="btn sm" data-act="drgsave" data-v="retry">Повторить</button><button class="btn ghost sm" data-act="drgsave" data-v="discard">Отменить</button></div>`;
+  if(st.status==='conflict'&&!st.remote)return `<div class="drg-sv err" role="status"><span>Остров на сервере не найден: его удалили или сбросили в другом месте. Ваша версия на этой странице цела.</span><button class="btn sm" data-act="drgsave" data-v="restore">Записать мою версию</button></div>`;
   if(st.status==='conflict')return `<div class="drg-sv err" role="status"><span>Остров изменили в другой вкладке или на другом устройстве. Чтобы ничего не перезаписать, возьмите ту версию.</span><button class="btn sm" data-act="drgsave" data-v="remote">Взять с сервера</button></div>`;
   if(quiet)return '';
   return `<span class="drg-sv ${st.status}" role="status" aria-live="polite">${st.status==='saving'?'Сохраняю…':'✓ Сохранено'}</span>`}
@@ -688,7 +690,8 @@ window.DRG_ACTIONS={
   drgsave:el=>{const st=storeOf(meId());if(!st)return;const v=el.dataset.v;
     if(v==='retry')st.retry().then(s=>{if(s==='ok')toast('Сохранено')});
     else if(v==='discard'){st.discard();toast('Вернулась последняя сохранённая версия острова')}
-    else if(v==='remote'){st.takeRemote();toast('Взята версия с сервера')}},
+    else if(v==='remote'){st.takeRemote();toast('Взята версия с сервера')}
+    else if(v==='restore')st.restore()},
   drgpanel:el=>{S.drgPanel=el.dataset.v||null;S.drgSel=null;S.drgPlace=null},
   /* из ожидания на острове прямо к повторению: время острова идёт только в карточках */
   drgcards:()=>{S.drgFull=false;S.drgPanel=null;S.drgSel=null;S.drgPlace=null;S.view='cards';window.scrollTo(0,0)},

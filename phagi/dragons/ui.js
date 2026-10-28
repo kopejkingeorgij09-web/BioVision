@@ -229,6 +229,12 @@ function homeHint(st,d){const L=E.level(st),keys=E.dragonKeys(phOf(d)).map(k=>k=
   const can=keys.find(k=>L>=E.TYPES[k].unlock&&E.count(st,'hab')<E.maxHabs(L)),full=st.bld.find(b=>keys.includes(b.type)&&!b.build&&!b.up&&E.lvTable(b.type)&&E.lvTable(b.type)[b.lvl+1]);
   return `<div class="actions" style="justify-content:flex-start">${can?`<button class="btn sm" data-act="drgbuild" data-type="${can}">🔨 Построить: ${esc(E.TYPES[can].name)}</button>`:''}${full?`<button class="btn ghost sm" data-act="drgsel" data-id="${full.id}">⬆️ Улучшить: ${esc(E.TYPES[full.type].name)}</button>`:''}</div>`}
 
+/* что ждёт ученицу в «Ещё» (4.4): нерешённые головоломки дня, награды недели и подарки за ДЗ, которые можно забрать */
+function todoInfo(st,c){if(!c||!c.today)return {pz:0,wq:0,gift:0};const pzd=st.pz&&st.pz.d===c.today?st.pz.done.length:0;
+  const wq=E.wqList(st,c.today).filter(id=>{const p=E.wqProgress(st,c,id);return p.done&&!p.got}).length;
+  const gift=((c.info&&c.info.hw)||[]).filter(b=>b.egg&&!(st.hwgift||[]).includes(b.id)).length;
+  return {pz:window.DRPZ?Math.max(0,DRPZ.KINDS.length-pzd):0,wq,gift}}
+const todoN=(st,c)=>{const t=todoInfo(st,c);return t.pz+t.wq+t.gift};
 /* ---------- задания недели и подарок за ДЗ (4.4) ---------- */
 const rwd=r=>[r.gold?`${fmt(r.gold)} 🪙`:'',r.gems?`${r.gems} 💎`:'',r.food?`${fmt(r.food)} 🌾`:''].filter(Boolean).join(' · ');
 function weekHTML(st,c){const L=E.wqList(st,c.today),mon=E.weekOf(c.today);
@@ -329,10 +335,10 @@ function islandView(){
     const pill=(k,ic,v,t)=>own?`<button class="drg-pill" data-act="drgpanel" data-v="res:${k}" aria-label="${t}: ${fmt(v)}. Как получить"><i aria-hidden="true">${ic}</i><span><b>${fmt(v)}</b><small>${t.toLowerCase()}</small></span><em aria-hidden="true">+</em></button>`
       :`<span class="drg-pill" title="${t}"><i aria-hidden="true">${ic}</i><span><b>${fmt(v)}</b><small>${t.toLowerCase()}</small></span></span>`;
     const P=S.drgPanel||'',rb=(act,v,ic,t,o)=>{o=o||{};const on=act==='drgpanel'&&P===v||o.on;
-      return `<button class="drg-rb${o.big?' big':''}" data-act="${act}" data-v="${v}"${o.lab?` aria-label="${o.lab}${o.k?' (клавиша '+o.k+')':''}"`:''}${o.k?` title="Клавиша ${o.k}" aria-keyshortcuts="${o.k}"`:''}${on?' aria-current="true"':''}><i aria-hidden="true">${ic}</i><span>${t}</span>${o.k?`<kbd class="drg-kb" aria-hidden="true">${o.k}</kbd>`:''}</button>`};
+      return `<button class="drg-rb${o.big?' big':''}" data-act="${act}" data-v="${v}"${o.lab?` aria-label="${o.lab}${o.n?`, ждут: ${o.n}`:''}${o.k?' (клавиша '+o.k+')':''}"`:''}${o.k?` title="Клавиша ${o.k}" aria-keyshortcuts="${o.k}"`:''}${on?' aria-current="true"':''}><i aria-hidden="true">${ic}</i><span>${t}</span>${o.n?`<b class="drg-bdg" aria-hidden="true">${o.n}</b>`:''}${o.k?`<kbd class="drg-kb" aria-hidden="true">${o.k}</kbd>`:''}</button>`};
     const dock=own?rb('drgfull','0','🏠','Домой',{lab:'Домой: из острова на страницу',k:'Esc'})+rb('drgpanel','dragons','📖','Драконы',{lab:'Драконы',k:'D'})
         +rb('drgpanel','breed','🥚','<b class="lg">Скрещивание</b><b class="sm">Яйца</b>',{lab:'Скрещивание и яйца',k:'E'})
-        +(st.dragons.length?rb('drgfight','','⚔️','Поход',{lab:'Поход: бои драконов',k:'P'}):'')+rb('drgpanel','shop','🔨','Строить',{big:1,lab:'Строить',k:'B'})+rb('drgpanel','more','☰','Ещё',{lab:'Ещё: рынок, журнал, мои постройки, справка',k:'M'})
+        +(st.dragons.length?rb('drgfight','','⚔️','Поход',{lab:'Поход: бои драконов',k:'P'}):'')+rb('drgpanel','shop','🔨','Строить',{big:1,lab:'Строить',k:'B'})+rb('drgpanel','more','☰','Ещё',{lab:'Ещё: головоломки, задания недели, рейтинг, рынок, журнал',k:'M',n:todoN(st,c)})
       :visit?rb('drgvisit','','🏠','Домой',{lab:'Домой, на свой остров'})+rb('drgpanel','dragons','📖','Драконы')+rb('drgpanel','blds','🏘','Постройки')+rb('drgpanel','top','🏆','Рейтинг')
       :rb('drgfull','0','🏠','Назад')+rb('drgpanel','dragons','📖','Драконы')+rb('drgpanel','journal','📓','Журнал')+rb('drgpanel','blds','🏘','Постройки');
     return `<div class="drg-map full${pl?' placing':''}${cur?' lava':''}">
@@ -637,7 +643,8 @@ function moreHTML(st,own,c){const it=(act,v,ic,t,d)=>`<button class="drg-mi" dat
   return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>Ещё</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div>${c?scalesHTML(st,c):''}<div class="drg-menu">
   ${own?it('drgpanel','market','🐉','Рынок драконов','купить дракона одной стихии'):''}${it('drgpanel','journal','📓','Журнал скрещиваний','потомство пар и доли признаков')}
   ${it('drgpanel','blds','▤','Мои постройки','список зданий: открыть любое')}${it('drgzoom','fit','⤢','Весь остров','вернуть вид целиком')}
-  ${own?it('drgpanel','pz','🧩','Головоломки дня',`задачи на логику: до ${3*(window.DRPZ?DRPZ.REWARD:100)} 🪙 в день`)+it('drgpanel','week','📜','Задания недели','три задания с наградой'):''}
+  ${own?(()=>{const t=todoInfo(st,c);return it('drgpanel','pz','🧩','Головоломки дня',t.pz?`осталось ${t.pz} из 3 сегодня · по ${window.DRPZ?DRPZ.REWARD:100} 🪙`:'на сегодня всё решено, завтра новые')
+    +it('drgpanel','week','📜','Задания недели',t.wq||t.gift?`можно забрать: ${t.wq+t.gift}`:'три задания с наградой')})():''}
   ${it('drgpanel','top','🏆','Рейтинг островов','уровни, звёзды похода, в гости')}
   ${it('drgpanel','research','🔬','Цели исследования','разовые награды за открытия в разведении')}
   ${it('drgcards','','📚','Повторять карточки','время острова идёт в карточках')}${it('drgpanel','help','?','Как это работает','золото, корм, самоцветы, уровни')}</div></section>`}

@@ -963,6 +963,8 @@ nav:empty{display:none}
 .rolesw button[aria-pressed="true"]{background:var(--ink);color:var(--card)}
 .rolesw button:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
 .rolesw.busy{opacity:.6;pointer-events:none}
+/* hidden должен прятать переключатель: иначе display:flex выше показывал его и ученическому коду, где кнопки ничего не делают */
+.rolesw[hidden]{display:none!important}
 .srbtn{all:unset;box-sizing:border-box;flex:none;cursor:pointer;display:flex;align-items:center;gap:9px;height:40px;padding:0 8px 0 12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--muted);font-size:14px;min-width:230px;transition:border-color .15s,color .15s}
 .srbtn:hover{border-color:var(--ink);color:var(--text)}
 .srbtn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}

@@ -222,6 +222,9 @@ function normalize(s,K,inc,gk){
   s=clone(s);gk=gk||(inc&&inc.gk)||ID;
   if(inc){const df=inc.food-(s.credited.food||0),dg=inc.gems-(s.credited.gems||0);
     if(df>0){s.bal.food+=df;s.credited.food=inc.food}if(dg>0){s.bal.gems+=dg;s.credited.gems=inc.gems}
+    /* бонус за ДЗ (inc.hw: сумма за все засчитанные задания): начисляется только прирост, своё поле учёта, не смешивается с серией */
+    if(inc.hw){const hg=(inc.hw.gems|0)-(s.credited.hwg||0),hf=(inc.hw.food|0)-(s.credited.hwf||0);
+      if(hg>0){s.bal.gems+=hg;s.credited.hwg=inc.hw.gems|0}if(hf>0){s.bal.food+=hf;s.credited.hwf=inc.hw.food|0}}
     if(!s.slot7&&Math.max(inc.streakBest||0,inc.best||0)>=SLOT7){s.slot7=true;s.slot7new=true}}
   s.bld.forEach(b=>{
     /* момент готовности в часах острова: от него и считается сундук, даже если состояние сохранят позже */

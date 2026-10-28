@@ -205,6 +205,15 @@ t('подарок похода: носитель E2 за победу, один 
   Object.keys(E.GIFTS).forEach(k=>{const g=E.giftGenome(k,'u1');assert.deepStrictEqual(G.validate(g),[],k);assert.ok(E.hasE2({genome:g}),k);assert.strictEqual(G.phenotype(g).elements.length,2,k)});
 });
 
+t('бонус за ДЗ: начисляется только прирост суммы, повтор и снижение ничего не меняют, учёт отдельно от серии',()=>{
+  const f=[{id:'d1',name:'Ж',born:'2026-10-01',genome:G.make({sex:'F',E:'F/e'}),lvl:1,fed:0}];
+  let s=E.normalize(E.startState(f,0),0,{K:0,food:0,gems:0,best:0,hw:{gems:5,food:180}});const g0=s.bal.gems,f0=s.bal.food;
+  assert.strictEqual(s.credited.hwg,5);assert.strictEqual(s.credited.hwf,180);
+  s=E.normalize(s,0,{K:0,food:0,gems:0,best:0,hw:{gems:5,food:180}});assert.strictEqual(s.bal.gems,g0);assert.strictEqual(s.bal.food,f0);
+  s=E.normalize(s,0,{K:0,food:0,gems:0,best:0,hw:{gems:2,food:60}});assert.strictEqual(s.bal.gems,g0,'снижение суммы не отнимает');
+  s=E.normalize(s,0,{K:0,food:0,gems:0,best:0,hw:{gems:9,food:330}});assert.strictEqual(s.bal.gems,g0+4);assert.strictEqual(s.bal.food,f0+150);
+  assert.strictEqual(s.credited.gems,0,'учёт серии не тронут')});
+
 t('цели исследования: награда один раз и только за выполненное',()=>{
   let s=E.normalize(E.startState(founders(),0),0,null);
   assert.ok(/5-м уровне/.test(E.apply(s,ctx(0),{t:'research',goal:'hyb'}).err));s.bal.xp=E.xpFor(5);s=E.normalize(s,0,null);

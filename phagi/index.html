@@ -1678,6 +1678,19 @@ const maxOf=t=>t.kind==='test'?testMax(t):t.max;
 // v99 приписка к проценту выполнения
 const hwVerdict=pc=>pc>=90?['Шикарно!','var(--bio)']:pc>=85?['Хорошо','var(--bio)']:pc>=80?['Хорошо, но надо лучше','var(--bio)']:pc>=60?['Не ахти(','var(--chem)']:['Плохо, тема не закрыта','var(--accent)'];
 const hwPct=(score,max)=>score==null||score===''||!(Number(max)>0)||!isFinite(Number(score))?null:Math.round(Math.max(0,Math.min(1,Number(score)/Number(max)))*100);
+/* бонус за ДЗ (с 28 окт 2026): по ступеням процента, один раз за задание. Остров берёт сумму и начисляет только прирост
+   (поле credited.hwg/hwf), поэтому пересдача, повторная проверка и перезагрузка второй раз ничего не дают. Чашка получает
+   подкормку: дополнительные колонии в день проверки, если этот день есть в нынешней культуре */
+const HW_FROM='2026-10-28';
+const HW_TIERS=[[90,{gems:4,food:150,col:3}],[85,{gems:3,food:100,col:2}],[80,{gems:2,food:60,col:2}],[60,{gems:1,food:30,col:1}]];
+const hwTier=pc=>{for(const [m,b] of HW_TIERS)if(pc>=m)return b;return null};
+function hwBonus(uid){const out=[];
+  (S.tasks||[]).forEach(t=>{if(!(t.to||[]).includes(uid))return;const g=(S.grades[uid]||{})[t.id],sb=(S.subs[uid]||{})[t.id];
+    const own=g&&g.returnedAt&&g.score!=null,auto=!own&&t.kind==='test'&&sb&&sb.status==='submitted';if(!own&&!auto)return;
+    const pc=hwPct(own?g.score:sb.auto||0,maxOf(t)),b=pc==null?null:hwTier(pc),d=String((own?g.returnedAt:sb.updatedAt)||'').slice(0,10);
+    if(b&&d>=HW_FROM)out.push({id:t.id,title:t.title||'Задание',pc,d,...b})});
+  return out.sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:a.id<b.id?-1:1)}
+window.hwBonus=hwBonus;
 const hwPctHTML=(score,max,cls='')=>{const pc=hwPct(score,max);if(pc==null)return '';const[v,c]=hwVerdict(pc);
   return `<div class="hwp ${cls}" style="--pc:${c}"><b>${pc}%</b><span><b>${v}</b><small>${esc(+(+score).toFixed(1))} из ${esc(max)} ${plural(Number(max),'балла','баллов','баллов')}</small></span></div>`};
 const markHTML=(g,max,cls='')=>g&&g.score!=null?`<span class="mark ${cls}">${esc(g.score)}${max?`<small>из ${esc(max)}</small>`:''}</span>`:'';
@@ -2444,6 +2457,11 @@ function colonies(uid,list,days){
     let best=null;for(let a=0;a<10;a++){const an=rr()*Math.PI*2,q=Math.sqrt(rr())*68,x=100+q*Math.cos(an),y=100+q*Math.sin(an);const md=cols.reduce((m,c)=>Math.min(m,Math.hypot(c.x-x,c.y-y)),99);if(!best||md>best.md)best={x,y,md}}
     const born=list.slice(off,j).reduce((a,k)=>a+growth(days[k]||0),0);
     cols.push({id:d+':rare',x:best.x,y:best.y,born,day:d,sp,r0:3,rot:Math.floor(rr()*360),rare:sp})});
+  hwBonus(uid).forEach(b=>{if(!list.length||b.d<list[0])return;let j=list.length-1;while(j>0&&list[j]>b.d)j--;if(j<off)return;
+    const d=list[j],rr=rng(uid+'|hw|'+b.id),unl=SPECIES.filter(x=>x.d<=Math.max(1,rn[d])),born=list.slice(off,j).reduce((a,k)=>a+growth(days[k]||0),0);
+    for(let q=0;q<b.col&&cols.length<120;q++){let best=null;for(let a=0;a<10;a++){const an=rr()*Math.PI*2,r=Math.sqrt(rr())*72,x=100+r*Math.cos(an),y=100+r*Math.sin(an);
+        const md=cols.reduce((m,c)=>Math.min(m,Math.hypot(c.x-x,c.y-y)),99);if(!best||md>best.md)best={x,y,md}}
+      cols.push({id:d+':hw:'+b.id+':'+q,x:best.x,y:best.y,born,day:d,sp:unl[Math.floor(rr()*unl.length)],r0:2+rr()*1.7,rot:Math.floor(rr()*360),hw:1})}});
   cols.forEach(c=>{c.dn=rn[c.day]||1;c.r=Math.min(c.rare&&c.rare.look==='giant'?24:15,(c.rare&&c.rare.look==='giant'?1.6:1)*(c.r0+3.1*Math.sqrt(Math.max(0,B-c.born))))});
   return{cols,B,rares};
 }
@@ -2558,10 +2576,14 @@ function streakHTML(uid,compact){
     ${growHowHTML(uid)}
     ${weekHTML(info)}
     ${speciesHTML(n)}
+    ${hwPetriHTML(uid,c)}
     <div class="st-facts"><span><b>${info.best}</b>рекорд</span><span><b>${info.total}</b>${plural(info.total,'день','дня','дней')} всего</span><span><b>${nextSp?nextSp.d-n:'—'}</b>${nextSp?'до нового вида':'все виды открыты'}</span>${(()=>{const rr=colonies(uid,c.list,c.days).rares.length;return rr?`<span class="rare-f"><b>${rr}</b>${plural(rr,'редкая находка','редкие находки','редких находок')}</span>`:''})()}</div>
     <div class="lab-btns"><button class="btn sm" data-act="lab" data-uid="${uid}" data-tab="mic">🔬 Микроскоп</button><button class="btn ghost sm" data-act="lab" data-uid="${uid}" data-tab="log">📓 Журнал наблюдений</button><button class="btn ghost sm" data-act="lab" data-uid="${uid}" data-tab="photo">📷 Фото чашки</button></div>
   </div></section>`;
 }
+/* подкормка за ДЗ: последние задания с бонусом и сколько колоний они дали */
+function hwPetriHTML(uid,c){const l=hwBonus(uid).filter(b=>c.list.length&&b.d>=c.list[0]).slice(-3);if(!l.length)return '';
+  return `<p class="muted small st-hw">🧪 Подкормка за ДЗ: ${l.map(b=>`«${esc(b.title)}» ${b.pc} % → +${b.col} ${plural(b.col,'колония','колонии','колоний')}`).join(', ')}. Чем выше процент, тем больше колоний.</p>`}
 /* v93 график активности: период, подписи без наложений, выбранный день под графиком */
 const ACTR=[['2w','2 недели',2],['4w','4 недели',4],['3m','3 месяца',13]];
 function actHTML(uid,info,got){

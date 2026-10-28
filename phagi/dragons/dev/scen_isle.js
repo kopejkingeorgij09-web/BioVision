@@ -7,7 +7,7 @@ module.exports=async(page,{OUT,need})=>{
   const geo=()=>page.evaluate(()=>{const R=e=>e.getBoundingClientRect(),bs=[...document.querySelectorAll('.drg-dock>*,.drg-zm>*,.drg-hud-r>*,.drg-hud-l,.drg-svw>*')].filter(e=>e.offsetParent).map(e=>[e.dataset.v||e.className.split(' ')[0],R(e)]);
     let ov=[];for(let i=0;i<bs.length;i++)for(let j=i+1;j<bs.length;j++){const a=bs[i][1],b=bs[j][1],x=Math.min(a.right,b.right)-Math.max(a.left,b.left),y=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);if(x>1&&y>1)ov.push(bs[i][0]+'×'+bs[j][0]+' '+Math.round(x)+'×'+Math.round(y))}
     const off=bs.filter(([k,r])=>r.left<0||r.right>innerWidth+0.5).map(([k])=>k);
-    const g=[...document.querySelectorAll('.drg-map.full .drg-b')].map(R),isl=g.reduce((a,r)=>[Math.min(a[0],r.left),Math.min(a[1],r.top),Math.max(a[2],r.right),Math.max(a[3],r.bottom)],[1e9,1e9,-1e9,-1e9]);
+    const g=[...document.querySelectorAll('.drg-world .drg-b')].map(R),isl=g.reduce((a,r)=>[Math.min(a[0],r.left),Math.min(a[1],r.top),Math.max(a[2],r.right),Math.max(a[3],r.bottom)],[1e9,1e9,-1e9,-1e9]);
     const dk=R(document.querySelector('.drg-dock')),hd=R(document.querySelector('.drg-hud'));
     return {ov,off,dock:Math.round(dk.width),build:isl.map(Math.round),freeY:[Math.round(hd.bottom),Math.round(dk.top)],scroll:document.documentElement.scrollWidth>innerWidth,tabs:document.querySelectorAll('.drg-isl [tabindex="0"]').length}});
   const g=await geo();log('перекрытия',JSON.stringify(g.ov),'за краем',JSON.stringify(g.off),'гориз. прокрутка',g.scroll);

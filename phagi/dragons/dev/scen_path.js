@@ -5,7 +5,9 @@ module.exports=async(page,{OUT,store,UID,writes,need})=>{
   const w=t=>page.waitForTimeout(t),P=`srs/${UID}/meta/dragons`;
   const inPanel=sel=>page.$(`.drg-bp ${sel}`);
   const nowStep=()=>page.evaluate(()=>{const li=document.querySelector('.drg-st.now b');return li?li.textContent:'(все шаги пройдены)'});
-  const open=async()=>{const g=await page.$('.drg-goal');if(g){await g.click()}else await page.click('[data-act=drgpanel][data-v=breed]');await w(500)};
+  /* на телефоне открытая панель закрывает нижний ряд: сначала закрыть её, как сделала бы ученица */
+  const open=async()=>{const g=await page.$('.drg-goal');if(g){await g.click()}else{const x=await page.$('#main>.drg-pan [data-act=drgpanel][data-v=""],#main>.drg-pan [data-act=drgsel][data-id=""]');if(x){await x.click();await w(400)}
+    await page.click('[data-act=drgpanel][data-v=breed]')}await w(500)};
   await page.click('[data-act="go"][data-v="cards"]');await w(600);
   await page.click('[data-act="drgmode"][data-v="dragons"]');await w(1200);
   need(!!store.get(P),'новому профилю создан документ острова');log('новый профиль: документ создан',!!store.get(P),'цель в «Карточках»:',await page.evaluate(()=>{const n=document.querySelector('.drg-notes');return n?n.textContent.slice(0,90):'—'}));
@@ -33,6 +35,10 @@ module.exports=async(page,{OUT,store,UID,writes,need})=>{
   await open();const hb=await inPanel('[data-t=hatch]:not([disabled])');log('перед вылуплением:',await page.evaluate(()=>[...document.querySelectorAll('.drg-bp .drg-st.now .drg-sr')].map(x=>x.textContent.replace(/\s+/g,' ').trim()).join(' | ')));
   if(hb){await hb.click();await w(900)}
   log('панель:',await page.evaluate(()=>(document.querySelector('.drg-pan h2')||{}).textContent),'строка сохранения:',await page.evaluate(()=>(document.querySelector('.drg-baby .drg-sv')||{}).textContent||'—'));
+  /* 5.0: у птенца разбор происхождения: гены от матери и отца, пол, что было в мейозе */
+  const og=await page.evaluate(()=>{const o=document.querySelector('.drg-baby .drg-orig');return o?{rows:o.querySelectorAll('tbody tr').length,sex:/Пол\./.test(o.textContent),mei:o.querySelectorAll('.drg-cr li').length}:null});
+  log('происхождение',JSON.stringify(og));need(og&&og.rows>=15&&og.sex,'у птенца есть разбор: гены от матери и отца и пол');
+  if(og){await page.evaluate(()=>{const o=document.querySelector('.drg-baby .drg-orig');o.open=true;o.scrollIntoView()});await w(300);await shot('6-origin')}
   await shot('5-baby');
   const s=store.get(P).d;need((s.log||[]).filter(r=>r.child).length===1,'в базе ровно один потомок в журнале');log('в базе: потомков в журнале',(s.log||[]).filter(r=>r.child).length,'драконов',s.dragons.length,'rev',s.rev);
   await page.click('[data-act=drgpanel][data-v=breed]').catch(()=>{});await w(500);log('после потомка:',await page.evaluate(()=>(document.querySelector('.drg-bp h2')||{}).textContent),'цель в шапке',!!await page.$('.drg-goal'));

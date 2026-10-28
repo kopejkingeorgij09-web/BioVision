@@ -16,6 +16,7 @@ const R_WANDER=2.6;              /* как далеко от дома гуляе
 const HABK=0.62;                 /* дракон в вольере (4.1) мельче, чтобы помещался во двор своего дома */
 const FLY_V=16;                  /* скорость полёта над двором, единиц острова в секунду */
 const FPS_MIN=1000/31;           /* остров рисуется не чаще 30 раз в секунду: драконы мелкие, глазу хватает */
+const BUDGET=0.25,FPS_LOW=1000/12; /* 5.0: на слабом устройстве кадр реже — не больше четверти времени на живой слой, но не реже 12 раз в секунду */
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const reduced=()=>root.matchMedia&&root.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const mul=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
@@ -105,9 +106,38 @@ function settle(map,I,d,others){
     d.p=p;d.how='settle'+pass;return true}
   return false}
 
+/* ---------- эффекты острова (5.0) ----------
+   Рисунок острова неподвижен; список того, что на нём движется, island.js кладёт в data-fx корневого <svg>:
+   [вид, x, y, размер, цвет, сила] в единицах острова. g — свечение (лава, кристаллы, руны), e — искры, r — рябь,
+   s — блёстки, m — дым, f — светлячки, o — пульс готового пузыря. Свечение берётся из готового спрайта по цвету,
+   поэтому кадр с эффектами дешёвый. При «меньше движения» остаётся только ровное свечение без частиц. */
+const FXG=new Map();
+function rgba(h,a){const n=parseInt(h.slice(1),16);return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`}
+function glowSprite(col){let c=FXG.get(col);if(c)return c;c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d'),g=x.createRadialGradient(32,32,0,32,32,32);
+  g.addColorStop(0,rgba(col,1));g.addColorStop(.3,rgba(col,.5));g.addColorStop(.65,rgba(col,.14));g.addColorStop(1,rgba(col,0));x.fillStyle=g;x.fillRect(0,0,64,64);FXG.set(col,c);return c}
+function drawFx(ctx,list,V,dpr,W,H,t,still){
+  const sc=V.s*dpr;if(!list||!list.length)return;
+  ctx.setTransform(1,0,0,1,0,0);
+  for(const f of list){const [k,x,y,a,col,s]=f,sx=(V.ox+x*V.s)*dpr,sy=(V.oy+y*V.s)*dpr,R=Math.max(8,a)*sc*2;
+    if(sx<-R||sx>W+R||sy<-R*1.5||sy>H+R)continue;
+    const ph=((x*0.137+y*0.071)%1+1)%1;
+    if(k==='g'){const p=still?1:0.78+0.22*Math.sin(t*2.4+ph*6.3),r=a*sc;ctx.globalCompositeOperation='screen';ctx.globalAlpha=Math.min(1,(s||.5)*p);ctx.drawImage(glowSprite(col||'#FFE27A'),sx-r,sy-r,r*2,r*2);ctx.globalCompositeOperation='source-over';continue}
+    if(still)continue;
+    if(k==='e'){ctx.fillStyle=col||'#FFB347';for(let i=0;i<5;i++){const q=(t*0.42+i/5+ph)%1;ctx.globalAlpha=(1-q)*0.95;const px=sx+Math.sin(q*5.5+i*2.1)*a*sc*0.55,py=sy-q*44*sc,r=Math.max(0.6,(1.7-q)*1.1*sc);ctx.beginPath();ctx.arc(px,py,r,0,7);ctx.fill()}}
+    else if(k==='r'){ctx.strokeStyle='#F2FEFF';ctx.lineWidth=Math.max(0.8,1.2*sc);for(let i=0;i<2;i++){const q=(t*0.3+i*0.5+ph)%1;ctx.globalAlpha=(1-q)*0.6;const rx=a*sc*(0.35+q*0.85);ctx.beginPath();ctx.ellipse(sx,sy,rx,rx*0.42,0,0,7);ctx.stroke()}}
+    else if(k==='s'){ctx.strokeStyle=col||'#FFFFFF';ctx.fillStyle=col||'#FFFFFF';ctx.lineWidth=Math.max(0.7,1*sc);for(let i=0;i<4;i++){const tw=Math.sin(t*1.8+i*2.3+ph*9);if(tw<0.35)continue;
+      const px=sx+Math.cos(i*2.4+ph*5)*a*sc,py=sy+Math.sin(i*1.9+ph*4)*a*sc*0.55,r=(2.2+i%2)*sc*(tw-0.2);ctx.globalAlpha=Math.min(1,(tw-0.35)/0.5);
+      ctx.beginPath();ctx.moveTo(px-r,py);ctx.lineTo(px+r,py);ctx.moveTo(px,py-r*1.3);ctx.lineTo(px,py+r*1.3);ctx.stroke();ctx.beginPath();ctx.arc(px,py,Math.max(0.6,0.7*sc),0,7);ctx.fill()}}
+    else if(k==='m'){ctx.fillStyle=col||'#8E868B';for(let i=0;i<3;i++){const q=(t*0.16+i/3+ph)%1;ctx.globalAlpha=(1-q)*(q<0.15?q/0.15:1)*0.3;const px=sx+Math.sin(q*3+i)*6*sc,py=sy-q*52*sc,r=(0.35+q*1.1)*a*sc;ctx.beginPath();ctx.arc(px,py,r,0,7);ctx.fill()}}
+    else if(k==='f'){const gs=glowSprite(col||'#EFFF9A');for(let i=0;i<6;i++){const px=sx+Math.sin(t*0.45*(1+i*0.13)+i*7)*a*sc,py=sy+Math.cos(t*0.37*(1+i*0.17)+i*3)*a*0.5*sc,b=0.5+0.5*Math.sin(t*2.6+i*5);
+      ctx.globalAlpha=0.35+0.55*b;ctx.globalCompositeOperation='screen';const r=5*sc;ctx.drawImage(gs,px-r,py-r,r*2,r*2);ctx.globalCompositeOperation='source-over';ctx.fillStyle='#FFFFE0';ctx.beginPath();ctx.arc(px,py,Math.max(0.6,0.9*sc),0,7);ctx.fill()}}
+    else if(k==='o'){const q=(t*0.7+ph)%1,w=(a+q*16)*sc,h=(25+q*10)*sc;ctx.globalAlpha=(1-q)*0.7;ctx.strokeStyle=col||'#FFE27A';ctx.lineWidth=Math.max(1,2*sc);ctx.beginPath();
+      if(ctx.roundRect)ctx.roundRect(sx-w/2,sy-h/2,w,h,h/2);else ctx.rect(sx-w/2,sy-h/2,w,h);ctx.stroke()}}
+  ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over'}
+
 /* ---------- слой ---------- */
 const L={svg:null,cv:null,ctx:null,ds:new Map(),raf:0,last:0,acc:0,stats:{draw:[],frame:[],frames:0},get:null,map:null,mapKey:'',
-  vis:true,io:null,ready:false,loading:null,dirty:true,camKey:''};
+  vis:true,io:null,ready:false,loading:null,dirty:true,camKey:'',fx:[],fxKey:'',camT:0,camDirty:false,t0:0};
 
 function scan(get){
   if(get)L.get=get;
@@ -119,11 +149,12 @@ function attach(svg){
   detach(true);
   L.svg=svg;svg.classList.add('live');
   const cv=document.createElement('canvas');cv.className='drg-live';cv.setAttribute('aria-hidden','true');
-  const full=svg.closest('.drg-map.full');
+  const full=svg.closest('.drg-world');
   if(full){full.querySelector('.drg-stage').after(cv);cv.classList.add('fs')}
   else svg.after(cv);
   L.cv=cv;L.ctx=cv.getContext('2d');L.dirty=true;
   if('IntersectionObserver' in root){L.io=new IntersectionObserver(es=>{L.vis=es.some(e=>e.isIntersecting);wake()});L.io.observe(svg)}
+  sync();wake();
   load().then(()=>{if(L.svg===svg){sync();wake()}}).catch(e=>{console.warn('живой остров: модули рисунка не загрузились',e)})}
 function detach(keep){
   if(L.io){L.io.disconnect();L.io=null}
@@ -139,7 +170,10 @@ function load(){
 
 /* сверить драконов слоя с группами в SVG: новые завести, ушедших убрать, у оставшихся обновить дом и группу */
 function sync(){
-  if(!L.svg||!L.ready)return;
+  if(!L.svg)return;
+  const fs=L.svg.getAttribute('data-fx')||'';
+  if(fs!==L.fxKey){L.fxKey=fs;try{L.fx=fs?JSON.parse(fs):[]}catch(e){L.fx=[]}L.dirty=true}
+  if(!L.ready)return;
   const st=L.get&&L.get();if(!st)return;
   const I=root.ISL,D=root.DECO,key=JSON.stringify([st.bld.map(b=>[b.id,b.x,b.y,b.type]),st.land,st.clr||[]]);
   if(key!==L.mapKey){L.map=mapOf(st,D,I);L.mapKey=key;L.ds.forEach(d=>{d.settled=false;if(d.state==='walk'||d.state==='turn'){d.state='idle';d.wait=0.5;d.A.play('idle')}d.to=null})}
@@ -218,7 +252,9 @@ function islandView(){
 const pxStep=v=>clamp(Math.pow(2,Math.round(Math.log2(Math.max(0.05,v))*2)/2),0.25,3);
 function want(d,css){
   const dpr=Math.min(2,root.devicePixelRatio||1),px=pxStep(css*d.k/d.G.scale*1.3);   /* с запасом 30 %: при приближении камеры дракон не мылится до следующей ступени */
-  if(d.px===px||d.loadPx===px)return;d.loadPx=px;
+  if(d.px===px||d.loadPx===px)return;
+  if(d.X&&performance.now()-L.camT<260)return;   /* камера движется: старая текстура, новая — когда жест закончится */
+  d.loadPx=px;
   root.RIG.get(d.ph,d.lvl,{px,dpr}).then(X=>{
     if(!L.ds.has(d.id)||L.ds.get(d.id)!==d||d.loadPx!==px){root.RIG.release(X);return}
     if(d.X)root.RIG.release(d.X);d.X=X;d.px=px;d.loadPx=0;if(d.art)d.art.classList.add('lv');L.dirty=true;wake()}).catch(()=>{d.loadPx=0})}
@@ -232,6 +268,7 @@ function draw(){
   const dpr=Math.min(2,root.devicePixelRatio||1),V=islandView(),W=Math.round(V.cw*dpr),H=Math.round(V.ch*dpr);
   if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H}
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);
+  drawFx(ctx,L.fx,V,dpr,W,H,(performance.now()-L.t0)/1000,reduced());
   const list=[...L.ds.values()].sort((a,b)=>a.p[1]-b.p[1]);
   for(const d of list){
     want(d,V.s);
@@ -249,9 +286,9 @@ function draw(){
     root.RIG.drawFx(ctx,d.X,d.A.fx,view)}
   ctx.setTransform(1,0,0,1,0,0);
   L.camKey=[V.s.toFixed(4),V.ox.toFixed(1),V.oy.toFixed(1),W,H].join();
-  const ms=performance.now()-t0;L.stats.draw.push(ms);if(L.stats.draw.length>240)L.stats.draw.shift();L.stats.frames++;L.dirty=false}
+  const ms=performance.now()-t0;L.ema=L.ema==null?ms:L.ema*0.9+ms*0.1;L.stats.draw.push(ms);if(L.stats.draw.length>240)L.stats.draw.shift();L.stats.frames++;L.dirty=false}
 
-function running(){return !L.broken&&L.svg&&L.svg.isConnected&&L.ready&&L.vis&&!document.hidden&&!document.querySelector('.dri,.drf')}
+function running(){return !L.broken&&L.svg&&L.svg.isConnected&&(L.ready||L.fx.length>0)&&L.vis&&!document.hidden&&!document.querySelector('.dri,.drf')}
 function wake(){if(!L.raf&&running())L.raf=requestAnimationFrame(tick)}
 function stop(){if(L.raf)cancelAnimationFrame(L.raf);L.raf=0;L.last=0}
 function tick(ts){
@@ -260,11 +297,13 @@ function tick(ts){
   if(reduced()){const V=islandView(),key=[V.s.toFixed(4),V.ox.toFixed(1),V.oy.toFixed(1),Math.round(V.cw),Math.round(V.ch)].join();
     if(L.dirty||key!==L.lastKey){L.lastKey=key;draw()}L.last=0;return}
   L.raf=requestAnimationFrame(tick);
-  if(L.last&&ts-L.last<FPS_MIN-1)return;
+  const cm=L.camDirty;L.camDirty=false;
+  const gap=Math.min(FPS_LOW,Math.max(FPS_MIN,(L.ema||0)/BUDGET));
+  if(!cm&&L.last&&ts-L.last<gap-1)return;
   const dt=L.last?clamp((ts-L.last)/1000,0,0.1):1/30;if(L.last){L.stats.frame.push(ts-L.last);if(L.stats.frame.length>240)L.stats.frame.shift()}
   L.last=ts;
   /* ошибка кадра (4.1): живой слой выключается, остров остаётся с обычными рисунками драконов, страница работает дальше */
-  try{L.ds.forEach(d=>{think(d,dt);d.A.update(dt);place(d)});draw()}
+  try{if(L.ready)L.ds.forEach(d=>{think(d,dt);d.A.update(dt);place(d)});draw()}
   catch(e){console.warn('живой остров выключен из-за ошибки',e);L.broken=true;stop();if(L.svg)L.svg.querySelectorAll('g.drg-art.lv').forEach(g=>g.classList.remove('lv'));if(L.cv)L.cv.remove()}}
 if(typeof document!=='undefined'){
   document.addEventListener('visibilitychange',wake);
@@ -272,7 +311,11 @@ if(typeof document!=='undefined'){
   new MutationObserver(()=>{if(!L.raf&&!document.querySelector('.dri,.drf'))wake()}).observe(document.documentElement,{childList:true,subtree:false});
   addEventListener('DOMContentLoaded',()=>new MutationObserver(()=>{if(!L.raf&&!document.querySelector('.dri,.drf'))wake()}).observe(document.body,{childList:true}))}
 
-const DRLIVE={scan,wake,stats:()=>({dragons:L.ds.size,ready:L.ready,running:!!L.raf,attached:!!L.svg&&L.svg.isConnected,vis:L.vis,cv:!!L.cv&&L.cv.isConnected,frames:L.stats.frames,draw:L.stats.draw.slice(),frame:L.stats.frame.slice(),
+/* камера сдвинулась (ui.js, camApply): этот же кадр перерисовывает драконов и эффекты под новый вид */
+function cam(){L.camT=performance.now();L.camDirty=true;L.dirty=true;wake();
+  /* после жеста ещё один кадр: при «меньше движения» цикл стоит, а текстуры нужного размера берутся только после остановки */
+  clearTimeout(L.camTO);L.camTO=setTimeout(()=>{L.dirty=true;L.lastKey='';wake()},300)}
+const DRLIVE={scan,wake,cam,stats:()=>({dragons:L.ds.size,ema:L.ema,ready:L.ready,running:!!L.raf,attached:!!L.svg&&L.svg.isConnected,vis:L.vis,cv:!!L.cv&&L.cv.isConnected,frames:L.stats.frames,fx:L.fx.length,draw:L.stats.draw.slice(),frame:L.stats.frame.slice(),
   pos:[...L.ds.values()].map(d=>({id:d.id,p:d.p.slice(),state:d.state,face:d.face,tex:!!d.X,px:d.px,how:d.how||'',hid:hidden(L.map,d.p,d.w,d.h)}))}),
   PURE:{toGrid,toIsle,mapOf,hidden,pathFree,pickTarget,settle,inYard,yardTarget,yardHas,ISLK,HABK}};
 if(typeof module!=='undefined'&&module.exports)module.exports=DRLIVE;else root.DRLIVE=DRLIVE;

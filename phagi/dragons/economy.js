@@ -582,12 +582,12 @@ const ACTS={
     s.dragons.push(Object.assign({id:nid,name:'Отличник',born:c.today,genome,lvl:1,fed:0,home:home?home.id:null,from:'hw:'+task},home?{}:{nurs:true}));
     s.hwgift.push(task);s.last=nid;s.got=home?{baby:nid}:{baby:nid,nursery:habNames(ph)};xp(s,40)},
   /* головоломка дня (puzzles.js): задача строится заново из зерна (ученица + дата) и ответ сверяется с её единственным решением.
-     За каждую из трёх — DRPZ.REWARD золота, не больше одного раза в день, то есть до 300 в день */
+     5.0: награда по сложности (rewardOf: лёгкая 60, средняя 100, сложная 140), каждая не больше одного раза в день, всего до 300 в день */
   puzzle(s,c,{kind,ans}){const PZ=root.DRPZ||(typeof require!=='undefined'?require('./puzzles.js'):null);if(!PZ)return 'Головоломки не загрузились';
     if(!PZ.KINDS.some(k=>k.kind===kind))return 'Нет такой головоломки';const d=c.today||'';s.pz=s.pz&&s.pz.d===d?s.pz:{d,done:[]};
     if(s.pz.done.includes(kind))return 'Эта головоломка сегодня уже решена';
     if(!PZ.check(kind,c.uid,d,ans))return 'Пока не сходится. Проверьте правила ещё раз';
-    s.pz.done=s.pz.done.concat(kind);s.bal.gold+=PZ.REWARD;xp(s,20);s.got={pz:PZ.REWARD}},
+    const g=PZ.rewardOf?PZ.rewardOf(kind):PZ.REWARD;s.pz.done=s.pz.done.concat(kind);s.bal.gold+=g;xp(s,20);s.got={pz:g}},
   /* награда задания недели */
   wq(s,c,{id}){if(!WQ[id]||!wqList(s,c.today).includes(id))return 'Такого задания на этой неделе нет';const p=wqProgress(s,c,id);
     if(p.got)return 'Награда уже получена';if(!p.done)return `Ещё не выполнено: ${p.v} из ${p.goal}`;

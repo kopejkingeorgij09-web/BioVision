@@ -177,5 +177,18 @@ t('E2: расчёт распределения быстрый (нет огром
   const t0=Date.now();['elements','rarity','span','species'].forEach(tr=>{const d=D.dist(m,f,tr);near(Object.values(d).reduce((a,b)=>a+b,0),1,1e-9,tr)});
   assert.ok(Date.now()-t0<1500,'долго: '+(Date.now()-t0)+' мс')});
 
+t('происхождение потомка: аллели от матери и отца, перекрёст H–K виден у дигетерозиготы, частота около 18 %, мутации находятся',()=>{
+  const mo=D.make({sex:'F',E:'F/W',S:'S/s',H:'H/h',K:'K/k',R:'R1/R2',G:'G'}),fa=D.make({sex:'M',E:'e/e',H:'h/h',K:'k/k',M:'M/m',N:'N/n'});
+  const rnd=D.rng('orig');let rec=0,par=0,n=0;
+  for(let i=0;i<4000;i++){const em=D.gamete(mo,rnd,true),sp=D.gamete(fa,rnd,true),ch=D.fuse(em,sp),o=D.origin(ch,mo,fa);
+    o.genes.filter(x=>x.chr!=='Z'&&x.chr!=='W'&&x.chr!=='mt').forEach(x=>{const i0=D.CHROMS[x.chr].loci.indexOf(x.locus);assert.ok(mo[x.chr][0][i0]===x.m||mo[x.chr][1][i0]===x.m);assert.ok(fa[x.chr][0][i0]===x.f||fa[x.chr][1][i0]===x.f)});
+    assert.strictEqual(o.mut.length,0,'без мутаций новых аллелей нет');
+    const hk=o.cross.find(c=>c.who==='m'&&c.a==='H'&&c.b==='K');assert.ok(hk);if(hk.state==='rec')rec++;else if(hk.state==='par')par++;n++;
+    assert.ok(o.cross.filter(c=>c.who==='f'&&c.a==='H').every(c=>c.state==='hom'),'отец hh kk: перекрёст не виден');
+    if(ch.sex==='M'){const mn=o.cross.find(c=>c.who==='f'&&c.chr==='Z');assert.ok(mn&&mn.state!=='mut')}}
+  assert.strictEqual(rec+par,n);const f=rec/n;console.log('      доля перекрёстов H–K',f.toFixed(3));assert.ok(Math.abs(f-0.18)<0.025,'около 18 %: '+f);
+  const ch=D.fuse(D.gamete(mo,D.rng('x'),true),D.gamete(fa,D.rng('y'),true));ch.A2[0][1]='Cb';const o=D.origin(ch,mo,fa);
+  assert.ok(o.mut.some(m=>m.who==='m'&&m.locus==='C'&&m.a==='Cb'),'аллель, которого не было у матери, — мутация');
+  assert.strictEqual(o.genes.find(x=>x.locus==='G').m,mo.mt,'митохондрии от матери')});
 console.log(`\n${n-fails} из ${n} тестов прошли`);
 process.exit(fails?1:0);

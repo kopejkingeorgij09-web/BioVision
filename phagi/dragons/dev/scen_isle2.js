@@ -18,7 +18,8 @@ module.exports=async(page,{OUT,need,store,UID,writes})=>{
   if(W>=700){await page.click('.drg-zm [data-v=fit]');await w(700);
     const tip=await page.evaluate(()=>{const sv=document.querySelector('.drg-map.full svg.drg-isl'),r=sv.getBoundingClientRect(),vb=sv.viewBox.baseVal,s=Math.min(r.width/vb.width,r.height/vb.height);
       const cl=[...sv.querySelectorAll('path')].filter(p=>/cliff2/.test(p.getAttribute('fill')||'')),y=Math.max(...cl.map(p=>{const b=p.getBBox();return b.y+b.height})),
-      py=r.top+(r.height-vb.height*s)/2+(y-vb.y)*s;return {py:Math.round(py),dock:Math.round(document.querySelector('.drg-dock').getBoundingClientRect().top),inVb:y<vb.y+vb.height}});
+      py=r.top+(r.height-vb.height*s)/2+(y-vb.y)*s;const d=document.querySelector('.drg-dock').getBoundingClientRect();/* на компьютере колонка слева: тогда предел — низ окна */
+      return {py:Math.round(py),dock:Math.round(d.height>d.width?innerHeight-10:d.top),inVb:y<vb.y+vb.height}});
     log('кончик скалы',JSON.stringify(tip));need(tip.inVb,'кончик скалы внутри рисунка');need(tip.py<tip.dock+40,'кончик скалы над нижним рядом кнопок')}
   await shot('0-green');
   /* живые драконы: каждый в своём дворе или стоит рисунком (cover) */

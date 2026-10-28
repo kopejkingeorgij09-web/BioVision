@@ -288,9 +288,10 @@ async function show(v,info,mode){
 /* ---------- раскладка: сцена слева и панель справа или сцена сверху и лист снизу ---------- */
 function layout(v,G){
   G=G||v.G;const W=v.root.clientWidth||innerWidth,H=v.root.clientHeight||innerHeight,dpr=Math.min(3,devicePixelRatio||1);   /* 4.1: на экранах 3× дракон в осмотре чёткий */
-  const side=W>=640&&W/H>1.25,pw=side?Math.round(clamp(W*0.36,300,400)):0;
-  const sheet=side?0:Math.round(clamp(H*0.48,230,Math.max(230,H-240)));
-  const sw=W-pw,sh=H-sheet,top=56,bot=side?36:20;
+  /* 4.3: паспорт открывается широкой панелью (вкладки, схема хромосом), снизу над сценой ряд из четырёх кнопок */
+  const side=W>=640&&W/H>1.25,wide=!!v.sub,pw=side?Math.round(wide?clamp(W*0.62,420,860):clamp(W*0.34,290,380)):0;
+  const sheet=side?0:Math.round(wide?clamp(H*0.8,300,H-120):clamp(H*0.44,220,Math.max(220,H-300)));
+  const sw=W-pw,sh=H-sheet,top=104,bot=side?96:84;
   v.dpr=dpr;v.W=W;v.H=H;v.side=side;
   v.root.classList.toggle('side',side);v.root.classList.toggle('sheet',!side);
   const st=v.root.style;st.setProperty('--stw',sw+'px');st.setProperty('--sth',sh+'px');st.setProperty('--pw',pw+'px');st.setProperty('--sh',sheet+'px');
@@ -487,6 +488,9 @@ function build(v){
   <div class="dri-stage" tabindex="0" role="img" aria-label="Дракон крупно"></div>
   <div class="dri-top"><button class="dri-x" data-dk="close">← К острову</button>
     <div class="dri-zm" role="group" aria-label="Масштаб"><button data-dk="zin" aria-label="Приблизить">+</button><button data-dk="zout" aria-label="Отдалить">−</button><button data-dk="zfit" aria-label="Весь дракон">⤢</button></div></div>
+  <div class="dri-badge" aria-hidden="true"></div>
+  <div class="dri-nav"><button class="dri-arr l" data-dk="prev" aria-label="Предыдущий дракон">‹</button><button class="dri-arr r" data-dk="next" aria-label="Следующий дракон">›</button></div>
+  <div class="dri-bar" role="group" aria-label="Действия с драконом"></div>
   <p class="dri-hint" aria-hidden="true">Нажмите на часть тела, чтобы рассмотреть её</p>
   <p class="dri-load">Готовлю дракона…</p>
   <section class="dri-pan" aria-labelledby="dri-t"><div class="dri-head"></div><div class="dri-body"></div></section>`;
@@ -529,8 +533,10 @@ function onClick(v,e){
   /* ссылка к разделу «Как устроено наследование»: переход по #dri-law сменил бы адрес страницы, поэтому только прокрутка */
   else if(k==='law'){e.preventDefault();const h=v.$('.dri-law h4');if(h){h.scrollIntoView({block:'start',behavior:reduced()?'auto':'smooth'});h.focus({preventScroll:true})}}
   else if(!v.A)return;
-  else if(k==='geno')setSub(v,'geno');
-  else if(k==='ped')setSub(v,'ped');
+  else if(k==='geno')setSub(v,'geno',v.sub&&v.tab!=='ped'?v.tab:'gt');
+  else if(k==='ped')setSub(v,'geno','ped');
+  else if(k==='tab'){v.tab=b.dataset.t;renderBar(v);renderSub(v);const t=v.$('.dri-tab[aria-selected="true"]');if(t)t.focus({preventScroll:true});const p=v.$('.dri-pan');if(p)p.scrollTop=0}
+  else if(k==='prev'||k==='next')goNext(v,k==='next'?1:-1);
   else if(k==='main')setSub(v,null);
   else if(k==='feed')feed(v);
   else if(k==='fight'){if(v.api.fight&&v.info.own){const id=v.info.id,go=v.api.fight;close(v);setTimeout(()=>go(id),180)}else{v.A.play('attack');say(v,'В поход ходят только со своего острова')}}
@@ -564,19 +570,38 @@ function setHTML(el,html){
   const a=document.activeElement,k=a&&el.contains(a)&&a.dataset?[a.dataset.dk,a.dataset.p||'',a.dataset.id||'']:null;
   el.innerHTML=html;
   if(k){const b=[...el.querySelectorAll('[data-dk]')].find(x=>x.dataset.dk===k[0]&&(x.dataset.p||'')===k[1]&&(x.dataset.id||'')===k[2]);if(b)b.focus({preventScroll:true})}}
-function renderPanel(v){renderHead(v);if(v.sub)renderSub(v);else renderMain(v)}
+function renderPanel(v){renderBadge(v);renderBar(v);renderNav(v);renderHead(v);if(v.sub)renderSub(v);else renderMain(v)}
+/* ---------- 4.3: плашка с именем, ряд кнопок, стрелки к соседним драконам, колонка характеристик ---------- */
+const ELI={F:'🔥',W:'💧',T:'⛰️',A:'🌬️',P:'🌿',L:'☀️',D:'🌙'};
+const elsOf=v=>v.M&&v.M.breath==='element'?v.M.elements:[];
+const elIcon=v=>{const e=elsOf(v);return e.length?ELI[e[0]]:v.M.breath==='smoke'?'💨':'💤'};
+function renderBadge(v){const e=v.$('.dri-badge');if(!e||!v.M)return;const i=v.info,rr=DRG.rarity(v.ph),els=elsOf(v),col=root.DRAW?root.DRAW.EL_COL:{};
+  setHTML(e,`<span class="dri-bi" style="--c:${els.length?col[els[0]]:'#8C8F96'}">${elIcon(v)}</span><span class="dri-bt"><b>${esc(i.name)}</b><small>Уровень ${i.lvl}</small>
+    <span class="dri-stars" title="Редкость: ${esc(DRG.RARITY[rr])}">${[0,1,2,3,4].map(k=>`<i class="${k<=rr?'on':''}">★</i>`).join('')}</span></span>`)}
+function renderBar(v){const e=v.$('.dri-bar');if(!e)return;const i=v.info,f=i.feed;
+  const fd=i.own&&f?`<button class="dri-bb feed" data-dk="feed"${f.can?'':' disabled'}${!f.can&&f.why?` title="${esc(f.why)}"`:''}><span aria-hidden="true">🍎</span><b>Кормить</b><small>${f.max?'предел':f.cost+' 🌾'}</small></button>`:'';
+  setHTML(e,fd+`<button class="dri-bb fight" data-dk="fight"><span aria-hidden="true">⚔️</span><b>В бой</b></button>
+    <button class="dri-bb ped" data-dk="ped" aria-pressed="${v.sub==='geno'&&v.tab==='ped'}"><span aria-hidden="true">🌳</span><b>Родословная</b></button>
+    <button class="dri-bb geno" data-dk="geno" aria-pressed="${v.sub==='geno'&&v.tab!=='ped'}"><span aria-hidden="true">🧬</span><b>Посмотреть генотип</b></button>`);
+  e.classList.toggle('n3',!fd)}
+function navIds(v){try{return v.api.list?v.api.list()||[]:[]}catch(e){return []}}
+function renderNav(v){const e=v.$('.dri-nav');if(!e)return;e.hidden=navIds(v).length<2}
+function goNext(v,d){const ids=navIds(v);if(ids.length<2)return;const k=ids.indexOf(v.info.id),id=ids[(k+d+ids.length)%ids.length];const inf=v.api.info(id);
+  if(inf){v.sel=null;v.loc=null;show(v,inf,'switch')}}
+function sideHTML(v){const s=v.stats,N=root.DSTATS.NAMES,els=elsOf(v),col=root.DRAW?root.DRAW.EL_COL:{},g=v.info.genome;
+  const row=(ic,t,val,c)=>`<div class="dri-sr2"${c?` style="--c:${c}"`:''}><span class="dri-si" aria-hidden="true">${ic}</span><span><small>${esc(t)}</small>${val!=null?`<b>${val}</b>`:''}</span></div>`;
+  return `<div class="dri-side" aria-label="Стихии, пол, стадия и характеристики">${els.length?els.map(e=>row(ELI[e],ELN[e],null,col[e])).join(''):row(elIcon(v),elText(v))}
+    ${row(g.sex==='F'?'♀':'♂',g.sex==='F'?'Самка':'Самец')}${row('🐲',v.M.stageName)}
+    <div class="dri-sep"></div>${row('❤️',N.hp,s.hp)}${row('⚔️',N.atk,s.atk)}${row('🛡️',N.def,s.def)}${row('💨',N.spd,s.spd)}</div>`}
 function elText(v){return v.M.breath==='dormant'?'дремлющий, стихия не проявляется':v.M.breath==='smoke'?'дымный, без стихии':v.M.elements.map(e=>ELN[e]).join(' и ')}
 function renderHead(v){
-  const i=v.info,M=v.M,rr=DRG.rarity(v.ph),f=i.feed;
-  const fd=i.own&&f?`<button class="btn sm" data-dk="feed"${f.can?'':' disabled'}>Покормить · ${f.cost} 🌾</button>`:'';
-  setHTML(v.$('.dri-head'),`<div class="dri-hd"><h2 id="dri-t">${esc(i.name)}</h2><span class="dri-sex" title="${i.genome.sex==='F'?'самка, ZW':'самец, ZZ'}">${i.genome.sex==='F'?'♀':'♂'}<span class="sr"> ${i.genome.sex==='F'?'самка':'самец'}</span></span><span class="dri-rar r${rr}" title="Редкость: как трудно вывести такой фенотип">${esc(DRG.RARITY[rr])}</span>${(()=>{const B=window.DSTATS&&DSTATS.badge(v.ph);return B&&B.rank?`<span class="dri-rank" title="${esc(B.title)}">${B.stars}<span class="sr"> ${esc(B.title)}</span></span>`:''})()}</div>
-  <p class="dri-sub">${i.lvl}-й уровень · ${esc(M.stageName)} · ${esc(elText(v))}${(()=>{const B=window.DSTATS&&DSTATS.badge(v.ph);return B&&B.hyb?' · сочетание «'+esc(B.hyb)+'»':''})()}</p>
-  <button class="dri-geno" data-dk="geno" aria-pressed="${v.sub==='geno'}"><span aria-hidden="true">🧬</span> Генетический паспорт</button>
-  <div class="dri-acts${fd?'':' two'}">${fd}<button class="btn ghost sm" data-dk="ped" aria-pressed="${v.sub==='ped'}">Родословная</button><button class="btn ghost sm" data-dk="fight">В бой</button></div>
+  const i=v.info,M=v.M,rr=DRG.rarity(v.ph),f=i.feed,B=window.DSTATS&&DSTATS.badge(v.ph);
+  setHTML(v.$('.dri-head'),`<div class="dri-hd"><h2 id="dri-t">${esc(i.name)}</h2><span class="dri-sex" title="${i.genome.sex==='F'?'самка, ZW':'самец, ZZ'}">${i.genome.sex==='F'?'♀':'♂'}<span class="sr"> ${i.genome.sex==='F'?'самка':'самец'}</span></span><span class="dri-rar r${rr}" title="Редкость: как трудно вывести такой фенотип">${esc(DRG.RARITY[rr])}</span>${B&&B.rank?`<span class="dri-rank" title="${esc(B.title)}">${B.stars}<span class="sr"> ${esc(B.title)}</span></span>`:''}</div>
+  <p class="dri-sub">${i.lvl}-й уровень · ${esc(M.stageName)} · ${esc(elText(v))}${B&&B.hyb?' · сочетание «'+esc(B.hyb)+'»':''}</p>
   ${i.own&&f&&!f.can&&f.why?`<p class="dri-why">${esc(f.why)}</p>`:''}<p class="dri-say" aria-live="polite"></p>`)}
 function renderMain(v){
   if(v.sub)return;
-  setHTML(v.$('.dri-body'),`<div class="dri-part"></div><div class="dri-chips"></div><div class="dri-stats"></div><div class="dri-facts"></div>`);
+  setHTML(v.$('.dri-body'),sideHTML(v)+`<div class="dri-part"></div><div class="dri-chips"></div><div class="dri-stats"></div><div class="dri-facts"></div>`);
   renderPart(v);renderChips(v);renderStats(v);renderFacts(v)}
 function renderChips(v){const e=v.$('.dri-chips');if(!e||!v.parts)return;
   setHTML(e,`<h3>Части тела</h3><div class="dri-cl" role="group" aria-label="Части тела">${v.parts.map(p=>`<button class="dri-chip" data-dk="part" data-p="${p}" aria-pressed="${v.sel===p}">${PART[p]}</button>`).join('')}</div>`)}
@@ -593,8 +618,7 @@ function partRows(P,links){
     ${P.cosm?`<p class="dri-age"><span class="dri-tag art">${TAG.art}</span> ${esc(P.cosm)}. Не наследуется.</p>`:''}`}
 function renderStats(v){const e=v.$('.dri-stats');if(!e)return;const s=v.stats,N=root.DSTATS.NAMES;
   const ic={hp:'❤️',atk:'⚔️',def:'🛡️',spd:'💨'};
-  setHTML(e,`<h3>Боевые характеристики</h3><div class="dri-st">${['hp','atk','def','spd'].map(k=>`<div><span aria-hidden="true">${ic[k]}</span><b>${s[k]}</b><small>${N[k]}</small></div>`).join('')}</div>
-    <details class="dri-src" data-k="drisrc"><summary>Из чего складываются числа</summary>
+  setHTML(e,`<details class="dri-src" data-k="drisrc"><summary>Из чего складываются характеристики</summary>
     ${['hp','atk','def','spd'].map(k=>`<p><b>${N[k]} ${s[k]}</b> = ${s.src[k].map(([l,x])=>esc(l)+' '+x).join(' + ')}${k!=='spd'&&s.lvlK!==1?` × уровень ${num(s.lvlK)}`:''}</p>`).join('')}
     <p class="dri-note">${esc(s.note)}</p></details>`)}
 function renderFacts(v){const e=v.$('.dri-facts');if(!e)return;const i=v.info,L=[];
@@ -604,19 +628,74 @@ function renderFacts(v){const e=v.$('.dri-facts');if(!e)return;const i=v.info,L=
   if(i.own&&i.feed&&!i.feed.max)L.push(`Кормлений до ${i.lvl+1}-го уровня: ${i.fed} из ${i.feeds}`);
   setHTML(e,`<ul>${L.map(x=>`<li>${x}</li>`).join('')}</ul>`)}
 
-function setSub(v,s){v.sub=s;if(!s)v.loc=null;renderHead(v);if(s)renderSub(v);else renderMain(v);
+function setSub(v,s,tab){const was=!!v.sub;v.sub=s;if(s)v.tab=tab||v.tab||'gt';if(!s)v.loc=null;v.root.classList.toggle('sub',!!s);
+  if(was!==!!s)resized(v);   /* паспорт шире обычной панели: сцена пересчитывается */
+  renderBar(v);renderHead(v);if(s)renderSub(v);else renderMain(v);
   const p=v.$('.dri-pan');if(p)p.scrollTop=0;const h=v.$('.dri-body h3[tabindex]');if(h)h.focus({preventScroll:true});else{const b=v.$('[data-dk="geno"]');if(b)b.focus({preventScroll:true})}}
+/* паспорт (4.3): вкладки «Генотип», «Объяснение», «Хромосомы», «Наследование», «Родословная» */
+const TABS=[['gt','Генотип'],['ex','Объяснение'],['chr','Хромосомы'],['law','Наследование'],['ped','Родословная']];
 function renderSub(v){
-  const head=t=>`<button class="dri-b2" data-dk="main">← К осмотру</button><h3 tabindex="-1">${t}</h3>`;
-  if(v.sub==='geno'){setHTML(v.$('.dri-body'),head('Генетический паспорт '+esc(v.info.name))+genoHTML(v.info.genome,!!(v.info.parents&&v.info.parents.length)));genoHi(v)}
-  else setHTML(v.$('.dri-body'),head('Родословная')+pedHTML(v))}
-function genoHTML(g,bred){
+  const g=v.info.genome,bred=!!(v.info.parents&&v.info.parents.length),t=v.tab||'gt';
+  const head=`<button class="dri-b2" data-dk="main">← К дракону</button><h3 tabindex="-1">Генетический паспорт: ${esc(v.info.name)}</h3>
+    <div class="dri-tabs" role="tablist" aria-label="Разделы паспорта">${TABS.map(([k,n])=>`<button role="tab" class="dri-tab" data-dk="tab" data-t="${k}" aria-selected="${t===k}">${n}</button>`).join('')}</div>`;
+  let body='';
+  if(t==='gt')body=`<div class="dri-gt"><div class="dri-gpic"></div><div class="dri-gr"><h4>Хромосомы (2n = 10)</h4>${chromHTML(v)}<div class="dri-gcard"></div></div></div>`;
+  else if(t==='ex')body=`<div class="dri-loc" aria-live="polite"></div>`+(v.loc?'':`<p class="dri-gn">Выберите ген на вкладке «Генотип» или здесь:</p><div class="dri-cl">${genesHere(v).map(l=>`<button class="dri-chip" data-dk="loc" data-l="${l}" aria-pressed="false">${l} · ${esc(DRG.LOCI[l].name)}</button>`).join('')}</div>`);
+  else if(t==='chr')body=genoHTML(g,bred,true);
+  else if(t==='law')body=lawHTML();
+  else body=pedHTML(v);
+  setHTML(v.$('.dri-body'),head+`<div class="dri-tp" role="tabpanel">${body}</div>`);
+  if(t==='gt'){drawPic(v);gtCard(v)}
+  if(t==='ex'||t==='chr')genoHi(v)}
+/* гены по хромосомам: порядок как на схеме */
+function genesHere(v){const g=v.info.genome,out=[];Object.keys(DRG.CHROMS).forEach(c=>out.push(...DRG.CHROMS[c].loci));out.push(...DRG.Z.loci);if(g.sex==='F')out.push('Sp');out.push('G');return out}
+/* цвет аллеля на схеме: стихии своими цветами, у остальных генов первый аллель ярче */
+const PAL=['#E4572E','#2F80D1','#46A659','#F2C94C','#8E5BD6','#9A6B3A','#8C8F96','#E58BB0'];
+function alCol(l,a){if(a==null)return 'transparent';const EC=root.DRAW?root.DRAW.EL_COL:{};
+  if((l==='E'||l==='E2')&&EC[a])return EC[a];if(a==='0'||a==='e')return '#B8BCC4';
+  const L=DRG.LOCI[l],k=L&&L.alleles?L.alleles.indexOf(a):0;return PAL[(k<0?6:k)+(l.charCodeAt(0)%3)]||PAL[k]||'#8C8F96'}
+function chromHTML(v){const g=v.info.genome;
+  const col=(name,loci,h1,h2)=>`<div class="dri-chc"><b>${name}</b><div class="dri-chg">${loci.map((l,i)=>`<span class="sg" style="--c:${alCol(l,h1[i])}" title="${esc(al(h1[i]))}"></span><span class="sg${h2?'':' no'}" style="--c:${h2?alCol(l,h2[i]):'transparent'}"${h2?` title="${esc(al(h2[i]))}"`:''}></span><button class="lb" data-dk="loc" data-l="${l}" aria-pressed="${v.loc===l}" aria-label="Ген ${l}, ${esc(DRG.LOCI[l].name.toLowerCase())}">${l}</button>`).join('')}</div></div>`;
+  return `<div class="dri-chs">${Object.keys(DRG.CHROMS).map(c=>col(c,DRG.CHROMS[c].loci,g[c][0],g[c][1])).join('')}
+    ${col(g.sex==='M'?'Z/Z':'Z/W',g.sex==='M'?DRG.Z.loci:DRG.Z.loci.concat('Sp'),g.sex==='M'?g.Z[0]:g.Z[0].concat([null]),g.sex==='M'?g.Z[1]:[null,null,g.W])}
+    ${col('МтДНК',['G'],[g.mt],null)}</div><p class="dri-gn">Пара полосок — две хромосомы пары${v.info.parents&&v.info.parents.length?' (слева от матери, справа от отца)':''}, цвет — аллель. Нажмите на ген.</p>`}
+/* откуда аллель: известно, только если дракон выведен на острове */
+function originOf(v,l){const g=v.info.genome,bred=!!(v.info.parents&&v.info.parents.length),a=allelesOf(g,l);if(!bred)return '';
+  if(a.kind==='auto'||a.kind==='zz')return a.al[0]===a.al[1]?`Одинаковый аллель ${al(a.al[0])} от матери и от отца.`:`Аллель ${al(a.al[0])} получен от матери, ${al(a.al[1])} от отца.`;
+  if(a.kind==='zw')return `Единственная Z-хромосома получена от отца: аллель ${al(a.al[0])}.`;
+  if(a.kind==='w')return 'W-хромосома получена от матери.';
+  if(a.kind==='mt')return 'Митохондрии достались от матери.';return ''}
+function gtCard(v){const e=v.$('.dri-gcard');if(!e)return;const g=v.info.genome,ph=v.ph,l=v.loc;
+  if(!l){setHTML(e,'<p class="dri-gn">Нажмите на ген на хромосоме или на подпись у дракона.</p>');return}
+  const a=allelesOf(g,l),box=a.al.length?a.al.map(al).join(''):'—',o=originOf(v,l);
+  setHTML(e,`<div class="dri-gc"><h4>Выбранный ген: ${l} — ${esc(DRG.LOCI[l].name)}</h4><div class="dri-gcr"><span class="dri-gbox">${esc(box)}</span><span class="dri-gph">${esc(SHOW[l](ph))}</span></div>
+    <p>${esc(BRIEF[l](g,ph))}</p>${o?`<p class="dri-gor">🧬 ${esc(o)}</p>`:''}<button class="dri-more2" data-dk="tab" data-t="ex">Подробнее о наследовании ${l} →</button></div>`)}
+/* дракон с подписями частей тела и их генов */
+const CALL=[['H','horns'],['R','crest'],['C','skin'],['K','mace'],['Wg','wings'],['G','eyes'],['Sp','spurs'],['M','metal']];
+function drawPic(v){const e=v.$('.dri-gpic');if(!e||!root.ART)return;
+  try{e.innerHTML=root.ART.svg(v.M,{width:300,key:'gp'+v.info.id,label:v.info.name})}catch(x){e.innerHTML='';return}
+  const sv=e.querySelector('svg');if(!sv)return;
+  requestAnimationFrame(()=>{if(!sv.isConnected)return;const R=e.getBoundingClientRect(),out=[],lines=[];
+    CALL.forEach(([l,p])=>{const ps=partsOfLocus(l).filter(q=>v.parts.includes(q));const part=ps.includes(p)?p:ps[0];if(!part)return;
+      const gs=[...sv.querySelectorAll(`[data-part="${part}"]`)];if(!gs.length)return;
+      let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;gs.forEach(n=>{const b=n.getBoundingClientRect();if(!b.width&&!b.height)return;x0=Math.min(x0,b.left);y0=Math.min(y0,b.top);x1=Math.max(x1,b.right);y1=Math.max(y1,b.bottom)});
+      if(x0>x1)return;out.push({l,part,cx:(x0+x1)/2-R.left,cy:(y0+y1)/2-R.top})});
+    out.sort((a,b)=>a.cy-b.cy);const W=R.width,used={L:[],R:[]};
+    const lab=out.map(o=>{const side=o.cx<W/2?'L':'R';let y=Math.max(12,o.cy);used[side].forEach(u=>{if(Math.abs(u-y)<26)y=u+26});used[side].push(y);
+      const x=side==='L'?4:W-4;lines.push(`<line x1="${side==='L'?x+86:x-86}" y1="${y}" x2="${o.cx}" y2="${o.cy}"/><circle cx="${o.cx}" cy="${o.cy}" r="3"/>`);
+      return `<button class="dri-call ${side} ${v.loc===o.l?'on':''}" data-dk="loc" data-l="${o.l}" style="top:${y}px">${esc(PART[o.part])} (${o.l})</button>`});
+    e.insertAdjacentHTML('beforeend',`<svg class="dri-cl2" width="${W}" height="${R.height}" aria-hidden="true">${lines.join('')}</svg>${lab.join('')}`)})}
+function lawHTML(){const sn=Object.keys(SOURCES),ref=f=>f.src.length?` <small class="dri-ref">Источник: ${f.src.map(k=>sn.indexOf(k)+1).join(', ')}</small>`:'';
+  return `<section class="dri-law" id="dri-law"><h4 tabindex="-1">Как устроено наследование</h4><p class="dri-gn">Метки: <span class="dri-tag nat">${TAG.nat}</span> так у настоящих организмов, <span class="dri-tag mod">${TAG.mod}</span> придумано для игры, <span class="dri-tag art">${TAG.art}</span> генами не задаётся.</p>
+    ${FACTS.map(f=>`<div class="dri-fact"><span class="dri-tag ${f.tag}">${TAG[f.tag]}</span><b>${esc(f.h)}</b><p>${esc(f.t)}${ref(f)}</p></div>`).join('')}
+    <h4>Источники</h4><ol class="dri-src">${sn.map(k=>`<li>${esc(SOURCES[k])}</li>`).join('')}</ol></section>`}
+function genoHTML(g,bred,noLaw){
   const m=genoModel(g,bred),th=l=>`<th scope="col" data-l="${l}"><button class="dri-lb" data-dk="loc" data-l="${l}" aria-pressed="false" aria-label="Ген ${l}, ${esc(DRG.LOCI[l].name.toLowerCase())}: показать на драконе">${l}<small>${esc(DRG.LOCI[l].name.toLowerCase())}</small></button></th>`;
   const tbl=(loci,rows,show)=>`<table><thead><tr><th></th>${loci.map(th).join('')}</tr></thead><tbody>${rows.map(([n,h])=>`<tr><th scope="row">${n}</th>${h.map((a,i)=>`<td data-l="${loci[i]}">${esc(al(a))}</td>`).join('')}</tr>`).join('')}
     <tr class="ph"><th scope="row">видно</th>${show.map((x,i)=>`<td data-l="${loci[i]}">${esc(x)}</td>`).join('')}</tr></tbody></table>`;
   const sn=Object.keys(SOURCES),ref=f=>f.src.length?` <small class="dri-ref">Источник: ${f.src.map(k=>sn.indexOf(k)+1).join(', ')}</small>`:'';
   return `<p class="dri-gn">Каждая аутосома в паре. Столбец — ген, строка — одна хромосома пары: аллели в строке лежат на одной хромосоме и вместе уходят в гамету, если не случится кроссинговер.${bred?' Дракон выведен на острове, поэтому известно, какая хромосома от матери, а какая от отца.':''}</p>
-  <p class="dri-gn"><a href="#dri-law" class="dri-jump" data-dk="law">Что в модели как в природе, а что придумано для игры ↓</a></p>
+  ${noLaw?'<p class="dri-gn">Что в модели как в природе, а что придумано для игры, — на вкладке «Наследование».</p>':'<p class="dri-gn"><a href="#dri-law" class="dri-jump" data-dk="law">Что в модели как в природе, а что придумано для игры ↓</a></p>'}
   <p class="dri-gn">Нажмите на ген, и на драконе подсветится, где он виден. Нажмите на часть тела дракона, и в таблице подсветятся её гены.</p>
   <div class="dri-loc" aria-live="polite"></div>`+
   m.blocks.map(b=>{
@@ -624,9 +703,7 @@ function genoHTML(g,bred){
     const ln=b.links.map(x=>`${x.a} и ${x.b} сцеплены: рекомбинантных гамет ${Math.round(x.r*100)} %`).join('; ');
     return `<section class="dri-chr"><h4>${b.title}${ln?`<small>${esc(ln)}</small>`:''}</h4>${tbl(b.loci,b.rows,b.show)}${b.w?tbl(b.w.loci,b.w.rows,b.w.show):''}${gamHTML(g,b.id)}
       ${b.id==='A1'?`<p class="dri-gn">Аллели E: ${Object.entries(ELW).map(([k,w])=>k+' '+w).join(', ')}. Здесь W означает воду, это не половая хромосома W.</p>`:''}${b.note?`<p class="dri-gn">${esc(b.note)}</p>`:''}</section>`}).join('')+
-  `<section class="dri-law" id="dri-law"><h4 tabindex="-1">Как устроено наследование</h4><p class="dri-gn">Метки: <span class="dri-tag nat">${TAG.nat}</span> так у настоящих организмов, <span class="dri-tag mod">${TAG.mod}</span> придумано для игры, <span class="dri-tag art">${TAG.art}</span> генами не задаётся.</p>
-    ${FACTS.map(f=>`<div class="dri-fact"><span class="dri-tag ${f.tag}">${TAG[f.tag]}</span><b>${esc(f.h)}</b><p>${esc(f.t)}${ref(f)}</p></div>`).join('')}
-    <h4>Источники</h4><ol class="dri-src">${sn.map(k=>`<li>${esc(SOURCES[k])}</li>`).join('')}</ol></section>`}
+  (noLaw?'':lawHTML())}
 /* какие гаметы даёт этот дракон: проценты из движка, кроссоверные помечены. Произошёл ли кроссинговер у самого дракона, не записано */
 const pct=p=>{const v=Math.round(p*1000)/10;return String(v).replace('.',',')+' %'};
 function gamHTML(g,chr){
@@ -638,6 +715,7 @@ function gamHTML(g,chr){
 /* подсветка ген ↔ часть тела в паспорте: v.loc — выбранный ген, v.sel — выбранная часть */
 function genoHi(v){
   const body=v.$('.dri-body');if(!body||v.sub!=='geno')return;
+  if((v.tab||'gt')==='gt'){body.querySelectorAll('[data-dk="loc"]').forEach(b=>{const on=b.dataset.l===v.loc;b.setAttribute('aria-pressed',String(on));b.classList.toggle('on',on)});gtCard(v);return}
   const gs=v.sel&&root.MORPH?root.MORPH.genesOf(v.sel):[];
   body.querySelectorAll('[data-l]').forEach(e=>{const l=e.dataset.l;
     if(e.tagName==='BUTTON')e.setAttribute('aria-pressed',String(l===v.loc));

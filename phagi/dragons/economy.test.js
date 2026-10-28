@@ -155,7 +155,7 @@ t('скрещивание: Гнездовье → яйцо → Инкубато�
   else{s=ok(r);assert.ok(s.log[0].dead)}
 });
 
-t('скрещивание: генотип яйца с зерном, а без места птенец ждёт в Инкубаторе',()=>{
+t('скрещивание: генотип яйца с зерном, а без дома птенец живёт в яслях, а не пропадает',()=>{
   const mk=()=>{let s=E.normalize(E.startState(founders()),0,null);s.bal.gold=10000;s.bal.xp=E.xpFor(3);s=E.normalize(s,0,null);s.dragons.forEach(d=>d.lvl=3);
     s=ok(E.apply(s,ctx(0),{t:'build',type:'nest',x:2,y:5}));s=ok(E.apply(s,ctx(0),{t:'build',type:'hatch',x:4,y:8}));return E.normalize(s,30,null)};
   const a=ok(E.apply(mk(),ctx(30),{t:'breed',id:'b4',mother:'d1',father:'d2'})),b=ok(E.apply(mk(),ctx(30),{t:'breed',id:'b4',mother:'d1',father:'d2'}));
@@ -164,7 +164,38 @@ t('скрещивание: генотип яйца с зерном, а без м
   let s=ok(E.apply(a,ctx(40),{t:'egg',id:'b4'}));s=E.normalize(s,300,null);
   const eg=s.bld.find(x=>x.id==='b5').slots[0];
   if(eg.viable){s.dragons.push({id:'x1',name:'x',genome:G.make({sex:'M',E:'F/W'}),lvl:1,fed:0,home:'b1'},{id:'x2',name:'y',genome:G.make({sex:'M',E:'W/W'}),lvl:1,fed:0,home:'b2'});
-    const r=E.apply(s,ctx(300),{t:'hatch',id:'b5',plot:0});assert.ok(r.err&&/Нет свободного места/.test(r.err),r.err)}
+    const rate0=s.bld.reduce((x,b)=>x+E.rate(s,b),0),g0=JSON.stringify(eg.genome);
+    s=ok(E.apply(s,ctx(300),{t:'hatch',id:'b5',plot:0}));const baby=s.dragons.find(d=>d.id===s.last);
+    assert.strictEqual(baby.home,null);assert.strictEqual(baby.nurs,true);assert.strictEqual(JSON.stringify(baby.genome),g0,'геном тот же');
+    assert.ok(s.got.nursery);assert.strictEqual(E.nursery(s),1);
+    assert.strictEqual(s.bld.reduce((x,b)=>x+E.rate(s,b),0),rate0,'малыш в яслях золота не приносит');
+    /* ясли полны: яйцо остаётся в Инкубаторе, ошибка говорит, что делать */
+    s.dragons.push({id:'x3',name:'z',genome:G.make({sex:'F',E:'F/F'}),lvl:1,fed:0,home:null,nurs:true});
+    s.bld.find(x=>x.id==='b5').slots[1]=Object.assign({},s.bld.find(x=>x.id==='b5').slots[1]||{n:9,m:'d1',f:'d2',genome:eg.genome,viable:true,at:0,need:1,skip:0});
+    const r=E.apply(s,ctx(300),{t:'hatch',id:'b5',plot:1});assert.ok(r.err&&/ясли заняты/.test(r.err),r.err);
+    assert.ok(s.bld.find(x=>x.id==='b5').slots[1],'яйцо на месте');
+    /* освободилось место: «Переселить» из яслей снимает отметку */
+    s.dragons=s.dragons.filter(d=>d.id!=='x1'&&d.id!=='x2');const t=['b1','b2'].find(id=>E.hosts(s.bld.find(b=>b.id===id).type,G.phenotype(baby.genome)));
+    const s2=ok(E.apply(s,ctx(300),{t:'place',dragon:baby.id,home:t}));const b2=s2.dragons.find(d=>d.id===baby.id);
+    assert.strictEqual(b2.home,t);assert.ok(!b2.nurs);assert.strictEqual(E.nursery(s2),1)}
+});
+
+t('«Первый потомок»: шаги идут по порядку и опираются на настоящие числа',()=>{
+  let s=E.normalize(E.startState(founders()),0,null);
+  let p=E.breedPath(s,0);assert.strictEqual(p.next,'level');assert.strictEqual(p.steps[0].need,3);assert.ok(!p.done);
+  const par=p.steps[1].par;assert.strictEqual(par.length,2);
+  par.forEach(x=>{const d=s.dragons.find(z=>z.id===x.id);let n=0,f=0;for(let l=d.lvl;l<3;l++){const k=E.FEEDS-(l===d.lvl?(d.fed||0):0);n+=k;f+=k*E.feedCost(l)}
+    assert.strictEqual(x.n,n);assert.strictEqual(x.food,f)});
+  s.bal.gold=10000;s.bal.food=1000;s.bal.xp=E.xpFor(3);s=E.normalize(s,0,null);
+  p=E.breedPath(s,0);assert.strictEqual(p.next,'parents');
+  s.dragons.forEach(d=>d.lvl=3);p=E.breedPath(s,0);assert.strictEqual(p.next,'build');assert.strictEqual(p.steps[2].nest.state,'none');
+  s=ok(E.apply(s,ctx(0),{t:'build',type:'nest',x:2,y:5}));p=E.breedPath(s,0);assert.strictEqual(p.steps[2].nest.state,'build');assert.strictEqual(p.steps[2].nest.left,E.TYPES.nest.need);
+  s=ok(E.apply(s,ctx(0),{t:'build',type:'hatch',x:4,y:8}));s=E.normalize(s,30,null);p=E.breedPath(s,30);
+  assert.strictEqual(p.next,'pair');assert.ok(p.steps[3].can);
+  s=ok(E.apply(s,ctx(30),{t:'breed',id:'b4',mother:'d1',father:'d2'}));p=E.breedPath(s,30);assert.strictEqual(p.next,'egg');assert.strictEqual(p.steps[4].pair.left,E.BREED_NEED);
+  s=E.normalize(s,45,null);s=ok(E.apply(s,ctx(45),{t:'egg',id:'b4'}));p=E.breedPath(s,45);assert.strictEqual(p.next,'hatch');assert.strictEqual(p.steps[5].eggs.length,1);
+  s=E.normalize(s,200,null);const r=E.apply(s,ctx(200),{t:'hatch',id:'b5',plot:0});s=ok(r);
+  p=E.breedPath(s,200);if(s.log[0].child){assert.ok(p.done);assert.strictEqual(p.next,null)}
 });
 
 t('прогноз: верный ускоряет вдвое и даёт самоцвет, неверный ничего не отнимает',()=>{

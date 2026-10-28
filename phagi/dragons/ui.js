@@ -39,7 +39,8 @@ function storeOf(uid){
   if(uid!==meId()||!window.DRSTORE)return null;
   if(!STORES[uid]){const path=`srs/${uid}/meta/dragons`;
     STORES[uid]=new DRSTORE.Store({read:()=>window.PHCLOUD&&PHCLOUD.fresh?PHCLOUD.fresh(path):S.db.doc(path).get().then(x=>x.exists?x.data():null),
-      write:d=>S.db.doc(path).set(d)},{onChange:st=>{S.drag=S.drag||{};S.drag[uid]=st.tip;
+      /* запись уходит только под тем кодом, с которым открыта страница: после выхода или чужого входа в другой вкладке не пишем */
+      write:d=>window.PHCLOUD&&PHCLOUD.session&&!PHCLOUD.session()?Promise.reject({code:'session'}):S.db.doc(path).set(d)},{onChange:st=>{S.drag=S.drag||{};S.drag[uid]=st.tip;
         /* об ошибке говорит строка сохранения с кнопками; всплывающее сообщение закрывало бы её на телефоне */
         clearTimeout(storeOf.h);storeOf.h=setTimeout(()=>render(),0)}})}
   return STORES[uid]}
@@ -57,7 +58,7 @@ function canAct(uid){const st=storeOf(uid);if(!st||st.canAct())return true;
   toast(st.status==='conflict'?'Остров изменили в другой вкладке или на другом устройстве. Выберите вверху, какую версию оставить.':'Прошлое действие не сохранилось. Нажмите «Повторить» или «Отменить» вверху.',5000);return false}
 /* строка состояния сохранения: в шапке острова и в «Карточках», если что-то не так */
 function saveHTML(uid,quiet){const st=storeOf(uid);if(!st||!st.loaded)return '';
-  if(st.status==='error')return `<div class="drg-sv err" role="status"><span>Последнее действие не сохранилось${st.err&&st.err.code==='unavailable'?': нет связи с облаком':''}.</span><button class="btn sm" data-act="drgsave" data-v="retry">Повторить</button><button class="btn ghost sm" data-act="drgsave" data-v="discard">Отменить</button></div>`;
+  if(st.status==='error')return `<div class="drg-sv err" role="status"><span>Последнее действие не сохранилось${st.err&&st.err.code==='unavailable'?': нет связи с облаком':st.err&&st.err.code==='session'?': в другой вкладке вышли или вошли под другим кодом. Обновите страницу':''}.</span><button class="btn sm" data-act="drgsave" data-v="retry">Повторить</button><button class="btn ghost sm" data-act="drgsave" data-v="discard">Отменить</button></div>`;
   if(st.status==='conflict')return `<div class="drg-sv err" role="status"><span>Остров изменили в другой вкладке или на другом устройстве. Чтобы ничего не перезаписать, возьмите ту версию.</span><button class="btn sm" data-act="drgsave" data-v="remote">Взять с сервера</button></div>`;
   if(quiet)return '';
   return `<span class="drg-sv ${st.status}" role="status" aria-live="polite">${st.status==='saving'?'Сохраняю…':'✓ Сохранено'}</span>`}
@@ -79,8 +80,8 @@ function setMode(mode){
 let lastAct={k:'',t:0};
 function act(a){
   const uid=meId(),x=stateOf(uid);if(!x||!canAct(uid))return null;
-  /* то же действие второй раз за полсекунды — двойное нажатие, а не новое кормление или покупка */
-  const k=JSON.stringify(a),t=Date.now();if(k===lastAct.k&&t-lastAct.t<500)return null;lastAct={k,t};
+  /* то же действие второй раз за 0,3 с — двойное нажатие, а не новое кормление или покупка */
+  const k=JSON.stringify(a),t=Date.now();if(k===lastAct.k&&t-lastAct.t<300)return null;lastAct={k,t};
   const r=E.apply(x.st,x.c,a);
   if(r.err){toast(r.err);return null}
   const d=docOf(uid);save(uid,Object.assign({},r.s,{mode:d.mode,periods:d.periods}));
@@ -119,7 +120,8 @@ function hero(uid,compact){
   if(td.gold)notes.push(`🪙 в сундуках ${fmt(td.gold)}${td.full?`, ${td.full} ${plural(td.full,'полон','полны','полны')}`:''}`);
   if(td.crops)notes.push(`🌾 созрело ${td.crops} ${plural(td.crops,'грядка','грядки','грядок')}`);
   if(td.builds)notes.push(`🔨 стройка готова`);
-  const own=uid===meId();
+  const own=uid===meId(),gl=own?goalLine(st,c.K):null;
+  if(gl)notes.unshift(`🥚 Цель: ${gl.text}`);
   return `<section class="drg-hero${info.done?' done':''}">${own?saveHTML(uid,true):''}
   <div class="drg-top"><div><div class="st-k">Остров драконов</div><div class="st-n"><b>${n}</b><span>${plural(n,'день','дня','дней')} подряд</span></div>
   <p class="st-msg">${info.done?`День засчитан. Паёк ${ration} корма уже на острове, а каждая следующая карточка приносит драконам ещё ${fmt(rt)} золота.`:`Сегодня ${info.todayN} из ${GOAL}. Ещё ${cardsAcc(left)}, и придёт дневной паёк ${ration} корма и самоцвет. Каждая карточка уже сейчас приносит ${fmt(rt)} золота.`}</p></div>
@@ -147,6 +149,7 @@ function islandView(){
   const pl=own?S.drgPlace:null;
   const placeBar=pl?`<div class="drg-place"><span>${pl.move?'Нажмите, куда перенести здание':'Нажмите на зелёную клетку, где поставить: '+E.TYPES[pl.type].name}</span><button class="btn ghost sm" data-act="drgcancel">Отмена</button></div>`:'';
   const isl=I.svg(st,{K,sel:S.drgSel,place:pl,key:'isl',readonly:!own,full});
+  const gl=own&&!pl?goalLine(st,K):null;
   if(full){
     const L=E.level(st),a=E.xpFor(L),b=E.xpFor(L+1),xp=Math.round((st.bal.xp-a)/Math.max(1,b-a)*100),bal=st.bal;
     const pill=(ic,v,t)=>`<span class="drg-pill" title="${t}"><i aria-hidden="true">${ic}</i><b>${fmt(v)}</b>${own?`<button data-act="drgpanel" data-v="help" aria-label="${t}: как получить">+</button>`:''}</span>`;
@@ -154,16 +157,17 @@ function islandView(){
     return `<div class="drg-map full${pl?' placing':''}"><div class="drg-stage">${isl}</div>
       <div class="drg-hud"><div class="drg-hud-l" title="Опыт ${fmt(bal.xp)} из ${fmt(b)}"><span class="drg-star"><b>${L}</b></span><span class="drg-xpbar"><i style="width:${xp}%"></i></span></div>
       <div class="drg-hud-r">${pill('🪙',bal.gold,'Золото')}${pill('💎',bal.gems,'Самоцветы')}${pill('🌾',bal.food,'Корм')}</div></div>
-      ${own?`<div class="drg-svw">${saveHTML(uid)}</div>`:''}
+      ${own?`<div class="drg-svw">${saveHTML(uid)}${gl&&!S.drgPanel&&!S.drgSel?`<button class="drg-goal" data-act="drgpanel" data-v="breed"><small>Цель: первый потомок · шаг ${gl.step} из ${gl.of}</small><b>${gl.text}</b></button>`:''}</div>`:''}
       ${placeBar}
-      <div class="drg-bl">${rb('drgfull','0','🏠','Домой')}${rb('drgpanel','dragons','📖','Драконы')}${rb('drgpanel','journal','📓','Журнал')}${own&&st.dragons.length?rb('drgfight','','⚔️','Поход'):''}</div>
+      <div class="drg-bl">${rb('drgfull','0','🏠','Домой')}${rb('drgpanel','dragons','📖','Драконы')}${own?rb('drgpanel','breed','🥚','Скрещивание'):''}${rb('drgpanel','journal','📓','Журнал')}${own&&st.dragons.length?rb('drgfight','','⚔️','Поход'):''}</div>
       ${own?`<div class="drg-br">${rb('drgpanel','market','🐉','Рынок')}${rb('drgpanel','shop','🔨','Строить',1)}</div>`:''}
       <div class="drg-zm"><button data-act="drgzoom" data-v="in" aria-label="Приблизить">+</button><button data-act="drgzoom" data-v="out" aria-label="Отдалить">−</button><button data-act="drgzoom" data-v="fit" aria-label="Весь остров">⤢</button></div>
       </div>`+panel(st,c,own)}
   const head=`${back}${own?saveHTML(uid,true):''}<div class="drg-ih"><div class="drg-ih-t"><h1>Остров драконов${own?'':': '+esc(name(uid))}</h1><span class="muted small">Время на острове идёт в карточках: повторено ${cards(K)}</span></div>${lvlHTML(st)}${walletHTML(st)}</div>`;
-  const tools=own&&!pl?`<div class="drg-tools"><button class="btn sm" data-act="drgfull" data-v="1">🏝 Отправиться на остров</button><button class="btn ghost sm" data-act="drgpanel" data-v="shop">🔨 Построить</button><button class="btn ghost sm" data-act="drgpanel" data-v="market">🐉 Рынок</button><button class="btn ghost sm" data-act="drgpanel" data-v="dragons">📖 Драконы</button>${st.dragons.length?'<button class="btn ghost sm" data-act="drgfight">⚔️ Поход</button>':''}<button class="btn ghost sm" data-act="drgpanel" data-v="journal">📓 Журнал скрещиваний</button><button class="btn ghost sm" data-act="drgpanel" data-v="help">Как это работает</button></div>`:'';
+  const tools=own&&!pl?`<div class="drg-tools"><button class="btn sm" data-act="drgfull" data-v="1">🏝 Отправиться на остров</button><button class="btn ghost sm" data-act="drgpanel" data-v="shop">🔨 Построить</button><button class="btn ghost sm" data-act="drgpanel" data-v="market">🐉 Рынок</button><button class="btn ghost sm" data-act="drgpanel" data-v="dragons">📖 Драконы</button><button class="btn ghost sm" data-act="drgpanel" data-v="breed">🥚 Скрещивание</button>${st.dragons.length?'<button class="btn ghost sm" data-act="drgfight">⚔️ Поход</button>':''}<button class="btn ghost sm" data-act="drgpanel" data-v="journal">📓 Журнал скрещиваний</button><button class="btn ghost sm" data-act="drgpanel" data-v="help">Как это работает</button></div>`:'';
   const map=`<div class="drg-map${pl?' placing':''}">${placeBar}${isl}<button class="drg-fsb" data-act="drgfull" data-v="1" aria-label="Открыть остров на весь экран">⛶</button></div>`;
-  return head+tools+map+panel(st,c,own);
+  const goal=gl?`<button class="drg-goal in" data-act="drgpanel" data-v="breed"><small>Цель: первый потомок · шаг ${gl.step} из ${gl.of}</small><b>${gl.text}</b></button>`:'';
+  return head+goal+tools+map+panel(st,c,own);
 }
 
 function panel(st,c,own){
@@ -172,8 +176,9 @@ function panel(st,c,own){
   if(own&&p==='market')return marketHTML(st,L);
   if(p==='dragons')return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>Драконы острова</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div><div class="drg-list">${st.dragons.map(d=>dragonCard(st,d,own,L)).join('')}</div></section>`;
   if(p==='help')return helpHTML(st,c);
+  if(p==='breed')return breedHTML(st,c,own);
   if(p==='journal')return journalHTML(st);
-  if(p==='baby'){const d=st.dragons.find(x=>x.id===S.drgBaby);if(d)return `<section class="sheet drg-pan drg-baby"><div class="drg-pan-h"><h2>🐣 Вылупился ${esc(d.name)}!</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div><div class="drg-list">${dragonCard(st,d,own,L)}</div></section>`}
+  if(p==='baby'){const d=st.dragons.find(x=>x.id===S.drgBaby);if(d)return `<section class="sheet drg-pan drg-baby"><div class="drg-pan-h"><h2>🐣 Вылупился ${esc(d.name)}!</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div>${own?saveHTML(meId()):''}${d.nurs&&!d.home?`<p class="drg-why">Подходящего свободного дома пока нет (нужен дом: ${E.habNames(phOf(d))}), поэтому ${esc(d.name)} живёт в яслях Инкубатора. В яслях дракон не приносит золота, но его можно кормить. Когда появится дом, нажмите «Переселить».</p>`:''}<div class="drg-list">${dragonCard(st,d,own,L)}</div><div class="actions" style="justify-content:flex-start"><button class="btn ghost sm" data-act="drgpanel" data-v="journal">📓 Журнал скрещиваний</button><button class="btn ghost sm" data-act="drgpanel" data-v="breed">🥚 Скрещивание</button></div></section>`}
   const b=st.bld.find(x=>x.id===S.drgSel);
   if(!b)return S.drgFull?'':`<p class="muted small drg-tip">${own?'Нажмите на здание, чтобы собрать золото, покормить драконов или посадить корм.':'Это остров ученицы, здесь можно только смотреть.'}</p>`;
   const T=E.TYPES[b.type],job=b.build||b.up;
@@ -203,8 +208,8 @@ function dragonCard(st,d,own,L){
   <div class="drg-info"><div class="drg-nm"><b>${esc(d.name)}</b><span class="drg-sex" title="${d.genome.sex==='F'?'самка ZW':'самец ZZ'}">${SEX[d.genome.sex]}</span><span class="drg-rar">${G.RARITY[rr]}</span></div>
   <div class="drg-dl"><span>${d.lvl}-й уровень, ${W.STAGE_NAME[W.stageOf(d.lvl)]}</span><span class="drg-pips" title="Кормлений до следующего уровня">${Array.from({length:E.FEEDS},(_,i)=>`<i${i<(d.fed||0)?' class="on"':''}></i>`).join('')}</span><span class="muted">+${fmt(E.goldPerCard(d))} 🪙 за карточку</span></div>
   <ul>${W.describe(ph).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
-  <p class="muted small" style="margin:4px 0 0">${home?'Живёт: '+E.TYPES[home.type].name:'Без дома'}${d.parents?` · ${d.gen}-е поколение, родители ${d.parents.map(id=>esc(dname(st,id))).join(' × ')}`:d.from==='market'?' · с рынка':''}</p>
-  ${own?`<div class="drg-da">${d.lvl<cap?`<button class="btn sm" data-act="drgdo" data-t="feed" data-dragon="${d.id}"${st.bal.food<cost?' disabled':''}>Покормить: ${cost} 🌾</button>`:`<span class="muted small">Следующий уровень откроется с ростом острова</span>`}
+  <p class="muted small" style="margin:4px 0 0">${home?'Живёт: '+E.TYPES[home.type].name:d.nurs?`В яслях Инкубатора, ждёт дом: ${E.habNames(ph)}`:'Без дома'}${d.parents?` · ${d.gen}-е поколение, родители ${d.parents.map(id=>esc(dname(st,id))).join(' × ')}`:d.from==='market'?' · с рынка':''}</p>
+  ${own?`<div class="drg-da">${d.lvl<cap?`<button class="btn sm" data-act="drgdo" data-t="feed" data-dragon="${d.id}"${st.bal.food<cost?' disabled':''}>Покормить: ${cost} 🌾</button>${st.bal.food<cost?`<span class="drg-why">Корма ${fmt(st.bal.food)} из ${cost}. Корм растёт на ферме и приходит паёк за день с карточками.</span>`:''}`:`<span class="muted small">Следующий уровень откроется с ростом острова</span>`}
   ${homes.map(b=>`<button class="btn ghost sm" data-act="drgdo" data-t="place" data-dragon="${d.id}" data-home="${b.id}">Переселить: ${E.TYPES[b.type].name}</button>`).join('')}
   <button class="btn ghost sm" data-act="drgrename" data-dragon="${d.id}">Имя</button><button class="btn ghost sm" data-act="drgrelease" data-dragon="${d.id}">Отпустить</button></div>`:''}</div></article>`}
 function dname(st,id){const d=st.dragons.find(x=>x.id===id)||(st.gone||[]).find(x=>x.id===id);return d?d.name:'?'}
@@ -249,15 +254,76 @@ function nestHTML(st,b,c,own){
     <p class="muted small">Если догадалась о генотипах родителей, предскажи долю потомков с признаком. Доля считается среди вылупившихся потомков этой пары (яйца, которые не развились, в неё не входят) и без учёта редких мутаций. Ошибка до ${Math.round(E.PRED_TOL*100)} процентных пунктов засчитывается: скрещивание вдвое быстрее и самоцвет. Неверный прогноз ничего не стоит.</p>
     <div class="drg-breed"><label>Признак ${sel('drgPt',[['','без прогноза'],...Object.entries(TRAITS)],tr)}</label>${tr?`<label>Вариант ${sel('drgPc',cls,cv)}</label><label>Доля, % <input id="drgPp" class="drg-in" type="number" min="0" max="100" step="0.1" inputmode="decimal" value="${esc(fv.drgPp||'')}" placeholder="например 25"></label>`:''}</div></details>
   ${low.length?`<p class="muted small">${low.map(d=>`${esc(d.name)} (${d.lvl}-й ур.)`).join(' и ')}: для скрещивания нужен ${E.BREED_LV}-й уровень. Кормят дракона кнопкой «Покормить» в его карточке, корм для этого растёт на ферме.</p><div class="actions" style="justify-content:flex-start"><button class="btn ghost sm" data-act="drgpanel" data-v="dragons">Открыть драконов</button></div>`:''}
-  <div class="actions" style="justify-content:flex-start"><button class="btn sm" data-act="drgbreed" data-id="${b.id}" data-m="${mid}" data-f="${fid}"${low.length||st.bal.gold<cost?' disabled':''}>Скрестить: ${fmt(cost)} 🪙, ${E.BREED_NEED} к.</button></div>`}
+  <div class="actions" style="justify-content:flex-start"><button class="btn sm" data-act="drgbreed" data-id="${b.id}" data-m="${mid}" data-f="${fid}"${low.length||st.bal.gold<cost?' disabled':''}>Скрестить: ${fmt(cost)} 🪙, ${cards(E.BREED_NEED)}</button>${!low.length&&st.bal.gold<cost?`<span class="drg-why">Не хватает ${fmt(cost-Math.floor(st.bal.gold))} 🪙. Золото копится в сундуках домов за каждую повторённую карточку.</span>`:''}</div>`}
 
+/* куда пойдёт малыш из готового яйца: проверка до нажатия «Вылупить» */
+function hatchBlocked(st,eg){return eg.viable&&!E.homeFor(st,G.phenotype(eg.genome))&&E.nursery(st)>=E.NURSERY}
+function hatchWhy(st,eg){if(!eg.viable)return '';const ph=G.phenotype(eg.genome),h=E.homeFor(st,ph);
+  if(h)return `<span class="muted small">Поселится: ${E.TYPES[h.type].name}</span>`;
+  const n=E.nursery(st);
+  return n<E.NURSERY?`<span class="drg-why">Свободного дома нет (нужен дом: ${E.habNames(ph)}). Малыш поживёт в яслях: занято ${n} из ${E.NURSERY}.</span>`
+    :`<span class="drg-why">Свободного дома нет (нужен дом: ${E.habNames(ph)}), и ясли заняты. Переселите малыша из яслей или освободите место в доме. Яйцо подождёт здесь.</span>`}
 function hatchHTML(st,b,c,own){
   const K=c.K;
   return `<div class="drg-plots">${b.slots.map((eg,i)=>{
     if(!eg)return `<div class="drg-plot"><b>Место ${i+1}</b><span class="muted small">Пусто. Яйца приходят из Гнездовья.</span></div>`;
     const rd=E.ready(eg,K),lf=E.left(eg,K);
     return `<div class="drg-plot${rd?' ready':''}"><span class="drg-egg"><svg viewBox="-14 -16 28 32" width="34" height="40" aria-hidden="true">${I.eggSVG(0,0,eg)}</svg><b>Яйцо №${eg.n}</b></span><span class="muted small">${esc(dname(st,eg.m))} ♀ × ${esc(dname(st,eg.f))} ♂</span><span class="drg-bar"><i style="width:${Math.min(100,(eg.need-lf)/eg.need*100)}%"></i></span><span class="muted small">${rd?'Готово!':`До вылупления ${cardsAcc(lf)}`}</span>
-      ${own?(rd?`<button class="btn sm" data-act="drgdo" data-t="hatch" data-id="${b.id}" data-plot="${i}">Вылупить</button>`:`<button class="btn ghost sm" data-act="drgdo" data-t="speed" data-id="${b.id}" data-plot="${i}">Ускорить за ${Math.ceil(lf/E.SKIP_CARDS)} 💎</button>`):''}</div>`}).join('')}</div>`}
+      ${rd?hatchWhy(st,eg):''}
+      ${own?(rd?`<button class="btn sm" data-act="drgdo" data-t="hatch" data-id="${b.id}" data-plot="${i}"${hatchBlocked(st,eg)?' disabled':''}>Вылупить</button>`:`<button class="btn ghost sm" data-act="drgdo" data-t="speed" data-id="${b.id}" data-plot="${i}">Ускорить за ${Math.ceil(lf/E.SKIP_CARDS)} 💎</button>`):''}</div>`}).join('')}</div>`}
+
+/* ---------- «Скрещивание»: путь к первому потомку и всё о парах и яйцах ----------
+   Шаги считает E.breedPath по настоящему состоянию; у каждого шага ближайшее действие и причина, если оно закрыто. */
+const STEP_T={level:'Остров 3-го уровня',parents:'Самка и самец 3-го уровня',build:'Гнездовье и Инкубатор',pair:'Пара в Гнездовье',egg:'Яйцо в Инкубаторе',hatch:'Вылупление'};
+const toCards='<button class="btn ghost sm" data-act="drgcards">Повторять карточки</button>';
+function breedHTML(st,c,own){
+  const P=E.breedPath(st,c.K),L=E.level(st),bal=st.bal,b=k=>P.steps.find(x=>x.k===k);
+  const btn=(attrs,label,why)=>`<button class="btn sm" ${attrs}${why?' disabled':''}>${label}</button>${why?`<span class="drg-why">${why}</span>`:''}`;
+  const body={
+    level:x=>x.ok?`Острову ${L}-й уровень.`:`Острову сейчас ${L}-й уровень, до ${x.need}-го нужно ещё ${fmt(x.xpNeed-x.xp)} опыта. Опыт дают стройка, кормление драконов, сбор урожая и покупка на рынке.`
+      +(own&&!x.ok?`<div class="drg-sa"><button class="btn ghost sm" data-act="drgpanel" data-v="shop">🔨 Построить</button><button class="btn ghost sm" data-act="drgpanel" data-v="dragons">📖 Покормить драконов</button></div>`:''),
+    parents:x=>x.par.map(p=>{const sx=p.sex==='F'?'Самка':'Самец';
+      if(!p.id)return `<div class="drg-sr">${sx}: на острове нет. ${own?'<button class="btn ghost sm" data-act="drgpanel" data-v="market">🐉 Рынок</button>':''}</div>`;
+      const d=st.dragons.find(z=>z.id===p.id),cost=E.feedCost(d.lvl);
+      return `<div class="drg-sr"><span>${esc(p.name)} ${SEX[p.sex]}, ${p.lvl}-й уровень${p.ok?' ✓':`: ещё ${p.n} ${plural(p.n,'кормление','кормления','кормлений')}, всего ${fmt(p.food)} 🌾`}</span>
+        ${own&&!p.ok?btn(`data-act="drgdo" data-t="feed" data-dragon="${p.id}"`,`Покормить: ${cost} 🌾`,bal.food<cost?`Корма ${fmt(bal.food)}, нужно ${cost}. Корм растёт на ферме и приходит паёк за день с карточками`:''):''}
+        <button class="btn ghost sm" data-act="drginsp" data-dragon="${p.id}">Открыть</button></div>`}).join(''),
+    build:x=>[x.nest,x.hatch].map(q=>{const t=E.TYPES[q.type];
+      if(q.state==='ok')return `<div class="drg-sr"><span>${t.name} ✓</span><button class="btn ghost sm" data-act="drgsel" data-id="${q.id}">Открыть</button></div>`;
+      if(q.state==='build'||q.state==='done')return `<div class="drg-sr"><span>${t.name}: ${q.state==='done'?'стройка готова, откройте здание':`строится, осталось ${cards(q.left)}`}</span><button class="btn ghost sm" data-act="drgsel" data-id="${q.id}">Открыть</button>${q.state==='build'?toCards:''}</div>`;
+      const why=q.state==='locked'?`Откроется на ${q.unlock}-м уровне острова`:bal.gold<q.cost?`Не хватает ${fmt(q.cost-Math.floor(bal.gold))} 🪙`:'';
+      return `<div class="drg-sr"><span>${t.name}: ${fmt(q.cost)} 🪙, строится ${cards(q.need)}</span>${own?btn(`data-act="drgbuild" data-type="${q.type}"`,'Построить',why):''}</div>`}).join(''),
+    pair:x=>{const nb=st.bld.find(z=>z.type==='nest'&&!z.build);
+      return `Выберите самку и самца в Гнездовье. Скрещивание стоит ${fmt(x.cost)} 🪙 (есть ${fmt(x.gold)}), яйцо будет готово через ${cards(x.need)}. Прогноз потомства по желанию.`
+      +(own&&nb&&!x.ok?`<div class="drg-sa">${btn(`data-act="drgsel" data-id="${nb.id}"`,'Открыть Гнездовье',x.gold<x.cost?`Не хватает ${fmt(x.cost-x.gold)} 🪙`:'')}</div>`:'')},
+    egg:x=>{const p=x.pair;if(!p)return x.ok?'Яйцо уже в Инкубаторе.':'Яйцо появится в Гнездовье после скрещивания.';
+      const hb=st.bld.find(z=>z.type==='hatch'&&!z.build),free=hb&&hb.slots.some(z=>!z);
+      return p.ready?`Яйцо готово.${own?`<div class="drg-sa">${btn(`data-act="drgdo" data-t="egg" data-id="${p.id}"`,'Перенести в Инкубатор',!hb?'Сначала нужен Инкубатор':!free?'В Инкубаторе нет свободного места: сначала вылупите готовое яйцо':'')}</div>`:''}`
+        :`Яйцо будет готово через ${cards(p.left)}.${own?`<div class="drg-sa">${toCards}<button class="btn ghost sm" data-act="drgsel" data-id="${p.id}">Открыть Гнездовье</button></div>`:''}`},
+    hatch:x=>x.eggs.length?x.eggs.map(e=>{const eg=st.bld.find(z=>z.id===e.id).slots[e.plot];
+      return `<div class="drg-sr"><span>Яйцо №${eg.n}: ${e.ready?'готово':`до вылупления ${cards(e.left)}`}</span>${e.ready?hatchWhy(st,eg):''}
+        ${own&&e.ready?btn(`data-act="drgdo" data-t="hatch" data-id="${e.id}" data-plot="${e.plot}"`,'Вылупить',hatchBlocked(st,eg)?'Нет дома и мест в яслях':''):own?toCards+`<button class="btn ghost sm" data-act="drgsel" data-id="${e.id}">Открыть Инкубатор</button>`:''}</div>`}).join('')
+      :'Когда яйцо будет в Инкубаторе, здесь появится его срок.'};
+  const now=P.next,idx=P.steps.findIndex(x=>x.k===now);
+  const steps=P.steps.map((x,i)=>{const cls=x.ok?'ok':i===idx?'now':'later';
+    return `<li class="drg-st ${cls}"${i===idx?' aria-current="step"':''}><b>${STEP_T[x.k]}</b>${x.ok&&(idx<0||i<idx)?'':`<div class="drg-sd">${body[x.k](x)}</div>`}</li>`}).join('');
+  const nurs=st.dragons.filter(d=>d.nurs&&!d.home);
+  const nursH=nurs.length?`<h3>Ясли Инкубатора: ${nurs.length} из ${E.NURSERY}</h3>${nurs.map(d=>`<div class="drg-sr"><span>${esc(d.name)} ${SEX[d.genome.sex]}: нужен дом: ${E.habNames(phOf(d))}</span><button class="btn ghost sm" data-act="drginsp" data-dragon="${d.id}">Открыть</button></div>`).join('')}<p class="muted small">В яслях малыши не приносят золота. «Переселить» в карточке дракона появится, когда будет свободный подходящий дом.</p>`:'';
+  const ch=P.child&&(st.dragons.find(d=>d.id===P.child.child)||(st.gone||[]).find(d=>d.id===P.child.child));
+  const head=P.done?`<p class="drg-why ok">Первый потомок уже есть${ch?`: ${esc(ch.name)}`:''}. Дальше копите потомство пар в журнале: по долям признаков можно понять генотипы родителей.</p>
+      <div class="drg-sa"><button class="btn ghost sm" data-act="drgpanel" data-v="journal">📓 Журнал скрещиваний</button>${ch&&st.dragons.includes(ch)?`<button class="btn ghost sm" data-act="drginsp" data-dragon="${ch.id}">Осмотреть: ${esc(ch.name)}</button>`:''}</div>`
+    :`<p class="muted small">Скрестите самку и самца, перенесите яйцо в Инкубатор и дождитесь вылупления. Время на острове идёт в повторённых карточках: пока страница просто открыта, яйца и стройки не растут.</p>`;
+  return `<section class="sheet drg-pan drg-bp"><div class="drg-pan-h"><h2>${P.done?'🥚 Скрещивание':'🥚 Цель: первый потомок'}</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div>
+  ${head}${P.done?hub():`<ol class="drg-steps">${steps}</ol>`}${nursH}</section>`;
+  /* после первого потомка вместо пройденных шагов — что сейчас в Гнездовье и Инкубаторе */
+  function hub(){const x=k=>P.steps.find(z=>z.k===k),pr=x('egg').pair;
+    return `<h3>Гнездовье</h3><div class="drg-sd">${pr?body.egg(x('egg')):body.pair(Object.assign({},x('pair'),{ok:false}))}</div>
+      <h3>Инкубатор</h3><div class="drg-sd">${body.hatch(x('hatch'))}</div>`}}
+/* цель для шапки острова и «Карточек»: короткая строка ближайшего шага */
+function goalLine(st,K){const P=E.breedPath(st,K);if(P.done)return null;
+  const x=P.steps.find(z=>z.k===P.next),T={level:'поднять остров до 3-го уровня',parents:'вырастить самку и самца до 3-го уровня',build:'построить Гнездовье и Инкубатор',
+    pair:'выбрать пару в Гнездовье',egg:x.pair&&x.pair.ready?'перенести яйцо в Инкубатор':`яйцо будет через ${x.pair?cards(x.pair.left):'…'}`,hatch:x.eggs&&x.eggs.some(e=>e.ready)?'вылупить малыша':`малыш вылупится через ${x.eggs&&x.eggs.length?cards(Math.min(...x.eggs.map(e=>e.left))):'…'}`};
+  return {step:P.steps.indexOf(x)+1,of:P.steps.length,text:T[P.next]}}
 
 /* журнал: потомство по парам и расщепление по выбранному признаку */
 const PH_KEY={elements:x=>x.el,color:x=>x.c,hornsMace:x=>(x.h?'H':'h')+(x.k?'K':'k'),crest:x=>x.r,shortWings:x=>String(!!x.sw),span:x=>String(x.span),sex:x=>x.sex,metal:x=>String(!!x.m),night:x=>String(!!x.n),glow:x=>String(!!x.g),spurs:x=>String(!!x.sp)};
@@ -303,7 +369,7 @@ function shopHTML(st,L){
 const MK_NAME={F:'Огненный дракон',W:'Водный дракон',N:'Дымный дракон',T:'Земляной дракон',A:'Воздушный дракон',P:'Лесной дракон'};
 function marketHTML(st,L){
   const row=k=>{const t=E.TYPES[k],lock=L<t.unlock,home=st.bld.some(b=>b.type===k&&!b.build&&st.dragons.filter(x=>x.home===b.id).length<E.habCap(b));
-    const ph=G.phenotype(E.marketGenome(k,'preview')),why=lock?`С ${t.unlock}-го уровня`:!home?`Нужна свободная ${t.name.toLowerCase()}`:'';
+    const ph=G.phenotype(E.marketGenome(k,'preview')),why=lock?`С ${t.unlock}-го уровня`:!home?`Нужен свободный дом: ${t.name}`:'';
     return `<div class="drg-shop-i"><span class="drg-shop-pic">${W.svg(ph,{key:'mk'+k,size:110})}</span><b>${MK_NAME[k]}</b><small>генотип неизвестен, редкость видна после покупки</small><span class="drg-price">${fmt(t.price)} 🪙</span>${why?`<em>${why}</em>`:`<button class="btn sm" data-act="drgdo" data-t="buy" data-type="${k}">Купить</button>`}</div>`};
   return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>Рынок драконов</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div>
   <p class="muted small">На рынке продают драконов одной стихии, и у каждого свой генотип. Большинство обычные, примерно каждый десятый оказывается редким по окрасу, гребню или рогам, около одного из ста сверхредким. Двух стихий и света или тьмы у рыночных драконов не бывает, такие рождаются только при скрещивании. Какие скрытые аллели несёт дракон, покажет паспорт и потомство.</p>
@@ -423,6 +489,8 @@ window.DRG_ACTIONS={
     else if(v==='discard'){st.discard();toast('Вернулась последняя сохранённая версия острова')}
     else if(v==='remote'){st.takeRemote();toast('Взята версия с сервера')}},
   drgpanel:el=>{S.drgPanel=el.dataset.v||null;S.drgSel=null;S.drgPlace=null},
+  /* из ожидания на острове прямо к повторению: время острова идёт только в карточках */
+  drgcards:()=>{S.drgFull=false;S.drgPanel=null;S.drgSel=null;S.drgPlace=null;S.view='cards';window.scrollTo(0,0)},
   drgbuild:el=>{S.drgPlace={type:el.dataset.type};S.drgPanel=null;S.drgSel=null;if(!S.drgFull)window.scrollTo(0,0)},
   drgmove:el=>{S.drgPlace={move:el.dataset.id};S.drgSel=null;if(!S.drgFull)window.scrollTo(0,0)},
   drgcancel:()=>{S.drgPlace=null},
@@ -439,7 +507,7 @@ window.DRG_ACTIONS={
     else if(d.t==='buy'){const x=r.s.dragons.find(z=>z.id===r.s.last);toast(`На острове новый дракон: ${x.name}`)}
     else if(d.t==='egg')toast('Яйцо в Инкубаторе')
     else if(r.s.got&&r.s.got.dead)toast('Яйцо не развилось. Посмотри в журнале, у каких родителей так бывает')
-    else if(r.s.got&&r.s.got.baby){const x=r.s.dragons.find(z=>z.id===r.s.got.baby);S.drgPanel='baby';S.drgBaby=x.id}},
+    else if(r.s.got&&r.s.got.baby){const x=r.s.dragons.find(z=>z.id===r.s.got.baby);S.drgPanel='baby';S.drgBaby=x.id;S.drgSel=null}},
   drgbreed:el=>{const fv=S.fv||{},t=fv.drgPt,pp=parseFloat(String(fv.drgPp||'').replace(',','.'));
     const pred=t&&!isNaN(pp)?{trait:t,value:fv.drgPc||(document.getElementById('drgPc')||{}).value,p:pp/100}:null;
     const r=act({t:'breed',id:el.dataset.id,mother:el.dataset.m,father:el.dataset.f,pred});if(!r)return;

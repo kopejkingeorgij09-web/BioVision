@@ -17,6 +17,9 @@ const breedCost=(rm,rf)=>50*(1+rm+rf);
 const BREED_NEED=10;                    /* пара в Гнездовье: карточек до яйца */
 const HATCH_NEED=[8,14,22,32,45];       /* яйцо в Инкубаторе: карточек до вылупления по редкости */
 const DEAD_NEED=4;
+/* ясли при Инкубаторе: если подходящего дома нет (свет и тьма до 12-го уровня, все дома заняты), малыш живёт здесь.
+   В яслях дракон не приносит золота, но его можно кормить, а когда появится дом, переселить. Геном не теряется. */
+const NURSERY=2;
 const PRED_TOL=0.03;                    /* прогноз верен, если ошибка не больше 3 процентных пунктов */
 const TYPES={
   F:{name:'Кальдера',kind:'hab',hosts:['F'],cost:150,need:10,unlock:1,price:250},
@@ -99,6 +102,9 @@ const B=(s,id)=>s.bld.find(b=>b.id===id);
 const ready=(job,K)=>!!job&&K-job.at+(job.skip||0)*SKIP_CARDS>=job.need;
 const left=(job,K)=>job?Math.max(0,job.need-(K-job.at)-(job.skip||0)*SKIP_CARDS):0;
 const built=b=>!b.build;
+/* свободный подходящий дом для фенотипа и сколько малышей в яслях */
+const homeFor=(s,ph)=>s.bld.find(b=>built(b)&&hosts(b.type,ph)&&s.dragons.filter(x=>x.home===b.id).length<habCap(b))||null;
+const nursery=s=>s.dragons.filter(d=>d.nurs&&!d.home).length;
 const habCap=b=>HAB_LV[b.lvl].cap,chestCap=b=>HAB_LV[b.lvl].chest;
 function rate(s,b){if(TYPES[b.type].kind!=='hab'||!built(b))return 0;return s.dragons.filter(d=>d.home===b.id).reduce((x,d)=>x+goldPerCard(d),0)}
 function level(s){return levelOf(s.bal.xp)}
@@ -189,10 +195,10 @@ const ACTS={
   place(s,c,{dragon,home}){const d=s.dragons.find(x=>x.id===dragon),b=B(s,home);if(!d||!b)return 'Нет дракона или здания';
     if(!hosts(b.type,phOf(d)))return 'Этому дракону здесь не жить';if(b.build)return 'Здание ещё строится';
     if(d.home===b.id)return null;if(s.dragons.filter(x=>x.home===b.id).length>=habCap(b))return 'Здесь нет места';
-    settle(s,c.K);d.home=b.id},
+    settle(s,c.K);d.home=b.id;delete d.nurs},
   buy(s,c,{type}){const t=TYPES[type];if(!t||!t.price)return 'Такого дракона на рынке нет';if(level(s)<t.unlock)return `Откроется на ${t.unlock}-м уровне острова`;
     const home=s.bld.find(b=>b.type===type&&built(b)&&s.dragons.filter(x=>x.home===b.id).length<habCap(b));
-    if(!home)return `Сначала нужна ${t.name} со свободным местом`;
+    if(!home)return `Сначала нужен дом со свободным местом: ${t.name}`;
     const e=pay(s,{gold:t.price});if(e)return e;settle(s,c.K);
     const id='d'+(s.seq++),genome=marketGenome(type,c.uid+':'+id);
     s.dragons.push({id,name:NAMES[type][Math.floor(G.rng(c.uid+':n:'+id)()*NAMES[type].length)],born:c.today,genome,lvl:1,fed:0,home:home.id,from:'market'});xp(s,20);s.last=id},
@@ -225,14 +231,14 @@ const ACTS={
     s.log=s.log||[];
     const rec={n:eg.n,m:eg.m,f:eg.f,d:c.today,pred:eg.pred||null};
     if(!eg.viable){h.slots[plot]=null;rec.dead=true;s.log.push(rec);trimLog(s);s.got={dead:true};return}
-    const ph=G.phenotype(eg.genome),home=s.bld.find(b=>!b.build&&hosts(b.type,ph)&&s.dragons.filter(x=>x.home===b.id).length<habCap(b));
-    if(!home)return `Нет свободного места: нужна ${habNames(ph)}`;
+    const ph=G.phenotype(eg.genome),home=homeFor(s,ph);
+    if(!home&&nursery(s)>=NURSERY)return `Нет свободного дома (нужен дом: ${habNames(ph)}), и ясли заняты: ${NURSERY} из ${NURSERY}. Переселите малыша из яслей или освободите место`;
     settle(s,c.K);
     const id2='d'+(s.seq++),mm=s.dragons.find(x=>x.id===eg.m),ff=s.dragons.find(x=>x.id===eg.f);
     const gen=1+Math.max((mm&&mm.gen)||0,(ff&&ff.gen)||0);
-    s.dragons.push({id:id2,name:babyName(s,ph),born:c.today,genome:eg.genome,lvl:1,fed:0,home:home.id,parents:[eg.m,eg.f],gen,egg:eg.n});
+    s.dragons.push(Object.assign({id:id2,name:babyName(s,ph),born:c.today,genome:eg.genome,lvl:1,fed:0,home:home?home.id:null,parents:[eg.m,eg.f],gen,egg:eg.n},home?{}:{nurs:true}));
     h.slots[plot]=null;rec.child=id2;rec.ph=summary(ph);s.log.push(rec);trimLog(s);
-    xp(s,25+15*G.rarity(ph));s.last=id2;s.got={baby:id2}},
+    xp(s,25+15*G.rarity(ph));s.last=id2;s.got=home?{baby:id2}:{baby:id2,nursery:habNames(ph)}},
   release(s,c,{dragon}){const i=s.dragons.findIndex(x=>x.id===dragon);if(i<0)return 'Нет дракона';
     if(s.dragons.length<=2)return 'На острове должно остаться хотя бы два дракона';
     if(s.bld.some(b=>b.pair&&(b.pair.m===dragon||b.pair.f===dragon)))return 'Дракон сейчас в Гнездовье';
@@ -262,6 +268,36 @@ function apply(s,ctx,act){
   const L0=level(s),r=normalize(n,ctx.K,null);
   return {s:r,levelUp:level(r)>L0?level(r):0}}
 
+/* ---------- «Первый потомок»: шаги с настоящими числами ----------
+   Каждый шаг: ok (выполнен), и данные, по которым интерфейс пишет, что сделать. next — первый невыполненный шаг.
+   Ничего не меняет в состоянии. */
+function feedsTo(d,lv){let n=0,food=0;for(let l=d.lvl;l<lv;l++){const k=FEEDS-(l===d.lvl?(d.fed||0):0);n+=k;food+=k*feedCost(l)}return {n,food}}
+function breedPath(s,K){
+  const L=level(s),unlock=TYPES.nest.unlock,rar=d=>G.rarity(G.phenotype(d.genome));
+  const best=sex=>s.dragons.filter(d=>d.genome.sex===sex).sort((a,b)=>b.lvl-a.lvl||(b.fed||0)-(a.fed||0))[0]||null;
+  const par=['F','M'].map(sex=>{const d=best(sex);return d?Object.assign({sex,id:d.id,name:d.name,lvl:d.lvl,ok:d.lvl>=BREED_LV},feedsTo(d,BREED_LV)):{sex,id:null,ok:false}});
+  const bst=type=>{const b=s.bld.find(x=>x.type===type),t=TYPES[type];
+    if(!b)return {type,state:L<t.unlock?'locked':'none',unlock:t.unlock,cost:t.cost,need:t.need,ok:false};
+    if(b.build)return {type,id:b.id,state:ready(b.build,K)?'done':'build',left:left(b.build,K),ok:false};
+    return {type,id:b.id,state:'ok',ok:true}};
+  const nest=bst('nest'),hatch=bst('hatch');
+  const nb=s.bld.find(x=>x.type==='nest'&&built(x)),hb=s.bld.find(x=>x.type==='hatch'&&built(x));
+  const pair=nb&&nb.pair?{id:nb.id,ready:ready(nb.pair,K),left:left(nb.pair,K)}:null;
+  const eggs=hb?hb.slots.map((e,i)=>e?{id:hb.id,plot:i,ready:ready(e,K),left:left(e,K),viable:e.viable,
+    home:e.viable?!!homeFor(s,G.phenotype(e.genome)):true,habs:e.viable?habNames(G.phenotype(e.genome)):''}:null).filter(Boolean):[];
+  const pm=par[0].id&&s.dragons.find(d=>d.id===par[0].id),pf=par[1].id&&s.dragons.find(d=>d.id===par[1].id);
+  const cost=pm&&pf?breedCost(rar(pm),rar(pf)):breedCost(0,0);
+  const child=(s.log||[]).find(r=>r.child)||null;
+  const steps=[
+    {k:'level',ok:L>=unlock,L,need:unlock,xp:s.bal.xp,xpNeed:xpFor(unlock)},
+    {k:'parents',ok:par.every(p=>p.ok),par,lv:BREED_LV},
+    {k:'build',ok:nest.ok&&hatch.ok,nest,hatch},
+    {k:'pair',ok:!!pair||eggs.length>0||!!child,cost,gold:Math.floor(s.bal.gold),need:BREED_NEED,can:!!nb&&par.every(p=>p.ok)&&s.bal.gold>=cost},
+    {k:'egg',ok:eggs.length>0||!!child,pair},
+    {k:'hatch',ok:!!child,eggs,free:NURSERY-nursery(s)}];
+  const done=!!child,next=done?null:(steps.find(x=>!x.ok)||{}).k;
+  return {done,next,steps,child}}
+
 /* ---------- рынок: обычные драконы одной стихии со скрытой гетерозиготностью ---------- */
 const NAMES={F:['Уголёк','Пыл','Зной','Искорка'],W:['Капель','Волна','Бриз','Омут'],N:['Дымок','Сумрак','Пепел'],T:['Гранит','Глыба','Кремень'],A:['Вихрь','Перо','Облачко'],P:['Лист','Мох','Побег']};
 function marketGenome(type,seed){
@@ -274,7 +310,7 @@ function marketGenome(type,seed){
   else{spec.M=pair(()=>r()<0.25?'M':'m');spec.N=pair(()=>r()<0.25?'n':'N')}
   return G.make(spec)}
 
-const DECO={HATCH_LV,BREED_LV,breedCost,BREED_NEED,HATCH_NEED,PRED_TOL,lvTable,summary,habNames,TYPES,HAB_ORDER,HAB_LV,FARM_LV,CROPS,RAR_GOLD,SKIP_CARDS,GRID,CHUNK,START_LAND,LAND_COST,MILESTONES,FEEDS,RATION,
+const DECO={NURSERY,homeFor,nursery,breedPath,HATCH_LV,BREED_LV,breedCost,BREED_NEED,HATCH_NEED,PRED_TOL,lvTable,summary,habNames,TYPES,HAB_ORDER,HAB_LV,FARM_LV,CROPS,RAR_GOLD,SKIP_CARDS,GRID,CHUNK,START_LAND,LAND_COST,MILESTONES,FEEDS,RATION,
   xpFor,levelOf,maxHabs,maxFarms,maxDragonLv,feedCost,income,startState,hosts,dragonKeys,goldPerCard,rate,settle,chestNow,normalize,
   canPlace,chunkOf,apply,OBST,OBST_KIND,obstacles,ready,left,level,count,streakMult,marketGenome,habCap,chestCap};
 if(typeof module!=='undefined'&&module.exports)module.exports=DECO;else root.DECO=DECO;

@@ -21,7 +21,7 @@ async function rpc(fn,args){
   return j}
 
 /* ---------- вход ---------- */
-let me=null;
+let me=null;const BOOT=getCode();
 const ready=(async()=>{const c=getCode();if(!c)return null;
   try{me=await rpc('ph_login',{p_code:c});if(!me)setCode('')}catch(e){me=null}
   return me})();
@@ -192,7 +192,9 @@ const gate=ready.then(m=>{if(m)return m;
 gate.then(()=>{const go=()=>bar();document.readyState==='loading'?document.addEventListener('DOMContentLoaded',go):go()});
 
 /* fresh — документ прямо с сервера, мимо кеша страницы (кеш может держать неподтверждённую запись): нужен сохранению острова */
-window.PHCLOUD={rpc,get me(){return me},sync,codes:()=>me&&me.isOwner&&codes(),fresh:path=>rpc('ph_get',{p_code:getCode(),p_path:path})};
+window.PHCLOUD={rpc,get me(){return me},sync,codes:()=>me&&me.isOwner&&codes(),fresh:path=>rpc('ph_get',{p_code:getCode(),p_path:path}),
+  /* тот ли код входа, с которым открыта страница: в другой вкладке могли выйти или войти под другим кодом */
+  session:()=>getCode()===BOOT};
 window.claude={use:async name=>{await gate;
   if(name==='db')return db;
   if(name==='user')return user;

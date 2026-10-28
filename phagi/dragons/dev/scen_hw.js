@@ -23,9 +23,12 @@ module.exports=async(page,{store,UID,need})=>{
   need(s.cr.hwg===5&&s.cr.hwf===180,'учтено 5 💎 и 180 🌾 за ДЗ');
   const body=await page.evaluate(()=>document.body.textContent.replace(/\s+/g,' '));need(/За ДЗ: .*Тест по ферментам/.test(body),'строка «За ДЗ» на странице');
   /* действие сохраняет остров: бонус ложится в документ */
+  for(let i=0;i<20&&((store.get(`srs/${UID}/meta/dragons`)||{}).d||{}).mode!=='dragons';i++)await page.waitForTimeout(500);
   await page.click('[data-act="drgopen"][data-full]');await page.waitForTimeout(1800);
   const ok=await page.evaluate(u=>{const x=DRGUI.stateOf(u).st,d=x.dragons.slice().sort((a,b)=>a.lvl-b.lvl)[0];const e=document.createElement('button');e.dataset.act='drgdo';e.dataset.t='feed';e.dataset.dragon=d.id;document.querySelector('#main').appendChild(e);e.click();e.remove();return d.id},UID);
-  await page.waitForTimeout(1500);log('покормлен',ok);
+  /* под нагрузкой матрицы запись может прийти позже: ждём до 10 с */
+  for(let i=0;i<20&&!((store.get(`srs/${UID}/meta/dragons`)||{}).d||{credited:{}}).credited.hwg;i++)await page.waitForTimeout(500);
+  log('покормлен',ok,'тост',await page.evaluate(()=>{const t=document.querySelector('.toast,#toast,[class*=toast]');return t?t.textContent:''}));
   const saved=store.get(`srs/${UID}/meta/dragons`).d;log('в базе credited',JSON.stringify(saved.credited),'самоцветы',saved.bal.gems);
   need(saved.credited.hwg===5&&saved.credited.hwf===180,'учёт бонуса записан в документ');
   const g1=saved.bal.gems,f1=saved.bal.food;

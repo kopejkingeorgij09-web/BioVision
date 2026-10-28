@@ -27,6 +27,8 @@ const rpc=(fn,a)=>{switch(fn){
 (async()=>{const b=await chromium.launch({headless:!process.env.SHOW});
   const W=Number(process.env.W||1280),H=Number(process.env.H||900);const ctx=await b.newContext({viewport:{width:W,height:H},colorScheme:process.env.DARK?'dark':'light',reducedMotion:process.env.REDUCE?'reduce':'no-preference',hasTouch:!!process.env.TOUCH,isMobile:!!process.env.TOUCH,deviceScaleFactor:Number(process.env.DPR||1)});
   await ctx.addInitScript(()=>{try{localStorage.setItem('ph_code','FAG-TEST-TEST')}catch(e){}});
+  /* BIG=1: крупный текст, как при увеличенном шрифте в системе (корневой размер 150 %) */
+  if(process.env.BIG)await ctx.addInitScript(()=>{document.addEventListener('DOMContentLoaded',()=>{const st=document.createElement('style');st.textContent='html{font-size:150%!important}body{font-size:150%}';document.head.appendChild(st)})});
   /* всё, что уходит не на localhost, обрывается: в production не уходит ни одного запроса, тем более записи */
   await ctx.route(u=>!/^http:\/\/localhost:/.test(String(u)),r=>{blocked.push(r.request().method()+' '+r.request().url().slice(0,80));r.abort()});
   await ctx.route('**/rest/v1/rpc/*',async route=>{const fn=route.request().url().split('/').pop();const a=JSON.parse(route.request().postData()||'{}');

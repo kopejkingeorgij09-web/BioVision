@@ -86,7 +86,7 @@ function md(days){
   const islFor=l=>{for(let L=1;L<=E.ISLE_MAX;L++)if(E.maxDragonLv(L)>=l)return L;return null};
   C.REGIONS.forEach(r=>{const ns=C.nodesOf(r.id),a=Math.min(...ns.map(n=>n.rec)),b=Math.max(...ns.map(n=>n.rec)),mi=ns.find(n=>n.mini),bo=ns.find(n=>n.boss);
     out+=`| ${r.name} | ${ns.length} | ${a}–${b} | ${islFor(a)}–${islFor(b)}-й | ${mi.name} (${mi.rec}) | ${bo.name} (${bo.rec}) |\n`});
-  out+=`\nВ каждом регионе 8 обычных боёв, 4 испытания (вдвоём, один на один, разные стихии, без стихии), 2 элитных боя, мини-босс и босс. За первую победу над мини-боссом дарят дракона, носителя гена E2. Первый подарок (мини-босс «Осыпь у вулкана», рекомендуемый уровень 9) доступен, когда драконы доходят до 9–10-го уровня: у ботов это ${runs.filter(x=>x.st==='coll'&&typeof x.n==='number').map(x=>x.n+' в день — '+fmtD(x.r.dl[10])).join(', ')}. Боты поход не проходят, поэтому линию E2 у них не считаем.\n`;
+  out+=`\nВ каждом регионе 8 обычных боёв, 4 испытания (вдвоём, один на один, разные стихии, без стихии), 2 элитных боя, мини-босс и босс. За первую победу над мини-боссом дарят дракона, носителя гена E2. Первый подарок (мини-босс «Осыпь у вулкана», рекомендуемый уровень 9) доступен, когда драконы доходят до 9–10-го уровня: у ботов это ${runs.filter(x=>x.st==='coll'&&typeof x.n==='number').map(x=>x.n+' в день — '+fmtD(x.r.dl[10]).replace(/\.$/,'')).join(', ')}. Боты поход не проходят, поэтому линию E2 у них не считаем.\n`;
   return {out,runs}}
 if(require.main===module){const dn=+process.argv.find(x=>/^\d+$/.test(x))||730,{out,runs}=md(dn);
   runs.forEach(({n,nm,r})=>console.log(n,nm,JSON.stringify(r.log.filter((x,i)=>i%3===2).map(x=>[x.day,x.L,x.mx,x.dragons]))));

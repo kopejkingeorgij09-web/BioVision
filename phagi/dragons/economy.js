@@ -568,16 +568,17 @@ const mastery=l=>l<=20?0:Math.min(4,1+Math.floor((l-21)/10));
    Список собирается из тех же правил, по которым работает игра: постройки, ступени улучшений, культуры, участки земли,
    ясли, вторые Гнездовье и Инкубатор, цели исследования, места и предел драконов. Таблица 1–100 в PROGRESSION-RU.md
    (dev/progression.js) и подсказка «что даст следующий уровень» берут его отсюда. Второстепенное начинается с «ещё» и «драконы растут». */
+const plRu=(n,a,b,c)=>{const m=n%10,h=n%100;return m===1&&h!==11?a:m>=2&&m<=4&&(h<12||h>14)?b:c};
 function unlocksAt(L){const out=[];if(L<=1)return out;
   Object.entries(TYPES).forEach(([k,t])=>{if(t.unlock===L)out.push((t.kind==='hab'?'среда «':'постройка «')+t.name+'»')});
   Object.entries(TYPES).forEach(([k,t])=>{if(t.more&&t.more.L===L)out.push('второе здание «'+t.name+'»')});
   Object.values(CROPS).forEach(c=>{if(c.unlock===L)out.push('культура «'+c.name+'»')});
   Object.entries(TYPES).forEach(([k,t])=>{if(t.price&&t.unlock===L)out.push('на рынке драконы для среды «'+t.name+'»')});
-  HAB_LV.forEach((x,i)=>{if(x&&x.L===L)out.push(`дома ${i}-го уровня: ${x.cap} дракона, сундук ${x.chest}`)});
-  FARM_LV.forEach((x,i)=>{if(x&&x.L===L)out.push(`фермы ${i}-го уровня: ${x.plots} грядок`)});
-  HATCH_LV.forEach((x,i)=>{if(x&&x.L===L)out.push(`Инкубатор ${i}-го уровня: ${x.slots} ${x.slots===1?'место':'места'} и место за серию`)});
+  HAB_LV.forEach((x,i)=>{if(x&&x.L===L)out.push(`дома ${i}-го уровня: ${x.cap} ${plRu(x.cap,'дракон','дракона','драконов')}, сундук ${x.chest}`)});
+  FARM_LV.forEach((x,i)=>{if(x&&x.L===L)out.push(`фермы ${i}-го уровня: ${x.plots} ${plRu(x.plots,'грядка','грядки','грядок')}`)});
+  HATCH_LV.forEach((x,i)=>{if(x&&x.L===L)out.push(`Инкубатор ${i}-го уровня: ${x.slots} ${plRu(x.slots,'место','места','мест')} и место за серию`)});
   Object.entries(LAND_COST).forEach(([id,c])=>{if(c.L===L)out.push(`новый участок земли ${id} за ${c.gold?c.gold+' золота':c.gems+' самоцветов'}`)});
-  if(nurseryCap(L)>nurseryCap(L-1))out.push('ясли на '+nurseryCap(L)+' мест');
+  if(nurseryCap(L)>nurseryCap(L-1))out.push('ясли на '+nurseryCap(L)+' '+plRu(nurseryCap(L),'место','места','мест'));
   RESEARCH.forEach(g=>{if(g.L===L)out.push('цель исследования «'+g.name+'» (+'+g.gems+' 💎)')});
   if(L===ISLE_MAX)out.push('звание «Хранитель архипелага»');
   if(maxHabs(L)>maxHabs(L-1))out.push('ещё одно место под среду обитания (всего '+maxHabs(L)+')');

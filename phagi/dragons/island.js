@@ -4,9 +4,10 @@
 (function(root){
 'use strict';
 const TW=64,TH=32,OX=400,OY=110;
-const VIEW={norm:[10,70,780,520],full:[-260,-40,1320,760]};
+/* полный вид выше прежнего (4.1): кончик скалы на 418 единиц ниже переднего угла P(n,n), весь остров помещается */
+const VIEW={norm:[10,70,780,520],full:[-260,-40,1320,972]};
 /* остров растёт кольцами участков (этап D): сторона рисунка n = 12, 16 или 20 клеток. При n = 12 всё как раньше */
-const viewFor=n=>n===12?VIEW:{norm:[400-32*n-6,70,64*n+12,32*n+136],full:[400-(32*n+276),-40,2*(32*n+276),32*n+376]};
+const viewFor=n=>n===12?VIEW:{norm:[400-32*n-6,70,64*n+12,32*n+136],full:[400-(32*n+276),-40,2*(32*n+276),32*n+588]};
 const viewOf=st=>{const D=root.DECO;return viewFor(D&&st&&st.land?D.extent(st).n:12)};
 const P=(i,j)=>[(i-j)*TW/2+OX,(i+j)*TH/2+OY];
 const pt=a=>a[0].toFixed(1)+','+a[1].toFixed(1);
@@ -26,12 +27,73 @@ function rock(x,y,s,c){c=c||['#D9C59B','#B79E72','#8E7752'];
 function greyRock(x,y,s){return rock(x,y,s,['#B7BAC2','#8F939D','#6A6E78'])}
 function flowers(x,y,seed){const out=[];for(let i=0;i<5;i++){const a=hrand(seed+i),b=hrand(seed+'b'+i);out.push(`<circle cx="${f1(x+(a-.5)*22)}" cy="${f1(y+(b-.5)*10)}" r="1.5" fill="${['#FFFFFF','#FFE27A','#F7A8C8','#BFE3FF'][i%4]}"/>`)}return out.join('')}
 function tuft(x,y){return `<path d="M${f1(x-4)} ${f1(y)} q 1 -6 2 -7 M${f1(x)} ${f1(y)} q 0 -8 1 -9 M${f1(x+4)} ${f1(y)} q -1 -6 -2 -7" stroke="#3F8A2C" stroke-width="1.4" fill="none" stroke-linecap="round" opacity=".7"/>`}
+/* ---------- Огненный остров (4.1): базальт, остывшая лава, обсидиан, обугленные деревья ---------- */
+const LAVA_ROCK=['#6A5A5E','#4A3D42','#2E2529'];
+function charTree(x,y,s,v){const lean=(v%3-1)*2;
+  return `<g transform="translate(${f1(x)} ${f1(y)}) scale(${s})"><ellipse cx="2" cy="1" rx="11" ry="4" fill="#000" opacity=".25"/><path d="M-2 0 C -2 -10 ${-3+lean} -20 ${-5+lean} -30 L ${1+lean} -30 C ${lean} -18 2 -8 3 0 Z" fill="#2B2022"/>
+  <path d="M${-3+lean} -18 L -11 -26 M${lean} -23 L 9 -31 M${-4+lean} -27 L -9 -36" stroke="#2B2022" stroke-width="2.6" stroke-linecap="round"/><path d="M${f1(-1+lean)} -12 l1 -6" stroke="#FF8A2A" stroke-width="1.2" opacity=".8"/></g>`}
+function obsidian(x,y,s){return `<g transform="translate(${f1(x)} ${f1(y)}) scale(${s})"><ellipse cx="0" cy="2" rx="12" ry="4" fill="#000" opacity=".25"/><path d="M-9 2 L-6 -16 L-1 -4 Z" fill="#3B2D52"/><path d="M-3 2 L1 -26 L7 2 Z" fill="#241B33"/><path d="M1 -26 L4 -8 L7 2 Z" fill="#4E3D6E"/><path d="M5 2 L10 -12 L12 2 Z" fill="#30243F"/><path d="M0 -22 L1 -14" stroke="#B9A6E8" stroke-width="1.2" opacity=".7"/></g>`}
+function lavaPool(x,y,s,k){return `<g transform="translate(${f1(x)} ${f1(y)}) scale(${s})"><ellipse cx="0" cy="0" rx="16" ry="7" fill="#2E2529"/><ellipse cx="0" cy="-.5" rx="12.5" ry="5" fill="url(#${k}-lava)"/><ellipse class="an glo" cx="0" cy="-1" rx="7" ry="2.4" fill="#FFF1A8" opacity=".85"/></g>`}
+function crack(x,y,seed){const a=hrand(seed),b=hrand(seed+'b'),w=14+a*16;
+  return `<path d="M${f1(x-w)} ${f1(y+(b-.5)*4)} l${f1(w*.45)} ${f1(-3+a*3)} l${f1(w*.3)} ${f1(4-b*5)} l${f1(w*.5)} ${f1(-2+a*2)} l${f1(w*.5)} ${f1(2-b*3)}" stroke="#FF7A1F" stroke-width="2" fill="none" stroke-linecap="round" opacity=".75"/>
+  <path class="an glo" d="M${f1(x-w*.5)} ${f1(y+(b-.5)*4-1)} l${f1(w*.3)} ${f1(-2+a*2)} l${f1(w*.4)} ${f1(3-b*4)}" stroke="#FFE27A" stroke-width="1" fill="none" stroke-linecap="round"/>`}
+function embers(x,y,seed){const out=[];for(let i=0;i<3;i++){const a=hrand(seed+i);out.push(`<circle class="an emb e${i+1}" cx="${f1(x+(a-.5)*18)}" cy="${f1(y-2)}" r="${f1(1+a)}" fill="${i%2?'#FFB347':'#FFE27A'}" style="animation-delay:calc(var(--clk,0s) - ${f1(a*2.5)}s)"/>`)}return out.join('')}
+function vent(x,y,i){return `<g transform="translate(${f1(x)} ${f1(y)})"><path d="M-9 2 L-5 -6 L5 -6 L9 2 Z" fill="#3A2E32"/><ellipse cx="0" cy="-6" rx="5" ry="2" fill="#FF7A1F"/>
+  <g class="an drift d2" opacity=".5"><circle cx="${f1(-2+i%3)}" cy="-16" r="6" fill="#7C7378"/><circle cx="${f1(3-i%2)}" cy="-26" r="8" fill="#8E868B" opacity=".8"/><circle cx="-1" cy="-38" r="10" fill="#A39CA1" opacity=".55"/></g></g>`}
+/* маленькая летающая скала с лавой: даль за Огненным островом */
+function islet(x,y,s,k){return `<g transform="translate(${f1(x)} ${f1(y)})"><g class="an bob"><g transform="scale(${s})"><path d="M-46 0 Q -40 -12 0 -15 Q 40 -12 46 0 Q 30 14 0 16 Q -30 14 -46 0 Z" fill="#4A3D42"/><path d="M-44 2 Q -20 60 0 78 Q 20 60 44 2 Q 22 16 0 18 Q -22 16 -44 2 Z" fill="url(#${k}-cliff2)"/><path d="M-30 -4 Q 0 -12 26 -3" stroke="#FF7A1F" stroke-width="3" fill="none" opacity=".8"/><path d="M8 14 L10 50" stroke="#FF8A2A" stroke-width="4" opacity=".75"/></g></g></g>`}
 function cloud(x,y,s,op){return `<g transform="translate(${f1(x)} ${f1(y)}) scale(${s})" opacity="${op||1}"><ellipse cx="0" cy="8" rx="70" ry="16" fill="var(--isl-cloud2)"/><circle cx="-38" cy="0" r="22" fill="var(--isl-cloud)"/><circle cx="-8" cy="-14" r="30" fill="var(--isl-cloud)"/><circle cx="26" cy="-6" r="24" fill="var(--isl-cloud)"/><circle cx="50" cy="4" r="16" fill="var(--isl-cloud)"/><ellipse cx="0" cy="10" rx="64" ry="12" fill="var(--isl-cloud)"/><circle cx="-14" cy="-22" r="12" fill="#fff" opacity=".5"/></g>`}
 
 /* ---------- постройки в локальных координатах: центр площадки 2×2 = (0,0), ромб ±64 × ±32 ---------- */
 const GROUND={F:'#4A4038',W:'#D9C79A',N:'#8D8A86',T:'#B8936A',A:'#E6EEF4',P:'#5EA83F',L:'#EDE2BE',D:'#3D3450',farm:'#8A6A44',nest:'#C9B48A',hatch:'#BDB3A0'};
 function ground(type){return `<path d="M-60 0 Q -40 -22 0 -29 Q 40 -22 60 0 Q 40 22 0 29 Q -40 22 -60 0 Z" fill="${GROUND[type]||'#8A6A44'}" opacity=".85"/><path d="M-60 0 Q -40 22 0 29 Q 40 22 60 0" stroke="rgba(0,0,0,.18)" stroke-width="2" fill="none"/>`}
 const HEIGHT={F:74,W:56,N:84,T:88,A:108,P:108,L:100,D:112,farm:34,nest:50,hatch:76};
+/* ---------- жилище-вольер (4.1) ----------
+   Среда обитания — круглая площадка на всю клетку 2×2 с бортиком. Знак среды (вулкан, пруд, пещера…) стоит уменьшенным
+   в глубине площадки (HAB_SC, сдвиг HAB_DY), перед ним двор: там драконы живут, ходят и взлетают, за бортик не выходят.
+   Двор в клетках постройки: u, v от YARD.lo до YARD.hi и u+v ≥ YARD.front (перед знаком среды), см. live.js */
+const HAB_SC=0.6,HAB_DY=-13,YARD={lo:0.32,hi:1.68,front:1.75};
+const HABS=['F','W','N','T','A','P','L','D'];
+const HEIGHT0=Object.assign({},HEIGHT);HABS.forEach(t=>{HEIGHT[t]=Math.round(HEIGHT0[t]*HAB_SC-HAB_DY+6)});
+const PAD={
+  F:{top:'#5B4B4E',in:'#4A3C40',side:'#2B2124',edge:'#1E1517',rim:'#3A2E32',acc:'#FF7A1F'},
+  W:{top:'#E8D9AE',in:'#DCCB98',side:'#A8946A',edge:'#8A7650',rim:'#B9AE9E',acc:'#7CC4FF'},
+  N:{top:'#9C93A3',in:'#8A8192',side:'#5B5163',edge:'#3E3546',rim:'#7A6E80',acc:'#B48CFF'},
+  T:{top:'#CDA77A',in:'#BE9666',side:'#7A5530',edge:'#5E4428',rim:'#A47A4C',acc:'#F2C94C'},
+  A:{top:'#F2F7FB',in:'#E2ECF4',side:'#A9BCCD',edge:'#8796A5',rim:'#FFFFFF',acc:'#9FD3FF'},
+  P:{top:'#7CC04F',in:'#6AB040',side:'#3F7A2A',edge:'#2F6A1E',rim:'#4E9F33',acc:'#F28CB1'},
+  L:{top:'#F6EED6',in:'#EDE2BE',side:'#C9B27A',edge:'#B8962E',rim:'#F2C94C',acc:'#FFE27A'},
+  D:{top:'#3E3450',in:'#332A44',side:'#1E1828',edge:'#120E19',rim:'#2B2238',acc:'#9C6BFF'}};
+/* точка на краю площадки: угол a (0 — вправо, π/2 — к зрителю) */
+const rimPt=(a,r)=>[Math.cos(a)*58*(r||1),Math.sin(a)*28*(r||1)];
+/* украшение бортика по теме: back — дальняя часть (повыше), иначе ближняя (низкая, не загораживает драконов) */
+function rimItem(t,x,y,i,back,k){const P=PAD[t],h=back?1:0.55;
+  switch(t){
+    case 'F':return rock(x,y,(back?.55:.38)+(i%3)*.06,LAVA_ROCK)+(i%3===0?`<ellipse class="an glo" cx="${f1(x+4)}" cy="${f1(y+1)}" rx="3" ry="1.4" fill="#FF8A2A"/>`:'');
+    case 'W':return `<ellipse cx="${f1(x)}" cy="${f1(y)}" rx="${f1(6*h+2)}" ry="${f1(3.4*h+1)}" fill="${i%2?'#B8AC9C':'#CFC4B4'}" stroke="#7E7364" stroke-width=".8"/>`+(back&&i%3===1?`<path d="M${f1(x)} ${f1(y)} q -2 -12 1 -18 M${f1(x+3)} ${f1(y)} q 2 -10 5 -14" stroke="#4E8A3A" stroke-width="1.6" fill="none" stroke-linecap="round"/>`:'');
+    case 'N':return back?`<path d="M${f1(x-4)} ${f1(y+1)} l4 -${10+i%3*4} l4 ${10+i%3*4} Z" fill="${i%2?'#9C6BFF':'#7FD1FF'}" opacity=".9"/>`:rock(x,y,.34,['#9A8E9E','#7A6E80','#5B5163']);
+    case 'T':return rock(x,y,(back?.5:.34)+(i%2)*.06);
+    case 'A':return back?`<g transform="translate(${f1(x)} ${f1(y)})"><rect x="-2.5" y="-16" width="5" height="16" rx="1" fill="#E6EEF4" stroke="#8796A5" stroke-width=".8"/><circle cx="0" cy="-18" r="3.4" fill="#BFE3FF"/></g>`:`<ellipse cx="${f1(x)}" cy="${f1(y)}" rx="7" ry="3.4" fill="#fff" opacity=".95"/>`;
+    case 'P':return back?bush(x,y,.62,k):`<circle cx="${f1(x)}" cy="${f1(y-2)}" r="3.6" fill="#4E9F33"/><circle cx="${f1(x+1)}" cy="${f1(y-3)}" r="1.2" fill="${i%2?'#F28CB1':'#FFE27A'}"/>`;
+    case 'L':return back?`<g transform="translate(${f1(x)} ${f1(y)})"><rect x="-3" y="-15" width="6" height="15" fill="#F4ECD0" stroke="#B8962E" stroke-width=".8"/><rect x="-4.5" y="-17" width="9" height="3" fill="#F2C94C"/></g>`:`<rect x="${f1(x-3)}" y="${f1(y-3)}" width="6" height="4" rx="1" fill="#F2C94C" stroke="#B8962E" stroke-width=".6"/>`;
+    case 'D':return back?`<path d="M${f1(x-4)} ${f1(y+1)} l3 -${12+i%3*4} l5 ${12+i%3*4} Z" fill="${P.rim}" stroke="${P.edge}" stroke-width=".8"/>${i%2?`<path d="M${f1(x)} ${f1(y-6)} l1 -3" stroke="#9C6BFF" stroke-width="1.4"/>`:''}`:rock(x,y,.32,['#4A3D63','#2B2238','#17121F'])}
+  return ''}
+/* площадка с дальним бортиком (под знаком среды) */
+function habPad(t,k){const P=PAD[t],out=[];
+  out.push(`<path d="M-62 0 Q -46 -29 0 -32 Q 46 -29 62 0 L62 9 Q 46 39 0 41 Q -46 39 -62 9 Z" fill="${P.side}"/>
+    <path d="M-62 0 Q -46 -29 0 -32 Q 46 -29 62 0 Q 46 29 0 32 Q -46 29 -62 0 Z" fill="${P.top}" stroke="${P.edge}" stroke-width="2"/>
+    <path d="M-50 1 Q -37 -21 0 -24 Q 37 -21 50 1 Q 37 23 0 25 Q -37 23 -50 1 Z" fill="${P.in}"/>
+    <path d="M-40 6 Q -20 18 18 17" stroke="${P.top}" stroke-width="3" fill="none" opacity=".6" stroke-linecap="round"/>`);
+  if(t==='F')out.push(`<path d="M-44 4 Q -20 20 22 18 Q 40 12 46 2" stroke="url(#${k}-lava)" stroke-width="3" fill="none" opacity=".75"/>`);
+  if(t==='W')out.push(`<ellipse cx="-30" cy="12" rx="9" ry="3.6" fill="url(#${k}-water)" opacity=".85"/>`);
+  if(t==='A')out.push(`<ellipse cx="0" cy="12" rx="40" ry="10" fill="#fff" opacity=".55"/>`);
+  if(t==='L')out.push(`<path d="M-36 0 L0 -17 L36 0 L0 17 Z M-18 -8 L18 8 M18 -8 L-18 8" stroke="#E2D2A0" stroke-width="1.2" fill="none" opacity=".8"/>`);
+  for(let i=0;i<9;i++){const a=Math.PI+i/8*Math.PI,[x,y]=rimPt(a);out.push(rimItem(t,x,y,i,true,k))}
+  return out.join('')}
+/* ближний низкий бортик: рисуется поверх двора */
+function habFront(t,k){const out=[];for(let i=1;i<10;i++){const a=i/10*Math.PI,[x,y]=rimPt(a,1.02);out.push(rimItem(t,x,y+1,i,false,k))}return out.join('')}
+/* знак среды в глубине площадки */
+const habMark=(t,k)=>`<g transform="translate(0 ${HAB_DY}) scale(${HAB_SC})">${SPR[t](k)}</g>`;
 
 const SPR={
   F:k=>`${[[-40,-4,1.25],[34,-2,1.1],[-18,10,.9],[22,14,.8],[46,-14,.7],[-46,-16,.8]].map(([x,y,s])=>rock(x,y,s,['#4A4E5E','#34374A','#22242F'])).join('')}
@@ -134,9 +196,11 @@ let HITS=[];
 const dragonAt=(d,x,y,size,key,c,b,mode,face)=>{const W=root.DRAW,G=root.DRG,ix=c[0]+x,iy=c[1]+y;
   HITS.push(`<g class="drg-dr" data-act="drginsp" data-dragon="${escA(d.id)}" data-ix="${f1(ix)}" data-iy="${f1(iy)}" data-sz="${size}" data-home="${escA(b.id)}" data-mode="${mode}" data-face="${face||1}"><title>${escA(d.name)}: осмотреть</title><ellipse cx="${f1(ix)}" cy="${f1(iy-size*0.38)}" rx="${f1(size*0.44)}" ry="${f1(size*0.4)}" fill="rgba(255,255,255,.001)"/></g>`);
   return `<g class="an idle drg-art" data-art="${escA(d.id)}">${W.svg(G.phenotype(d.genome),{key,size,label:'',stage:W.stageOf(d.lvl)}).replace('<svg class="dragon"',`<svg class="dragon drg-on" x="${f1(x-size/2)}" y="${f1(y-size*0.8)}"`)}</g>`};
-function nestSprite(b,st,k,c){const out=[SPR.nest(k)];
+function nestSprite(b,st,k,c,K,D){const out=[SPR.nest(k)];
+  /* яйцо в гнезде видно только когда оно отложено (пара досидела), пустое гнездо пустое */
+  if(b.pair&&D&&D.ready(b.pair,K))out.push(`<ellipse class="an glo" cx="0" cy="-12" rx="16" ry="6" fill="#FFE27A" opacity=".5"/>`+eggSVG(0,-16,{viable:false},.95).replace('#D8D4CC','#F5EBD6').replace(/#9A958C/g,'#C9A86A'));
   if(b.pair){[b.pair.m,b.pair.f].forEach((id,i)=>{const d=st.dragons.find(x=>x.id===id);if(!d)return;out.push(dragonAt(d,i?20:-20,-10,58,'n'+b.id+id,c,b,'nest',i?-1:1))})}
-  else out.push(eggSVG(-6,-14,{viable:false},.8).replace('#D8D4CC','#F5EBD6'));
+  else out.push(`<path d="M-12 -14 q 6 -5 12 -1 M4 -10 q 7 -4 10 2" stroke="#E8D9B0" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".8"/>`);
   return out.join('')}
 function hatchSprite(b,k){const out=[SPR.hatch(k)];
   (b.slots||[]).forEach((eg,i)=>{const x=[-18,18,-6,8][i],y=[-14,-14,-24,-24][i];
@@ -150,8 +214,10 @@ function scaffold(job,K,D){const k=Math.max(0,Math.min(1,(K-job.at+(job.skip||0)
     <rect x="-34" y="-74" width="68" height="9" rx="4.5" fill="rgba(0,0,0,.45)"/><rect x="-32" y="-72" width="${(64*k).toFixed(1)}" height="5" rx="2.5" fill="#7CD67A"/></g>`}
 
 function bubble(x,y,kind,txt,full){const bg=kind==='gold'?(full?'#F2C94C':'#FFF4C9'):kind==='food'?'#E6F7D9':kind==='egg'?'#FFF0E0':'#FFFFFF';
+  /* ширина по тексту: значок слева, текст после него не наезжает (4.1) */
+  const w=Math.max(54,32+String(txt).length*7.4);
   const ic=kind==='gold'?'🪙':kind==='food'?'🌾':kind==='egg'?'🥚':kind==='baby'?'🐣':kind==='empty'?'🏚':'🔨';
-  return `<g class="drg-bub${full?' full':''}" transform="translate(${f1(x)} ${f1(y)})"><path d="M-6 9 L0 16 L6 9 Z" fill="${bg}" stroke="rgba(0,0,0,.25)"/><rect x="-30" y="-15" width="60" height="25" rx="12.5" fill="${bg}" stroke="rgba(0,0,0,.25)"/><text x="-17" y="3" font-size="13">${ic}</text><text x="6" y="3.5" font-size="12" font-weight="700" fill="#3A2A10" text-anchor="middle">${txt}</text></g>`}
+  return `<g class="drg-bub${full?' full':''}" transform="translate(${f1(x)} ${f1(y)})"><path d="M-6 9 L0 16 L6 9 Z" fill="${bg}" stroke="rgba(0,0,0,.25)"/><rect x="${f1(-w/2)}" y="-15" width="${f1(w)}" height="25" rx="12.5" fill="${bg}" stroke="rgba(0,0,0,.25)"/><text x="${f1(-w/2+7)}" y="3" font-size="13">${ic}</text><text x="${f1(-w/2+25)}" y="3.5" font-size="12" font-weight="700" fill="#3A2A10">${txt}</text></g>`}
 
 /* ---------- край острова: неровная кромка, скалы снизу, валуны по краю ----------
    Геометрия зависит от стороны n (12, 16, 20): для 12 точки те же, что были, поэтому старый остров выглядит как раньше */
@@ -162,7 +228,7 @@ function geo(n){if(GEO[n])return GEO[n];const C0=P(n/2,n/2),cor=[P(0,0),P(n,0),P
   return GEO[n]={n,C0,RIM,half:32*n+16}}
 function smooth(pts){const m=(a,b)=>[(a[0]+b[0])/2,(a[1]+b[1])/2];let d=`M${pt(m(pts[pts.length-1],pts[0]))}`;
   for(let i=0;i<pts.length;i++){const p=pts[i],q=pts[(i+1)%pts.length];d+=` Q${pt(p)} ${pt(m(p,q))}`}return d+' Z'}
-function cliffs(k,g){const RIM=g.RIM,C0=g.C0;
+function cliffs(k,g,lava){const RIM=g.RIM,C0=g.C0;
   /* передние кромки: e=1 (справа вниз) и e=2 (низ влево), от правого угла через нижний к левому */
   const front=RIM.filter(p=>p[2]===1||p[2]===2),R=P(g.n,0),L=P(0,g.n);front.unshift([R[0]+18,R[1],1]);front.push([L[0]-18,L[1],2]);
   const depth=p=>60+120*(1-Math.abs(p[0]-C0[0])/g.half)+hrand('cd'+p[0].toFixed(0))*30;
@@ -173,19 +239,25 @@ function cliffs(k,g){const RIM=g.RIM,C0=g.C0;
   out.push(`<path d="M${bot.map(pt).join(' L')} L${tip.slice().reverse().map(pt).join(' L')} Z" fill="url(#${k}-cliff2)"/>`);
   /* грани скал */
   for(let i=0;i<front.length-1;i+=2){const a=front[i],b=front[i+1],c=bot[i+1],d=bot[i],lt=a[0]<C0[0];
-    out.push(`<path d="M${pt(a)} L${pt(b)} L${pt([c[0],c[1]*0.5+b[1]*0.5])} L${pt([d[0],d[1]*0.6+a[1]*0.4])} Z" fill="${lt?'#E8D6AA':'#C9AF80'}" opacity=".7"/>`)}
-  for(let i=1;i<front.length-1;i+=3){const a=front[i],d=depth(a);out.push(`<path d="M${f1(a[0])} ${f1(a[1]+8)} l${f1((a[0]<C0[0]?-1:1)*6)} ${f1(d*0.45)} l${f1((a[0]<C0[0]?1:-1)*4)} ${f1(d*0.4)}" stroke="#9C8460" stroke-width="2" fill="none" opacity=".55"/>`)}
-  out.push(`<path d="M${front.map((p,i)=>pt([p[0],p[1]+12+hrand('st'+i)*8])).join(' L')}" stroke="#A88E62" stroke-width="3" fill="none" opacity=".5"/>`);
+    out.push(`<path d="M${pt(a)} L${pt(b)} L${pt([c[0],c[1]*0.5+b[1]*0.5])} L${pt([d[0],d[1]*0.6+a[1]*0.4])} Z" fill="${lava?(lt?'#6B5056':'#4A363B'):(lt?'#E8D6AA':'#C9AF80')}" opacity=".7"/>`)}
+  for(let i=1;i<front.length-1;i+=3){const a=front[i],d=depth(a);out.push(`<path d="M${f1(a[0])} ${f1(a[1]+8)} l${f1((a[0]<C0[0]?-1:1)*6)} ${f1(d*0.45)} l${f1((a[0]<C0[0]?1:-1)*4)} ${f1(d*0.4)}" stroke="${lava?'#FF6A1A':'#9C8460'}" stroke-width="2" fill="none" opacity="${lava?'.45':'.55'}"/>`)}
+  out.push(`<path d="M${front.map((p,i)=>pt([p[0],p[1]+12+hrand('st'+i)*8])).join(' L')}" stroke="${lava?'#2A1E21':'#A88E62'}" stroke-width="3" fill="none" opacity=".5"/>`);
   /* водопады: с правого и левого края */
   [front[Math.round(front.length*0.22)],front[Math.round(front.length*0.8)]].forEach((p,i)=>{const h=depth(p)*1.2;
+    if(lava){out.push(`<path d="M${f1(p[0]-28)} ${f1(p[1]+h*.2)} Q ${f1(p[0])} ${f1(p[1]-26)} ${f1(p[0]+28)} ${f1(p[1]+h*.2)} L${f1(p[0]+16)} ${f1(p[1]+h)} L${f1(p[0]-16)} ${f1(p[1]+h)} Z" fill="url(#${k}-glow)" opacity=".55"/>
+      <path d="M${f1(p[0]-8)} ${f1(p[1]-3)} L${f1(p[0]+8)} ${f1(p[1]-3)} L${f1(p[0]+11)} ${f1(p[1]+h)} L${f1(p[0]-11)} ${f1(p[1]+h)} Z" fill="url(#${k}-lava)"/>
+      <path class="an wfl" d="M${f1(p[0]-3)} ${f1(p[1])} L${f1(p[0]-4)} ${f1(p[1]+h)} M${f1(p[0]+4)} ${f1(p[1])} L${f1(p[0]+5)} ${f1(p[1]+h)}" stroke="#FFF1A8" stroke-width="2.4" stroke-dasharray="10 12" fill="none" opacity=".9"/>
+      <ellipse cx="${f1(p[0])}" cy="${f1(p[1]-2)}" rx="13" ry="4.5" fill="#FFB347"/>${embers(p[0],p[1]+h,'lf'+i)}`);return}
     out.push(`<path d="M${f1(p[0]-7)} ${f1(p[1]-3)} L${f1(p[0]+7)} ${f1(p[1]-3)} L${f1(p[0]+10)} ${f1(p[1]+h)} L${f1(p[0]-10)} ${f1(p[1]+h)} Z" fill="#BFE6FF" opacity=".85"/>
       <path class="an wfl" d="M${f1(p[0]-3)} ${f1(p[1])} L${f1(p[0]-4)} ${f1(p[1]+h)} M${f1(p[0]+4)} ${f1(p[1])} L${f1(p[0]+5)} ${f1(p[1]+h)}" stroke="#fff" stroke-width="2.4" stroke-dasharray="10 12" fill="none" opacity=".9"/>
       <ellipse cx="${f1(p[0])}" cy="${f1(p[1]-2)}" rx="12" ry="4" fill="#7CC4FF"/>`)});
   return out.join('')}
-function rimRocks(back,g){const out=[],RIM=g.RIM,C0=g.C0;
+function rimRocks(back,g,lava){const out=[],RIM=g.RIM,C0=g.C0;
   RIM.forEach((p,i)=>{const isBack=p[2]===0||p[2]===3;if(isBack!==back)return;if(!back&&i%3)return;
     const s=(back?0.9:0.6)+hrand('rr'+i)*0.7,dx=p[0]-C0[0],dy=p[1]-C0[1],l=Math.hypot(dx,dy*2)||1;
-    out.push(rock(p[0]+dx/l*4,p[1]+dy/l*2,s))});
+    out.push(rock(p[0]+dx/l*4,p[1]+dy/l*2,s,lava?LAVA_ROCK:null));
+    /* дымящиеся жерла на дальнем краю Огненного острова */
+    if(lava&&back&&i%7===3)out.push(vent(p[0]-dx/l*16,p[1]-dy/l*8,i))});
   return out.join('')}
 
 /* короткое состояние постройки: для aria-label и всплывающей подсказки */
@@ -201,14 +273,14 @@ function bldState(b,st,K,D){const T=D.TYPES[b.type];
 /* ---------- всё вместе ---------- */
 function svg(st,opt){
   const D=root.DECO,K=opt.K,sel=opt.sel,place=opt.place,k=opt.key||'i',ro=!!opt.readonly;
-  const n=opt.bare?12:D.extent(st).n,g=geo(n),vb=viewFor(n)[opt.full?"full":"norm"];
+  const n=opt.bare?12:D.extent(st).n,g=geo(n),vb=viewFor(n)[opt.full?"full":"norm"],lava=st.isl===1||opt.theme==='lava';
   HITS=[];
-  const out=[`<svg class="drg-isl" viewBox="${vb.join(' ')}" preserveAspectRatio="xMidYMid ${opt.full?'meet':'meet'}" role="img" aria-label="Остров драконов">`];
+  const out=[`<svg class="drg-isl${lava?' lava':''}" viewBox="${vb.join(' ')}" preserveAspectRatio="xMidYMid ${opt.full?'meet':'meet'}" role="img" aria-label="${lava?'Огненный остров':'Остров драконов'}">`];
   out.push(`<defs>
     <linearGradient id="${k}-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--isl-sky1)"/><stop offset="1" stop-color="var(--isl-sky2)"/></linearGradient>
-    <radialGradient id="${k}-grass" cx=".5" cy=".42" r=".62"><stop offset="0" stop-color="var(--isl-grass)"/><stop offset="1" stop-color="var(--isl-grass2)"/></radialGradient>
-    <linearGradient id="${k}-cliff" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D9C49A"/><stop offset="1" stop-color="#A88E62"/></linearGradient>
-    <linearGradient id="${k}-cliff2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A88E62"/><stop offset="1" stop-color="#6E5A3C"/></linearGradient>
+    <radialGradient id="${k}-grass" cx=".5" cy=".42" r=".62"><stop offset="0" stop-color="${lava?'#6E5C5A':'var(--isl-grass)'}"/><stop offset="1" stop-color="${lava?'#3A2E31':'var(--isl-grass2)'}"/></radialGradient>
+    <linearGradient id="${k}-cliff" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${lava?'#5E4549':'#D9C49A'}"/><stop offset="1" stop-color="${lava?'#3B2A2E':'#A88E62'}"/></linearGradient>
+    <linearGradient id="${k}-cliff2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${lava?'#3B2A2E':'#A88E62'}"/><stop offset="1" stop-color="${lava?'#1C1316':'#6E5A3C'}"/></linearGradient>
     <radialGradient id="${k}-leaf" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#9BE06A"/><stop offset=".6" stop-color="#5DB03A"/><stop offset="1" stop-color="#3F8A2C"/></radialGradient>
     <linearGradient id="${k}-lava" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE27A"/><stop offset="1" stop-color="#FF5A1F"/></linearGradient>
     <radialGradient id="${k}-basalt" cx=".4" cy=".3" r=".8"><stop offset="0" stop-color="#5A5F73"/><stop offset="1" stop-color="#23252F"/></radialGradient>
@@ -227,20 +299,25 @@ function svg(st,opt){
     /* дальние облака под островом и по бокам, медленно плывут */
     const bank=[[-180,640,1.6],[60,610,1.3],[300,660,1.8],[560,620,1.4],[820,650,1.7],[1000,600,1.2],[-120,300,.9],[930,260,.8],[700,40,.7],[60,60,.6]];
     out.push(`<g class="an drift d1">${bank.map(([x,y,s],i)=>cloud(x,y,s,i>5?.85:1)).join('')}</g>`);
-    out.push(cliffs(k,g));
+    if(lava)out.push(islet(-150,250,.9,k)+islet(980,200,.7,k)+islet(860,560,.55,k));
+    out.push(cliffs(k,g,lava));
     /* верх острова */
-    out.push(`<path d="${smooth(g.RIM)}" fill="url(#${k}-grass)" stroke="#4E8A33" stroke-width="2"/>`);
-    out.push(rimRocks(true,g));
+    out.push(`<path d="${smooth(g.RIM)}" fill="url(#${k}-grass)" stroke="${lava?'#1E1416':'#4E8A33'}" stroke-width="2"/>`);
+    if(lava)out.push(`<path d="${smooth(g.RIM)}" fill="none" stroke="#FF7A1F" stroke-width="1.4" opacity=".35"/>`);
+    out.push(rimRocks(true,g,lava));
     /* пятна травы, кустики, цветы на открытой земле */
     for(let i=0;i<n;i++)for(let j=0;j<n;j++){const r=hrand('g'+i+':'+j),c=P(i+.5,j+.5);
+      if(lava){if(r<0.2)out.push(`<ellipse cx="${f1(c[0])}" cy="${f1(c[1])}" rx="${f1(18+r*40)}" ry="${f1(8+r*16)}" fill="${r<0.1?'#000':'#9A8A86'}" opacity=".12"/>`);
+        else if(r>0.9)out.push(crack(c[0],c[1],'ck'+i+':'+j));else if(r>0.86)out.push(embers(c[0],c[1],'em'+i+':'+j));continue}
       if(r<0.22)out.push(`<ellipse cx="${f1(c[0])}" cy="${f1(c[1])}" rx="${f1(18+r*40)}" ry="${f1(8+r*16)}" fill="${r<0.11?'#fff':'#2F6A1E'}" opacity=".07"/>`);
       else if(r>0.86)out.push(tuft(c[0]+(r-.9)*80,c[1]));else if(r>0.8)out.push(flowers(c[0],c[1],'f'+i+j))}
     /* закрытые участки: густой лес и табличка с ценой */
     for(let cx=0;cx<n/D.CHUNK;cx++)for(let cy=0;cy<n/D.CHUNK;cy++){
       const id=cx+','+cy;if(st.land.includes(id))continue;const x=cx*D.CHUNK,y=cy*D.CHUNK;
-      out.push(`<polygon points="${dia(x,y,D.CHUNK,D.CHUNK)}" fill="#1F4A14" opacity=".16"/>`);
+      out.push(`<polygon points="${dia(x,y,D.CHUNK,D.CHUNK)}" fill="${lava?'#140C0E':'#1F4A14'}" opacity="${lava?'.3':'.16'}"/>`);
       const items=[];for(let a=0;a<D.CHUNK;a++)for(let b=0;b<D.CHUNK;b++){const r=hrand('lf'+id+a+b),p=P(x+a+.3+r*.4,y+b+.3+hrand('lg'+id+a+b)*.4);items.push([p,r])}
-      items.sort((u,v)=>u[0][1]-v[0][1]).forEach(([p,r],n)=>{if(r>0.72)return;out.push(r<0.14?rock(p[0],p[1],1+r*2):r<0.3?bush(p[0],p[1],1.1,k):tree(p[0],p[1],0.95+r*0.4,k,n))});
+      items.sort((u,v)=>u[0][1]-v[0][1]).forEach(([p,r],n)=>{if(r>0.72)return;
+        out.push(lava?(r<0.05?lavaPool(p[0],p[1],1.2+r*4,k):r<0.3?obsidian(p[0],p[1],1+r):r<0.4?rock(p[0],p[1],1+r,LAVA_ROCK):charTree(p[0],p[1],0.95+r*0.4,n)):r<0.14?rock(p[0],p[1],1+r*2):r<0.3?bush(p[0],p[1],1.1,k):tree(p[0],p[1],0.95+r*0.4,k,n))});
       const cost=D.LAND_COST[id],m=P(x+2,y+2),o=P(cx===0?x:x+D.CHUNK,cy===0?y:y+D.CHUNK),c=[m[0]+(o[0]-m[0])*.4,m[1]+(o[1]-m[1])*.4];
       /* участок нового кольца, до которого остров ещё не дорос или рядом нет открытой земли: табличка без нажатия */
       const q=cost&&D.landState?D.landState(st,id):{ok:!!cost};
@@ -265,14 +342,17 @@ function svg(st,opt){
     out.push(`<g class="drg-b${isSel?' sel':''}${moving?' moving':''}" ${ro||place?'':`data-act="drgsel" data-id="${b.id}" tabindex="0" role="button" aria-label="${T.name}${lab?': '+lab:''}"${isSel?' aria-pressed="true"':''}`} transform="translate(${f1(c[0])} ${f1(c[1])})"><title>${T.name}${lab?': '+lab:''}</title>`);
     if(opt.full&&!opt.bare)labs.push(`<g class="drg-lab" transform="translate(${f1(c[0])} ${f1(c[1]+40)})" pointer-events="none"><g class="drg-labi"><rect x="${-T.name.length*3.6-8}" y="-10" width="${T.name.length*7.2+16}" height="19" rx="9.5" fill="rgba(20,40,60,.72)"/><text y="4" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">${T.name}</text></g></g>`);
     out.push(`<path d="M-64 0 L0 -32 L64 0 L0 32 Z" fill="rgba(255,255,255,.001)"/>`);
-    out.push(ground(b.type));
+    const hab=T.kind==='hab'&&!!PAD[b.type];
+    out.push(hab?habPad(b.type,k):ground(b.type));
     if(isSel)out.push(`<path d="M0 -34 L68 0 L0 34 L-68 0 Z" fill="none" stroke="#FFF3B0" stroke-width="3.4" stroke-dasharray="7 5"/>`);
     if(b.build){out.push(scaffold(b.build,K,D))}
     else{
-      out.push(T.kind==='farm'?farmSprite(b,st,K,D):T.kind==='nest'?nestSprite(b,st,k,c):T.kind==='hatch'?hatchSprite(b,k):(SPR[b.type]||SPR.nest)(k));
+      out.push(T.kind==='farm'?farmSprite(b,st,K,D):T.kind==='nest'?nestSprite(b,st,k,c,K,D):T.kind==='hatch'?hatchSprite(b,k):hab?habMark(b.type,k):(SPR[b.type]||SPR.nest)(k));
       if(T.kind==='hab'){
-        const ds=st.dragons.filter(d=>d.home===b.id),pos=[[-30,22],[28,22],[0,30],[46,8]];
-        ds.forEach((d,n)=>{const [dx,dy]=pos[n%4];out.push(dragonAt(d,dx,dy,66,k+b.id+d.id,c,b,'hab',dx>0?-1:1))})}
+        /* драконы во дворе, перед знаком среды; живой слой потом водит их по двору */
+        const ds=st.dragons.filter(d=>d.home===b.id),pos=[[-22,12],[22,14],[0,21],[-38,6],[38,6]];
+        ds.forEach((d,n)=>{const [dx,dy]=pos[n%5];out.push(dragonAt(d,dx,dy,hab?44:66,k+b.id+d.id,c,b,'hab',dx>0?-1:1))})
+        if(hab)out.push(habFront(b.type,k))}
       if(b.up)out.push(scaffold(b.up,K,D))}
     out.push(`</g>`);
     /* пузырь над зданием: в отдельном слое поверх всего */
@@ -284,7 +364,7 @@ function svg(st,opt){
       else if(T.kind==='nest'&&b.pair){bubs.push(D.ready(b.pair,K)?bubble(x,y,'egg','готово',true):bubble(x,y,'egg',D.left(b.pair,K)+' к.'))}
       else if(T.kind==='hatch'){const r=(b.slots||[]).filter(p=>p&&D.ready(p,K)).length;if(r)bubs.push(bubble(x,y,'baby','×'+r,true))}}
   });
-  if(!opt.bare)out.push(rimRocks(false,g));
+  if(!opt.bare)out.push(rimRocks(false,g,lava));
   out.push(`<g class="drg-drs">${HITS.join('')}</g>`);HITS=[];
   out.push(`<g class="drg-labs">${labs.join('')}</g>`);
   out.push(`<g class="drg-bubs">${bubs.join('')}</g>`);
@@ -293,6 +373,6 @@ function svg(st,opt){
   out.push(`</svg>`);
   return out.join('')}
 
-const ISL={svg,P,VIEW,viewFor,viewOf,eggSVG,HEIGHT,TW,TH,OX,OY};
+const ISL={svg,P,VIEW,viewFor,viewOf,eggSVG,HEIGHT,TW,TH,OX,OY,YARD,HAB_SC,HAB_DY,PAD};
 if(typeof module!=='undefined'&&module.exports)module.exports=ISL;else root.ISL=ISL;
 })(typeof window!=='undefined'?window:globalThis);

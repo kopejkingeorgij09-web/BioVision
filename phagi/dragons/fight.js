@@ -2,8 +2,8 @@
    Три экрана: карта похода → подготовка (выбор до трёх драконов, противники) → бой → итог.
    Урон, эффекты, очередь и конец боя считает battle.js, один раз на действие; данные похода в campaign.js;
    сцена и атаки в scene.js и attacks.js. Здесь только показ, выбор игрока и запись звёзд через api.record.
-   Награда похода — только звёзды: золото, корм и самоцветы за бои не начисляются, экономику острова этот файл не трогает.
-   api: {dragons() → [{id,name,genome,lvl}], progress() → прогресс похода, record(id,звёзды) → новый прогресс, onClose()} */
+   Награда похода (4.1): звёзды и награда острова, её числа считает economy.js (pveGain), здесь только показ.
+   api: {dragons() → [{id,name,genome,lvl}], progress() → прогресс похода, record(id,звёзды) → {p, gain, saved}, onClose()} */
 (function(root){
 'use strict';
 if(typeof document==='undefined')return;
@@ -58,7 +58,7 @@ const pics=new Map();let picQ=Promise.resolve();
 function portrait(sp,W,H){
   const key=JSON.stringify([sp.ref.genome,sp.lvl,W,H]);if(pics.has(key))return pics.get(key);
   const p=picQ=picQ.then(async()=>{
-    const ph=sp.ref.ph,M=root.MORPH.morph(ph,sp.lvl),G=root.SHAPE.build(M),dpr=Math.min(2,root.devicePixelRatio||1);
+    const ph=sp.ref.ph,M=root.MORPH.morph(ph,sp.lvl),G=root.SHAPE.build(M),dpr=Math.min(3,root.devicePixelRatio||1);
     const bw=G.box.w*G.scale,bh=G.box.h*G.scale,z=Math.min(W*dpr*0.92/bw,H*dpr*0.9/bh);
     const X=await root.RIG.get(ph,sp.lvl,{px:Math.max(0.5,z/dpr/G.scale),dpr});
     try{const A=new root.ANIM.Animator(M,X.R,{seed:7,reduce:true,noPuff:true});A.update(0.02);
@@ -110,7 +110,7 @@ function setScreen(name,html){
 /* ---------- карта похода ----------
    Десять регионов вкладками. В регионе рисованная карта: путь, узлы-кнопки (пройден, открыт, текущая цель, закрыт, босс),
    лучшие звёзды под узлом. Под картой карточка выбранного узла, ниже тот же список текстом для чтения с экрана
-   и для тех, кому список удобнее карты. Награда похода — только звёзды. */
+   и для тех, кому список удобнее карты. Награда: звёзды и золото, корм, самоцветы (4.1). */
 const TRAIT_IC=t=>(root.DRBATTLE.TRAITS[t]||{}).ic||'';
 const AI_RU={easy:'лёгкий',normal:'средний',hard:'трудный'};
 function seeded(s){let a=0;for(const c of s)a=(a*31+c.charCodeAt(0))>>>0;return ()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
@@ -248,7 +248,7 @@ function showPrep(id){
     ${bt.rule?`<p class="drf-rule${rk.ok?'':' bad'}" role="status">⚑ ${esc(C.ruleText(bt.rule))}${rk.ok?' Состав подходит.':' Сейчас состав не подходит.'}</p>`:''}
     <h3>Ваша команда <small>${max===3?'выберите до трёх драконов, первый встанет впереди':max===2?'в этот бой идут только двое':'в этот бой идёт один дракон'}</small></h3>
     ${mine.length?`<div class="drf-grid">${mine.map(card).join('')}</div>`:'<p class="drf-intro">На острове пока нет драконов.</p>'}${loadH}
-    <p class="drf-small">Звёзды: ${esc(bt.stars.text)} Награда: ${esc(bt.reward.text)}</p>
+    <p class="drf-small">Звёзды: ${esc(bt.stars.text)} Награда: ${esc(lootText(bt))}</p>
     <details class="drf-rules"><summary>Как идёт бой</summary><ul>
       <li>Ходят по очереди, первым самый быстрый. У каждого дракона есть Удар, атака своей стихии (у гибрида две) и Защита: до своего следующего хода он получает вдвое меньше урона.</li>
       <li>${esc(matrixText())}</li>
@@ -477,7 +477,8 @@ async function ending(tok){
   let p=F.api.progress(),before=p.best[F.bid]||0;
   /* звёзды пишутся в облако; итог показывает честный статус записи, а не обещание */
   F.save=null;
-  if(won){try{const r=F.api.record(F.bid,stars);if(r){p=r.p;F.save='saving';const my=F;
+  F.gain=null;
+  if(won){try{const r=F.api.record(F.bid,stars);if(r){p=r.p;F.gain=r.gain||null;F.save='saving';const my=F;
     Promise.resolve(r.saved).then(s=>{if(F===my){F.save=s==='ok'?'ok':s;saveLine()}},()=>{if(F===my){F.save='error';saveLine()}})}}catch(e){console.error(e);F.save='error'}}
   await wait(1.6,tok);
   F.result={won,stars,before,best:p.best[F.bid]||0};showResult()}
@@ -490,9 +491,16 @@ function showResult(){
     <p>${R.stars===3?'Никто из команды не выбыл.':R.stars===2?(bt.stars.r3&&!F.b.f.some(x=>x.side==='A'&&x.ko)?`Без потерь, но дольше ${bt.stars.r3} раундов: быстрее будет три звезды.`:'Один дракон выбыл. Без потерь будет три звезды.'):'Победа с потерями. Попробуйте другой состав или стихии посильнее.'}${R.stars>R.before&&R.before?` Новый рекорд: было ${R.before}.`:''}</p>
     <p class="drf-small">Звёзды похода: ${C.total(p)} из ${C.max()}.${newReg?` Открыт новый регион «${esc(newReg.name)}».`:nx&&C.unlocked(p,nx.id)&&!R.before?` Открыт бой «${esc(nx.name)}».`:''}</p>`
     :`<p>${why?'Тридцать раундов прошло, а противники ещё держатся: ничья засчитывается как поражение.':'Команда выбыла. Посмотрите, какие стихии сильнее против этих противников, и возьмите драконов посильнее.'}</p><p class="drf-small">Поражение ничего не отнимает: звёзды и драконы остаются.</p>`}
-    ${R.won?'<p class="drf-svl" role="status" aria-live="polite"></p>'+giftHTML(bt):''}
+    ${R.won?gainHTML(F.gain)+'<p class="drf-svl" role="status" aria-live="polite"></p>'+giftHTML(bt):''}
     <div class="drf-ra">${R.won&&nx&&C.unlocked(p,nx.id)?`<button class="btn" data-fk="next" data-id="${nx.id}" data-first>${newReg?'В новый регион':'Следующий бой'}</button>`:''}<button class="btn${R.won&&nx?' ghost':''}" data-fk="again"${R.won&&nx?'':' data-first'}>Ещё раз</button><button class="btn ghost" data-fk="map">К карте</button></div></div>`;
   F.el.appendChild(box);saveLine();const f=box.querySelector('[data-first]');if(f)f.focus({preventScroll:true});F.screen='result'}
+/* награда за бой (4.1): числа считает экономика острова, здесь только подпись */
+function lootText(bt){const D=root.DECO;if(!D||!D.pveGain)return bt.reward.text;const n={rec:bt.rec,boss:bt.boss,mini:bt.mini,elite:bt.elite},g=D.pveGain(n,1,0),r=D.pveGain(n,1,1);
+  return `первая победа ${g.gold} 🪙, ${g.food} 🌾${g.gems?', '+g.gems+' 💎':''} (+1 💎 за первые три звезды), повтор ${r.gold} 🪙 и ${r.food} 🌾, до ${D.PVE_DAY} повторов в день.`}
+function gainHTML(g){if(!g)return '';
+  if(g.cap&&!g.gems)return `<p class="drf-loot cap">Награды за повторы на сегодня закончились (${root.DECO.PVE_DAY} в день). Звёзды засчитаны.</p>`;
+  const it=[g.gold?`<span>+${g.gold} 🪙</span>`:'',g.food?`<span>+${g.food} 🌾</span>`:'',g.gems?`<span>+${g.gems} 💎</span>`:''].filter(Boolean).join('');
+  return it?`<p class="drf-loot" aria-label="Награда">${g.first?'<b>Первая победа!</b> ':''}${it}</p>`:''}
 /* строка о записи звёзд на экране итога */
 function saveLine(){const e=F&&F.$('.drf-svl');if(!e)return;const s=F.save;
   e.className='drf-svl '+(s||'');

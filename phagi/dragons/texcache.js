@@ -65,6 +65,7 @@ function dropCanvas(cv){if(cv&&cv.width){cv.width=0;cv.height=0;live--}}
 const freeParts=v=>{if(v&&v.parts)Object.values(v.parts).forEach(p=>dropCanvas(p.cv))};
 let shared=null;
 const api={TexCache,newCanvas,dropCanvas,liveCanvases:()=>live,freeParts,
-  get shared(){return shared||(shared=new TexCache({budget:24*1024*1024,free:freeParts}))}};
+  /* на экранах 3× текстуры крупнее: бюджет вдвое больше (4.1) */
+  get shared(){return shared||(shared=new TexCache({budget:24*1024*1024*(typeof devicePixelRatio!=='undefined'&&devicePixelRatio>2?2:1),free:freeParts}))}};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.DRTEX=api;
 })(typeof window!=='undefined'?window:globalThis);

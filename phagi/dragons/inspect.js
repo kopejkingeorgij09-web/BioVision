@@ -287,7 +287,7 @@ async function show(v,info,mode){
 
 /* ---------- раскладка: сцена слева и панель справа или сцена сверху и лист снизу ---------- */
 function layout(v,G){
-  G=G||v.G;const W=v.root.clientWidth||innerWidth,H=v.root.clientHeight||innerHeight,dpr=Math.min(2,devicePixelRatio||1);
+  G=G||v.G;const W=v.root.clientWidth||innerWidth,H=v.root.clientHeight||innerHeight,dpr=Math.min(3,devicePixelRatio||1);   /* 4.1: на экранах 3× дракон в осмотре чёткий */
   const side=W>=640&&W/H>1.25,pw=side?Math.round(clamp(W*0.36,300,400)):0;
   const sheet=side?0:Math.round(clamp(H*0.48,230,Math.max(230,H-240)));
   const sw=W-pw,sh=H-sheet,top=56,bot=side?36:20;

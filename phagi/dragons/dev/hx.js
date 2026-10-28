@@ -19,6 +19,10 @@ const rpc=(fn,a)=>{switch(fn){
   case 'ph_list':return [...store].filter(([p])=>p.slice(0,p.lastIndexOf('/'))===a.p_col&&store.get(p).d).map(([p,v])=>({id:p.slice(p.lastIndexOf('/')+1),data:v.d,t:v.t}));
   case 'ph_get':return (store.get(a.p_path)||{}).d||null;
   case 'ph_set':put(a.p_path,a.p_data);return T();
+  /* как ph_set_if в базе: пишет, только если там версия с теми же rev и op; документ без rev считается rev 0 */
+  case 'ph_set_if':{const c=(store.get(a.p_path)||{}).d||null;if(!a.p_data||a.p_data.rev!==(a.p_rev==null?0:a.p_rev)+1)throw {status:400,message:'bad rev'};
+    const cr=c?(typeof c.rev==='number'?c.rev:0):null;if((c===null)!==(a.p_rev==null)||(c&&(cr!==a.p_rev||(c.op==null?null:c.op)!==(a.p_op==null?null:a.p_op))))return {ok:false,cur:c};
+    put(a.p_path,a.p_data);return {ok:true,t:T()}}
   case 'ph_update':put(a.p_path,Object.assign({},(store.get(a.p_path)||{}).d,a.p_data));return T();
   case 'ph_delete':put(a.p_path,null);return T();
   case 'ph_sync':return {ch:[],now:T()};
@@ -32,11 +36,11 @@ const rpc=(fn,a)=>{switch(fn){
   /* всё, что уходит не на localhost, обрывается: в production не уходит ни одного запроса, тем более записи */
   await ctx.route(u=>!/^http:\/\/localhost:/.test(String(u)),r=>{blocked.push(r.request().method()+' '+r.request().url().slice(0,80));r.abort()});
   await ctx.route('**/rest/v1/rpc/*',async route=>{const fn=route.request().url().split('/').pop();const a=JSON.parse(route.request().postData()||'{}');
-    if(/^ph_(set|update|delete)$/.test(fn))writes.push(fn+' '+a.p_path);
+    if(/^ph_(set|set_if|update|delete)$/.test(fn))writes.push(fn+' '+a.p_path);
     if(fn==='ph_get'&&fail.get){fail.get--;return route.fulfill({status:503,contentType:'application/json',body:'{"message":"нет связи (стенд)"}'})}
-    if(/^ph_(set|update)$/.test(fn)&&fail.set){fail.set--;return route.fulfill({status:503,contentType:'application/json',body:'{"message":"нет связи (стенд)"}'})}
-    const out=rpc(fn,a);
-    if(/^ph_(set|update)$/.test(fn)&&fail.lost){fail.lost--;return route.fulfill({status:503,contentType:'application/json',body:'{"message":"ответ потерялся (стенд)"}'})}
+    if(/^ph_(set|set_if|update)$/.test(fn)&&fail.set){fail.set--;return route.fulfill({status:503,contentType:'application/json',body:'{"message":"нет связи (стенд)"}'})}
+    let out;try{out=rpc(fn,a)}catch(e){if(e&&e.status)return route.fulfill({status:e.status,contentType:'application/json',body:JSON.stringify({message:e.message})});throw e}
+    if(/^ph_(set|set_if|update)$/.test(fn)&&fail.lost){fail.lost--;return route.fulfill({status:503,contentType:'application/json',body:'{"message":"ответ потерялся (стенд)"}'})}
     route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(out)})});
     const page=await ctx.newPage();
   /* ошибки делятся на ожидаемые (оборванные внешние запросы и 503, которые сценарий сам включил через fail) и все остальные:

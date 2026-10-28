@@ -370,7 +370,8 @@ body.drf-open .drg-isl .an,body.drf-open .drg-isl .drift,body.drf-open .drg-isl 
 .drf-kinds>* small{font-weight:400;font-size:11.5px}
 .drf-kinds>.on{background:var(--bg);color:var(--ink)}
 .drf-kinds>button{cursor:pointer}.drf-kinds>button:hover{color:var(--text)}
-.drf-rts{flex:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--bg)}
+.drf-rts{flex:none;display:flex;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--bg);overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:thin;overscroll-behavior-x:contain}
+.drf-rts>.drf-rt{flex:0 0 auto;width:clamp(96px,26vw,150px);scroll-snap-align:start}
 .drf-rt{appearance:none;font:inherit;min-width:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:2px;padding:6px 7px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);cursor:pointer;text-align:left}
 .drf-rt b{font-size:12px;line-height:1.2;hyphens:auto;-webkit-hyphens:auto}.drf-rt small{font-size:11px;color:var(--muted);white-space:nowrap}
 @media(min-width:600px){.drf-rt b{font-size:13.5px}.drf-rt{padding:6px 10px}}
@@ -403,6 +404,11 @@ body.drf-open .drg-isl .an,body.drf-open .drg-isl .drift,body.drf-open .drg-isl 
 .drf-nch b{color:var(--ink)}
 .drf-nc .btn{width:100%;margin-top:4px}
 .drf-lock{color:var(--muted);font-weight:600}
+.drf-pin.side .drf-pc{width:32px;height:32px;font-size:13px;border-width:2px}
+.drf-pin.mini .drf-pc{border-style:double;border-width:4px}
+.drf-rule{margin:8px 0;padding:8px 10px;border-radius:10px;font-size:14px;background:color-mix(in srgb,var(--pa,#6A8CFF) 10%,var(--card));border:1px solid color-mix(in srgb,var(--pa,#6A8CFF) 35%,var(--line))}
+.drf-rule.bad{background:color-mix(in srgb,#E5484D 12%,var(--card));border-color:color-mix(in srgb,#E5484D 55%,var(--line));font-weight:600}
+.drf-gift{margin:8px 0;font-size:14px}.drf-gift.got{color:var(--muted)}
 .drf-want{margin:0 auto 10px;padding:8px 12px;border-radius:12px;background:color-mix(in srgb,#F2C94C 18%,var(--card));border:1px solid color-mix(in srgb,#E2B33C 50%,var(--line));font-size:14px}
 .drf-ls{margin-top:14px}.drf-ls .drf-path{margin-top:10px}
 .drf-tac{margin:0 auto 10px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--bio) 9%,var(--card));border:1px solid color-mix(in srgb,var(--bio) 30%,var(--line));font-size:14px;line-height:1.45}

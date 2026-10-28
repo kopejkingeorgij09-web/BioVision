@@ -38,21 +38,21 @@ t('стартовый остров: драконы в своих средах, �
   assert.strictEqual(s.dragons[0].home,'b1');assert.strictEqual(s.dragons[1].home,'b2');
   E.settle(s,100);
   const b1=s.bld[0];assert.strictEqual(E.chestNow(s,b1,110),30,'обычный дракон даёт 3 золота за карточку');
-  assert.strictEqual(E.chestNow(s,b1,100000),300,'сундук не больше вместимости');
+  assert.strictEqual(E.chestNow(s,b1,100000),E.HAB_LV[1].chest,'сундук не больше вместимости');
   const r=E.apply(s,ctx(120),{t:'collect',id:'b1'});s=ok(r);
   assert.strictEqual(s.bal.gold,300+60);assert.strictEqual(r.s.got.gold,60);
 });
 
 t('стройка идёт в карточках и ускоряется самоцветами',()=>{
   let s=E.normalize(E.startState(founders()),0,null);E.settle(s,0);
-  s=ok(E.apply(s,ctx(0),{t:'build',type:'farm',x:2,y:5}));
-  assert.ok(E.apply(s,ctx(0),{t:'build',type:'farm',x:4,y:8}).err,'третья ферма на 1-м уровне нельзя');
+  s=ok(E.apply(s,ctx(0),{t:'build',type:'farm',x:4,y:8}));
+  assert.ok(E.apply(s,ctx(0),{t:'build',type:'farm',x:6,y:8}).err,'третья ферма на 1-м уровне нельзя');
   const b=s.bld.find(x=>x.id===s.last);assert.ok(b.build);
   assert.strictEqual(E.left(b.build,3),3);
   s=E.normalize(s,6,null);assert.ok(!s.bld.find(x=>x.id===b.id).build,'готово через 6 карточек');
   s=E.normalize(E.startState(founders()),0,null);
   s.bal.gold=5000;s.bal.xp=E.xpFor(3);s=E.normalize(s,0,null);
-  s=ok(E.apply(s,ctx(0),{t:'build',type:'T',x:2,y:5}));
+  s=ok(E.apply(s,ctx(0),{t:'build',type:'T',x:4,y:8}));
   const id=s.last,g0=s.bal.gems;
   s=ok(E.apply(s,ctx(3),{t:'speed',id}));
   assert.strictEqual(g0-s.bal.gems,2,'15 карточек ожидания = 2 самоцвета');
@@ -63,6 +63,7 @@ t('нельзя ставить на занятое место и за грани
   const s=E.normalize(E.startState(founders()),0,null);
   assert.ok(!E.canPlace(s,4,5),'занято Кальдерой');
   assert.ok(!E.canPlace(s,0,0),'угол закрыт');
+  assert.ok(!E.canPlace(s,2,5),'занято Гнездовьем');
   assert.ok(E.canPlace(s,4,8));
   assert.ok(E.apply(s,ctx(0),{t:'move',id:'b1',x:5,y:5}).err,'наезжает на Лагуну');
   assert.ok(!E.apply(s,ctx(0),{t:'move',id:'b1',x:4,y:8}).err);
@@ -111,10 +112,10 @@ t('переселение: только в подходящую среду и п
 
 t('уровень острова: опыт открывает постройки и даёт самоцветы',()=>{
   let s=E.normalize(E.startState(founders()),0,null);const g=s.bal.gems;
-  assert.ok(E.apply(s,ctx(0),{t:'build',type:'N',x:2,y:5}).err);
+  assert.ok(E.apply(s,ctx(0),{t:'build',type:'N',x:4,y:8}).err);
   s.bal.xp=E.xpFor(2);s=E.normalize(s,0,null);
   assert.strictEqual(E.level(s),2);assert.strictEqual(s.bal.gems,g+2);
-  s=ok(E.apply(s,ctx(0),{t:'build',type:'N',x:2,y:5}));
+  s=ok(E.apply(s,ctx(0),{t:'build',type:'N',x:4,y:8}));
   assert.ok(E.apply(s,ctx(0),{t:'build',type:'nest',x:8,y:8}).err);
 });
 
@@ -136,9 +137,10 @@ t('улучшение среды: больше мест и вместимост�
 t('скрещивание: Гнездовье → яйцо → Инкубатор → птенец с родителями, журнал',()=>{
   let s=E.normalize(E.startState(founders()),0,null);s.bal.gold=10000;s.bal.xp=E.xpFor(3);s=E.normalize(s,0,null);
   s.dragons.forEach(d=>d.lvl=3);
-  s=ok(E.apply(s,ctx(0),{t:'build',type:'nest',x:2,y:5}));const nest=s.last;
+  const nest='b4',hat='b5';
   assert.ok(E.apply(s,ctx(0),{t:'build',type:'nest',x:4,y:8}).err,'второе Гнездовье нельзя');
-  s=ok(E.apply(s,ctx(0),{t:'build',type:'hatch',x:4,y:8}));const hat=s.last;
+  assert.ok(!s.bld.find(b=>b.id===nest).build&&!s.bld.find(b=>b.id===hat).build,'Гнездовье и Инкубатор готовы с начала');
+  assert.strictEqual(s.bld.find(b=>b.id===hat).slots.length,1,'в Инкубаторе одно место');
   s=E.normalize(s,20,null);
   assert.ok(E.apply(s,ctx(20),{t:'breed',id:nest,mother:'d2',father:'d1'}).err,'перепутан пол');
   const g0=s.bal.gold;
@@ -157,7 +159,7 @@ t('скрещивание: Гнездовье → яйцо → Инкубато�
 
 t('скрещивание: генотип яйца с зерном, а без дома птенец живёт в яслях, а не пропадает',()=>{
   const mk=()=>{let s=E.normalize(E.startState(founders()),0,null);s.bal.gold=10000;s.bal.xp=E.xpFor(3);s=E.normalize(s,0,null);s.dragons.forEach(d=>d.lvl=3);
-    s=ok(E.apply(s,ctx(0),{t:'build',type:'nest',x:2,y:5}));s=ok(E.apply(s,ctx(0),{t:'build',type:'hatch',x:4,y:8}));return E.normalize(s,30,null)};
+    return E.normalize(s,30,null)};
   const a=ok(E.apply(mk(),ctx(30),{t:'breed',id:'b4',mother:'d1',father:'d2'})),b=ok(E.apply(mk(),ctx(30),{t:'breed',id:'b4',mother:'d1',father:'d2'}));
   assert.deepStrictEqual(a.bld.find(x=>x.id==='b4').pair.egg,b.bld.find(x=>x.id==='b4').pair.egg);
   /* птенец огня/воды F/W или F/e x W/W: занять обе среды, чтобы места не было */
@@ -182,18 +184,16 @@ t('скрещивание: генотип яйца с зерном, а без д
 
 t('«Первый потомок»: шаги идут по порядку и опираются на настоящие числа',()=>{
   let s=E.normalize(E.startState(founders()),0,null);
-  let p=E.breedPath(s,0);assert.strictEqual(p.next,'level');assert.strictEqual(p.steps[0].need,3);assert.ok(!p.done);
-  const par=p.steps[1].par;assert.strictEqual(par.length,2);
+  let p=E.breedPath(s,0);assert.strictEqual(p.next,'parents','Гнездовье и Инкубатор есть с начала: первый шаг — родители');assert.ok(!p.done);
+  assert.ok(!p.steps.some(x=>x.k==='level'||x.k==='build'),'нет шага «остров 3-го уровня» и «построить»');
+  const par=p.steps[0].par;assert.strictEqual(par.length,2);
   par.forEach(x=>{const d=s.dragons.find(z=>z.id===x.id);let n=0,f=0;for(let l=d.lvl;l<3;l++){const k=E.FEEDS-(l===d.lvl?(d.fed||0):0);n+=k;f+=k*E.feedCost(l)}
-    assert.strictEqual(x.n,n);assert.strictEqual(x.food,f)});
-  s.bal.gold=10000;s.bal.food=1000;s.bal.xp=E.xpFor(3);s=E.normalize(s,0,null);
-  p=E.breedPath(s,0);assert.strictEqual(p.next,'parents');
-  s.dragons.forEach(d=>d.lvl=3);p=E.breedPath(s,0);assert.strictEqual(p.next,'build');assert.strictEqual(p.steps[2].nest.state,'none');
-  s=ok(E.apply(s,ctx(0),{t:'build',type:'nest',x:2,y:5}));p=E.breedPath(s,0);assert.strictEqual(p.steps[2].nest.state,'build');assert.strictEqual(p.steps[2].nest.left,E.TYPES.nest.need);
-  s=ok(E.apply(s,ctx(0),{t:'build',type:'hatch',x:4,y:8}));s=E.normalize(s,30,null);p=E.breedPath(s,30);
-  assert.strictEqual(p.next,'pair');assert.ok(p.steps[3].can);
-  s=ok(E.apply(s,ctx(30),{t:'breed',id:'b4',mother:'d1',father:'d2'}));p=E.breedPath(s,30);assert.strictEqual(p.next,'egg');assert.strictEqual(p.steps[4].pair.left,E.BREED_NEED);
-  s=E.normalize(s,45,null);s=ok(E.apply(s,ctx(45),{t:'egg',id:'b4'}));p=E.breedPath(s,45);assert.strictEqual(p.next,'hatch');assert.strictEqual(p.steps[5].eggs.length,1);
+    assert.strictEqual(x.n,n);assert.strictEqual(x.food,f);assert.strictEqual(x.cost,E.feedCost(d.lvl))});
+  s.bal.gold=10000;s.bal.food=1000;
+  s.dragons.forEach(d=>d.lvl=3);s=E.normalize(s,30,null);p=E.breedPath(s,30);
+  assert.strictEqual(p.next,'pair');assert.ok(p.steps[1].can);
+  s=ok(E.apply(s,ctx(30),{t:'breed',id:'b4',mother:'d1',father:'d2'}));p=E.breedPath(s,30);assert.strictEqual(p.next,'egg');assert.strictEqual(p.steps[2].pair.left,E.BREED_NEED);
+  s=E.normalize(s,45,null);s=ok(E.apply(s,ctx(45),{t:'egg',id:'b4'}));p=E.breedPath(s,45);assert.strictEqual(p.next,'hatch');assert.strictEqual(p.steps[3].eggs.length,1);
   s=E.normalize(s,200,null);const r=E.apply(s,ctx(200),{t:'hatch',id:'b5',plot:0});s=ok(r);
   p=E.breedPath(s,200);if(s.log[0].child){assert.ok(p.done);assert.strictEqual(p.next,null)}
 });
@@ -201,7 +201,7 @@ t('«Первый потомок»: шаги идут по порядку и о�
 t('прогноз: верный ускоряет вдвое и даёт самоцвет, неверный ничего не отнимает',()=>{
   let s=E.normalize(E.startState([{id:'d1',name:'a',genome:G.make({sex:'F',C:'C/c'})},{id:'d2',name:'b',genome:G.make({sex:'M',C:'C/c'})}]),0,null);
   s.bal.gold=10000;s.bal.xp=E.xpFor(3);s=E.normalize(s,0,null);s.dragons.forEach(d=>d.lvl=3);
-  s=ok(E.apply(s,ctx(0),{t:'build',type:'nest',x:2,y:5}));s=E.normalize(s,20,null);const gm=s.bal.gems;
+  s=E.normalize(s,20,null);const gm=s.bal.gems;
   const r=E.apply(s,ctx(20),{t:'breed',id:'b4',mother:'d1',father:'d2',pred:{trait:'color',value:'pale',p:0.25}});const s2=ok(r);
   assert.ok(r.s.got.pred.ok);assert.strictEqual(s2.bal.gems,gm+1);assert.strictEqual(s2.bld.find(x=>x.id==='b4').pair.need,Math.ceil(E.BREED_NEED/2));
   const r2=E.apply(s,ctx(20),{t:'breed',id:'b4',mother:'d1',father:'d2',pred:{trait:'color',value:'pale',p:0.5}});const s3=ok(r2);
@@ -211,7 +211,6 @@ t('прогноз: верный ускоряет вдвое и даёт само
 t('потомство двух гетерозигот по окраске: около четверти бледных',()=>{
   let s=E.normalize(E.startState([{id:'d1',name:'a',genome:G.make({sex:'F',C:'C/c'})},{id:'d2',name:'b',genome:G.make({sex:'M',C:'C/c'})}]),0,null);
   s.bal.gold=1e7;s.bal.xp=E.xpFor(3);s=E.normalize(s,0,null);s.dragons.forEach(d=>d.lvl=3);
-  s=ok(E.apply(s,ctx(0),{t:'build',type:'nest',x:2,y:5}));s=ok(E.apply(s,ctx(0),{t:'build',type:'hatch',x:4,y:8}));
   let K=30,pale=0,all=0;s=E.normalize(s,K,null);
   for(let i=0;i<400;i++){s=ok(E.apply(s,ctx(K),{t:'breed',id:'b4',mother:'d1',father:'d2'}));K+=20;s=ok(E.apply(s,ctx(K),{t:'egg',id:'b4'}));
     const eg=s.bld.find(x=>x.id==='b5').slots[0];all++;if(G.phenotype(eg.genome).color==='pale')pale++;s.bld.find(x=>x.id==='b5').slots[0]=null}

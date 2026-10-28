@@ -27,18 +27,20 @@ function pick(from,foes,max,L){
 /* «лучший состав»: перебор всех команд нужного размера из восьми драконов на коротком прогоне, как игрок, который пробует составы */
 const combos=(a,k)=>k===0?[[]]:a.flatMap((x,i)=>combos(a.slice(i+1),k-1).map(c=>[x,...c]));
 function best(node,foes,L){let top=null,tv=-1;
-  combos(POOL,node.team.max).forEach(c=>{const A=c.map((E,i)=>mine(E,L,i));let v=0;
+  combos(POOL,node.team.max).forEach(c=>{const A=c.map((E,i)=>mine(E,L,i));if(!C.teamOk(node,A.map(d=>d.els)).ok)return;let v=0;
     for(let s=1;s<=12;s++){const b=B.simulate(A,foes,{seed:s*104729+L,aiA:'normal',aiB:node.ai,star3:node.stars.r3});if(b.winner==='A')v+=1+b.stars()/10}
     if(v>tv){tv=v;top=A}});return top}
 function run(node,team,L,n){
   const foes=node.foes().map(f=>spec('x'+f.id,f.genome,f.lvl,f.traits)),A=team.k==='mix'?best(node,foes,L):pick(team.from,foes,node.team.max,L);
+  /* постоянная команда, которую правило испытания не пускает (например, «без Огня»), в этом бою не считается */
+  if(!A||!C.teamOk(node,A.map(d=>d.els)).ok)return {win:null,stars:0,rounds:0,team:A?A.map(d=>d.els.join('')||'дым'):[]};
   let w=0,st=0,rounds=0;
   for(let s=1;s<=n;s++){const b=B.simulate(A,foes,{seed:s*7919+L,aiA:'normal',aiB:node.ai,star3:node.stars.r3});if(b.winner==='A'){w++;st+=b.stars()}rounds+=b.round}
   return {win:w/n,stars:w?st/w:0,rounds:rounds/n,team:A.map(d=>d.els.join('')||'дым')}}
 function balance(n){
-  return C.NODES.map(node=>{const L0=node.rec,L2=Math.min(20,node.rec+2),r={id:node.id,node,L0,L2,at:{}};
+  return C.NODES.map(node=>{const L0=node.rec,L2=Math.min(60,node.rec+2),r={id:node.id,node,L0,L2,at:{}};
     TEAMS.forEach(t=>{r.at[t.k]={rec:run(node,t,L0,n),up:run(node,t,L2,n)}});return r})}
-const pc=v=>Math.round(v*100)+' %';
+const pc=v=>v==null?'—':Math.round(v*100)+' %';
 const TR={thick:'шкура',shield:'вожак',regen:'регенерация',ward:'закалка',enrage:'гнев'};
 const EL={F:'Огонь',W:'Вода',T:'Земля',A:'Воздух',P:'Флора',L:'Свет',D:'Тьма'};
 function foeText(node){return node.foes().map(f=>{const ph=D.phenotype(f.genome),e=ph.breath==='element'?ph.elements.map(x=>EL[x]).join('/'):'дым';

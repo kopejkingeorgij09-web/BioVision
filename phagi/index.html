@@ -2,10 +2,10 @@
 <html lang="ru">
 <head>
 <script src="cloud.js?v=7"></script>
-<link rel="stylesheet" href="dragons/dragons.css?v=18">
-<script src="dragons/genetics.js?v=18"></script><script src="dragons/draw.js?v=18"></script><script src="dragons/puzzles.js?v=18"></script><script src="dragons/economy.js?v=18"></script><script src="dragons/island.js?v=18"></script><script src="dragons/store.js?v=18"></script><script src="dragons/battle.js?v=18"></script><script src="dragons/campaign.js?v=18"></script><script src="dragons/ui.js?v=18"></script><script src="dragons/inspect.js?v=18"></script><script src="dragons/live.js?v=18"></script><script src="dragons/fight.js?v=18"></script>
+<link rel="stylesheet" href="dragons/dragons.css?v=19">
+<script src="dragons/genetics.js?v=19"></script><script src="dragons/draw.js?v=19"></script><script src="dragons/puzzles.js?v=19"></script><script src="dragons/economy.js?v=19"></script><script src="dragons/island.js?v=19"></script><script src="dragons/store.js?v=19"></script><script src="dragons/battle.js?v=19"></script><script src="dragons/campaign.js?v=19"></script><script src="dragons/ui.js?v=19"></script><script src="dragons/inspect.js?v=19"></script><script src="dragons/live.js?v=19"></script><script src="dragons/fight.js?v=19"></script>
 <meta charset="utf-8">
-<meta name="ph-ver" content="2026-10-29.2">
+<meta name="ph-ver" content="2026-10-29.3">
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Фаги естественных наук</title>
@@ -3074,6 +3074,10 @@ function patchMain(M,html){
 function draw(soft){
   const a=document.activeElement,aid=a&&a.id;let ss,se;try{ss=a.selectionStart;se=a.selectionEnd}catch{}
   const sy=window.scrollY;
+  /* При кормлении панель заменяется. Сохраняем её прокрутку только внутри того же раздела/здания. */
+  const paneKey=()=>[S.view,S.drgUid||'',S.drgPanel||'',S.drgSel||''].join('|');
+  const pane=document.querySelector('#main>.drg-pan'),pk=paneKey();
+  const paneY=pane&&pane.dataset.scrollKey===pk?pane.scrollTop:0;
   $('#who').textContent=S.dual?'':T()?'Учитель':(S.mode==='student'&&S.joined?S.myLabel:'');
   const rs=$('#rolesw');rs.hidden=!S.dual;if(S.dual)rs.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.role===S.mode)));
   $('#srbtn').hidden=!(T()||(S.mode==='student'&&S.joined));
@@ -3088,6 +3092,8 @@ function draw(soft){
   if(S.view!==lastView){lastView=S.view;M.classList.remove('vin');void M.offsetWidth;M.classList.add('vin');setTimeout(()=>M.classList.remove('vin'),320)}
   patchMain(M,html);
   dRestore(M);
+  const nextPane=M.querySelector(':scope>.drg-pan');
+  if(nextPane){nextPane.dataset.scrollKey=pk;nextPane.scrollTop=paneY}
   if(aid){const e=document.getElementById(aid);if(e&&e!==document.activeElement&&!$('#dlg').open){e.focus({preventScroll:true});try{if(ss!=null)e.setSelectionRange(ss,se)}catch{}}}
   if(window.scrollY!==sy)window.scrollTo(0,sy);
   if(S.view==='people'&&S.user)fillProfiles();

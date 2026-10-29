@@ -104,7 +104,13 @@ function topHTML(st){topLoad(false);const T0=S.drgTop||{rows:[],busy:true},me=me
       ${r.uid===me?'':`<button class="btn ghost sm" data-act="drgvisit" data-v="${esc(r.uid)}">В гости</button>`}</li>`).join('')}</ol></section>`}
 function onSnap(uid,srv){
   S.drag=S.drag||{};const st=storeOf(uid);
-  if(st){st.snap(srv||null);S.drag[uid]=st.tip;return}
+  if(st){st.snap(srv||null);S.drag[uid]=st.tip;
+    const matches=(S.people||[]).filter(p=>p.label==='Георгий');
+    if(st.status==='ok'&&!st.pending()&&matches.length===1&&matches[0].id===uid&&uid===meId()){
+      const grant=E.legacyPveGrant(st.tip);
+      if(grant)save(uid,grant).then(status=>{if(status==='ok')toast('Начислены пропущенные призы за первые 3 боя: 420 золота, 56 корма и 2 самоцвета',7000)});
+    }
+    return}
   S.drag[uid]=srv||null}
 /* можно ли сейчас менять свой остров; если нет, объясняем почему */
 function canAct(uid){const st=storeOf(uid);if(!st||st.canAct())return true;
@@ -442,8 +448,8 @@ function panel0(st,c,own){
   if(job){const lf=E.left(job,K);
     h+=`<p>${b.build?'Строится':'Улучшается до '+job.to+'-го уровня'}: осталось ${cardsAcc(lf)}.${b.up&&T.kind==='hab'?' Драконы при этом продолжают приносить золото.':''}</p>${own?`<div class="actions" style="justify-content:flex-start"><button class="btn sm" data-act="drgdo" data-t="speed" data-id="${b.id}">Ускорить за ${Math.ceil(lf/E.SKIP_CARDS)} 💎</button></div>`:''}`}
   if(T.kind==='hab'&&!b.build){
-    const a=E.chestNow(st,b,K),cap=E.chestCap(b),ds=st.dragons.filter(d=>d.home===b.id),r=E.rate(st,b);
-    h+=`<div class="drg-chest"><span>🪙 В сундуке <b>${fmt(a)}</b> из ${fmt(cap)}</span><span class="drg-bar"><i style="width:${Math.min(100,a/cap*100)}%"></i></span><span class="muted small">${r?`+${fmt(r)} за каждую карточку`:'Пока здесь нет драконов'}${a>=cap?', сундук полон: соберите, иначе золото пропадает':''}</span>${own?`<button class="btn sm" data-act="drgdo" data-t="collect" data-id="${b.id}"${a>=1?'':' disabled'}>Собрать</button>`:''}</div>`;
+    const a=E.chestNow(st,b,K),cap=E.chestCap(b),ds=st.dragons.filter(d=>d.home===b.id),r=ds.reduce((n,d)=>n+E.goldNow(st,d,todayN()),0);
+    h+=`<div class="drg-chest"><span>🪙 В сундуке <b>${fmt(a)}</b> из ${fmt(cap)}</span><span class="drg-bar"><i style="width:${Math.min(100,a/cap*100)}%"></i></span><span class="muted small">${r?`+${goldFmt(r)} за следующую карточку · сумма от ${ds.length} ${plural(ds.length,'дракона','драконов','драконов')}`:'Пока здесь нет драконов'}${a>=cap?', сундук полон: соберите, иначе золото пропадает':''}</span>${own?`<button class="btn sm" data-act="drgdo" data-t="collect" data-id="${b.id}"${a>=1?'':' disabled'}>Собрать</button>`:''}</div>`;
     h+=`<p class="muted small">Живут: ${T.hosts.map(k=>HOSTS[k]).join(' и ')}. Мест ${ds.length} из ${E.habCap(b)}.</p>`;
     h+=`<div class="drg-list">${ds.map(d=>dragonCard(st,d,own,L)).join('')||'<p class="muted small">Здесь пока никто не живёт.</p>'}</div>`}
   if(T.kind==='farm'&&!b.build){
@@ -460,7 +466,8 @@ function panel0(st,c,own){
 
 /* золото дракона за следующую карточку: удвоение и ступень лесенки сегодняшнего дня (одна десятая) */
 const todayN=()=>{const st=S.streak[S.drgUid||meId()];return st?streakInfo(st).todayN:0};
-const goldTxt=(st,d)=>{const v=E.goldNow(st,d,todayN());return v>=100?fmt(v):String(Math.round(v*10)/10).replace('.',',')};
+const goldFmt=v=>String(Math.round(v*10)/10).replace('.',',');
+const goldTxt=(st,d)=>goldFmt(E.goldNow(st,d,todayN()));
 /* на каком уровне острова предел драконов станет больше cap */
 const capAt=cap=>{for(let k=1;k<=E.ISLE_MAX;k++)if(E.maxDragonLv(k)>cap)return k;return null};
 function dragonCard(st,d,own,L){
@@ -859,17 +866,17 @@ function camApply(){const st=document.querySelector('.drg-world .drg-stage'),r=c
     if(c.auto)camFit(r,false,fitKind(r));else{const o=svgMap({width:c.W,height:c.H}),n=svgMap(r),u=((c.W/2-c.x)/c.z-o.x(0))/o.s0,v=((c.H/2-c.y)/c.z-o.y(0))/o.s0;
       c.x=r.width/2-c.z*n.x(u);c.y=r.height/2-c.z*n.y(v);c.W=r.width;c.H=r.height}}
   camClamp(c,r);
-  const tr=`translate(${c.x.toFixed(1)}px,${c.y.toFixed(1)}px) scale(${c.z.toFixed(3)})`;
-  const moved=st.style.transform!==tr;if(moved)st.style.transform=tr;
+  /* Масштабируем размер SVG, а не готовую текстуру слоя: вектор растрируется в реальном разрешении. */
+  const sw=+(r.width*c.z).toFixed(2)+'px',sh=+(r.height*c.z).toFixed(2)+'px';
+  const resized=st.style.width!==sw||st.style.height!==sh;
+  if(resized){st.style.width=sw;st.style.height=sh}
+  const tr=`translate(${c.x.toFixed(1)}px,${c.y.toFixed(1)}px)`;
+  const moved=resized||st.style.transform!==tr;if(moved)st.style.transform=tr;
   /* фон за островом движется медленнее камеры: далёкие острова и облака дают глубину */
   const bgs=st.parentElement.querySelector('.drg-bgs');
   if(bgs){if(!c.f)c.f=[c.x,c.y,c.z];const F0=c.f,k=0.32,zb=F0[2]*Math.pow(c.z/F0[2],k),Sx=r.width/2,Sy=r.height/2,
       ux=(Sx-c.x)/c.z,uy=(Sy-c.y)/c.z,u0x=(Sx-F0[0])/F0[2],u0y=(Sy-F0[1])/F0[2],bx=u0x+(ux-u0x)*k,by=u0y+(uy-u0y)*k;
     const tb=`translate(${(Sx-zb*bx).toFixed(1)}px,${(Sy-zb*by).toFixed(1)}px) scale(${zb.toFixed(3)})`;if(bgs.style.transform!==tb)bgs.style.transform=tb}
-  /* после изменения масштаба остров растрируется заново под новый размер (иначе слой с will-change остаётся мыльным) */
-  if(c.lz==null)c.lz=c.z;
-  else if(Math.abs(c.lz-c.z)>1e-4){c.lz=c.z;clearTimeout(camApply.rr);camApply.rr=setTimeout(()=>{const s2=document.querySelector('.drg-world .drg-stage');if(!s2)return;
-    s2.style.willChange='auto';requestAnimationFrame(()=>requestAnimationFrame(()=>{s2.style.willChange=''}))},260)}
   /* мелко: подписи построек прячутся, чтобы не слипались */
   const m=st.parentElement,px=svgMap(r).s0*c.z,lo=px<0.42;if(m.classList.contains('zlo')!==lo)m.classList.toggle('zlo',lo);
   /* подписи построек держат экранный размер около 11 px при любом масштабе */

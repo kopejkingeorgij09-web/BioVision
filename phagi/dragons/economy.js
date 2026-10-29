@@ -414,6 +414,16 @@ function pveGain(n,stars,before){const r=Math.max(1,Math.min(60,+n.rec||1)),k=n.
   if(!before)return {gold,food,gems:(n.boss?3:n.mini||n.elite?1:0)+(stars>=3?1:0),first:true};
   return {gold:Math.round(gold/50)*10,food:Math.round(food/5),gems:stars>=3&&before<3?1:0,first:false}}
 
+/* Разовая компенсация по обращению Георгия: первые три боя пройдены до наград.
+   Звёзды на момент обращения: 3, 3, 2. Маркер и баланс сохраняются одним CAS-документом.
+   Вызывается UI только для единственного профиля Георгий; прочие старые победы не меняет. */
+function legacyPveGrant(s){
+  if(!s||!s.bal||s.v!==2||s.legacyPve20261029||!["e1","e2","e3"].every(id=>s.pve&&s.pve.best&&s.pve.best[id]>0))return null;
+  const n=JSON.parse(JSON.stringify(s)),g={gold:420,food:56,gems:2,xp:31};
+  for(const k of ['gold','food','gems'])n.bal[k]+=g[k];xp(n,g.xp);
+  n.legacyPve20261029={nodes:['e1','e2','e3'],grant:g};return n;
+}
+
 /* ---------- подарок за ДЗ на 95 %+ (4.4) ----------
    Редкий дракон из ДЗ или теста на 95 % и выше: из 40 генотипов с двумя стихиями берётся самый редкий, зерно — ученица и задание,
    поэтому подарок за одно задание всегда один и тот же. Забирается один раз (s.hwgift — список заданий) */
@@ -729,6 +739,6 @@ function nextMajor(L){for(let k=L+1;k<=ISLE_MAX;k++){const u=unlocksAt(k).filter
 const DECO={DRAGON_MAX,ISLE_MAX,repair,unlocksAt,nextMajor,MINOR,NURSERY,nurseryCap,homeFor,nursery,breedPath,HATCH_LV,BREED_LV,breedCost,BREED_NEED,HATCH_NEED,PRED_TOL,lvTable,summary,habNames,TYPES,HAB_ORDER,HAB_LV,FARM_LV,CROPS,RAR_GOLD,SKIP_CARDS,GRID,CHUNK,START_LAND,LAND_COST,MILESTONES,FEEDS,RATION,
   ECON,ladderK,ladderNext,todayBonus,SLOT7,hatchCap,firstHatch,maxOf,buildCost,feedPrice,lvlGold,goldRate,goldNow,landState,adjacent,extent,allChunks,zoneSpot,GIFTS,giftGenome,RESEARCH,MASTERY,mastery,hasE2,
   xpFor,levelOf,maxHabs,maxFarms,maxDragonLv,feedCost,income,startState,hosts,dragonKeys,goldPerCard,rate,settle,chestNow,normalize,
-  canPlace,chunkOf,apply,hwGiftGenome,WQ,wqList,wqProgress,wqState,weekOf,LVL_CHEST,RINGS,SLOT,SLOT0,snap,slots,freeSlots,arrange,growLand,ISLE2,isle,isleOf,isleState,PVE_DAY,pveGain,OBST,OBST_KIND,obstacles,ready,left,level,count,streakMult,marketGenome,habCap,chestCap};
+  canPlace,chunkOf,apply,hwGiftGenome,WQ,wqList,wqProgress,wqState,weekOf,LVL_CHEST,RINGS,SLOT,SLOT0,snap,slots,freeSlots,arrange,growLand,ISLE2,isle,isleOf,isleState,PVE_DAY,pveGain,legacyPveGrant,OBST,OBST_KIND,obstacles,ready,left,level,count,streakMult,marketGenome,habCap,chestCap};
 if(typeof module!=='undefined'&&module.exports)module.exports=DECO;else root.DECO=DECO;
 })(typeof window!=='undefined'?window:globalThis);

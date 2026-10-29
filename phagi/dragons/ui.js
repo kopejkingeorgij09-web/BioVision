@@ -391,7 +391,7 @@ function islandView(){
       :`<span class="drg-pill" title="${t}"><i aria-hidden="true">${ic}</i><span><b>${fmt(v)}</b><small>${t.toLowerCase()}</small></span></span>`;
     const P=S.drgPanel||'',rb=(act,v,ic,t,o)=>{o=o||{};const on=act==='drgpanel'&&P===v||o.on;
       return `<button class="drg-rb${o.big?' big':''}" data-act="${act}" data-v="${v}"${o.lab?` aria-label="${o.lab}${o.n?`, ждут: ${o.n}`:''}${o.k?' (клавиша '+o.k+')':''}"`:''}${o.k?` title="Клавиша ${o.k}" aria-keyshortcuts="${o.k}"`:''}${on?' aria-current="true"':''}><i aria-hidden="true">${ic}</i><span>${t}</span>${o.n?`<b class="drg-bdg" aria-hidden="true">${o.n}</b>`:''}${o.k?`<kbd class="drg-kb" aria-hidden="true">${o.k}</kbd>`:''}</button>`};
-    const dock=own?rb('drgfull','0','🏠','Домой',{lab:'Домой: из острова на страницу',k:'Esc'})+rb('drgpanel','dragons','📖','Драконы',{lab:'Драконы',k:'D'})
+    const dock=own?rb('drgcards','','📚','<b class="lg">Повторять карточки</b><b class="sm">Карточки</b>',{lab:'Повторять карточки'})+rb('drgpanel','dragons','📖','Драконы',{lab:'Драконы',k:'D'})
         +rb('drgpanel','breed','🥚','<b class="lg">Скрещивание</b><b class="sm">Яйца</b>',{lab:'Скрещивание и яйца',k:'E'})
         +(st.dragons.length?rb('drgfight','','⚔️','Поход',{lab:'Поход: бои драконов',k:'P'}):'')+rb('drgpanel','shop','🔨','Строить',{big:1,lab:'Строить',k:'B'})+rb('drgpanel','market','🐉','Купить',{lab:'Купить дракона'})+rb('drgpanel','more','☰','Ещё',{lab:'Ещё: головоломки, задания недели, рейтинг, рынок, журнал',k:'M',n:todoN(st,c)})
       :visit?rb('drgvisit','','🏠','Домой',{lab:'Домой, на свой остров'})+rb('drgpanel','dragons','📖','Драконы')+rb('drgpanel','blds','🏘','Постройки')+rb('drgpanel','top','🏆','Рейтинг')
@@ -410,7 +410,7 @@ function islandView(){
       ${pl?'':isleBtn(st,own)}
       </div>`+panel(st,c,own)}
   const head=`${back}${own?saveHTML(uid,true)+slot7HTML(st):''}<div class="drg-ih"><div class="drg-ih-t"><h1>Остров драконов${own?'':': '+esc(visitName(uid))}</h1><span class="muted small">Время на острове идёт в карточках: повторено ${cards(K)}</span>${own?volHTML(st,c.info,true):''}</div>${lvlHTML(st)}${visit?'':walletHTML(st)}</div>`;
-  const tools=own&&!pl?`<div class="drg-tools"><button class="btn sm" data-act="drgfull" data-v="1">🏝 Отправиться на остров</button><button class="btn ghost sm" data-act="drgpanel" data-v="shop">🔨 Построить</button><button class="btn ghost sm" data-act="drgpanel" data-v="market">🐉 Рынок</button><button class="btn ghost sm" data-act="drgpanel" data-v="dragons">📖 Драконы</button><button class="btn ghost sm" data-act="drgpanel" data-v="breed">🥚 Скрещивание</button>${st.dragons.length?'<button class="btn ghost sm" data-act="drgfight">⚔️ Поход</button>':''}<button class="btn ghost sm" data-act="drgpanel" data-v="journal">📓 Журнал скрещиваний</button><button class="btn ghost sm" data-act="drgpanel" data-v="help">Как это работает</button></div>`:'';
+  const tools=own&&!pl?`<div class="drg-tools"><button class="btn sm" data-act="drgcards">📚 Повторять карточки</button><button class="btn sm" data-act="drgfull" data-v="1">🏝 Отправиться на остров</button><button class="btn ghost sm" data-act="drgpanel" data-v="shop">🔨 Построить</button><button class="btn ghost sm" data-act="drgpanel" data-v="market">🐉 Рынок</button><button class="btn ghost sm" data-act="drgpanel" data-v="dragons">📖 Драконы</button><button class="btn ghost sm" data-act="drgpanel" data-v="breed">🥚 Скрещивание</button>${st.dragons.length?'<button class="btn ghost sm" data-act="drgfight">⚔️ Поход</button>':''}<button class="btn ghost sm" data-act="drgpanel" data-v="journal">📓 Журнал скрещиваний</button><button class="btn ghost sm" data-act="drgpanel" data-v="help">Как это работает</button></div>`:'';
   const map=`<div class="drg-map${pl?' placing':''}${cur?' lava':''}">${placeBar}${pl?'':isleBtn(st,own)}${isl}<button class="drg-fsb" data-act="drgfull" data-v="1" aria-label="Открыть остров на весь экран">⛶</button></div>`;
   const goal=gl?`<button class="drg-goal in" data-act="drgpanel" data-v="breed"><small>Цель: первый потомок · шаг ${gl.step} из ${gl.of}</small><b>${gl.text}</b></button>`:'';
   return head+goal+tools+map+panel(st,c,own);
@@ -425,6 +425,7 @@ function panel0(st,c,own){
   const K=c.K,L=E.level(st),p=S.drgPanel;
   if(own&&p==='shop')return shopHTML(st,L);
   if(own&&p==='market')return marketHTML(st,L);
+  if(p==='compare')return compareHTML(st);
   if(p==='dragons'||p==='ranking')return dragonsHTML(st,own,L,p==='ranking');
   if(p==='help')return helpHTML(st,c);
   if(p==='breed')return breedHTML(st,c,own);
@@ -471,21 +472,36 @@ const goldTxt=(st,d)=>goldFmt(E.goldNow(st,d,todayN()));
 /* на каком уровне острова предел драконов станет больше cap */
 const capAt=cap=>{for(let k=1;k<=E.ISLE_MAX;k++)if(E.maxDragonLv(k)>cap)return k;return null};
 const combatCache=new Map();let powerLoading=null;
-function powerValue(d){
+function combatStats(d){
   if(!window.DSTATS||!window.MORPH||!window.SHAPE||!window.ANIM){if(!powerLoading&&window.DRGINSP)powerLoading=window.DRGINSP.loadAll().then(()=>render()).catch(()=>{});return null}
   const key=JSON.stringify([d.genome,d.lvl]);let val=combatCache.get(key);
-  if(val==null){const ph=phOf(d),m=window.MORPH.morph(ph,d.lvl),g=window.SHAPE.build(m);val=window.DSTATS.power(window.DSTATS.of(ph,d.lvl,window.ANIM.profile(m,g.rig)));if(combatCache.size>96)combatCache.clear();combatCache.set(key,val)}
+  if(val==null){const ph=phOf(d),m=window.MORPH.morph(ph,d.lvl),g=window.SHAPE.build(m);val=window.DSTATS.of(ph,d.lvl,window.ANIM.profile(m,g.rig));if(combatCache.size>96)combatCache.clear();combatCache.set(key,val)}
   return val}
+function powerValue(d){const s=combatStats(d);return s?window.DSTATS.power(s):null}
 function powerHTML(d){const val=powerValue(d);if(val==null)return '';
   return `<span class="drg-power" title="${esc(window.DSTATS.POWER_NOTE)}">◆ Абсолютная сила: ${val}</span>`}
 function dragonsHTML(st,own,L,ranking){
-  const rows=st.dragons.map(d=>({d,power:powerValue(d)})),ready=rows.every(r=>r.power!=null);
+  const level=(S.fv||{}).drgCompareLevel||'',pool=st.dragons.filter(d=>!level||String(d.lvl)===level);
+  const rows=pool.map(d=>({d,power:powerValue(d)})),ready=rows.every(r=>r.power!=null);
   rows.sort((a,b)=>(b.power||0)-(a.power||0)||String(a.d.id).localeCompare(String(b.d.id)));
-  const best=ready&&rows[0],tabs=`<nav class="drg-store-tabs" aria-label="Драконы"><button class="btn ${ranking?'ghost':''}" data-act="drgpanel" data-v="dragons" aria-pressed="${!ranking}">Все драконы</button><button class="btn ${ranking?'':'ghost'}" data-act="drgpanel" data-v="ranking" aria-pressed="${ranking}">🏆 По силе</button></nav>`;
-  return `<section class="sheet drg-pan drg-ranking"><div class="drg-pan-h"><h2>${ranking?'Рейтинг драконов':'Драконы острова'}</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div>${tabs}
-    ${best?`<div class="drg-favorite"><span>⭐ Любимчик · самый сильный</span><b>${esc(best.d.name)} · ◆ ${best.power}</b><small>${best.d.lvl}-й уровень${rows[1]&&rows[1].power===best.power?' · несколько драконов делят первое место':''}</small><button class="btn sm" data-act="drginsp" data-dragon="${best.d.id}">Открыть паспорт</button></div>`:''}
-    ${ranking?`<p class="muted small">По абсолютной силе на текущем уровне. Для сравнения наследуемых качеств выбирай драконов одного уровня. При равной силе порядок определяется постоянным идентификатором; любимчик — первый из лидеров.</p>${!ready?'<p role="status">Считаю силу…</p>':`<ol class="drg-power-list">${rows.map((r,i)=>`<li data-power="${r.power}" data-dragon="${r.d.id}"><span class="drg-power-place">${i+1}</span><button class="drg-power-open" data-act="drginsp" data-dragon="${r.d.id}"><b>${esc(r.d.name)}${i===0?' ⭐':''}</b><small>${r.d.lvl}-й уровень</small></button><strong>◆ ${r.power}</strong></li>`).join('')}</ol>`}`:`<div class="drg-list">${st.dragons.map(d=>dragonCard(st,d,own,L)).join('')}</div>`}
+  const best=ready&&rows[0],tabs=`<nav class="drg-store-tabs" aria-label="Драконы"><button class="btn ${ranking?'ghost':''}" data-act="drgpanel" data-v="dragons" aria-pressed="${!ranking}">Все драконы</button><button class="btn ${ranking?'':'ghost'}" data-act="drgpanel" data-v="ranking" aria-pressed="${ranking}">🏆 По силе</button><button class="btn ghost" data-act="drgpanel" data-v="compare">Сравнить</button></nav>`;
+  return `<section class="sheet drg-pan drg-ranking"><div class="drg-pan-h"><h2>${ranking?'Рейтинг драконов':'Драконы острова'}</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div>${tabs}<label>Уровень ${sel('drgCompareLevel',[['','Все уровни'],...[...new Set(st.dragons.map(d=>d.lvl))].sort((a,b)=>a-b).map(l=>[String(l),String(l)])],level)}</label>
+    ${best?`<div class="drg-favorite"><span>⭐ Любимчик · ${level?'сильнейший выбранного уровня':'самый сильный'}</span><b>${esc(best.d.name)} · ◆ ${best.power}</b><small>${best.d.lvl}-й уровень${rows[1]&&rows[1].power===best.power?' · несколько драконов делят первое место':''}</small><button class="btn sm" data-act="drginsp" data-dragon="${best.d.id}">Открыть паспорт</button></div>`:''}
+    ${ranking?`<p class="muted small">По абсолютной силе на текущем уровне. Для сравнения наследуемых качеств выбирай драконов одного уровня. При равной силе порядок определяется постоянным идентификатором; любимчик — первый из лидеров.</p>${!ready?'<p role="status">Считаю силу…</p>':`<ol class="drg-power-list">${rows.map((r,i)=>`<li data-power="${r.power}" data-dragon="${r.d.id}"><span class="drg-power-place">${i+1}</span><button class="drg-power-open" data-act="drginsp" data-dragon="${r.d.id}"><b>${esc(r.d.name)}${i===0?' ⭐':''}</b><small>${r.d.lvl}-й уровень</small></button><strong>◆ ${r.power}</strong></li>`).join('')}</ol>`}`:`<div class="drg-list">${pool.map(d=>dragonCard(st,d,own,L)).join('')}</div>`}
     ${!rows.length?'<p class="muted">На острове пока нет драконов.</p>':''}</section>`}
+function compareHTML(st){
+ const fv=S.fv||{},level=fv.drgCompareLevel||'',pool=st.dragons.filter(d=>!level||String(d.lvl)===level),a=pool.find(d=>d.id===fv.drgCompareA)||pool[0],b=pool.find(d=>d.id===fv.drgCompareB&&d!==a)||pool.find(d=>d!==a);
+ const opts=pool.map(d=>[d.id,`${d.name} · ${d.lvl}-й ур.`]),header=`<div class="drg-pan-h"><h2>Сравнение драконов</h2><button class="btn ghost sm" data-act="drgpanel" data-v="dragons">← Драконы</button></div><label>Уровень ${sel('drgCompareLevel',[['','Все уровни'],...[...new Set(st.dragons.map(d=>d.lvl))].sort((a,b)=>a-b).map(l=>[String(l),String(l)])],level)}</label>`;
+ if(!a||!b)return `<section class="sheet drg-pan">${header}<p>Для сравнения нужны два дракона выбранного уровня.</p></section>`;
+ const stats=[a,b].map(combatStats);if(stats.some(x=>!x))return `<section class="sheet drg-pan">${header}<p role="status">Загружаю характеристики…</p></section>`;
+ const desc=(d,s)=>{const ph=phOf(d),B=window.DRBATTLE,els=ph.breath==='element'?ph.elements:[],names=xs=>xs.map(e=>B.EL_NAME[e]).join(', ')||'нет';
+ const plus=Object.keys(B.EL_NAME).filter(e=>els.some(x=>B.mult(x,[e])>1.001)),minus=Object.keys(B.EL_NAME).filter(e=>B.mult(e,els)>1.001);
+ return `<div class="drg-compare-note"><b>${esc(d.name)}</b><p>${esc(s.role.keys.map(k=>window.DSTATS.ROLE[k].text).join('; '))}</p><ul>${['hp','atk','def','spd'].flatMap(k=>s.src[k].filter(([l])=>l.includes('ген')).map(([l,n])=>`<li>${esc(l)}: ${n>0?'+':''}${n} ${window.DSTATS.NAMES[k]} до множителя уровня</li>`)).join('')}</ul><p>Сильные атаки против: ${esc(names(plus))}. Уязвим для: ${esc(names(minus))}.</p></div>`};
+ return `<section class="sheet drg-pan drg-compare">${header}<div class="drg-breed"><label>Первый ${sel('drgCompareA',opts,a.id)}</label><label>Второй ${sel('drgCompareB',opts.filter(x=>x[0]!==a.id),b.id)}</label></div>${a.lvl!==b.lvl?'<p class="drg-why">Уровни различаются: рост влияет на характеристики.</p>':''}<table><thead><tr><th>Параметр</th><th>${esc(a.name)}</th><th>${esc(b.name)}</th></tr></thead><tbody>${['power','hp','atk','def','spd'].map(k=>{const v=stats.map(x=>k==='power'?window.DSTATS.power(x):x[k]);return `<tr><th>${k==='power'?'Абсолютная сила':window.DSTATS.NAMES[k]}</th>${v.map((n,i)=>`<td${n>v[1-i]?' class="drg-better"':''}>${n}</td>`).join('')}</tr>`}).join('')}</tbody></table><div class="drg-compare-notes">${desc(a,stats[0])+desc(b,stats[1])}</div><p class="muted small">Множители для гибридного противника зависят от всех его стихий; итог боя зависит от приёмов и команды.</p></section>`}
+function predictionReview(m,f,p){
+ if(!m||!f||!p||!window.DRLEARN)return '';
+ const r=DRLEARN.explain(m.genome,f.genome,p.trait,p.value),pc=x=>String(Math.round(x*10000)/100)+' %',hap=x=>x.h.join(' · ');
+ return `<section class="drg-review"><details><summary>${p.ok?'Проверить ход расчёта':'Подсказка после попытки'}</summary><p>Сначала выпиши гаметы отдельно для каждой хромосомы. Для H–K учитывай сцепление, а долю нужного признака считай среди жизнеспособных яиц. Проверь, не пропущен ли рецессивный аллель.</p><details><summary>Показать подробный разбор</summary>${predictionGuide(m,f,p.trait)}<p>В каждой клетке — сочетание материнской и отцовской гаметы; вероятность клетки равна произведению их вероятностей. Таблицы относятся к отдельным хромосомам и перемножаются между собой. Обозначения: Cb = cᵇ, R1 = R¹, R2 = R², Wg = Wgˢ. В клетках половых хромосом Z/W означает дочь, Z/Z — сына.</p>${r.groups.map(g=>`<h4>${esc(g.name)} · ${esc(g.loci.join(', '))}</h4><p>Мать: ${g.m.map(x=>esc(hap(x))+' ('+pc(x.p)+')').join('; ')}<br>Отец: ${g.f.map(x=>esc(hap(x))+' ('+pc(x.p)+')').join('; ')}</p>${g.mt?'<p>Потомок получает митохондрии матери.</p>':`<div class="drg-grid-scroll" tabindex="0"><table><thead><tr><th>Мать ↓ / отец →</th>${g.f.map(x=>`<th>${esc(hap(x))}</th>`).join('')}</tr></thead><tbody>${g.m.map(x=>`<tr><th>${esc(hap(x))}</th>${g.f.map(y=>`<td>${esc(hap(x))} / ${esc(hap(y))}<br>${pc(x.p*y.p)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}`).join('')}<p>Нежизнеспособных яиц: ${pc(r.dead)}. Жизнеспособных: ${pc(r.alive)}.</p><p>Нужный признак и жизнеспособность вместе: ${pc(r.favorable)}. Искомая доля: ${pc(r.favorable)} ÷ ${pc(r.alive)} = <b>${pc(r.truth)}</b>.</p><p>Твой прогноз: ${pc(p.p)}. Допуск: ${Math.round(E.PRED_TOL*100)} процентных пунктов. Редкие мутации в расчёте не учитываются.</p></details></details></section>`}
 function residentCard(st,d,own,L){
   const cost=E.feedPrice(st,d).cost,cap=E.maxDragonLv(L),ph=phOf(d);
   return `<article class="drg-card drg-resident"><button class="drg-pic" data-act="drginsp" data-dragon="${d.id}" aria-label="Осмотреть: ${esc(d.name)}">${W.svg(ph,{stage:W.stageOf(d.lvl),key:'home'+d.id,size:96})}</button><div class="drg-info"><b>${esc(d.name)} ${SEX[d.genome.sex]}</b>${powerHTML(d)}<p>${d.lvl}-й уровень · +${goldTxt(st,d)} 🪙 за карточку</p><p class="muted small">Кормлений: ${d.fed||0} из ${E.FEEDS}</p>
@@ -542,8 +558,8 @@ function predictionGuide(m,f,tr){
 function nestHTML(st,b,c,own){
   const K=c.K;
   if(b.pair){const p=b.pair,m=st.dragons.find(x=>x.id===p.m),f=st.dragons.find(x=>x.id===p.f),rd=E.ready(p,K),lf=E.left(p,K);
-    const pr=p.pred?`<p class="drg-pred ${p.pred.ok?'ok':'no'}">${p.pred.ok?'✓':'✗'} Прогноз: ${TRAITS[p.pred.trait].toLowerCase()} «${esc((classesOf(p.pred.trait,m||st.dragons[0],f||st.dragons[0]).find(x=>x[0]===p.pred.value)||[0,p.pred.value])[1])}» у ${Math.round(p.pred.p*100)} % вылупившихся потомков. ${p.pred.ok?`Верно! Скрещивание идёт вдвое быстрее, и пришёл самоцвет.`:`На самом деле ${Math.round(p.pred.truth*1000)/10} %. Подумай, какие генотипы у родителей могли бы дать такое число.`}</p>`:'';
-    return `${m&&f?famHTML(m,f,'np'):`<div class="drg-pair">${[m,f].map(d=>d?`<span class="drg-chip">${W.svg(phOf(d),{stage:W.stageOf(d.lvl),key:'np'+d.id,size:56})}<small>${esc(d.name)} ${SEX[d.genome.sex]}</small></span>`:'').join('<b>×</b>')}</div>`}${pr}
+    const pr=p.pred?`<p class="drg-pred ${p.pred.ok?'ok':'no'}">${p.pred.ok?'✓':'✗'} Прогноз: ${TRAITS[p.pred.trait].toLowerCase()} «${esc((classesOf(p.pred.trait,m||st.dragons[0],f||st.dragons[0]).find(x=>x[0]===p.pred.value)||[0,p.pred.value])[1])}» у ${Math.round(p.pred.p*100)} % вылупившихся потомков. ${p.pred.ok?`Верно! Скрещивание идёт вдвое быстрее, и пришёл самоцвет.`:`Пока неверно. Открой подсказку и проверь ход расчёта.`}</p>`:'';
+    return `${m&&f?famHTML(m,f,'np'):`<div class="drg-pair">${[m,f].map(d=>d?`<span class="drg-chip">${W.svg(phOf(d),{stage:W.stageOf(d.lvl),key:'np'+d.id,size:56})}<small>${esc(d.name)} ${SEX[d.genome.sex]}</small></span>`:'').join('<b>×</b>')}</div>`}${pr}${predictionReview(m,f,p.pred)}
       <p>${rd?'Яйцо готово. Перенесите его в Инкубатор.':`Яйцо будет готово через ${cardsAcc(lf)}.`}</p>
       ${own?`<div class="actions" style="justify-content:flex-start">${rd?`<button class="btn sm" data-act="drgdo" data-t="egg" data-id="${b.id}">Забрать яйцо в Инкубатор</button>`:`<button class="btn ghost sm" data-act="drgdo" data-t="speed" data-id="${b.id}">Ускорить за ${Math.ceil(lf/E.SKIP_CARDS)} 💎</button>`}</div>`:''}`}
   if(!own)return '<p class="muted small">Гнездовье пустует.</p>';
@@ -834,7 +850,7 @@ function helpHTML(st,c){
   </ul><p class="muted small">Сейчас: серия ${c.streak} ${plural(c.streak,'день','дня','дней')}, рекорд в режиме драконов ${c.inc.best}.</p></section>`}
 
 /* выбор в формах острова сразу перерисовывает панель (варианты прогноза зависят от признака) */
-document.addEventListener('change',e=>{const el=e.target;if(!el||!/^drg(M|F|Pt|Pc|Jt)$/.test(el.id))return;S.fv=S.fv||{};S.fv[el.id]=el.value;render()});
+document.addEventListener('change',e=>{const el=e.target;if(!el||!/^drg(M|F|Pt|Pc|Jt|CompareA|CompareB|CompareLevel)$/.test(el.id))return;S.fv=S.fv||{};S.fv[el.id]=el.value;render()});
 /* на узком экране карта шире окна: сначала показываем середину острова, а после перерисовки возвращаем прокрутку */
 document.addEventListener('scroll',e=>{const m=e.target;if(m&&m.classList&&m.classList.contains('drg-map'))S.drgScroll=m.scrollLeft},true);
 new MutationObserver(()=>{const m=document.querySelector('.drg-map');if(!m||m.dataset.sc)return;m.dataset.sc='1';
@@ -1204,7 +1220,7 @@ window.DRG_ACTIONS={
   drgbreed:el=>{const fv=S.fv||{},t=fv.drgPt,pp=parseFloat(String(fv.drgPp||'').replace(',','.'));
     const pred=t&&!isNaN(pp)?{trait:t,value:fv.drgPc||(document.getElementById('drgPc')||{}).value,p:pp/100}:null;
     const r=act({t:'breed',id:el.dataset.id,mother:el.dataset.m,father:el.dataset.f,pred});if(!r)return;
-    S.fv.drgPp='';const g=r.s.got&&r.s.got.pred;toast(g?(g.ok?'Прогноз верный! Яйцо будет вдвое быстрее, +1 💎':`Прогноз мимо: на самом деле ${Math.round(g.truth*1000)/10} %`):'Пара в Гнездовье. Яйцо будет через '+cardsAcc(E.BREED_NEED))},
+    S.fv.drgPp='';const g=r.s.got&&r.s.got.pred;toast(g?(g.ok?'Прогноз верный! Яйцо будет вдвое быстрее, +1 💎':'Прогноз пока неверный. В Гнездовье доступна подсказка и разбор.'):'Пара в Гнездовье. Яйцо будет через '+cardsAcc(E.BREED_NEED))},
   drgrelease:async el=>{const x=stateOf(meId()),d=x&&x.st.dragons.find(z=>z.id===el.dataset.dragon);if(!d)return;
     /* единственная самка или самец, особенно взрослые: без них скрещивание встанет */
     const sx=d.genome.sex,same=x.st.dragons.filter(z=>z.genome.sex===sx),adult=same.filter(z=>z.lvl>=E.BREED_LV);

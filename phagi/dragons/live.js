@@ -184,7 +184,7 @@ function sync(){
   L.svg.querySelectorAll('g.drg-dr[data-ix]').forEach(g=>{
     const id=g.dataset.dragon,dr=st.dragons.find(x=>x.id===id);if(!dr)return;seen.add(id);
     const home=[+g.dataset.ix,+g.dataset.iy],mode=g.dataset.mode;let d=L.ds.get(id);
-    const ph=root.DRG.phenotype(dr.genome),pk=JSON.stringify([ph,root.MORPH.stageOf(dr.lvl)]);
+    const ph=Object.assign(root.DRG.gamePhenotype(dr.genome),{academyRank:dr.academyRank||0}),pk=JSON.stringify([ph,root.MORPH.stageOf(dr.lvl)]);
     if(d&&d.pk!==pk){if(d.X)root.RIG.release(d.X);if(d.Xn)root.RIG.release(d.Xn);L.ds.delete(id);d=null}
     if(!d){d=make(id,dr,ph,pk,home,mode,+g.dataset.face||1);d.hid=g.dataset.home;L.ds.set(id,d)}
     else if(d.homeKey!==g.dataset.home+':'+home.join()||d.mode!==mode){d.home=home;d.p=home.slice();d.to=null;d.mode=mode;d.face=+g.dataset.face||1;d.state='idle';d.wait=1+d.rnd()*2;d.A.play('idle')}

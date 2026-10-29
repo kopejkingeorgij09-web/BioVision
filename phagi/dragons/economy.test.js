@@ -47,11 +47,7 @@ t('стартовый остров: драконы в своих средах, �
 
 t('стройка идёт в карточках и ускоряется самоцветами',()=>{
   let s=E.normalize(E.startState(founders()),0,null);E.settle(s,0);
-  s=ok(E.apply(s,ctx(0),Object.assign({t:'build',type:'farm'},fr(s))));
-  assert.ok(E.apply(s,ctx(0),Object.assign({t:'build',type:'farm'},fr(s))).err,'третья ферма на 1-м уровне нельзя');
-  const b=s.bld.find(x=>x.id===s.last);assert.ok(b.build);
-  assert.strictEqual(E.left(b.build,3),3);
-  s=E.normalize(s,6,null);assert.ok(!s.bld.find(x=>x.id===b.id).build,'готово через 6 карточек');
+  assert.ok(E.apply(s,ctx(0),Object.assign({t:'build',type:'farm'},fr(s))).err,'на острове одна ферма');
   s=E.normalize(E.startState(founders()),0,null);
   s.bal.gold=5000;s.bal.xp=E.xpFor(3);s=E.normalize(s,0,null);
   s=ok(E.apply(s,ctx(0),Object.assign({t:'build',type:'T'},fr(s))));
@@ -240,13 +236,13 @@ t('прогноз: верный ускоряет вдвое и даёт само
   assert.ok(!r2.s.got.pred.ok);assert.strictEqual(Math.round(r2.s.got.pred.truth*100),25);assert.strictEqual(s3.bal.gems,gm);
 });
 
-t('потомство двух гетерозигот по окраске: около четверти бледных',()=>{
-  let s=E.normalize(E.startState([{id:'d1',name:'a',genome:G.make({sex:'F',C:'C/c'})},{id:'d2',name:'b',genome:G.make({sex:'M',C:'C/c'})}]),0,null);
+t('косметика потомков не наследует окрас родителей и не ограничивает стихии',()=>{
+  let s=E.normalize(E.startState([{id:'d1',name:'a',genome:G.make({sex:'F',C:'C/C'})},{id:'d2',name:'b',genome:G.make({sex:'M',C:'C/C'})}]),0,null);
   s.bal.gold=1e7;s.bal.xp=E.xpFor(3);s=E.normalize(s,0,null);s.dragons.forEach(d=>d.lvl=3);
   let K=30,pale=0,all=0;s=E.normalize(s,K,null);
   for(let i=0;i<400;i++){s=ok(E.apply(s,ctx(K),{t:'breed',id:'b4',mother:'d1',father:'d2'}));K+=20;s=ok(E.apply(s,ctx(K),{t:'egg',id:'b4'}));
     const eg=s.bld.find(x=>x.id==='b5').slots[0];all++;if(G.phenotype(eg.genome).color==='pale')pale++;s.bld.find(x=>x.id==='b5').slots[0]=null}
-  assert.ok(Math.abs(pale/all-0.25)<0.07,pale/all);
+  assert.ok(pale>0&&pale<all,'внешность разнообразна при одинаковой внешности родителей');
 });
 
 t('препятствий нет (4.1): вся открытая земля свободна, старые расчищенные клетки не мешают',()=>{
@@ -262,15 +258,15 @@ t('препятствий нет (4.1): вся открытая земля св�
 t('Огненный остров: открывается с 10-го уровня за золото, своя земля, постройки не пересекаются с первым островом',()=>{
   let s=E.normalize(start0(founders()),0,null);s.bal.gold=100000;s.bal.gems=500;
   assert.ok(E.apply(s,ctx(0),{t:'isle2'}).err,'на 1-м уровне закрыт');
-  assert.ok(E.apply(s,ctx(0),{t:'build',type:'farm',x:4,y:4,isl:1}).err,'строить на закрытом нельзя');
+  assert.ok(E.apply(s,ctx(0),{t:'build',type:'T',x:4,y:4,isl:1}).err,'строить на закрытом нельзя');
   s.bal.xp=E.xpFor(E.ISLE2.L);s=E.normalize(s,0,null);
   const g0=s.bal.gold;s=ok(E.apply(s,ctx(0),{t:'isle2'}));assert.strictEqual(s.bal.gold,g0-E.ISLE2.gold);assert.strictEqual(E.extent(E.isle(s,1)).n,16);
   assert.ok(E.apply(s,ctx(0),{t:'isle2'}).err,'второй раз не открыть');
   /* ячейка занята на первом острове, а на втором свободна */
   const b0=s.bld[0];assert.ok(!E.canPlace(E.isle(s,0),b0.x,b0.y));assert.ok(E.canPlace(E.isle(s,1),b0.x,b0.y));
-  s=ok(E.apply(s,ctx(0),{t:'build',type:'farm',x:b0.x,y:b0.y,isl:1}));const b=s.bld.find(x=>x.id===s.last);assert.strictEqual(b.isl,1);
+  s=ok(E.apply(s,ctx(0),{t:'build',type:'T',x:b0.x,y:b0.y,isl:1}));const b=s.bld.find(x=>x.id===s.last);assert.strictEqual(b.isl,1);
   assert.ok(E.isle(s,1).bld.some(x=>x.id===b.id));assert.ok(!E.isle(s,0).bld.some(x=>x.id===b.id));
-  assert.ok(E.apply(s,ctx(0),{t:'build',type:'farm',x:b0.x,y:b0.y,isl:1}).err,'занято на втором');
+  assert.ok(E.apply(s,ctx(0),{t:'build',type:'T',x:b0.x,y:b0.y,isl:1}).err,'занято на втором');
   /* перенос внутри своего острова */
   const f=fr(s,1);s=ok(E.apply(s,ctx(0),{t:'move',id:b.id,x:f.x,y:f.y}));assert.strictEqual(s.bld.find(x=>x.id===b.id).x,f.x);
   /* сохранение с Огненным островом проходит проверку, а постройка с isl:1 без острова — нет */

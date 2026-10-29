@@ -90,7 +90,7 @@ const ISLE_MAX=100;
 const xpFor=L=>L<=1?0:Math.round(30*Math.pow(L-1,1.9));
 function levelOf(xp){let L=1;while(L<ISLE_MAX&&xp>=xpFor(L+1))L++;return L}
 const maxHabs=L=>L<=20?3+Math.floor(L/2):13+Math.floor((L-20)/8);
-const maxFarms=L=>L<=20?1+Math.floor((L+2)/3):8+Math.floor((L-20)/20);
+const maxFarms=L=>1;
 const maxDragonLv=L=>L<=8?3+2*L:Math.min(DRAGON_MAX,20+Math.floor((L-9)*40/71));
 /* кормление: до 20-го уровня прежняя цена, дальше от цены 20-го уровня +2,5 % за уровень (прежняя формула дала бы
    253 тысячи корма на 20→60, эта около 115 тысяч) */
@@ -179,14 +179,28 @@ function zoneSpot(s0){
 function dragonKeys(ph){return ph.breath==='element'?ph.elements:[ph.breath]}
 function hosts(type,ph){const t=TYPES[type];return t.kind==='hab'&&dragonKeys(ph).some(k=>t.hosts.includes(k))}
 const phOf=d=>G.phenotype(d.genome);
-const rarOf=d=>G.rarity(phOf(d));
+const rarOf=d=>G.gameRarity(phOf(d));
 const goldPerCard=d=>goldRate(d);   /* прежнее имя: золото за карточку без удвоения и лесенки */
 
 /* ---------- вспомогательное ---------- */
 const clone=x=>JSON.parse(JSON.stringify(x));
 const B=(s,id)=>s.bld.find(b=>b.id===id);
-const ready=(job,K)=>!!job&&K-job.at+(job.skip||0)*SKIP_CARDS>=job.need;
-const left=(job,K)=>job?Math.max(0,job.need-(K-job.at)-(job.skip||0)*SKIP_CARDS):0;
+const ready=(job,K)=>!!job&&left(job,K)<=0;
+const HOUR=3600000,CARD_SPEED=10;
+const left=(job,K,now)=>job?Math.max(0,job.need-(K-job.at)*(job.rt?CARD_SPEED:1)-(job.skip||0)*SKIP_CARDS-(job.rt?Math.max(0,(now==null?Date.now():now)-job.startedAt)/HOUR*10:0)):0;
+const cardsLeft=(job,K)=>Math.ceil(left(job,K)/(job&&job.rt?CARD_SPEED:1));
+function timeShort(job,K){if(!job)return '';if(!job.rt)return cardsLeft(job,K)+' к.';const mins=Math.ceil(left(job,K)/10*60);return mins<=0?'Готово':mins>=60?Math.floor(mins/60)+' ч '+(mins%60?mins%60+' мин':''):mins+' мин'}
+function jobsOf(s){return s.bld.flatMap(b=>[b.build,b.up,b.pair,...(b.plots||[]),...(b.slots||[])]).concat((s.farmReserve||[]).map(x=>x.job),(s.dragons||[]).map(d=>d.training)).filter(Boolean)}
+function stampJobs(s,now){jobsOf(s).forEach(j=>{if(!j.rt&&j.need>0){j.rt=true;j.startedAt=now}});s.clockV=1}
+function mergeFarms(s){const farms=s.bld.filter(b=>b.type==='farm');if(farms.length<=1)return;const keep=farms[0];s.farmReserve=s.farmReserve||[];let refund=0;
+ farms.slice(1).forEach((b,i)=>{refund+=Math.round(TYPES.farm.cost*Math.pow(1.5,Math.max(0,i+1-3))/10)*10;for(let l=2;l<=b.lvl;l++)refund+=FARM_LV[l].cost||0;if(b.up)refund+=FARM_LV[b.up.to].cost||0;(b.plots||[]).forEach(job=>{if(job)s.farmReserve.push({job})});keep.lvl=Math.max(keep.lvl,b.lvl)});
+ if(keep.up&&keep.up.to<=keep.lvl){refund+=FARM_LV[keep.up.to].cost||0;keep.up=null}
+ const remove=new Set(farms.slice(1).map(b=>b.id));s.bld=s.bld.filter(b=>!remove.has(b.id));while(keep.plots.length<FARM_LV[keep.lvl].plots)keep.plots.push(null);s.bal.gold+=refund;s.farmsMerged={count:farms.length,refund};}
+const ACADEMY_MAX=3,academyCost=rank=>[0,500,1500,4500][rank]||0;
+const DQ={cards:{t:'Повтори 15 карточек',goal:15,r:{gold:100,food:20}},feed:{t:'Покорми драконов 2 раза',goal:2,r:{gold:60}},harvest:{t:'Собери урожай 2 раза',goal:2,r:{gold:60}},win:{t:'Выиграй бой',goal:1,r:{gold:100}},pz:{t:'Реши головоломку',goal:1,r:{food:30}},breed:{t:'Скрести пару',goal:1,r:{gold:60}},academy:{t:'Начни обучение в академии',goal:1,r:{food:40}}};
+const dailyState=(s,day)=>s.dq&&s.dq.day===day?s.dq:{day,c:{},got:[]};
+function dailyProgress(s,c,id){const q=DQ[id],st=dailyState(s,c.today),n=id==='cards'?c.inc&&c.inc.dayCards||0:st.c[id]||0;return {v:Math.min(q.goal,n),goal:q.goal,done:n>=q.goal,got:st.got.includes(id)}}
+
 const built=b=>!b.build;
 /* свободный подходящий дом для фенотипа и сколько малышей в яслях */
 const homeFor=(s,ph)=>s.bld.find(b=>built(b)&&hosts(b.type,ph)&&s.dragons.filter(x=>x.home===b.id).length<habCap(b))||null;
@@ -222,7 +236,8 @@ const goldNow=(s,d,n)=>goldRate(d)*(s&&typeof s.evK==='number'?ECON.goldX*ladder
 /* приводим состояние к моменту K: дозачисляем доход за дни, заканчиваем стройки.
    inc.streakBest — лучшая серия на платформе (та же, что в «Карточках»): с 7 дней открывает второе место Инкубатора навсегда */
 function normalize(s,K,inc,gk){
-  s=clone(s);gk=gk||(inc&&inc.gk)||ID;
+  s=clone(s);if(inc&&inc.wallTime){mergeFarms(s);stampJobs(s,Date.parse(s.updatedAt)||Date.now())}
+  s.dragons.forEach(d=>{if(d.training&&ready(d.training,K)){d.academyRank=Math.min(ACADEMY_MAX,d.training.rank);d.training=null}});gk=gk||(inc&&inc.gk)||ID;
   if(inc){const df=inc.food-(s.credited.food||0),dg=inc.gems-(s.credited.gems||0);
     if(df>0){s.bal.food+=df;s.credited.food=inc.food}if(dg>0){s.bal.gems+=dg;s.credited.gems=inc.gems}
     /* бонус за ДЗ (inc.hw: сумма за все засчитанные задания): начисляется только прирост, своё поле учёта, не смешивается с серией */
@@ -234,12 +249,12 @@ function normalize(s,K,inc,gk){
     if(!s.slot7&&Math.max(inc.streakBest||0,inc.best||0)>=SLOT7){s.slot7=true;s.slot7new=true}}
   s.bld.forEach(b=>{
     /* момент готовности в часах острова: от него и считается сундук, даже если состояние сохранят позже */
-    if(b.build&&ready(b.build,K)){const kc=doneAt(b.build);b.build=null;if(b.chest)b.chest={amt:0,k0:kc}}
-    if(b.up&&ready(b.up,K)){const kc=doneAt(b.up);if(b.chest)settleOne(s,b,kc,gk);b.lvl=b.up.to;b.up=null;if(b.plots)while(b.plots.length<FARM_LV[b.lvl].plots)b.plots.push(null)}
+    if(b.build&&ready(b.build,K)){const kc=b.build.rt?K:doneAt(b.build);b.build=null;if(b.chest)b.chest={amt:0,k0:kc}}
+    if(b.up&&ready(b.up,K)){const kc=b.up.rt?K:doneAt(b.up);if(b.chest)settleOne(s,b,kc,gk);b.lvl=b.up.to;b.up=null;if(b.plots)while(b.plots.length<FARM_LV[b.lvl].plots)b.plots.push(null)}
     /* ячейки Инкубатора только добавляются, занятые не трогаются */
     if(b.slots&&!b.build)while(b.slots.length<hatchCap(s,b))b.slots.push(null);
     /* 4.2: урожай на грядках готов сразу, в том числе посаженный до обновления */
-    if(b.plots)b.plots.forEach(p=>{if(p&&p.need)p.need=0});
+    if(b.plots)b.plots.forEach(p=>{if(p&&p.need&&!p.rt)p.need=0});
   });
   /* опыт за повторение: после точки перехода каждая карточка даёт опыт по лесенке дня (часы золота gk). Первый раз только
      запоминается отметка, поэтому прошлые карточки опыта задним числом не дают, а повтор normalize ничего не добавляет */
@@ -278,12 +293,12 @@ function repair(d,inc){const fix=[],bad=[];
      Фенотип, остальные аллели и исход уже сформированных яиц не меняются, повторный проход ничего не делает */
   let up=0;const upg=o=>{if(o&&G.isOld(o.genome)){o.genome=G.upgrade(o.genome);up++}};
   (Array.isArray(s.dragons)?s.dragons:[]).forEach(upg);(Array.isArray(s.gone)?s.gone:[]).forEach(upg);
-  (Array.isArray(s.bld)?s.bld:[]).forEach(b=>{if(!b)return;(Array.isArray(b.slots)?b.slots:[]).forEach(upg);if(b.pair&&b.pair.egg)upg(b.pair.egg)});
+  (Array.isArray(s.bld)?s.bld:[]).forEach(b=>{if(!b)return;(Array.isArray(b.slots)?b.slots:[]).forEach(o=>{upg(o);if(o&&o.viable===false){o.viable=true;fix.push('яйцо: режим стихий')}});if(b.pair&&b.pair.egg){upg(b.pair.egg);if(b.pair.egg.viable===false){b.pair.egg.viable=true;fix.push('яйцо: режим стихий')}}});
   if(up){fix.push('геномы: добавлен ген E2 = 0/0 ('+up+')')}
   if(s.gv!==G.GV&&(up||s.gv===undefined)){s.gv=G.GV}
   if(!Array.isArray(s.bld)){bad.push('постройки');s.bld=[]}
   /* задание (стройка, улучшение, грядка, пара, яйцо): момент начала и длина в карточках */
-  const jobOk=j=>j&&typeof j==='object'&&num(j.at)&&num(j.need)&&(j.skip===undefined||int(j.skip));
+  const jobOk=j=>j&&(!j.rt||num(j.startedAt))&&typeof j==='object'&&num(j.at)&&num(j.need)&&(j.skip===undefined||int(j.skip));
   const geneOk=g=>!!g&&typeof g==='object'&&!G.validate(g).length;
   const bids=new Set(),dids=new Set();
   s.bld.forEach((b,i)=>{const t=b&&TYPES[b.type],nm='постройка '+(b&&b.id||i+1);
@@ -433,7 +448,7 @@ function hwGiftGenome(task,uid){let best=null,br=-1;
     const spec={sex,S:'S/S',E:e1+'/'+e1,E2:e2+'/'+pick([e2,'0']),C:col()+'/'+col(),H:pair(()=>coin('H','h')),K:pair(()=>coin('K','k')),R:pair(()=>coin('R1','R2')),
       Wg:'+/+',Q1:pair(()=>coin('+','-')),Q2:pair(()=>coin('+','-')),Q3:pair(()=>coin('+','-'))};
     if(sex==='F'){spec.M=coin('M','m');spec.N=coin('n','N');spec.Sp=coin('Sp','sp');spec.G=coin('G','g')}else{spec.M=pair(()=>coin('M','m'));spec.N=pair(()=>coin('n','N'))}
-    const g=G.make(spec),rr=G.rarity(G.phenotype(g));if(rr>br){br=rr;best=g}}
+    const g=G.make(spec),rr=G.gameRarity(G.phenotype(g));if(rr>br){br=rr;best=g}}
   return best}
 
 /* ---------- задания недели (4.4) ----------
@@ -500,7 +515,7 @@ const ACTS={
   plant(s,c,{id,plot,crop}){const b=B(s,id),cr=CROPS[crop];if(!b||!b.plots||b.build)return 'Ферма не готова';if(!cr)return 'Нет такой культуры';
     if(level(s)<cr.unlock)return `Откроется на ${cr.unlock}-м уровне острова`;
     if(b.plots[plot]===undefined)return 'Нет грядки';if(b.plots[plot])return 'Грядка занята';
-    const e=pay(s,{gold:cr.cost});if(e)return e;b.plots[plot]={crop,at:c.K,need:0,skip:0}},   /* 4.2: урожай готов сразу после посадки */
+    const e=pay(s,{gold:cr.cost});if(e)return e;b.plots[plot]={crop,at:c.K,need:c.wallTime?cr.need:0,skip:0}},   /* 4.2: урожай готов сразу после посадки */
   harvest(s,c,{id,plot}){const b=B(s,id),p=b&&b.plots&&b.plots[plot];if(!p)return 'Пусто';if(!ready(p,c.K))return 'Ещё не созрело';
     const f=Math.round(CROPS[p.crop].food*streakMult(c.streak));s.bal.food+=f;b.plots[plot]=null;xp(s,f/10);s.got={food:f}},
   feed(s,c,{dragon}){const d=s.dragons.find(x=>x.id===dragon);if(!d)return 'Нет дракона';
@@ -530,7 +545,7 @@ const ACTS={
     if(m.lvl<BREED_LV||f.lvl<BREED_LV)return `Родители должны быть не ниже ${BREED_LV}-го уровня`;
     const e=pay(s,{gold:breedCost(rarOf(m),rarOf(f))});if(e)return e;
     const n=(s.eggs||0)+1;s.eggs=n;
-    const egg=G.breed(m.genome,f.genome,G.rng(c.uid+':egg:'+n));
+    const egg=G.breedElements(m.genome,f.genome,G.rng(c.uid+':egg:'+n));
     const pr=judge(m,f,pred);
     b.pair={m:m.id,f:f.id,at:c.K,need:pr&&pr.ok?Math.ceil(BREED_NEED/2):BREED_NEED,skip:0,n,egg,pred:pr};
     if(pr&&pr.ok){s.bal.gems+=1;s.got={pred:pr}}else if(pr)s.got={pred:pr};
@@ -539,7 +554,7 @@ const ACTS={
     const b=B(s,id);if(!b||!b.pair)return 'Яйца нет';if(!ready(b.pair,c.K))return 'Яйцо ещё не готово';
     const h=s.bld.find(x=>x.type==='hatch'&&!x.build&&x.slots.some(z=>!z));if(!h)return 'Нужен Инкубатор со свободным местом';
     const p=b.pair,ph=p.egg.viable?G.phenotype(p.egg.genome):null,i=h.slots.findIndex(z=>!z);
-    h.slots[i]={n:p.n,m:p.m,f:p.f,genome:p.egg.genome,viable:p.egg.viable,at:c.K,need:p.egg.viable?HATCH_NEED[G.rarity(ph)]:DEAD_NEED,skip:0,pred:p.pred||null};
+    h.slots[i]={n:p.n,m:p.m,f:p.f,genome:p.egg.genome,viable:p.egg.viable,at:c.K,need:p.egg.viable?HATCH_NEED[G.gameRarity(ph)]:DEAD_NEED,skip:0,pred:p.pred||null};
     b.pair=null;s.last=h.id},
   hatch(s,c,{id,plot}){
     const h=B(s,id),eg=h&&h.slots&&h.slots[plot];if(!eg)return 'Яйца нет';if(!ready(eg,c.K))return 'Ещё не вылупился';
@@ -554,7 +569,7 @@ const ACTS={
     const gen=1+Math.max((mm&&mm.gen)||0,(ff&&ff.gen)||0);
     s.dragons.push(Object.assign({id:id2,name:babyName(s,ph),born:c.today,genome:eg.genome,lvl:1,fed:0,home:home?home.id:null,parents:[eg.m,eg.f],gen,egg:eg.n},home?{}:{nurs:true}));
     h.slots[plot]=null;rec.child=id2;rec.ph=summary(ph);s.log.push(rec);trimLog(s);
-    xp(s,25+15*G.rarity(ph));s.last=id2;s.got=home?{baby:id2}:{baby:id2,nursery:habNames(ph)}},
+    xp(s,25+15*G.gameRarity(ph));s.last=id2;s.got=home?{baby:id2}:{baby:id2,nursery:habNames(ph)}},
   release(s,c,{dragon}){const i=s.dragons.findIndex(x=>x.id===dragon);if(i<0)return 'Нет дракона';
     if(s.dragons.length<=2)return 'На острове должно остаться хотя бы два дракона';
     if(s.bld.some(b=>b.pair&&(b.pair.m===dragon||b.pair.f===dragon)))return 'Дракон сейчас в Гнездовье';
@@ -598,6 +613,9 @@ const ACTS={
     if(s.pz.done.includes(kind))return 'Эта головоломка сегодня уже решена';
     if(!PZ.check(kind,c.uid,d,ans))return 'Пока не сходится. Проверьте правила ещё раз';
     const g=PZ.rewardOf?PZ.rewardOf(kind):PZ.REWARD;s.pz.done=s.pz.done.concat(kind);s.bal.gold+=g;xp(s,20);s.got={pz:g}},
+  academy(s,c,{dragon}){const d=s.dragons.find(x=>x.id===dragon);if(!d)return 'Нет дракона';if(d.training)return 'Обучение уже идёт';const rank=(d.academyRank||0)+1;if(rank>ACADEMY_MAX)return 'Максимальное обучение';const err=pay(s,{gold:academyCost(rank)});if(err)return err;d.training={at:c.K,need:20*rank,skip:0,rank};},
+  daily(s,c,{id}){if(!DQ[id])return 'Нет задания';const p=dailyProgress(s,c,id);if(p.got)return 'Уже получено';if(!p.done)return 'Ещё не выполнено';const st=dailyState(s,c.today);st.got=st.got.concat(id);s.dq=st;const r=DQ[id].r;for(const k of ['gold','food','gems'])s.bal[k]+=r[k]||0;s.got={daily:r}},
+  reserve(s,c){const rows=s.farmReserve||[],done=rows.filter(x=>ready(x.job,c.K));if(!done.length)return 'Урожай ещё не готов';s.bal.food+=done.reduce((n,x)=>n+Math.round(CROPS[x.job.crop].food*streakMult(c.streak)),0);s.farmReserve=rows.filter(x=>!done.includes(x));},
   /* награда задания недели */
   wq(s,c,{id}){if(!WQ[id]||!wqList(s,c.today).includes(id))return 'Такого задания на этой неделе нет';const p=wqProgress(s,c,id);
     if(p.got)return 'Награда уже получена';if(!p.done)return `Ещё не выполнено: ${p.v} из ${p.goal}`;
@@ -624,6 +642,7 @@ function apply(s,ctx,act){
   const n=clone(s);delete n.got;delete n.lvup;delete n.last;
   const err=fn(n,ctx,act);if(err)return {err};
   wqCount(n,ctx,act.t);
+  if(ctx.wallTime){stampJobs(n,Date.now());const k=({feed:'feed',harvest:'harvest',pvewin:'win',puzzle:'pz',breed:'breed',academy:'academy'})[act.t];if(k){const ds=dailyState(n,ctx.today);ds.c[k]=(ds.c[k]||0)+1;n.dq=ds}}
   const L0=level(s),r=normalize(n,ctx.K,null,GK(ctx));
   return {s:r,levelUp:level(r)>L0?level(r):0}}
 
@@ -632,17 +651,17 @@ function apply(s,ctx,act){
    Ничего не меняет в состоянии. */
 function feedsTo(d,lv){let n=0,food=0;for(let l=d.lvl;l<lv;l++){const k=FEEDS-(l===d.lvl?(d.fed||0):0);n+=k;food+=k*feedCost(l)}return {n,food}}
 function breedPath(s,K){
-  const L=level(s),rar=d=>G.rarity(G.phenotype(d.genome));
+  const L=level(s),rar=d=>G.gameRarity(G.phenotype(d.genome));
   const best=sex=>s.dragons.filter(d=>d.genome.sex===sex).sort((a,b)=>b.lvl-a.lvl||(b.fed||0)-(a.fed||0))[0]||null;
   const par=['F','M'].map(sex=>{const d=best(sex);return d?Object.assign({sex,id:d.id,name:d.name,lvl:d.lvl,ok:d.lvl>=BREED_LV,cost:feedPrice(s,d).cost},feedsTo(d,BREED_LV)):{sex,id:null,ok:false}});
   const bst=type=>{const b=s.bld.find(x=>x.type===type),t=TYPES[type];
     if(!b)return {type,state:L<t.unlock?'locked':'none',unlock:t.unlock,cost:t.cost,need:t.need,ok:false};
-    if(b.build)return {type,id:b.id,state:ready(b.build,K)?'done':'build',left:left(b.build,K),ok:false};
+    if(b.build)return {type,id:b.id,state:ready(b.build,K)?'done':'build',left:cardsLeft(b.build,K),ok:false};
     return {type,id:b.id,state:'ok',ok:true}};
   const nest=bst('nest'),hatch=bst('hatch');
   const nb=s.bld.find(x=>x.type==='nest'&&built(x)),hb=s.bld.find(x=>x.type==='hatch'&&built(x));
-  const pair=nb&&nb.pair?{id:nb.id,ready:ready(nb.pair,K),left:left(nb.pair,K)}:null;
-  const eggs=hb?hb.slots.map((e,i)=>e?{id:hb.id,plot:i,ready:ready(e,K),left:left(e,K),viable:e.viable,
+  const pair=nb&&nb.pair?{id:nb.id,ready:ready(nb.pair,K),left:cardsLeft(nb.pair,K)}:null;
+  const eggs=hb?hb.slots.map((e,i)=>e?{id:hb.id,plot:i,ready:ready(e,K),left:cardsLeft(e,K),viable:e.viable,
     home:e.viable?!!homeFor(s,G.phenotype(e.genome)):true,habs:e.viable?habNames(G.phenotype(e.genome)):''}:null).filter(Boolean):[];
   const pm=par[0].id&&s.dragons.find(d=>d.id===par[0].id),pf=par[1].id&&s.dragons.find(d=>d.id===par[1].id);
   const cost=pm&&pf?breedCost(rar(pm),rar(pf)):breedCost(0,0);
@@ -736,7 +755,7 @@ const MINOR=/^(ещё|драконы растут)/;
 /* ближайший уровень после L, на котором открывается что-то кроме мест, ферм и предела драконов */
 function nextMajor(L){for(let k=L+1;k<=ISLE_MAX;k++){const u=unlocksAt(k).filter(x=>!MINOR.test(x));if(u.length)return {L:k,list:u}}return null}
 
-const DECO={DRAGON_MAX,ISLE_MAX,repair,unlocksAt,nextMajor,MINOR,NURSERY,nurseryCap,homeFor,nursery,breedPath,HATCH_LV,BREED_LV,breedCost,BREED_NEED,HATCH_NEED,PRED_TOL,lvTable,summary,habNames,TYPES,HAB_ORDER,HAB_LV,FARM_LV,CROPS,RAR_GOLD,SKIP_CARDS,GRID,CHUNK,START_LAND,LAND_COST,MILESTONES,FEEDS,RATION,
+const DECO={HOUR,CARD_SPEED,cardsLeft,timeShort,academyCost,ACADEMY_MAX,DQ,dailyState,dailyProgress,DRAGON_MAX,ISLE_MAX,repair,unlocksAt,nextMajor,MINOR,NURSERY,nurseryCap,homeFor,nursery,breedPath,HATCH_LV,BREED_LV,breedCost,BREED_NEED,HATCH_NEED,PRED_TOL,lvTable,summary,habNames,TYPES,HAB_ORDER,HAB_LV,FARM_LV,CROPS,RAR_GOLD,SKIP_CARDS,GRID,CHUNK,START_LAND,LAND_COST,MILESTONES,FEEDS,RATION,
   ECON,ladderK,ladderNext,todayBonus,SLOT7,hatchCap,firstHatch,maxOf,buildCost,feedPrice,lvlGold,goldRate,goldNow,landState,adjacent,extent,allChunks,zoneSpot,GIFTS,giftGenome,RESEARCH,MASTERY,mastery,hasE2,
   xpFor,levelOf,maxHabs,maxFarms,maxDragonLv,feedCost,income,startState,hosts,dragonKeys,goldPerCard,rate,settle,chestNow,normalize,
   canPlace,chunkOf,apply,hwGiftGenome,WQ,wqList,wqProgress,wqState,weekOf,LVL_CHEST,RINGS,SLOT,SLOT0,snap,slots,freeSlots,arrange,growLand,ISLE2,isle,isleOf,isleState,PVE_DAY,pveGain,legacyPveGrant,OBST,OBST_KIND,obstacles,ready,left,level,count,streakMult,marketGenome,habCap,chestCap};

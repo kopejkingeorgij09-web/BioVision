@@ -581,11 +581,11 @@ function svg(st,opt){
     out.push(`</g>`);
     /* пузырь над зданием: в отдельном слое поверх всего */
     if(!ro&&!place){const start=bubs.length,x=c[0],y=c[1]-(b.build?84:HEIGHT[b.type]||70)-16;
-      if(job&&!D.ready(job,K))bubs.push(bubble(x,y,'build',D.left(job,K)+' к.'));
+      if(job&&!D.ready(job,K))bubs.push(bubble(x,y,'build',D.timeShort(job,K)));
       else if(T.kind==='hab'){const a=Math.floor(D.chestNow(st,b,K));if(a>=1)bubs.push(bubble(x,y,'gold',a>=1000?Math.floor(a/100)/10+'к':a,a>=D.chestCap(b)));
         else if(!st.dragons.some(d=>d.home===b.id))bubs.push(bubble(x,y,'empty','пусто'))}
       else if(T.kind==='farm'){const r=(b.plots||[]).filter(p=>p&&D.ready(p,K)).length;if(r)bubs.push(bubble(x,y,'food','×'+r))}
-      else if(T.kind==='nest'&&b.pair){bubs.push(D.ready(b.pair,K)?bubble(x,y,'egg','готово',true):bubble(x,y,'egg',D.left(b.pair,K)+' к.'))}
+      else if(T.kind==='nest'&&b.pair){bubs.push(D.ready(b.pair,K)?bubble(x,y,'egg','готово',true):bubble(x,y,'egg',D.timeShort(b.pair,K)))}
       else if(T.kind==='hatch'){const r=(b.slots||[]).filter(p=>p&&D.ready(p,K)).length;if(r)bubs.push(bubble(x,y,'baby','×'+r,true))}
       if(bubs.length>start){const collect=T.kind==='hab'&&!b.build&&D.chestNow(st,b,K)>=1,action=collect?'drgdo':'drgsel';
         bubs[bubs.length-1]=bubs[bubs.length-1].replace('<g class=',`<g data-act="${action}" data-id="${b.id}" ${collect?'data-t="collect"':''} role="button" tabindex="0" aria-label="${escA(collect?'Собрать золото: '+T.name:'Открыть: '+T.name)}" class=`)}

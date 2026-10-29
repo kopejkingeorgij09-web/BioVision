@@ -110,14 +110,14 @@ t('бои с ограничением состава и правила звёз�
   assert.ok(C.NODES.some(x=>x.team.max===1)&&C.NODES.some(x=>x.team.max===2));
   const b=new B.Battle({A:[{id:'a',hp:50,atk:10,def:10,spd:10}],B:[{id:'x',hp:50,atk:10,def:10,spd:9}],star3:5});b.winner='A';b.round=5;assert.strictEqual(b.stars(),3);b.round=6;assert.strictEqual(b.stars(),2)});
 
-/* баланс: короткий прогон, полный в dev/balance.js (таблица CAMPAIGN-RU.md). Уровень игрока — на два выше рекомендуемого, не выше 60 */
+/* баланс с освоением академии: короткий прогон, полный в dev/balance.js (таблица CAMPAIGN-RU.md). Уровень игрока — на два выше рекомендуемого, не выше 60 */
 const rows=Bal.balance(12),best=r=>Math.max(...['mix','fwt','apf','hyb'].map(k=>r.at[k].up.win||0)),fixed=(r,v)=>['fwt','apf','hyb'].filter(k=>(r.at[k].up.win||0)>=v).length;
 t('проходимость без Света и Тьмы: каждый узел главного пути проходится хотя бы половину боёв, боковые хотя бы в трети',()=>{
   rows.forEach(r=>assert.ok(best(r)>=(r.node.side?0.3:0.5),`${r.id}: ${Math.round(best(r)*100)} % на ${r.L2}-м уровне`))});
 t('несколько решений: обычный узел главного пути до последнего региона проходит и постоянная команда (30 %+), у каждого босса хотя бы два состава',()=>{
   rows.filter(r=>!r.node.side&&r.node.kind==='normal'&&r.node.region!=='rim').forEach(r=>assert.ok(fixed(r,0.3)>=1,r.id));
   rows.filter(r=>r.node.boss).forEach(r=>{const ok=['mix','fwt','apf','hyb'].filter(k=>(r.at[k].up.win||0)>=0.25).length;assert.ok(ok>=2,`${r.id}: ${ok}`)})});
-t('первые бои лёгкие: в первых пяти узлах любая постоянная команда на два уровня выше выигрывает чаще 80 %',()=>{
+t('первые бои с рекомендованным рангом академии: в первых пяти узлах любая постоянная команда на два уровня выше выигрывает чаще 80 %',()=>{
   rows.slice(0,5).forEach(r=>['fwt','apf','hyb'].forEach(k=>assert.ok(r.at[k].up.win>=0.8,`${r.id} ${k}`)))});
 
 console.log(`\n${n-fails}/${n} тестов прошли`);if(fails)process.exit(1);

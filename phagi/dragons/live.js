@@ -45,11 +45,13 @@ function mapOf(st,D,I){
 /* двор вольера: клетки постройки u, v (0…2) в пределах YARD и перед знаком среды */
 function inYard(Y,u,v){return u>=Y.lo&&u<=Y.hi&&v>=Y.lo&&v<=Y.hi&&u+v>=Y.front}
 function yardOf(map,I,d){const y=d.hid&&map.yards&&map.yards[d.hid];return y&&I.YARD?y:null}
-function yardHas(map,I,d,p){const y=yardOf(map,I,d);if(!y)return false;const g=toGrid(I,p[0],p[1]);return inYard(I.YARD,g[0]-y.x,g[1]-y.y)}
+function yardHas(map,I,d,p){const y=yardOf(map,I,d);if(!y)return false;const g=toGrid(I,p[0],p[1]);if(!inYard(I.YARD,g[0]-y.x,g[1]-y.y))return false;
+  const c=toIsle(I,y.x+1,y.y+1),w=(d.w||0)/2+2,h=(d.h||0)+2;
+  return [-w,w].every(dx=>[2,-h].every(dy=>Math.pow((p[0]+dx-c[0])/61,2)+Math.pow((p[1]+dy-c[1]+8)/40,2)<=1))}
 /* цель во дворе: видная, не на другом драконе; air — для полёта (направление любое) */
 function yardTarget(map,I,d,others,rnd,air){const y=yardOf(map,I,d),Y=I.YARD;
   for(let tries=0;tries<40;tries++){const u=Y.lo+rnd()*(Y.hi-Y.lo),v=Y.lo+rnd()*(Y.hi-Y.lo);if(!inYard(Y,u,v))continue;
-    const p=toIsle(I,y.x+u,y.y+v),dx=p[0]-d.p[0],dy=p[1]-d.p[1];
+    const p=toIsle(I,y.x+u,y.y+v);if(!yardHas(map,I,d,p))continue;const dx=p[0]-d.p[0],dy=p[1]-d.p[1];
     if(!air&&(Math.abs(dx)<8||Math.abs(dy)>Math.abs(dx)*0.6))continue;
     if(hidden(map,p,d.w,air?d.h*2.2:d.h))continue;
     if(others.some(o=>o!==d&&o.hid===d.hid&&(Math.hypot(o.p[0]-p[0],(o.p[1]-p[1])*2)<d.w*0.55||o.to&&Math.hypot(o.to[0]-p[0],(o.to[1]-p[1])*2)<d.w*0.55)))continue;
@@ -92,6 +94,7 @@ function settle(map,I,d,others){
   if(y){d.cover=false;if(yardHas(map,I,d,d.p)&&!hidden(map,d.p,d.w,d.h))return false;const Y=I.YARD;
     for(const pass of [0,1]){let best=null,bd=1e9;
       for(let u=Y.lo;u<=Y.hi+1e-6;u+=0.12)for(let v=Y.lo;v<=Y.hi+1e-6;v+=0.12){if(!inYard(Y,u,v))continue;const p=toIsle(I,y.x+u,y.y+v);
+        if(!yardHas(map,I,d,p))continue;
         if(hidden(map,p,d.w,d.h))continue;
         if(pass===0&&others.some(o=>o!==d&&o.hid===d.hid&&Math.hypot(o.p[0]-p[0],(o.p[1]-p[1])*2)<d.w*0.55))continue;
         const q=Math.hypot(p[0]-d.home[0],p[1]-d.home[1]);if(q<bd){bd=q;best=p}}
@@ -196,7 +199,7 @@ function sync(){
 function make(id,dr,ph,pk,home,mode,face){
   const M=root.MORPH.morph(ph,dr.lvl),G=root.SHAPE.build(M),seed=hrand(id),rnd=rng(seed);
   const A=new root.ANIM.Animator(M,G.rig,{seed:seed%9973,reduce:reduced()});
-  const k=ISLK*G.scale*(mode==='hab'?HABK:1),d={id,ph,pk,lvl:dr.lvl,M,G,A,rnd,k,home:home.slice(),p:home.slice(),to:null,mode,face,turn:0,
+  const k0=ISLK*G.scale*(mode==='hab'?HABK:1),k=mode==='hab'?Math.min(k0,46/G.box.w,30/-G.box.y):k0,d={id,ph,pk,lvl:dr.lvl,M,G,A,rnd,k,home:home.slice(),p:home.slice(),to:null,mode,face,turn:0,
     w:G.box.w*k,h:-G.box.y*k,cx:G.box.x+G.box.w/2,state:'idle',wait:0.5+rnd()*3,X:null,Xn:null,px:0,ax:0};
   if(rnd()<0.3&&mode==='hab')A.t+=rnd()*3;
   return d}
@@ -231,9 +234,6 @@ function think(d,dt){
     const sleepy=P.sleepy||night(),first=!d.moved;d.moved=true;
     if(!first&&d.rnd()<(sleepy?0.35:0.05)){d.state='sleep';A.play('sleep');d.wait=sleepy?25+d.rnd()*25:8+d.rnd()*12;return}
     if(d.rnd()<0.1){A.play('happy');d.wait=2+d.rnd()*2;return}
-    if(d.mode==='hab'&&!sleepy&&A.P.canFly&&yardOf(L.map,root.ISL,d)&&d.rnd()<0.14){
-      const air=yardTarget(L.map,root.ISL,d,[...L.ds.values()],d.rnd,true);
-      if(air){d.state='fly';d.to=air;d.how='fly';A.play('fly');d.wait=4+d.rnd()*4;return}}
     const to=pickTarget(L.map,root.ISL,d,[...L.ds.values()],d.rnd);
     if(!to){d.wait=2+d.rnd()*3;return}
     d.to=to;d.how='walk';A.play('idle');
@@ -277,6 +277,9 @@ function draw(){
     if(!d.X||d.cover||(d.g&&d.g.style.visibility==='hidden'))continue;
     const x=(V.ox+d.p[0]*V.s)*dpr,y=(V.oy+d.p[1]*V.s)*dpr,z=V.s*dpr*d.k;
     if(x+d.w*V.s*dpr<0||x-d.w*V.s*dpr>W||y-d.h*V.s*dpr*1.2>H||y<-20)continue;   /* за краем экрана не рисуем */
+    ctx.save();
+    const yard=yardOf(L.map,root.ISL,d);
+    if(yard){const c=toIsle(root.ISL,yard.x+1,yard.y+1);ctx.setTransform(1,0,0,1,0,0);ctx.beginPath();ctx.ellipse((V.ox+c[0]*V.s)*dpr,(V.oy+(c[1]-8)*V.s)*dpr,61*V.s*dpr,40*V.s*dpr,0,0,Math.PI*2);ctx.clip()}
     /* контактная тень на траве, как у деревьев и камней острова: чуть сжимается, когда дракон приподнимается */
     const lift=Math.max(0,-(d.A.pose.body[5]||0))/d.A.P.h;
     ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=0.2;ctx.fillStyle='#000';ctx.beginPath();
@@ -284,7 +287,7 @@ function draw(){
     const flip=d.turn>0?d.face*Math.cos((1-d.turn)*Math.PI):d.face;
     const view=[z*flip,0,0,z,x-z*flip*d.cx,y];
     root.RIG.draw(ctx,d.X,d.A.pose,view);
-    root.RIG.drawFx(ctx,d.X,d.A.fx,view)}
+    root.RIG.drawFx(ctx,d.X,d.A.fx,view);ctx.restore()}
   ctx.setTransform(1,0,0,1,0,0);
   if(L.night&&L.night!=='transparent'){ctx.globalCompositeOperation='source-atop';ctx.fillStyle=L.night;ctx.fillRect(0,0,W,H);ctx.globalCompositeOperation='source-over'}
   /* эффекты поверх драконов: свечение лавы и кристаллов подсвечивает и тех, кто стоит рядом */
@@ -321,7 +324,7 @@ function cam(){L.camT=performance.now();L.camDirty=true;L.dirty=true;wake();
   /* после жеста ещё один кадр: при «меньше движения» цикл стоит, а текстуры нужного размера берутся только после остановки */
   clearTimeout(L.camTO);L.camTO=setTimeout(()=>{L.dirty=true;L.lastKey='';wake()},300)}
 const DRLIVE={scan,wake,cam,stats:()=>({dragons:L.ds.size,ema:L.ema,ready:L.ready,running:!!L.raf,attached:!!L.svg&&L.svg.isConnected,vis:L.vis,cv:!!L.cv&&L.cv.isConnected,frames:L.stats.frames,fx:L.fx.length,draw:L.stats.draw.slice(),frame:L.stats.frame.slice(),
-  pos:[...L.ds.values()].map(d=>({id:d.id,p:d.p.slice(),state:d.state,face:d.face,tex:!!d.X,px:d.px,how:d.how||'',hid:hidden(L.map,d.p,d.w,d.h)}))}),
+  pos:[...L.ds.values()].map(d=>({id:d.id,p:d.p.slice(),state:d.state,face:d.face,tex:!!d.X,px:d.px,how:d.how||'',hid:hidden(L.map,d.p,d.w,d.h),home:d.hid,w:d.w,h:d.h,inside:d.mode!=='hab'||yardHas(L.map,root.ISL,d,d.p)}))}),
   PURE:{toGrid,toIsle,mapOf,hidden,pathFree,pickTarget,settle,inYard,yardTarget,yardHas,ISLK,HABK}};
 if(typeof module!=='undefined'&&module.exports)module.exports=DRLIVE;else root.DRLIVE=DRLIVE;
 })(typeof window!=='undefined'?window:globalThis);

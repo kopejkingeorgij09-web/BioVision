@@ -558,7 +558,7 @@ function svg(st,opt){
     const b=it.b,c=P(b.x+1,b.y+1),T=D.TYPES[b.type],job=b.build||b.up,isSel=sel===b.id,moving=place&&place.move===b.id;
     const lab=bldState(b,st,K,D);
     out.push(`<g class="drg-b${isSel?' sel':''}${moving?' moving':''}" ${ro||place?'':`data-act="drgsel" data-id="${b.id}" tabindex="0" role="button" aria-label="${T.name}${lab?': '+lab:''}"${isSel?' aria-pressed="true"':''}`} transform="translate(${f1(c[0])} ${f1(c[1])})"><title>${T.name}${lab?': '+lab:''}</title>`);
-    if(opt.full&&!opt.bare)labs.push(`<g class="drg-lab" transform="translate(${f1(c[0])} ${f1(c[1]+40)})" pointer-events="none"><g class="drg-labi"><rect x="${-T.name.length*3.6-8}" y="-10" width="${T.name.length*7.2+16}" height="19" rx="9.5" fill="rgba(20,40,60,.72)"/><text y="4" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">${T.name}</text></g></g>`);
+    if(opt.full&&!opt.bare)labs.push(`<g class="drg-lab" transform="translate(${f1(c[0])} ${f1(c[1]+40)})" ${ro||place?'pointer-events="none"':`data-act="drgsel" data-id="${b.id}" role="button" tabindex="0" aria-label="Открыть: ${T.name}"`}><g class="drg-labi"><rect x="${-T.name.length*3.6-8}" y="-10" width="${T.name.length*7.2+16}" height="19" rx="9.5" fill="rgba(20,40,60,.72)"/><text y="4" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">${T.name}</text></g></g>`);
     out.push(`<path d="M-64 0 L0 -32 L64 0 L0 32 Z" fill="rgba(255,255,255,.001)"/>`);
     const hab=T.kind==='hab'&&!!PAD[b.type];
     /* эффекты считаются только у стоящих построек и не у той, что переносится */
@@ -570,21 +570,26 @@ function svg(st,opt){
       out.push(T.kind==='farm'?farmSprite(b,st,K,D,k):T.kind==='nest'?nestSprite(b,st,k,c,K,D):T.kind==='hatch'?hatchSprite(b,K,D,k):hab?habPad(b.type,k,b.lvl||1)+habMark(b.type,k):habPad('P',k));
       if(T.kind==='hab'){
         /* драконы во дворе, перед знаком среды; живой слой потом водит их по двору */
-        const ds=st.dragons.filter(d=>d.home===b.id),pos=[[-22,12],[22,14],[0,21],[-38,6],[38,6]];
-        ds.forEach((d,n)=>{const [dx,dy]=pos[n%5];out.push(dragonAt(d,dx,dy,hab?44:66,k+b.id+d.id,c,b,'hab',dx>0?-1:1))})
+        const ds=st.dragons.filter(d=>d.home===b.id),pos=[[-22,12],[22,14],[0,21],[-24,6],[24,6]];
+        out.push(`<clipPath id="${k+b.id}-yard"><ellipse cx="0" cy="-8" rx="61" ry="40"/></clipPath><g clip-path="url(#${k+b.id}-yard)">`);
+        ds.forEach((d,n)=>{const [dx,dy]=pos[n%5];out.push(dragonAt(d,dx,dy,hab?34:66,k+b.id+d.id,c,b,'hab',dx>0?-1:1))})
+        out.push('</g>');
         if(hab)out.push(habFront(b.type,b.lvl||1))}
       if(b.up)out.push(scaffold(b.up,K,D))}
     if(!fxOn)FX.length=fx0;
     ORG={x:0,y:0,s:1};
     out.push(`</g>`);
     /* пузырь над зданием: в отдельном слое поверх всего */
-    if(!ro){const x=c[0],y=c[1]-(b.build?84:HEIGHT[b.type]||70)-16;
+    if(!ro&&!place){const start=bubs.length,x=c[0],y=c[1]-(b.build?84:HEIGHT[b.type]||70)-16;
       if(job&&!D.ready(job,K))bubs.push(bubble(x,y,'build',D.left(job,K)+' к.'));
       else if(T.kind==='hab'){const a=Math.floor(D.chestNow(st,b,K));if(a>=1)bubs.push(bubble(x,y,'gold',a>=1000?Math.floor(a/100)/10+'к':a,a>=D.chestCap(b)));
         else if(!st.dragons.some(d=>d.home===b.id))bubs.push(bubble(x,y,'empty','пусто'))}
       else if(T.kind==='farm'){const r=(b.plots||[]).filter(p=>p&&D.ready(p,K)).length;if(r)bubs.push(bubble(x,y,'food','×'+r))}
       else if(T.kind==='nest'&&b.pair){bubs.push(D.ready(b.pair,K)?bubble(x,y,'egg','готово',true):bubble(x,y,'egg',D.left(b.pair,K)+' к.'))}
-      else if(T.kind==='hatch'){const r=(b.slots||[]).filter(p=>p&&D.ready(p,K)).length;if(r)bubs.push(bubble(x,y,'baby','×'+r,true))}}
+      else if(T.kind==='hatch'){const r=(b.slots||[]).filter(p=>p&&D.ready(p,K)).length;if(r)bubs.push(bubble(x,y,'baby','×'+r,true))}
+      if(bubs.length>start){const collect=T.kind==='hab'&&!b.build&&D.chestNow(st,b,K)>=1,action=collect?'drgdo':'drgsel';
+        bubs[bubs.length-1]=bubs[bubs.length-1].replace('<g class=',`<g data-act="${action}" data-id="${b.id}" ${collect?'data-t="collect"':''} role="button" tabindex="0" aria-label="${escA(collect?'Собрать золото: '+T.name:'Открыть: '+T.name)}" class=`)}
+    }
   });
   if(!opt.bare)out.push(rimDecor(false,g,lava,k));
   out.push(`<g class="drg-drs">${HITS.join('')}</g>`);HITS=[];

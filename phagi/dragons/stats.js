@@ -64,6 +64,9 @@ function badge(ph){
   return {rank:n,stars:n?'✦'.repeat(n):'',title:n?`Боевой ранг ${'✦'.repeat(n)}: ${n} ${n===1?'тип':'типа'} стихийной атаки`:ph.breath==='smoke'?'Дымный: без стихийных атак, бьёт Ударом':'Дремлющий: стихия не проявляется',
     name:n>2?n+' стихии: '+ph.elements.map(e=>ELN[e]).join(', '):R.hyb?R.hyb+' ('+ph.elements.map(e=>ELN[e]).join(' + ')+')':n?ELN[ph.elements[0]]:ph.breath==='smoke'?'Дымный':'Дремлющий',
     role:R.name,hyb:R.hyb,k:R.k}}
-const DSTATS={of,NOTE,NAMES,lvlK,ROLE,HYB,hybKey,roleOf,badge};
+/* Сводный индекс: здоровье + четыре веса для остальных шкал. Матчап считается отдельно. */
+const power=s=>Math.round(s.hp+4*(s.atk+s.def+s.spd));
+const POWER_NOTE='Абсолютная сила = здоровье + 4 × (атака + защита + скорость). Сравнивай драконов одного уровня; исход боя также зависит от стихий, приёмов и команды.';
+const DSTATS={power,POWER_NOTE,of,NOTE,NAMES,lvlK,ROLE,HYB,hybKey,roleOf,badge};
 if(typeof module!=='undefined'&&module.exports)module.exports=DSTATS;else root.DSTATS=DSTATS;
 })(typeof window!=='undefined'?window:globalThis);

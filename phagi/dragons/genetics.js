@@ -285,6 +285,35 @@ function genoText(g){
   const z=g.sex==='M'?'Z^'+g.Z[0].join('')+' Z^'+g.Z[1].join(''):'Z^'+g.Z[0].join('')+' W^'+g.W;
   return parts.filter(Boolean).join(' ')+' · размах '+q+' · '+z+' · мт '+g.mt}
 
-const DRG={GV,upgrade,isOld,combatRank,LOCI,CHROMS,Z,ELEM,ELEM_ORDER,LEGEND,RARITY,MU,rng,hashStr,make,validate,clone,gamete,fuse,breed,viable,phenotype,speciesKey,rarity,hapDist,dist,lethalShare,genoText};
+/* ---------- происхождение потомка (5.0) ----------
+   По геномам потомка и родителей: какой аллель от кого (в паре [0] от матери, [1] от отца), был ли перекрест (кроссинговер)
+   между сцепленными генами в мейозе каждого родителя и где появилась новая мутация. Журнал мейоза не нужен:
+   у родителя-дигетерозиготы гаплотип гаметы либо совпадает с одной из его хромосом (без перекреста), либо собран из обеих
+   (перекрёст). Если родитель гомозиготен хотя бы по одному из двух генов, перекрёст по потомку не виден.
+   genes: [{locus,chr,m,f}] — f = null там, где второй копии нет (Z у самки, W, митохондрии).
+   cross: [{who:'m'|'f',chr,a,b,r,state:'par'|'rec'|'hom'|'mut'}] — только для пар генов с r < 0,5.
+   mut: [{who,locus,a}] — аллель потомка, которого не было ни в одной хромосоме этого родителя */
+function origin(ch,mo,fa){
+  const out={sex:ch.sex,genes:[],cross:[],mut:[]};
+  const linkScan=(who,hap,P,loci,rs,chr)=>{
+    hap.forEach((a,i)=>{if(P[0][i]!==a&&P[1][i]!==a)out.mut.push({who,locus:loci[i],a})});
+    rs.forEach((r,i)=>{if(r>=0.5)return;const het=P[0][i]!==P[1][i]&&P[0][i+1]!==P[1][i+1];
+      const side=j=>hap[j]===P[0][j]&&hap[j]!==P[1][j]?0:hap[j]===P[1][j]&&hap[j]!==P[0][j]?1:hap[j]===P[0][j]?2:-1;
+      const s0=side(i),s1=side(i+1);
+      out.cross.push({who,chr,a:loci[i],b:loci[i+1],r,state:s0<0||s1<0?'mut':!het?'hom':s0===s1?'par':'rec'})})};
+  AUTO.forEach(c=>{const L=CHROMS[c].loci;
+    L.forEach((l,i)=>out.genes.push({locus:l,chr:c,m:ch[c][0][i],f:ch[c][1][i]}));
+    if(mo)linkScan('m',ch[c][0],mo[c],L,CHROMS[c].r,c);
+    if(fa)linkScan('f',ch[c][1],fa[c],L,CHROMS[c].r,c)});
+  /* Z: сын получает Z от матери и Z от отца, дочь — только Z от отца (от матери у неё W) */
+  const mz=ch.sex==='M'?ch.Z[0]:null,fz=ch.sex==='M'?ch.Z[1]:ch.Z[0];
+  Z.loci.forEach((l,i)=>out.genes.push({locus:l,chr:'Z',m:mz?mz[i]:null,f:fz?fz[i]:null,zw:ch.sex==='F'}));
+  if(fa&&fz)linkScan('f',fz,fa.Z,Z.loci,Z.r,'Z');
+  if(mo&&mz)mz.forEach((a,i)=>{if(mo.Z[0][i]!==a)out.mut.push({who:'m',locus:Z.loci[i],a})});
+  if(ch.sex==='F'){out.genes.push({locus:'Sp',chr:'W',m:ch.W,f:null});if(mo&&mo.W!==ch.W)out.mut.push({who:'m',locus:'Sp',a:ch.W})}
+  out.genes.push({locus:'G',chr:'mt',m:ch.mt,f:null});if(mo&&mo.mt!==ch.mt)out.mut.push({who:'m',locus:'G',a:ch.mt});
+  return out}
+
+const DRG={GV,upgrade,isOld,combatRank,LOCI,CHROMS,Z,ELEM,ELEM_ORDER,LEGEND,RARITY,MU,rng,hashStr,make,validate,clone,gamete,fuse,breed,viable,phenotype,speciesKey,rarity,hapDist,dist,lethalShare,genoText,origin};
 if(typeof module!=='undefined'&&module.exports)module.exports=DRG;else root.DRG=DRG;
 })(typeof window!=='undefined'?window:globalThis);

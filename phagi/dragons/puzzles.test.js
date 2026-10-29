@@ -13,7 +13,17 @@ t('бинарио: правила соблюдены, данные сходят�
   lines.forEach(a=>{assert.strictEqual(a.filter(x=>x===1).length,N/2);for(let k=2;k<N;k++)assert.ok(!(a[k]===a[k-1]&&a[k]===a[k-2]))});
   assert.strictEqual(new Set(g.map(r=>r.join())).size,N);assert.strictEqual(new Set([...Array(N).keys()].map(j=>g.map(r=>r[j]).join())).size,N);
   p.given.forEach((r,i)=>r.forEach((v,j)=>{if(v!=null)assert.strictEqual(v,g[i][j])}));assert.strictEqual(P.binSolve(N,p.given,2).n,1,d);
-  assert.ok(p.given.flat().filter(x=>x!=null).length<=24,'данных не больше 24')}));
+  const n=p.given.flat().filter(x=>x!=null).length;assert.ok(n>=15&&n<=24,'открытых клеток от 15 до 24: '+n)}));
+t('от простого к сложному: лёгкая, средняя, сложная; награды растут и вместе дают 300; у каждой правила по пунктам',()=>{
+  assert.deepStrictEqual(P.KINDS.map(k=>k.lvl),[1,2,3]);assert.deepStrictEqual(P.KINDS.map(k=>k.kind),['bin','ken','sky']);
+  const r=P.KINDS.map(k=>P.rewardOf(k.kind));assert.ok(r[0]<r[1]&&r[1]<r[2]);assert.strictEqual(r.reduce((a,b)=>a+b,0),300);
+  P.KINDS.forEach(k=>{assert.ok(k.goal&&k.rules.length>=2&&k.how&&k.tip);assert.strictEqual(P.make(k.kind,'u:2026-11-01').N,k.kind==='bin'?6:5)})});
+t('подсветка ошибок: решение чистое, повтор в строке, три подряд и неверная рамка видны, ответ не раскрывается',()=>days.slice(0,5).forEach(d=>{
+  P.KINDS.forEach(k=>{const p=P.make(k.kind,'u:'+d);assert.deepStrictEqual(P.conflicts(p,p.sol),[],k.kind+' '+d);
+    const empty=p.kind==='bin'?p.given.map(r=>r.slice()):p.sol.map(r=>r.map(()=>0));assert.deepStrictEqual(P.conflicts(p,empty),[],'пустая сетка без ошибок')});
+  const ken=P.make('ken','u:'+d),a=ken.sol.map(r=>r.slice());a[0][1]=a[0][0];assert.ok(P.conflicts(ken,a).some(([i,j])=>i===0&&j===1),'повтор в строке');
+  const bin=P.make('bin','u:'+d),b=bin.sol.map(r=>r.slice());b[0][0]=b[0][1]=b[0][2]=1;assert.ok(P.conflicts(bin,b).length>=3,'три подряд')}));
+t('быстро: задачи дня строятся меньше чем за 400 мс на всех трёх',()=>{const t0=Date.now();P.daily('speed','2026-12-24');assert.ok(Date.now()-t0<400,'долго: '+(Date.now()-t0))});
 t('кендоку: группы покрывают сетку, результаты сходятся, решение единственное',()=>days.forEach(d=>{const p=P.make('ken','u:'+d),N=p.N;assert.ok(latinOk(p.sol,N));
   const seen=new Set();p.cages.forEach(c=>{c.cells.forEach(([i,j])=>{const k=i+','+j;assert.ok(!seen.has(k));seen.add(k)});assert.strictEqual(P.cageVal(c.cells.map(([i,j])=>p.sol[i][j]),c.op),c.v)});
   assert.strictEqual(seen.size,N*N);assert.strictEqual(P.kenSolve(N,p.cages,2).n,1,d)}));

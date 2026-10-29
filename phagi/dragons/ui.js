@@ -249,36 +249,75 @@ function hwGiftHTML(st,c){const got=st.hwgift||[],l=(c.info.hw||[]).filter(b=>b.
   return `<div class="hwg"><b>🎁 Подарок за ДЗ на 95 % и выше</b>${l.map(b=>`<div class="drg-sr"><span>${esc(b.title)} · ${b.pc}%</span><button class="btn sm" data-act="drgdo" data-t="hwgift" data-id="${esc(b.id)}">Забрать редкого дракона</button></div>`).join('')}</div>`}
 const fmtDay=d=>{try{return new Date(d+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'long'})}catch(e){return d}};
 
-/* ---------- головоломки дня (4.4, puzzles.js) ----------
-   Ответы ученицы хранятся в S.pzA[kind] и в браузере (pz:<uid>:<день>:<вид>), чтобы перерисовка и перезагрузка их не стирали.
+/* ---------- головоломки дня (puzzles.js) ----------
+   5.0: вкладки от лёгкой к сложной, правила по пунктам с примером и подсказкой, крупные клетки, подсветка строки, столбца
+   и нарушений правил, заметки карандашом, отмена хода, ввод с клавиатуры (цифры, стрелки, N — заметки, ⌘/Ctrl+Z — отмена).
+   Ответы и заметки хранятся в S.pzA / S.pzM и в браузере (pz:<uid>:<день>:<вид>), чтобы перерисовка и перезагрузка их не стирали.
    Проверка — действие puzzle в экономике: тот же генератор, сверка с единственным решением */
 const pzKey=(c,k)=>'pz:'+c.uid+':'+c.today+':'+k;
-function pzAns(c,p){S.pzA=S.pzA||{};const k=p.kind;if(S.pzA[k]&&S.pzA[k].d===c.today)return S.pzA[k].a;
+const pzOf=(c,k)=>DRPZ.make(k,DRPZ.seedOf(c.uid,c.today));
+const pzShape=(p,a)=>Array.isArray(a)&&a.length===p.N&&a.every(r=>Array.isArray(r)&&r.length===p.N);
+const pzHas=(p,v)=>p.kind==='bin'?v!=null:!!v;
+function pzAns(c,p){S.pzA=S.pzA||{};const k=p.kind;if(S.pzA[k]&&S.pzA[k].d===c.today&&pzShape(p,S.pzA[k].a))return S.pzA[k].a;
   let a=null;try{a=JSON.parse(localStorage.getItem(pzKey(c,k))||'null')}catch(e){}
-  if(!a)a=p.kind==='bin'?p.given.map(r=>r.map(v=>v==null?null:v)):[...Array(p.N)].map(()=>Array(p.N).fill(0));
+  if(!pzShape(p,a))a=p.kind==='bin'?p.given.map(r=>r.map(v=>v==null?null:v)):[...Array(p.N)].map(()=>Array(p.N).fill(0));
+  if(p.kind==='bin')p.given.forEach((r,i)=>r.forEach((v,j)=>{if(v!=null)a[i][j]=v}));   /* открытые клетки всегда из задачи */
   S.pzA[k]={d:c.today,a};return a}
-function pzSave(c,k,a){try{localStorage.setItem(pzKey(c,k),JSON.stringify(a))}catch(e){}}
-function pzGrid(p,a,done){const N=p.N,sel=S.pzSel&&S.pzSel.k===p.kind?S.pzSel:null;
-  const cell=(i,j,inner,cls,dis)=>`<button class="pzc ${cls||''}${sel&&sel.i===i&&sel.j===j?' sel':''}" data-act="drgpz" data-k="${p.kind}" data-i="${i}" data-j="${j}"${dis||done?' disabled':''} aria-label="Строка ${i+1}, столбец ${j+1}${inner?': '+inner:''}">${inner||''}</button>`;
-  if(p.kind==='bin')return `<div class="pzg bin" style="--n:${N}">${a.map((r,i)=>r.map((v,j)=>{const g=p.given[i][j]!=null;return cell(i,j,v==null?'':String(v),g?'given':'v'+(v==null?'':v),g)}).join('')).join('')}</div>`;
-  if(p.kind==='sky'){const c=p.clues,cl=v=>`<span class="pzk">${v||''}</span>`;
-    return `<div class="pzg sky" style="--n:${N+2}">${cl('')}${c.top.map(cl).join('')}${cl('')}${a.map((r,i)=>cl(c.left[i])+r.map((v,j)=>cell(i,j,v?String(v):'')).join('')+cl(c.right[i])).join('')}${cl('')}${c.bottom.map(cl).join('')}${cl('')}</div>`}
+function pzNotes(c,p){S.pzM=S.pzM||{};const k=p.kind;if(S.pzM[k]&&S.pzM[k].d===c.today&&pzShape(p,S.pzM[k].m))return S.pzM[k].m;
+  let m=null;try{m=JSON.parse(localStorage.getItem(pzKey(c,k)+':n')||'null')}catch(e){}
+  if(!pzShape(p,m))m=[...Array(p.N)].map(()=>Array(p.N).fill(0));S.pzM[k]={d:c.today,m};return m}
+function pzSave(c,k,a,m){try{localStorage.setItem(pzKey(c,k),JSON.stringify(a));if(m)localStorage.setItem(pzKey(c,k)+':n',JSON.stringify(m))}catch(e){}}
+/* снимок до хода — для «Отменить» */
+function pzPush(k,a,m){S.pzU=S.pzU||{};const u=S.pzU[k]=S.pzU[k]||[];u.push(JSON.stringify({a,m}));if(u.length>80)u.shift()}
+function pzGrid(p,a,m,done){const N=p.N,sel=S.pzSel&&S.pzSel.k===p.kind?S.pzSel:null,bad=new Set(DRPZ.conflicts(p,a).map(([i,j])=>i*N+j));
+  const cell=(i,j)=>{const g=p.kind==='bin'&&p.given[i][j]!=null,v=a[i][j],has=pzHas(p,v),on=sel&&sel.i===i&&sel.j===j,line=sel&&!on&&(sel.i===i||sel.j===j),err=bad.has(i*N+j);
+    const notes=!has&&p.kind!=='bin'&&m[i][j]?`<span class="pzm" aria-hidden="true">${[1,2,3,4,5].map(n=>`<i>${m[i][j]&(1<<n)?n:''}</i>`).join('')}</span>`:'';
+    const cls=['pzc',g?'given':'',p.kind==='bin'&&has?'v'+v:'',on?'sel':'',line?'line':'',err?'bad':''].filter(Boolean).join(' ');
+    const lab=`Строка ${i+1}, столбец ${j+1}: ${has?(p.kind==='sky'?'высота '+v:String(v)):'пусто'}${g?', дано в задаче':''}${err?', нарушает правило':''}`;
+    return `<button class="${cls}" data-act="drgpz" data-k="${p.kind}" data-i="${i}" data-j="${j}"${done||g?' disabled':''} aria-label="${lab}">${has?(p.kind==='bin'?`<b class="pzb">${v}</b>`:`<b>${v}</b>`):notes}</button>`};
+  if(p.kind==='bin')return `<div class="pzg bin" style="--n:${N}">${a.map((r,i)=>r.map((_,j)=>cell(i,j)).join('')).join('')}</div>`;
+  if(p.kind==='sky'){const C=p.clues,st=(clue,line)=>!clue||!line.every(Boolean)?'':DRPZ.seen(line)===clue?' ok':' no';
+    const cl=(v,line,dir)=>`<span class="pzk${st(v,line)}" title="${v?`Отсюда видно ${v} ${v===1?'дом':v<5?'дома':'домов'}`:''}">${v||''}</span>`;
+    const col=j=>a.map(r=>r[j]);
+    return `<div class="pzg sky" style="--n:${N+2}"><span></span>${C.top.map((v,j)=>cl(v,col(j))).join('')}<span></span>${a.map((r,i)=>cl(C.left[i],r)+r.map((_,j)=>cell(i,j)).join('')+cl(C.right[i],r.slice().reverse())).join('')}<span></span>${C.bottom.map((v,j)=>cl(v,col(j).reverse())).join('')}<span></span></div>`}
   const at=[...Array(N)].map(()=>Array(N).fill(-1));p.cages.forEach((cg,k)=>cg.cells.forEach(([i,j])=>at[i][j]=k));
   const lab=k=>{const cg=p.cages[k],tl=cg.cells.slice().sort((x,y)=>x[0]-y[0]||x[1]-y[1])[0];return {tl,t:cg.op==='='?String(cg.v):cg.v+(cg.op)}};
   return `<div class="pzg ken" style="--n:${N}">${a.map((r,i)=>r.map((v,j)=>{const k=at[i][j],L=lab(k),b=[i===0||at[i-1][j]!==k?'bt':'',j===N-1||at[i][j+1]!==k?'br':'',i===N-1||at[i+1][j]!==k?'bb':'',j===0||at[i][j-1]!==k?'bl':''].join(' ');
-    return `<div class="pzw ${b}">${L.tl[0]===i&&L.tl[1]===j?`<small class="pzt">${esc(L.t)}</small>`:''}${cell(i,j,v?String(v):'')}</div>`}).join('')).join('')}</div>`}
+    return `<div class="pzw ${b}">${L.tl[0]===i&&L.tl[1]===j?`<small class="pzt">${esc(L.t)}</small>`:''}${cell(i,j)}</div>`}).join('')).join('')}</div>`}
 function pzHTML(st,c){if(!window.DRPZ)return `<section class="sheet drg-pan"><p>Головоломки не загрузились. Обновите страницу.</p></section>`;
-  const done=st.pz&&st.pz.d===c.today?st.pz.done:[],ps=DRPZ.daily(c.uid,c.today);
-  const cards=ps.map(p=>{if(!p)return '';const a=pzAns(c,p),ok=done.includes(p.kind);
-    const pad=p.kind==='bin'?'':`<div class="pzpad">${[1,2,3,4,5].map(n=>`<button class="pzn" data-act="drgpzn" data-k="${p.kind}" data-n="${n}"${ok?' disabled':''}>${n}</button>`).join('')}<button class="pzn" data-act="drgpzn" data-k="${p.kind}" data-n="0"${ok?' disabled':''} aria-label="Стереть">⌫</button></div>`;
-    return `<section class="pzbox${ok?' ok':''}" id="pz-${p.kind}"><div class="pzh"><h3>${esc(p.title)}</h3><span>${ok?'✓ решено':`+${DRPZ.REWARD} 🪙`}</span></div>
-      <details class="pzr" data-k="pzr-${p.kind}"><summary>Правила</summary><p>${esc(p.rules)}</p></details>${pzGrid(p,a,ok)}${pad}
-      ${ok?'':`<div class="actions" style="justify-content:flex-start"><button class="btn sm" data-act="drgpzc" data-k="${p.kind}">Проверить</button><button class="btn ghost sm" data-act="drgpzr" data-k="${p.kind}">Очистить</button></div>`}</section>`}).join('');
+  const done=st.pz&&st.pz.d===c.today?st.pz.done:[],ps=DRPZ.daily(c.uid,c.today).filter(Boolean),K=DRPZ.KINDS;
+  if(!S.pzTab||!ps.some(p=>p.kind===S.pzTab))S.pzTab=(ps.find(p=>!done.includes(p.kind))||ps[0]||{}).kind;
+  const tabs=`<div class="pztabs" role="tablist" aria-label="Головоломки от лёгкой к сложной">${ps.map(p=>{const k=K.find(x=>x.kind===p.kind),on=p.kind===S.pzTab,ok=done.includes(p.kind);
+    return `<button role="tab" class="pztab${on?' on':''}${ok?' ok':''}" data-act="drgpztab" data-k="${p.kind}" aria-selected="${on}" aria-label="${k.lvl}. ${k.name}: ${esc(k.title)}, ${ok?'решено':'награда '+k.reward+' золота'}"><small>${k.lvl}. ${k.name}</small><b>${esc(k.title.split(' ')[0])}</b><span>${ok?'✓ решено':`<em aria-hidden="true">${'★'.repeat(k.lvl)}${'☆'.repeat(3-k.lvl)}</em> +${k.reward} 🪙`}</span></button>`}).join('')}</div>`;
+  const p=ps.find(x=>x.kind===S.pzTab);if(!p)return `<section class="sheet drg-pan"><p>Головоломки на сегодня не построились. Обновите страницу.</p></section>`;
+  const k=K.find(x=>x.kind===p.kind),a=pzAns(c,p),m=pzNotes(c,p),ok=done.includes(p.kind),N=p.N;
+  const filled=a.flat().filter(v=>pzHas(p,v)).length,bad=DRPZ.conflicts(p,a).length,nx=ps.find(x=>!done.includes(x.kind)&&x.kind!==p.kind);
+  /* правила открыты, пока ученица не начала эту задачу; потом свёрнуты, но открываются одним нажатием */
+  const fresh=!ok&&filled===(p.kind==='bin'?p.given.flat().filter(v=>v!=null).length:0);
+  const rules=`<details class="pzr" data-k="pzr-${p.kind}"${fresh?' open':''}><summary>Правила и с чего начать</summary><ol>${k.rules.map(r=>`<li>${esc(r)}</li>`).join('')}</ol><p><b>Как вводить.</b> ${esc(k.how)}</p><p class="pztip">💡 <b>С чего начать.</b> ${esc(k.tip)}</p></details>`;
+  const note=!!S.pzNote&&p.kind!=='bin',digits=p.kind==='bin'?[0,1]:[1,2,3,4,5];
+  const pad=ok?'':`<div class="pzpad${note?' note':''}" role="group" aria-label="${p.kind==='bin'?'Цифры':note?'Заметки':'Числа'}">${digits.map(n=>`<button class="pzn" data-act="drgpzn" data-k="${p.kind}" data-n="${n}" aria-label="${note?'Заметка ':''}${n}">${n}</button>`).join('')}<button class="pzn" data-act="drgpzn" data-k="${p.kind}" data-n="x" aria-label="Стереть клетку">⌫</button></div>`;
+  const stat=ok?`<p class="pzdone">✓ Решено! Награда получена.${nx?` <button class="btn sm" data-act="drgpztab" data-k="${nx.kind}">Следующая: ${esc(K.find(x=>x.kind===nx.kind).name.toLowerCase())} →</button>`:' На сегодня всё, завтра новые.'}</p>`
+    :`<p class="pzstat"><span>Заполнено ${filled} из ${N*N}</span>${bad?`<span class="pzerr">Нарушено правило: клетки подсвечены красным</span>`:''}</p>`;
+  const tools=ok?'':`<div class="pztools"><button class="btn sm" data-act="drgpzc" data-k="${p.kind}">Проверить</button>${p.kind==='bin'?'':`<button class="btn ghost sm pznote${note?' on':''}" data-act="drgpznote" data-k="${p.kind}" aria-pressed="${note}" title="Клавиша N">✎ Заметки${note?': вкл.':''}</button>`}<button class="btn ghost sm" data-act="drgpzu" data-k="${p.kind}"${(S.pzU&&S.pzU[p.kind]||[]).length?'':' disabled'} title="⌘/Ctrl + Z">↶ Отменить ход</button><button class="btn ghost sm" data-act="drgpzr" data-k="${p.kind}">Очистить</button></div>`;
   return `<section class="sheet drg-pan drg-pzp"><div class="drg-pan-h"><h2>🧩 Головоломки дня</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div>
-    <p class="muted small">Три задачи на логику, у каждой ровно одно решение, угадывать не нужно: всё выводится рассуждением. За каждую ${DRPZ.REWARD} 🪙, завтра новые. Решено сегодня: ${done.length} из ${ps.length}.</p>${cards}</section>`}
-
+    <p class="muted small">Три задачи на логику, от лёгкой к сложной. У каждой ровно одно решение, угадывать не нужно: всё выводится рассуждением. Решено сегодня: ${done.length} из ${ps.length}, завтра новые.</p>
+    ${tabs}<section class="pzbox${ok?' ok':''}" id="pz-${p.kind}"><div class="pzh"><h3>${esc(k.title)}</h3><span>${ok?'✓ решено':`+${k.reward} 🪙`}</span></div>
+    <p class="pzgoal"><b>Цель.</b> ${esc(k.goal)}</p>${pzGrid(p,a,m,ok)}${stat}${pad}${tools}${rules}<p class="muted small pzkeys">Клавиатура: ${p.kind==='bin'?'0 и 1, пробел меняет цифру':'цифры 1–5, N — заметки'}, стрелки — выбор клетки, Delete — стереть, ⌘/Ctrl+Z — отменить.</p></section></section>`}
+/* ввод в выбранную клетку: n — цифра, 'x' — стереть, '~' — следующая цифра Бинарио (нажатие на клетку, пробел) */
+function pzInput(k,n){const sel=S.pzSel;if(!sel||sel.k!==k)return 'Сначала выберите клетку';const c=ctxOf(meId()),p=pzOf(c,k),a=pzAns(c,p),m=pzNotes(c,p),i=sel.i,j=sel.j;
+  if(p.kind==='bin'&&p.given[i][j]!=null)return 'Эта клетка дана в задаче';
+  const note=!!S.pzNote&&p.kind!=='bin'&&n!=='x'&&n!=='~';
+  pzPush(k,a,m);
+  if(p.kind==='bin')a[i][j]=n==='x'?null:n==='~'?(a[i][j]==null?0:a[i][j]===0?1:null):+n;
+  else if(note){if(a[i][j])a[i][j]=0;m[i][j]^=1<<(+n)}
+  else if(n==='x'){a[i][j]=0;m[i][j]=0}
+  else{const v=+n;a[i][j]=v;m[i][j]=0;
+    /* поставленное число убирается из заметок в той же строке и столбце */
+    if(a[i][j])for(let t=0;t<p.N;t++){m[i][t]&=~(1<<v);m[t][j]&=~(1<<v)}}
+  pzSave(c,k,a,m);return null}
 /* клавиши острова (4.2) */
-const KEYS=[['B','Строить'],['D','Драконы'],['E','Скрещивание и яйца'],['P','Поход'],['M','Ещё'],['L','Уровень и опыт'],['I','Другой остров'],['⌘/Ctrl +  −','Приблизить, отдалить (и просто + −)'],['0','Весь остров'],['Стрелки','Сдвинуть остров'],['Esc','Закрыть окно, потом выйти с острова'],['?','Эта подсказка']];
+const KEYS=[['B','Строить'],['D','Драконы'],['E','Скрещивание и яйца'],['P','Поход'],['M','Ещё'],['L','Уровень и опыт'],['I','Другой остров'],['G','Перенести выбранную постройку'],['Стрелки, Enter','При переносе и стройке: выбрать ячейку и поставить (A — на свободное место)'],['⌘/Ctrl +  −','Приблизить, отдалить (и просто + −)'],['0','Весь остров'],['Стрелки','Сдвинуть остров'],['Esc','Закрыть окно, потом выйти с острова'],['?','Эта подсказка']];
 function keysHTML(){return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>⌨️ Клавиши</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div>
   <table class="drg-keys">${KEYS.map(([k,t])=>`<tr><td><kbd>${esc(k)}</kbd></td><td>${esc(t)}</td></tr>`).join('')}</table>
   <p class="muted small">Колесо мыши и жест двумя пальцами двигают остров, с ⌘ или Ctrl (и щипком на трекпаде) — меняют масштаб. Постройки выбираются Tab и Enter.</p></section>`}
@@ -317,6 +356,16 @@ function isle2HTML(st){const q=E.isleState(st),L=E.level(st);
     ${!q.open&&q.ok?`<button class="btn" data-act="drgisle2"${st.bal.gold<E.ISLE2.gold?' disabled':''}>Открыть за ${fmt(E.ISLE2.gold)} 🪙</button>${st.bal.gold<E.ISLE2.gold?`<p class="muted small">Не хватает ${fmt(E.ISLE2.gold-st.bal.gold)} золота.</p>`:''}`:''}</section>`}
 
 /* ---------- страница «Остров драконов» ---------- */
+const sigOf=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(36)+s.length.toString(36)};
+const bgKey=st=>E.extent(st).n+(st.isl===1?'l':'g');
+const BGC=new Map();
+/* рисунок острова строится заново, только если изменились состояние острова или вид (на телефоне это десятки миллисекунд на каждое нажатие) */
+const ISLC={k:'',v:''};
+function islSvg(st,opt){const k=JSON.stringify([st,opt]);if(k!==ISLC.k){ISLC.v=I.svg(st,opt);ISLC.k=k}return ISLC.v}
+/* далёкие драконы в небе: силуэты пролетают за островом, двигается целый слой (без перерисовки) */
+const FLY_SIL='<path d="M2 22 C 14 18 24 18 34 20 C 40 10 50 2 62 0 C 56 8 52 14 50 20 C 58 20 66 22 72 26 C 64 26 58 27 52 28 C 46 34 36 36 26 32 C 18 30 10 28 2 22 Z M 50 21 C 60 12 72 8 84 10 C 76 14 70 18 66 23 Z"/>';
+const FLYERS=`<div class="drg-fly f1" aria-hidden="true"><svg viewBox="0 0 86 38">${FLY_SIL}</svg></div><div class="drg-fly f2" aria-hidden="true"><svg viewBox="0 0 86 38">${FLY_SIL}</svg></div>`;
+function bgHTML(st,kind){const key=kind+bgKey(st);if(!BGC.has(key))BGC.set(key,kind==='far'?I.bg(st):I.bgClouds(st));return BGC.get(key)}
 function islandView(){
   const uid=S.drgUid||meId(),own=uid===meId(),x=stateOf(uid),visit=String(uid).startsWith('v:');
   if(own&&x&&!showLast&&!showPend)showcaseSoon();   /* зашла на остров — витрина для рейтинга появится и без действий */
@@ -326,8 +375,8 @@ function islandView(){
   const {st,c}=x,K=c.K,full=!!S.drgFull;
   if(S.drgSel&&!st.bld.some(b=>b.id===S.drgSel))S.drgSel=null;
   const pl=own?S.drgPlace:null;
-  const placeBar=pl?`<div class="drg-place"><span>${pl.move?'Нажмите на свободную ячейку «+», куда перенести здание':'Нажмите на свободную ячейку «+», где поставить: '+E.TYPES[pl.type].name}</span><button class="btn sm" data-act="drgauto">${pl.move?'Перенести':'Поставить'} на свободное место</button><button class="btn ghost sm" data-act="drgcancel">Отмена</button></div>`:'';
-  const cur=curIsle(st),isl=I.svg(viewSt(st),{K,sel:S.drgSel,place:pl,key:'isl',readonly:!own,full});
+  const placeBar=pl?`<div class="drg-place"><span>${pl.move?'Нажмите на свободную ячейку «+», куда перенести здание':'Нажмите на свободную ячейку «+», где поставить: '+E.TYPES[pl.type].name}<small class="drg-pkeys">Клавиши: стрелки — выбрать ячейку, Enter — поставить, A — на свободное место, Esc — отмена</small></span><button class="btn sm" data-act="drgauto">${pl.move?'Перенести':'Поставить'} на свободное место</button><button class="btn ghost sm" data-act="drgcancel">Отмена</button></div>`:'';
+  const cur=curIsle(st),isl=islSvg(viewSt(st),{K,sel:S.drgSel,place:pl,key:'isl',readonly:!own,full});
   const gl=own&&!pl?goalLine(st,K):null;
   if(full){
     const L=E.level(st),b=E.xpFor(L+1),xp=xpPct(st),bal=st.bal;
@@ -341,7 +390,11 @@ function islandView(){
         +(st.dragons.length?rb('drgfight','','⚔️','Поход',{lab:'Поход: бои драконов',k:'P'}):'')+rb('drgpanel','shop','🔨','Строить',{big:1,lab:'Строить',k:'B'})+rb('drgpanel','more','☰','Ещё',{lab:'Ещё: головоломки, задания недели, рейтинг, рынок, журнал',k:'M',n:todoN(st,c)})
       :visit?rb('drgvisit','','🏠','Домой',{lab:'Домой, на свой остров'})+rb('drgpanel','dragons','📖','Драконы')+rb('drgpanel','blds','🏘','Постройки')+rb('drgpanel','top','🏆','Рейтинг')
       :rb('drgfull','0','🏠','Назад')+rb('drgpanel','dragons','📖','Драконы')+rb('drgpanel','journal','📓','Журнал')+rb('drgpanel','blds','🏘','Постройки');
-    return `<div class="drg-map full${pl?' placing':''}${cur?' lava':''}">
+    /* 5.0: мир (фон и остров) — отдельный узел с подписью data-sig: если рисунок не изменился, страница оставляет старый узел,
+       и браузер не растрирует остров заново при каждом открытии панели или нажатии кнопки. Кнопки и панели лежат слоем выше */
+    const wcls=`drg-world${pl?' placing':''}${cur?' lava':''}`,wsig=sigOf(wcls+'|'+bgKey(st)+'|'+isl);
+    return `<div class="${wcls}" data-sig="${wsig}"><div class="drg-bgs" aria-hidden="true"><div class="drg-bgl">${bgHTML(st,'far')}</div><div class="drg-bgl drift">${bgHTML(st,'clouds')}</div>${FLYERS}</div><div class="drg-stage">${isl}</div></div>
+      <div class="drg-map full${pl?' placing':''}${cur?' lava':''}">
       <div class="drg-hud"><button class="drg-hud-l" data-act="drgpanel" data-v="lvl" aria-label="Уровень острова ${L}, опыт ${xp} %: подробнее (клавиша L)" title="${L>=E.ISLE_MAX?'Высший уровень острова':`Опыт ${fmt(bal.xp)} из ${fmt(b)}`}. Нажмите, чтобы узнать подробнее"><span class="drg-star" aria-hidden="true"><b>${L}</b></span><span class="drg-xpbar" aria-hidden="true"><i style="width:${xp}%"></i></span></button>
       <div class="drg-hud-r">${visit?`<span class="drg-pill drg-guest">🏠 В гостях у ${esc(visitName(uid))}</span>`:pill('gold','🪙',bal.gold,'Золото')+pill('gems','💎',bal.gems,'Самоцветы')+pill('food','🌾',bal.food,'Корм')}</div></div>
       ${own?`<div class="drg-svw">${saveHTML(uid)}${volHTML(st,c.info,true)}${slot7HTML(st,true)}${gl&&!S.drgPanel&&!S.drgSel?`<button class="drg-goal" data-act="drgpanel" data-v="breed"><small>Цель: первый потомок · шаг ${gl.step} из ${gl.of}</small><b>${gl.text}</b></button>`:''}</div>`:''}
@@ -349,7 +402,6 @@ function islandView(){
       <div class="drg-dock" role="group" aria-label="Действия на острове">${dock}</div>
       <div class="drg-zm"><button class="drg-kh" data-act="drgpanel" data-v="keys" aria-label="Клавиши (?)" title="Клавиши">⌨</button><button data-act="drgzoom" data-v="in" aria-label="Приблизить">+</button><button data-act="drgzoom" data-v="out" aria-label="Отдалить">−</button><button data-act="drgzoom" data-v="fit" aria-label="Весь остров" title="Весь остров">⤢</button><button data-act="drgpanel" data-v="blds" aria-label="Мои постройки" title="Мои постройки">▤</button></div>
       ${pl?'':isleBtn(st,own)}
-      <div class="drg-stage">${isl}</div>
       </div>`+panel(st,c,own)}
   const head=`${back}${own?saveHTML(uid,true)+slot7HTML(st):''}<div class="drg-ih"><div class="drg-ih-t"><h1>Остров драконов${own?'':': '+esc(visitName(uid))}</h1><span class="muted small">Время на острове идёт в карточках: повторено ${cards(K)}</span>${own?volHTML(st,c.info,true):''}</div>${lvlHTML(st)}${visit?'':walletHTML(st)}</div>`;
   const tools=own&&!pl?`<div class="drg-tools"><button class="btn sm" data-act="drgfull" data-v="1">🏝 Отправиться на остров</button><button class="btn ghost sm" data-act="drgpanel" data-v="shop">🔨 Построить</button><button class="btn ghost sm" data-act="drgpanel" data-v="market">🐉 Рынок</button><button class="btn ghost sm" data-act="drgpanel" data-v="dragons">📖 Драконы</button><button class="btn ghost sm" data-act="drgpanel" data-v="breed">🥚 Скрещивание</button>${st.dragons.length?'<button class="btn ghost sm" data-act="drgfight">⚔️ Поход</button>':''}<button class="btn ghost sm" data-act="drgpanel" data-v="journal">📓 Журнал скрещиваний</button><button class="btn ghost sm" data-act="drgpanel" data-v="help">Как это работает</button></div>`:'';
@@ -358,7 +410,12 @@ function islandView(){
   return head+goal+tools+map+panel(st,c,own);
 }
 
-function panel(st,c,own){
+/* панель только что открыта (другая панель или постройка): класс pin даёт анимацию появления на первые 300 мс */
+let panKey='',panT=0;
+function panel(st,c,own){const h=panel0(st,c,own),key=(S.drgPanel||'')+'|'+(S.drgSel||'');
+  if(key!==panKey){panKey=key;panT=Date.now()}
+  return Date.now()-panT<300?h.replace(/class="sheet drg-pan/,'class="sheet drg-pan pin'):h}
+function panel0(st,c,own){
   const K=c.K,L=E.level(st),p=S.drgPanel;
   if(own&&p==='shop')return shopHTML(st,L);
   if(own&&p==='market')return marketHTML(st,L);
@@ -376,7 +433,8 @@ function panel(st,c,own){
   if(own&&p&&p.startsWith('res:'))return resHTML(st,c,p.slice(4));
   if(p==='journal')return journalHTML(st);
   if(p==='research')return researchHTML(st,own);
-  if(p==='baby'){const d=st.dragons.find(x=>x.id===S.drgBaby);if(d)return `<section class="sheet drg-pan drg-baby"><div class="drg-pan-h"><h2>🐣 Вылупился ${esc(d.name)}!</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div>${own?saveHTML(meId()):''}${d.nurs&&!d.home?`<p class="drg-why">Подходящего свободного дома пока нет (нужен дом: ${E.habNames(phOf(d))}), поэтому ${esc(d.name)} пока в яслях Инкубатора. Как только появится дом со свободным местом, малыш переселится в него сам.</p>${own?homeHint(st,d):''}`:''}<div class="drg-list">${dragonCard(st,d,own,L)}</div><div class="actions" style="justify-content:flex-start"><button class="btn ghost sm" data-act="drgpanel" data-v="journal">📓 Журнал скрещиваний</button><button class="btn ghost sm" data-act="drgpanel" data-v="breed">🥚 Скрещивание</button></div></section>`}
+  if(p==='orig'){const d=st.dragons.find(x=>x.id===S.drgOrig);if(d)return `<section class="sheet drg-pan drg-baby"><div class="drg-pan-h"><h2>🧬 Как получился ${esc(d.name)}</h2><button class="btn ghost sm" data-act="drgpanel" data-v="dragons">← Драконы</button></div>${originHTML(st,d,true)}</section>`}
+  if(p==='baby'){const d=st.dragons.find(x=>x.id===S.drgBaby);if(d)return `<section class="sheet drg-pan drg-baby"><div class="drg-pan-h"><h2>🐣 Вылупился ${esc(d.name)}!</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div>${own?saveHTML(meId()):''}${d.nurs&&!d.home?`<p class="drg-why">Подходящего свободного дома пока нет (нужен дом: ${E.habNames(phOf(d))}), поэтому ${esc(d.name)} пока в яслях Инкубатора. Как только появится дом со свободным местом, малыш переселится в него сам.</p>${own?homeHint(st,d):''}`:''}<div class="drg-list">${dragonCard(st,d,own,L)}</div>${originHTML(st,d,false)}<div class="actions" style="justify-content:flex-start"><button class="btn ghost sm" data-act="drgpanel" data-v="journal">📓 Журнал скрещиваний</button><button class="btn ghost sm" data-act="drgpanel" data-v="breed">🥚 Скрещивание</button></div></section>`}
   const b=st.bld.find(x=>x.id===S.drgSel);
   if(!b)return S.drgFull?'':`<p class="muted small drg-tip">${own?'Нажмите на здание, чтобы собрать золото, покормить драконов или посадить корм.':'Это остров ученицы, здесь можно только смотреть.'}</p>`;
   const T=E.TYPES[b.type],job=b.build||b.up;
@@ -397,7 +455,7 @@ function panel(st,c,own){
   if(T.kind==='hatch'&&!b.build)h+=hatchHTML(st,b,c,own);
   if(own){const nx=(E.lvTable(b.type)||[])[b.lvl+1];
     const upWhy=!nx?'':nx.L&&L<nx.L?`${b.lvl+1}-й уровень с ${nx.L}-го уровня острова`:b.type==='hatch'&&b.lvl===1&&!st.slot7?`Сначала второе место за серию ${E.SLOT7} дней подряд`:'';
-    h+=`<div class="actions" style="justify-content:flex-start">${nx&&!job?`<button class="btn ghost sm" data-act="drgdo" data-t="upgrade" data-id="${b.id}"${upWhy?' disabled':''}>Улучшить до ${b.lvl+1}-го: ${fmt(nx.cost)} 🪙, ${nx.need} к.${T.kind==='hab'?` (мест ${nx.cap}, сундук ${fmt(nx.chest)})`:T.kind==='farm'?` (грядок ${nx.plots})`:` (мест для яиц ${nx.slots}${b.id===E.firstHatch(st)?' + место за серию':''})`}</button>${upWhy?`<span class="drg-why">${upWhy}</span>`:''}`:''}<button class="btn ghost sm" data-act="drgmove" data-id="${b.id}">Переместить</button></div>`}
+    h+=`<div class="actions" style="justify-content:flex-start">${nx&&!job?`<button class="btn ghost sm" data-act="drgdo" data-t="upgrade" data-id="${b.id}"${upWhy?' disabled':''}>Улучшить до ${b.lvl+1}-го: ${fmt(nx.cost)} 🪙, ${nx.need} к.${T.kind==='hab'?` (мест ${nx.cap}, сундук ${fmt(nx.chest)})`:T.kind==='farm'?` (грядок ${nx.plots})`:` (мест для яиц ${nx.slots}${b.id===E.firstHatch(st)?' + место за серию':''})`}</button>${upWhy?`<span class="drg-why">${upWhy}</span>`:''}`:''}<button class="btn ghost sm" data-act="drgmove" data-id="${b.id}" title="Клавиша G" aria-keyshortcuts="G">Переместить</button></div>`}
   return h+`</section>`}
 
 /* золото дракона за следующую карточку: удвоение и ступень лесенки сегодняшнего дня (одна десятая) */
@@ -413,6 +471,7 @@ function dragonCard(st,d,own,L){
   <div class="drg-dl"><span>${d.lvl}-й уровень, ${W.STAGE_NAME[W.stageOf(d.lvl)]}${ms?`, ${E.MASTERY[ms]}`:''}</span><span class="drg-pips" title="Кормлений до следующего уровня">${Array.from({length:E.FEEDS},(_,i)=>`<i${i<(d.fed||0)?' class="on"':''}></i>`).join('')}</span><span class="muted">+${goldTxt(st,d)} 🪙 за карточку</span></div>
   <ul>${W.describe(ph).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
   <p class="muted small" style="margin:4px 0 0">${home?'Живёт: '+E.TYPES[home.type].name:d.nurs?`В яслях Инкубатора, ждёт дом: ${E.habNames(ph)}`:'Без дома'}${d.parents?` · ${d.gen}-е поколение, родители ${d.parents.map(id=>esc(dname(st,id))).join(' × ')}`:d.from==='market'?' · с рынка':''}</p>
+  ${d.parents?`<button class="btn ghost sm drg-origb" data-act="drgorig" data-dragon="${d.id}">🧬 Как получился: гены от родителей</button>`:''}
   ${own?`<p class="muted small drg-feedi">${d.lvl<cap?`Кормлений до ${d.lvl+1}-го уровня: ${d.fed||0} из ${E.FEEDS}, ещё ${E.FEEDS-(d.fed||0)} по ${cost} 🌾 корма.`:d.lvl>cap?`Уровень ${d.lvl} выше нынешнего предела острова (${cap}-й): уровень сохраняется, кормить дальше можно, когда предел его догонит.`:`Достигнут предел: ${cap}-й уровень.`} ${cap<E.DRAGON_MAX?`На острове ${L}-го уровня драконы растут до ${cap}-го${capAt(cap)?`, предел поднимется на ${capAt(cap)}-м уровне острова`:''}.`:'Это наибольший уровень драконов в игре.'}${fp.catchUp&&d.lvl<cap?` Догоняющий рост: этот дракон отстаёт от самого сильного на ${E.ECON.catchUp.gap}+ уровней, корм вдвое дешевле (${cost} вместо ${fp.full}).`:''}</p>`:''}
   ${own?`<div class="drg-da">${d.lvl<cap?`<button class="btn sm" data-act="drgdo" data-t="feed" data-dragon="${d.id}"${st.bal.food<cost?' disabled':''}>Покормить: ${cost} 🌾</button>${st.bal.food<cost?`<span class="drg-why">Корма ${fmt(st.bal.food)} из ${cost}. Корм растёт на ферме и приходит паёк за день с карточками.</span>`:''}`:`<span class="muted small">${cap<20?`Следующий уровень откроется, когда остров дорастёт до ${L+1}-го уровня`:'Дракон вырос до наибольшего уровня'}</span>`}
   ${homes.map(b=>`<button class="btn ghost sm" data-act="drgdo" data-t="place" data-dragon="${d.id}" data-home="${b.id}">Переселить: ${E.TYPES[b.type].name}</button>`).join('')}
@@ -506,8 +565,46 @@ function hatchHTML(st,b,c,own){
     if(!eg)return `<div class="drg-plot"><b>Место ${i+1}</b><span class="muted small">Пусто. Яйца приходят из Гнездовья.</span></div>`;
     const rd=E.ready(eg,K),lf=E.left(eg,K);
     return `<div class="drg-plot${rd?' ready':''}"><span class="drg-egg"><svg viewBox="-14 -16 28 32" width="34" height="40" aria-hidden="true">${I.eggSVG(0,0,eg)}</svg><b>Яйцо №${eg.n}</b></span><span class="muted small">${esc(dname(st,eg.m))} ♀ × ${esc(dname(st,eg.f))} ♂</span><span class="drg-bar"><i style="width:${Math.min(100,(eg.need-lf)/eg.need*100)}%"></i></span><span class="muted small">${rd?'Готово!':`До вылупления ${cardsAcc(lf)}`}</span>
+      ${eg.viable?`<span class="muted small drg-eggg">🧬 Генотип птенца определился при слиянии гамет; цвет крапинок — его стихия.</span>`:`<span class="drg-why">🧬 Яйцо не развивается: птенец получил летальный аллель Wg и от матери, и от отца (Wg/Wg). У двух носителей Wg/+ так в среднем с каждым четвёртым яйцом.</span>`}
       ${rd?hatchWhy(st,eg):''}
       ${own?(rd?`<button class="btn sm" data-act="drgdo" data-t="hatch" data-id="${b.id}" data-plot="${i}"${hatchBlocked(st,eg)?' disabled':''}>Вылупить</button>`:`<button class="btn ghost sm" data-act="drgdo" data-t="speed" data-id="${b.id}" data-plot="${i}">Ускорить за ${Math.ceil(lf/E.SKIP_CARDS)} 💎</button>`):''}</div>`}).join('')}${lockedSlotHTML(st,b,c)}</div>`}
+
+/* ---------- «Как получился этот дракон» (5.0): происхождение по генам из движка (DRG.origin) ----------
+   Какой аллель пришёл от матери и какой от отца, что из этого видно, по какому правилу; был ли кроссинговер в мейозе
+   родителя между сцепленными генами, где новая мутация, как определился пол. Частоты — числа модели, а не природы */
+const ELN={F:'Огонь',W:'Вода',T:'Земля',A:'Воздух',P:'Флора',L:'Свет',D:'Тьма',e:'нет стихии','0':'нет'};
+const GENE_RULE={E:'кодоминирование: видны обе стихии, e рецессивен',E2:'вторая стихия добавляется к первой (кодоминирование), 0 ничего не даёт',
+  S:'эпистаз: ss гасит любую стихию, дракон дремлет',C:'серия аллелей: C (тёмный) > Cb (бронзовый) > c (бледный)',H:'полное доминирование: с H рога есть',
+  K:'полное доминирование: с K булава есть; ген сцеплен с H на хромосоме A3',R:'неполное доминирование: R1R1 большой гребень, R1R2 средний, R2R2 нет',
+  Wg:'доминантный с летальным действием: Wg/+ короткие крылья, Wg/Wg погибает в яйце',Q1:'полигенный признак: каждый «+» даёт 0,5 м размаха',
+  Q2:'полигенный признак: каждый «+» даёт 0,5 м размаха',Q3:'полигенный признак: каждый «+» даёт 0,5 м размаха',
+  M:'сцеплен с полом (Z): M доминирует, чешуя блестит',N:'сцеплен с полом (Z), рецессивный: ночное зрение у nn и у самки с одной n',
+  Sp:'на W: шпоры только у самок, от матери к дочери',G:'в митохондриях: только от матери'};
+function geneSeen(l,ph){switch(l){
+  case 'E':case 'E2':return ph.breath==='element'?ph.elements.map(e=>ELN[e]).join(', '):ph.breath==='smoke'?'дым без стихии':'стихия спит (нет искры)';
+  case 'S':return ph.breath==='dormant'?'искры нет':'искра есть';case 'C':return {dark:'тёмный окрас',bronze:'бронзовый окрас',pale:'бледный окрас'}[ph.color];
+  case 'H':return ph.horns?'рога есть':'рогов нет';case 'K':return ph.mace?'булава есть':'булавы нет';case 'R':return {big:'большой гребень',mid:'средний гребень',none:'гребня нет'}[ph.crest];
+  case 'Wg':return ph.shortWings?'короткие крылья':'обычные крылья';case 'Q1':case 'Q2':case 'Q3':return `размах ${String(ph.spanM).replace('.',',')} м (всего «+»: ${ph.span})`;
+  case 'M':return ph.metal?'блеск есть':'блеска нет';case 'N':return ph.night?'ночное зрение есть':'ночного зрения нет';case 'Sp':return ph.spurs?'шпоры есть':'шпор нет';case 'G':return ph.glow?'глаза светятся':'глаза не светятся'}return ''}
+function originHTML(st,d,open){if(!d.parents||!G.origin)return '';
+  const all=st.dragons.concat(st.gone||[]),mo=all.find(x=>x.id===d.parents[0]),fa=all.find(x=>x.id===d.parents[1]),g=d.genome,ph=phOf(d);
+  const o=G.origin(g,mo&&mo.genome,fa&&fa.genome),al=(l,a)=>a==null?'—':(l==='E'||l==='E2')?`${esc(a)} <small>${ELN[a]||''}</small>`:esc(a);
+  const nm=l=>G.LOCI[l].name,who={m:'матери',f:'отца'},hom={m:'гомозиготна',f:'гомозиготен'};
+  const sex=g.sex==='F'?`<p><b>Пол.</b> Самка (ZW): W от матери, Z от отца. У драконов, как у птиц, пол определяет мать: в её яйцеклетку попадает Z или W, половина на половину.</p>`
+    :`<p><b>Пол.</b> Самец (ZZ): одна Z от матери, другая от отца. Пол определила яйцеклетка матери: в неё попала Z, а не W.</p>`;
+  const rows=o.genes.map(x=>`<tr><th scope="row">${esc(nm(x.locus))} <small>${esc(x.chr)}</small></th><td>${al(x.locus,x.m)}</td><td>${x.chr==='W'||x.chr==='mt'?'—':al(x.locus,x.f)}</td><td>${esc(geneSeen(x.locus,ph))}<small class="drg-gr">${esc(GENE_RULE[x.locus]||'')}</small></td></tr>`).join('');
+  const cr=o.cross.map(c=>{const A=nm(c.a),B=nm(c.b),p=Math.round(c.r*100);
+    return `<li class="${c.state}">${c.state==='rec'?`<b>Кроссинговер в мейозе ${who[c.who]}</b> между генами «${esc(A)}» и «${esc(B)}» (хромосома ${c.chr}): аллели этих генов пришли с разных хромосом ${who[c.who]}. В модели так в ${p} % гамет.`
+      :c.state==='par'?`Мейоз ${who[c.who]}: «${esc(A)}» и «${esc(B)}» перешли вместе, как лежали на одной хромосоме, без перекреста (в модели так в ${100-p} % гамет).`
+      :c.state==='hom'?`«${esc(A)}» и «${esc(B)}» у ${who[c.who]}: родитель ${hom[c.who]} хотя бы по одному гену, поэтому был ли перекрёст, по птенцу не видно.`
+      :`«${esc(A)}» и «${esc(B)}» у ${who[c.who]}: здесь новая мутация, перекрёст не определить.`}</li>`}).join('');
+  const mu=o.mut.map(m=>`<li class="mut"><b>Новая мутация</b> в гамете ${who[m.who]}: ген «${esc(nm(m.locus))}», аллель ${esc(m.a)} — его не было ни на одной хромосоме ${who[m.who]}. В модели мутация случается в 1 гене из 400 в каждой гамете.</li>`).join('');
+  const lost=!mo||!fa?`<p class="muted small">Геном ${!mo&&!fa?'родителей':!mo?'матери':'отца'} не сохранился, поэтому перекрёсты и мутации показаны не полностью.</p>`:'';
+  return `<details class="drg-orig" data-k="orig-${esc(d.id)}"${open?' open':''}><summary>🧬 Откуда у ${esc(d.name)} эти признаки</summary>
+    <p class="muted small">Каждая хромосома пары пришла от одного родителя: ♀ — аллель от матери ${esc(mo?mo.name:'?')}, ♂ — от отца ${esc(fa?fa.name:'?')}. Яйцо получилось слиянием двух гамет, и каждая гамета — результат мейоза.</p>
+    ${sex}<div class="drg-ot"><table><thead><tr><th>Ген</th><th>♀ от матери</th><th>♂ от отца</th><th>что видно</th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${cr||mu?`<h4>Что произошло в мейозе</h4><ul class="drg-cr">${cr}${mu}</ul>`:''}${lost}
+    <p class="muted small">Митохондрии и W-хромосома в паре не бывают: обе передаются только от матери. Числа модели (18 % перекрёстов между рогами и булавой, 10 % между блеском и ночным зрением, 1/400 мутаций) выбраны для игры; сами механизмы — как в природе.</p></details>`}
 
 /* ---------- «Скрещивание»: путь к первому потомку и всё о парах и яйцах ----------
    Шаги считает E.breedPath по настоящему состоянию; у каждого шага ближайшее действие и причина, если оно закрыто. */
@@ -643,7 +740,7 @@ function moreHTML(st,own,c){const it=(act,v,ic,t,d)=>`<button class="drg-mi" dat
   return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>Ещё</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div>${c?scalesHTML(st,c):''}<div class="drg-menu">
   ${own?it('drgpanel','market','🐉','Рынок драконов','купить дракона одной стихии'):''}${it('drgpanel','journal','📓','Журнал скрещиваний','потомство пар и доли признаков')}
   ${it('drgpanel','blds','▤','Мои постройки','список зданий: открыть любое')}${it('drgzoom','fit','⤢','Весь остров','вернуть вид целиком')}
-  ${own?(()=>{const t=todoInfo(st,c);return it('drgpanel','pz','🧩','Головоломки дня',t.pz?`осталось ${t.pz} из 3 сегодня · по ${window.DRPZ?DRPZ.REWARD:100} 🪙`:'на сегодня всё решено, завтра новые')
+  ${own?(()=>{const t=todoInfo(st,c);return it('drgpanel','pz','🧩','Головоломки дня',t.pz?`осталось ${t.pz} из 3 сегодня · от лёгкой к сложной, 60–140 🪙`:'на сегодня всё решено, завтра новые')
     +it('drgpanel','week','📜','Задания недели',t.wq||t.gift?`можно забрать: ${t.wq+t.gift}`:'три задания с наградой')})():''}
   ${it('drgpanel','top','🏆','Рейтинг островов','уровни, звёзды похода, в гости')}
   ${it('drgpanel','research','🔬','Цели исследования','разовые награды за открытия в разведении')}
@@ -710,7 +807,8 @@ new MutationObserver(()=>{const m=document.querySelector('.drg-map');if(!m||m.da
 /* ---------- остров на весь экран: панорама и масштаб ----------
    Камера живёт вне HTML (S.drgCam), чтобы перерисовка не сбрасывала положение; применяется после каждой перерисовки. */
 const cam=()=>S.drgCam||(S.drgCam={z:0,x:0,y:0});
-function camBox(){const m=document.querySelector('.drg-map.full');return m?m.getBoundingClientRect():null}
+function camBox(){const m=document.querySelector('.drg-world');return m?m.getBoundingClientRect():null}
+const inMap=t=>t&&t.closest&&t.closest('.drg-world,.drg-map.full');
 /* рисунок острова в координатах SVG → пиксели сцены до камеры (viewBox с meet) */
 /* полный вид острова: растёт вместе с открытыми кольцами земли (I.viewOf), берётся для того же документа, что и границы */
 const VB={d:null,v:null};
@@ -748,24 +846,35 @@ const ZMIN=0.5,ZMAX=5;
 const fitKind=r=>r.width<700?'key':'whole';
 function camFit(r,keepZ,kind){const c=cam(),M=svgMap(r),B=islBounds(kind||'whole'),F=freeRect(r),fw=F.x1-F.x0,fh=F.y1-F.y0;
   if(!keepZ)c.z=Math.max(ZMIN,Math.min(ZMAX,fw/(B[2]*M.s0),fh/(B[3]*M.s0)));
-  c.x=(F.x0+fw/2)-c.z*M.x(B[0]+B[2]/2);c.y=(F.y0+fh/2)-c.z*M.y(B[1]+B[3]/2);c.W=r.width;c.H=r.height;c.auto=!keepZ}
+  c.x=(F.x0+fw/2)-c.z*M.x(B[0]+B[2]/2);c.y=(F.y0+fh/2)-c.z*M.y(B[1]+B[3]/2);c.W=r.width;c.H=r.height;c.auto=!keepZ;
+  if(!keepZ)c.f=[c.x,c.y,c.z]}   /* вид «по острову»: от него считается сдвиг фона (параллакс) */
 /* камера не уводит остров за край: хотя бы четверть его ширины и высоты остаётся в свободной части */
 function camClamp(c,r){c.z=Math.max(ZMIN,Math.min(ZMAX,c.z));const M=svgMap(r),B=islBounds('whole'),F=freeRect(r);
   const x0=c.x+c.z*M.x(B[0]),x1=c.x+c.z*M.x(B[0]+B[2]),y0=c.y+c.z*M.y(B[1]),y1=c.y+c.z*M.y(B[1]+B[3]),mx=(x1-x0)/4,my=(y1-y0)/4;
   if(x1<F.x0+mx)c.x+=F.x0+mx-x1;if(x0>F.x1-mx)c.x-=x0-(F.x1-mx);if(y1<F.y0+my)c.y+=F.y0+my-y1;if(y0>F.y1-my)c.y-=y0-(F.y1-my)}
-function camApply(){const st=document.querySelector('.drg-map.full .drg-stage'),r=camBox();if(!st||!r)return;const c=cam();
+function camApply(){const st=document.querySelector('.drg-world .drg-stage'),r=camBox();if(!st||!r)return;const c=cam();
   if(!c.z)camFit(r,false,fitKind(r));
   else if(c.W&&(Math.abs(c.W-r.width)>1||Math.abs(c.H-r.height)>1)){
     /* поворот телефона или новое окно: нетронутый вид подгоняется заново, сдвинутый сохраняет точку в центре */
     if(c.auto)camFit(r,false,fitKind(r));else{const o=svgMap({width:c.W,height:c.H}),n=svgMap(r),u=((c.W/2-c.x)/c.z-o.x(0))/o.s0,v=((c.H/2-c.y)/c.z-o.y(0))/o.s0;
       c.x=r.width/2-c.z*n.x(u);c.y=r.height/2-c.z*n.y(v);c.W=r.width;c.H=r.height}}
   camClamp(c,r);
-  st.style.transform=`translate(${c.x.toFixed(1)}px,${c.y.toFixed(1)}px) scale(${c.z.toFixed(3)})`;
+  const tr=`translate(${c.x.toFixed(1)}px,${c.y.toFixed(1)}px) scale(${c.z.toFixed(3)})`;
+  const moved=st.style.transform!==tr;if(moved)st.style.transform=tr;
+  /* фон за островом движется медленнее камеры: далёкие острова и облака дают глубину */
+  const bgs=st.parentElement.querySelector('.drg-bgs');
+  if(bgs){if(!c.f)c.f=[c.x,c.y,c.z];const F0=c.f,k=0.32,zb=F0[2]*Math.pow(c.z/F0[2],k),Sx=r.width/2,Sy=r.height/2,
+      ux=(Sx-c.x)/c.z,uy=(Sy-c.y)/c.z,u0x=(Sx-F0[0])/F0[2],u0y=(Sy-F0[1])/F0[2],bx=u0x+(ux-u0x)*k,by=u0y+(uy-u0y)*k;
+    const tb=`translate(${(Sx-zb*bx).toFixed(1)}px,${(Sy-zb*by).toFixed(1)}px) scale(${zb.toFixed(3)})`;if(bgs.style.transform!==tb)bgs.style.transform=tb}
+  /* после изменения масштаба остров растрируется заново под новый размер (иначе слой с will-change остаётся мыльным) */
+  if(c.lz==null)c.lz=c.z;
+  else if(Math.abs(c.lz-c.z)>1e-4){c.lz=c.z;clearTimeout(camApply.rr);camApply.rr=setTimeout(()=>{const s2=document.querySelector('.drg-world .drg-stage');if(!s2)return;
+    s2.style.willChange='auto';requestAnimationFrame(()=>requestAnimationFrame(()=>{s2.style.willChange=''}))},260)}
   /* мелко: подписи построек прячутся, чтобы не слипались */
   const m=st.parentElement,px=svgMap(r).s0*c.z,lo=px<0.42;if(m.classList.contains('zlo')!==lo)m.classList.toggle('zlo',lo);
   /* подписи построек держат экранный размер около 11 px при любом масштабе */
   st.style.setProperty('--lz',Math.max(0.45,Math.min(1.6,11/(12*px))).toFixed(3));
-  if(window.DRLIVE)DRLIVE.wake()}   /* при «меньше движения» живые драконы перерисовываются только так */
+  if(window.DRLIVE){if(moved&&DRLIVE.cam)DRLIVE.cam();else DRLIVE.wake()}}   /* камера сдвинулась: драконы и эффекты в том же кадре, что и остров */
 /* выбранная постройка не прячется под панелью: если её не видно, остров сдвигается, масштаб тот же */
 function camShow(id){const r=camBox(),x=stateOf(S.drgUid||meId());if(!r||!x)return;const b=x.st.bld.find(z=>z.id===id);if(!b||E.isleOf(b)!==curIsle(x.st))return;
   const c=cam(),M=svgMap(r),F=freeRect(r),p=I.P(b.x+1,b.y+1),sx=c.x+c.z*M.x(p[0]),sy=c.y+c.z*M.y(p[1]-30);
@@ -773,7 +882,7 @@ function camShow(id){const r=camBox(),x=stateOf(S.drgUid||meId());if(!r||!x)retu
 function camZoom(px,py,f){const r=camBox();if(!r)return;const c=cam(),nz=Math.max(ZMIN,Math.min(ZMAX,c.z*f)),k=nz/c.z;c.x=px-(px-c.x)*k;c.y=py-(py-c.y)*k;c.z=nz;c.auto=false;camApply()}
 const ptrs=new Map();let moved=0,lastDrag=0,pinch=null;
 const onHud=t=>t.closest&&t.closest('.drg-hud,.drg-dock,.drg-svw,.drg-zm,.drg-place,.drg-pan');
-window.addEventListener('pointerdown',e=>{const m=e.target.closest&&e.target.closest('.drg-map.full');if(!m||onHud(e.target))return;
+window.addEventListener('pointerdown',e=>{const m=inMap(e.target);if(!m||onHud(e.target))return;
   ptrs.set(e.pointerId,[e.clientX,e.clientY]);if(ptrs.size===1)moved=0;if(ptrs.size===2){const [a,b]=[...ptrs.values()];pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1])}}});
 window.addEventListener('pointermove',e=>{const p=ptrs.get(e.pointerId);if(!p)return;const r=camBox();if(!r){ptrs.clear();return}
   const dx=e.clientX-p[0],dy=e.clientY-p[1];ptrs.set(e.pointerId,[e.clientX,e.clientY]);
@@ -783,18 +892,57 @@ window.addEventListener('pointermove',e=>{const p=ptrs.get(e.pointerId);if(!p)re
 const ptrUp=e=>{if(!ptrs.has(e.pointerId))return;ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=null;if(moved>6)lastDrag=Date.now()};
 window.addEventListener('pointerup',ptrUp);window.addEventListener('pointercancel',ptrUp);
 /* после перетаскивания отпускание кнопки не считается нажатием на здание */
-window.addEventListener('click',e=>{if(Date.now()-lastDrag<350&&e.target.closest&&e.target.closest('.drg-map.full')&&!onHud(e.target)){e.stopPropagation();e.preventDefault()}},true);
-window.addEventListener('wheel',e=>{const m=e.target.closest&&e.target.closest('.drg-map.full');if(!m||onHud(e.target))return;e.preventDefault();
+window.addEventListener('click',e=>{if(Date.now()-lastDrag<350&&inMap(e.target)&&!onHud(e.target)){e.stopPropagation();e.preventDefault()}},true);
+window.addEventListener('wheel',e=>{const m=inMap(e.target);if(!m||onHud(e.target))return;e.preventDefault();
   const r=camBox();
   /* 4.2: щипок на трекпаде и колесо с ⌘/Ctrl — масштаб; обычная прокрутка двумя пальцами или колесом двигает остров */
   if(e.ctrlKey||e.metaKey){camZoom(e.clientX-r.left,e.clientY-r.top,Math.exp(-e.deltaY*(e.ctrlKey&&!e.metaKey&&Math.abs(e.deltaY)<50?0.012:0.0018)));return}
   const k=e.deltaMode===1?18:1,c=cam();c.x-=e.deltaX*k;c.y-=e.deltaY*k;c.auto=false;camApply()},{passive:false});
-/* головоломки с клавиатуры (4.4): цифры 1–5 в выбранную клетку, Backspace стирает, стрелки двигают выбор */
-document.addEventListener('keydown',e=>{if(S.drgPanel!=='pz'||!S.pzSel||e.metaKey||e.ctrlKey||e.altKey)return;const k=e.key,s0=S.pzSel;
-  const t=e.target;if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'))return;
-  if(/^[1-5]$/.test(k)||k==='Backspace'||k==='Delete'||k==='0'){e.preventDefault();e.stopPropagation();window.DRG_ACTIONS.drgpzn({dataset:{k:s0.k,n:/^[1-5]$/.test(k)?k:'0'}});render();return}
+/* головоломки с клавиатуры (5.0): цифры в выбранную клетку, Backspace/Delete стирает, стрелки двигают выбор (с нуля — от левого верхнего угла),
+   N — заметки, пробел меняет цифру Бинарио, ⌘/Ctrl+Z — отменить ход */
+document.addEventListener('keydown',e=>{if(S.drgPanel!=='pz'||e.altKey||!window.DRPZ)return;const k=e.key,t=e.target;
+  if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.isContentEditable))return;
+  const kind=S.pzTab;if(!kind)return;const c=ctxOf(meId());if(!c)return;const p=pzOf(c,kind);if(!p)return;
+  const st=stateOf(meId());if(st&&st.st.pz&&st.st.pz.d===c.today&&st.st.pz.done.includes(kind))return;
+  const stop=()=>{e.preventDefault();e.stopPropagation()};
+  if((e.metaKey||e.ctrlKey)&&(k==='z'||k==='Z'||k==='я'||k==='Я')){stop();window.DRG_ACTIONS.drgpzu({dataset:{k:kind}});render();return}
+  if(e.metaKey||e.ctrlKey)return;
   const mv={ArrowLeft:[0,-1],ArrowRight:[0,1],ArrowUp:[-1,0],ArrowDown:[1,0]}[k];
-  if(mv){e.preventDefault();e.stopPropagation();S.pzSel={k:s0.k,i:Math.max(0,Math.min(4,s0.i+mv[0])),j:Math.max(0,Math.min(4,s0.j+mv[1]))};render()}},true);
+  if(mv){stop();const s0=S.pzSel&&S.pzSel.k===kind?S.pzSel:null;S.pzSel=s0?{k:kind,i:Math.max(0,Math.min(p.N-1,s0.i+mv[0])),j:Math.max(0,Math.min(p.N-1,s0.j+mv[1]))}:{k:kind,i:0,j:0};render();
+    setTimeout(()=>{const b=document.querySelector(`.pzc[data-k="${kind}"][data-i="${S.pzSel.i}"][data-j="${S.pzSel.j}"]`);if(b&&!b.disabled)b.focus({preventScroll:true})},30);return}
+  if(k==='n'||k==='N'||k==='т'||k==='Т'){if(p.kind!=='bin'){stop();S.pzNote=!S.pzNote;render()}return}
+  if(!S.pzSel||S.pzSel.k!==kind)return;
+  const dig=p.kind==='bin'?/^[01]$/:/^[1-5]$/;
+  let n=null;if(dig.test(k))n=k;else if(k==='Backspace'||k==='Delete'||(p.kind!=='bin'&&k==='0'))n='x';else if(k===' '&&p.kind==='bin')n='~';
+  if(n==null)return;stop();const err=pzInput(kind,n);if(err)toast(err);render()},true);
+/* ячейки для переноса и курсор клавиатуры */
+function placeSlots(){const x=stateOf(meId()),p=S.drgPlace;if(!x||!p)return [];return E.freeSlots(viewSt(x.st),p.move||null)}
+function placeAt(p){const pl=S.drgPlace;if(!pl)return;pl.cur={x:p.x,y:p.y};
+  /* курсор не уходит за край экрана: остров сдвигается, масштаб тот же */
+  const r=camBox();if(!r)return;const c=cam(),M=svgMap(r),F=freeRect(r),q=I.P(p.x+1,p.y+1),sx=c.x+c.z*M.x(q[0]),sy=c.y+c.z*M.y(q[1]);
+  if(sx<F.x0+60||sx>F.x1-60||sy<F.y0+60||sy>F.y1-60){c.x+=(F.x0+F.x1)/2-sx;c.y+=(F.y0+F.y1)/2-sy;c.auto=false}}
+/* первая ячейка: сама переносимая постройка (её место свободно для неё же), иначе ближайшая к середине экрана */
+function placeStart(){const sl=placeSlots();if(!sl.length)return;const pl=S.drgPlace,x=stateOf(meId());
+  const b=pl.move&&x&&x.st.bld.find(z=>z.id===pl.move),own=b&&sl.find(q=>q.x===b.x&&q.y===b.y);if(own)return placeAt(own);
+  const r=camBox(),c=cam();if(!r)return placeAt(sl[0]);const M=svgMap(r),cx=r.width/2,cy=r.height/2;
+  placeAt(sl.slice().sort((a,b)=>{const d=q=>{const p=I.P(q.x+1,q.y+1);return Math.hypot(c.x+c.z*M.x(p[0])-cx,c.y+c.z*M.y(p[1])-cy)};return d(a)-d(b)})[0])}
+function placeKeys(e,k){const x=stateOf(meId()),own=(S.drgUid||meId())===meId();if(!own||!x)return false;
+  const t=e.target,inPan=t&&t.closest&&t.closest('#main>.drg-pan');
+  if(!S.drgPlace){
+    if(k!=='g'&&k!=='G'&&k!=='п'&&k!=='П')return false;
+    const f=document.activeElement&&document.activeElement.closest&&document.activeElement.closest('.drg-b[data-id]'),id=S.drgSel||(f&&f.dataset.id);
+    if(!id){e.preventDefault();toast('Выберите постройку (нажмите на неё или Tab), потом G — перенести');return true}
+    e.preventDefault();onIsleOf(id);S.drgPlace={move:id};S.drgSel=null;S.drgPanel=null;placeStart();render();return true}
+  if(inPan)return false;
+  const pl=S.drgPlace,dir={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[k];
+  if(dir){e.preventDefault();const sl=placeSlots();if(!sl.length)return true;if(!pl.cur||!sl.some(q=>q.x===pl.cur.x&&q.y===pl.cur.y)){placeStart();render();return true}
+    const p0=I.P(pl.cur.x+1,pl.cur.y+1);let best=null,bs=1e9;
+    sl.forEach(q=>{if(q.x===pl.cur.x&&q.y===pl.cur.y)return;const p=I.P(q.x+1,q.y+1),dx=p[0]-p0[0],dy=(p[1]-p0[1])*2,al=dx*dir[0]+dy*dir[1],pe=Math.abs(dx*dir[1]-dy*dir[0]);
+      if(al<=4)return;const sc=al+pe*2.2;if(sc<bs){bs=sc;best=q}});
+    if(best){placeAt(best);render()}return true}
+  if(k==='Enter'||k===' '){if(!pl.cur)return false;e.preventDefault();window.DRG_ACTIONS.drgtile({dataset:{x:pl.cur.x,y:pl.cur.y}});render();return true}
+  if(k==='a'||k==='A'||k==='ф'||k==='Ф'){e.preventDefault();window.DRG_ACTIONS.drgauto();render();return true}
+  return false}
 /* клавиатура на острове (4.2): масштаб (и ⌘/Ctrl +/−, чтобы не увеличивалась вся страница), стрелки, буквы разделов */
 document.addEventListener('keydown',e=>{
   if(!(S.drgFull&&S.view==='island')||document.querySelector('dialog[open],.dri,.drf'))return;
@@ -805,6 +953,9 @@ document.addEventListener('keydown',e=>{
   if(k==='-'||k==='_'||e.code==='NumpadSubtract')return zoom(1/1.25);
   if(k==='0'&&!e.altKey){e.preventDefault();camFit(r);camApply();return}
   if(mod||e.altKey)return;
+  /* 5.0: перенос и установка постройки с клавиатуры. G (П) — перенести выбранную или ту, что в фокусе;
+     стрелки — соседняя свободная ячейка в эту сторону экрана, Enter или пробел — поставить, A (Ф) — на свободное место, Esc — отмена */
+  if(placeKeys(e,k))return;
   const pan={ArrowLeft:[1,0],ArrowRight:[-1,0],ArrowUp:[0,1],ArrowDown:[0,-1]}[k];
   if(pan&&!(t&&t.closest&&t.closest('#main>.drg-pan'))){e.preventDefault();const c=cam();c.x+=pan[0]*80;c.y+=pan[1]*80;c.auto=false;camApply();return}
   if(t&&t.closest&&t.closest('#main>.drg-pan')&&k!=='?')return;
@@ -862,12 +1013,12 @@ document.addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;c
   if(t&&t.closest&&t.closest('svg.drg-isl')&&t.matches('[data-act][tabindex]')){e.preventDefault();t.dispatchEvent(new MouseEvent('click',{bubbles:true}))}});
 /* кто открыл панель: после закрытия фокус возвращается туда, при открытии уходит в заголовок панели */
 let navRet=null,navPan='';
-document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-act]');if(!b||!b.closest('.drg-map.full,#main>.drg-pan'))return;
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-act]');if(!b||!b.closest('.drg-world,.drg-map.full,#main>.drg-pan'))return;
   if(b.closest('.drg-pan'))return;const a=b.dataset.act;if(a==='drgpanel'||a==='drgsel')navRet={act:a,v:b.dataset.v||'',id:b.dataset.id||''}},true);
 function navFocus(){const k=(S.view==='island'&&S.drgFull?(S.drgPanel||'')+'|'+(S.drgSel||''):'');if(k===navPan)return;const was=navPan;navPan=k;
   if(k&&k!=='|'){const h=document.querySelector('#main>.drg-pan h2');if(h){h.tabIndex=-1;if(!h.contains(document.activeElement))h.focus({preventScroll:true})}}
-  else if(was&&was!=='|'&&navRet){const r=navRet;navRet=null;const q=r.id?`[data-act="${r.act}"][data-id="${r.id}"]`:`[data-act="${r.act}"][data-v="${r.v}"]`;const el=document.querySelector('.drg-map.full '+q);if(el)el.focus({preventScroll:true})}}
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.drgFull&&S.view==='island'&&!document.querySelector('dialog[open]')&&!document.querySelector('.dri,.drf')){if(S.drgPanel||S.drgSel){S.drgPanel=null;S.drgSel=null}else S.drgFull=false;render()}});
+  else if(was&&was!=='|'&&navRet){const r=navRet;navRet=null;const q=r.id?`[data-act="${r.act}"][data-id="${r.id}"]`:`[data-act="${r.act}"][data-v="${r.v}"]`;const el=document.querySelector('.drg-world '+q+',.drg-map.full '+q);if(el)el.focus({preventScroll:true})}}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.drgFull&&S.view==='island'&&!document.querySelector('dialog[open]')&&!document.querySelector('.dri,.drf')){if(S.drgPlace){S.drgPlace=null}else if(S.drgPanel||S.drgSel){S.drgPanel=null;S.drgSel=null}else S.drgFull=false;render()}});
 /* общие часы анимаций и классы body: на весь экран прокрутка страницы выключена, уведомления наверху */
 new MutationObserver(()=>{
   document.querySelectorAll('svg.drg-isl:not([data-clk])').forEach(el=>{el.dataset.clk='1';el.style.setProperty('--clk',(-performance.now()/1000).toFixed(2)+'s')});
@@ -957,17 +1108,21 @@ window.DRG_ACTIONS={
     let r=((S.drgTop||{}).rows||[]).find(x=>x.uid===u);if(!r){const x=await S.db.doc(`arena/${u}/isle/show`).get();r=x.exists?Object.assign({uid:u},x.data()):null}
     if(!r){toast('Этот остров ещё не открыт');return}
     S.drgVisits=S.drgVisits||{};S.drgVisits[u]=r;S.drgUid='v:'+u;S.view='island';S.drgFull=true;render()},
-  /* головоломки: выбор клетки, цифра, проверка, очистка */
-  drgpz:el=>{const k=el.dataset.k,i=+el.dataset.i,j=+el.dataset.j,c=ctxOf(meId()),p=DRPZ.make(k,DRPZ.seedOf(c.uid,c.today)),a=pzAns(c,p);
-    if(k==='bin'){if(p.given[i][j]!=null)return;a[i][j]=a[i][j]==null?0:a[i][j]===0?1:null;pzSave(c,k,a);return}
-    S.pzSel={k,i,j}},
-  drgpzn:el=>{const k=el.dataset.k,sel=S.pzSel;if(!sel||sel.k!==k){toast('Сначала выберите клетку');return}const c=ctxOf(meId()),p=DRPZ.make(k,DRPZ.seedOf(c.uid,c.today)),a=pzAns(c,p);
-    a[sel.i][sel.j]=+el.dataset.n;pzSave(c,k,a)},
-  drgpzr:el=>{const k=el.dataset.k,c=ctxOf(meId()),p=DRPZ.make(k,DRPZ.seedOf(c.uid,c.today));S.pzA=S.pzA||{};delete S.pzA[k];try{localStorage.removeItem(pzKey(c,k))}catch(e){}pzAns(c,p)},
-  drgpzc:el=>{const k=el.dataset.k,c=ctxOf(meId()),p=DRPZ.make(k,DRPZ.seedOf(c.uid,c.today)),a=pzAns(c,p);
+  /* головоломки: вкладка, выбор клетки (в Бинарио нажатие меняет цифру), цифра, заметки, отмена, очистка, проверка */
+  drgpztab:el=>{S.pzTab=el.dataset.k;S.pzSel=null},
+  drgpz:el=>{const k=el.dataset.k,i=+el.dataset.i,j=+el.dataset.j;S.pzTab=k;S.pzSel={k,i,j};
+    if(k==='bin'){const err=pzInput(k,'~');if(err)toast(err)}},
+  drgpzn:el=>{const err=pzInput(el.dataset.k,el.dataset.n);if(err)toast(err)},
+  drgpznote:()=>{S.pzNote=!S.pzNote},
+  drgpzu:el=>{const k=el.dataset.k,u=S.pzU&&S.pzU[k];if(!u||!u.length){toast('Отменять нечего');return}const c=ctxOf(meId()),p=pzOf(c,k),x=JSON.parse(u.pop());
+    S.pzA=S.pzA||{};S.pzM=S.pzM||{};S.pzA[k]={d:c.today,a:x.a};S.pzM[k]={d:c.today,m:x.m};pzSave(c,k,x.a,x.m);pzAns(c,p)},
+  drgpzr:el=>{const k=el.dataset.k,c=ctxOf(meId()),p=pzOf(c,k),a=pzAns(c,p),m=pzNotes(c,p);pzPush(k,a,m);
+    S.pzA=S.pzA||{};S.pzM=S.pzM||{};delete S.pzA[k];delete S.pzM[k];try{localStorage.removeItem(pzKey(c,k));localStorage.removeItem(pzKey(c,k)+':n')}catch(e){}pzAns(c,p);pzNotes(c,p);toast('Сетка очищена. «Отменить ход» вернёт её')},
+  drgpzc:el=>{const k=el.dataset.k,c=ctxOf(meId()),p=pzOf(c,k),a=pzAns(c,p);
     /* пустая клетка: в Бинарио — null (0 там законный ответ), в остальных — 0 */
-    if(a.some(r=>r.some(v=>v==null||(k!=='bin'&&v===0)))){toast('Заполните все клетки');return}
-    const r=act({t:'puzzle',kind:k,ans:a});if(r){S.pzSel=null;toast(`Решено! +${DRPZ.REWARD} 🪙`)}},
+    const left=a.flat().filter(v=>!pzHas(p,v)).length;if(left){toast(`Заполните все клетки: осталось ${left}`);return}
+    if(DRPZ.conflicts(p,a).length){toast('Есть нарушения правил: такие клетки подсвечены красным');return}
+    const g=DRPZ.rewardOf?DRPZ.rewardOf(k):DRPZ.REWARD,r=act({t:'puzzle',kind:k,ans:a});if(r){S.pzSel=null;S.pzNote=false;toast(`Решено! +${g} 🪙`)}},
   drgisle:el=>{S.drgIsle=el.dataset.v==='1'?1:0;S.drgSel=null;S.drgPanel=null;S.drgPlace=null;S.drgCam=null},
   drgisle2:()=>{const r=act({t:'isle2'});if(!r)return;S.drgIsle=1;S.drgPanel=null;S.drgCam=null;S.drgSel=null;toast(`🌋 ${E.ISLE2.name} открыт! Стройте на нём, когда на первом станет тесно`)},
   drginsp:inspect,
@@ -982,13 +1137,15 @@ window.DRG_ACTIONS={
   /* из ожидания на острове прямо к повторению: время острова идёт только в карточках */
   drgcards:()=>{S.drgFull=false;S.drgPanel=null;S.drgSel=null;S.drgPlace=null;S.view='cards';window.scrollTo(0,0)},
   drgbuild:el=>{S.drgPlace={type:el.dataset.type};S.drgPanel=null;S.drgSel=null;if(!S.drgFull)window.scrollTo(0,0)},
-  drgmove:el=>{onIsleOf(el.dataset.id);S.drgPlace={move:el.dataset.id};S.drgSel=null;if(!S.drgFull)window.scrollTo(0,0)},
+  drgmove:el=>{onIsleOf(el.dataset.id);S.drgPlace={move:el.dataset.id};S.drgSel=null;if(!S.drgFull)window.scrollTo(0,0);else placeStart()},
   drgcancel:()=>{S.drgPlace=null},
+  drgorig:el=>{S.drgOrig=el.dataset.dragon;S.drgPanel='orig';S.drgSel=null},
   /* то же, что нажать на клетку, но клетку выбирает игра: ближайшая к середине открытой земли. Путь для клавиатуры */
   drgauto:()=>{const p=S.drgPlace,x=stateOf(meId());if(!p||!x)return;const st=viewSt(x.st),C=E.CHUNK,cells=[];
     (st.land||[]).forEach(id=>{const [cx,cy]=id.split(',').map(Number);for(let i=0;i<C;i++)for(let j=0;j<C;j++)cells.push([cx*C+i,cy*C+j])});
     const m=cells.reduce((a,c)=>[a[0]+c[0]/cells.length,a[1]+c[1]/cells.length],[0,0]);
-    const ok=cells.filter(([i,j])=>E.canPlace(st,i,j,p.move||null)).sort((a,b)=>Math.hypot(a[0]-m[0],a[1]-m[1])-Math.hypot(b[0]-m[0],b[1]-m[1]));
+    /* 5.0: только свободные ячейки сетки (стройка и перенос притягиваются к ячейкам; произвольная клетка могла оказаться в занятой ячейке) */
+    const ok=E.freeSlots(st,p.move||null).map(q=>[q.x,q.y]).sort((a,b)=>Math.hypot(a[0]+1-m[0],a[1]+1-m[1])-Math.hypot(b[0]+1-m[0],b[1]+1-m[1]));
     if(!ok.length){toast(x.st.isl2||E.level(x.st)<E.ISLE2.L?'Свободного места нет: откройте участок или стройте на другом острове':`Свободного места нет: откройте участок или ${E.ISLE2.name} (кнопка 🌋)`);return}
     window.DRG_ACTIONS.drgtile({dataset:{x:ok[0][0],y:ok[0][1]}})},
   drgtile:el=>{const p=S.drgPlace;if(!p)return;const x=+el.dataset.x,y=+el.dataset.y;

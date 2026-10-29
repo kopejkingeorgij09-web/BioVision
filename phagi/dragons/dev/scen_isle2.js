@@ -16,7 +16,7 @@ module.exports=async(page,{OUT,need,store,UID,writes})=>{
   log('гнездовья',JSON.stringify(egg));need(egg.length&&egg.filter(e=>!/пара|яйцо/.test(e.lab)).every(e=>!e.egg),'в пустом Гнездовье нет яйца');
   /* «Весь остров»: кончик скалы в кадре на широком экране */
   if(W>=700){await page.click('.drg-zm [data-v=fit]');await w(700);
-    const tip=await page.evaluate(()=>{const sv=document.querySelector('.drg-map.full svg.drg-isl'),r=sv.getBoundingClientRect(),vb=sv.viewBox.baseVal,s=Math.min(r.width/vb.width,r.height/vb.height);
+    const tip=await page.evaluate(()=>{const sv=document.querySelector('.drg-world svg.drg-isl'),r=sv.getBoundingClientRect(),vb=sv.viewBox.baseVal,s=Math.min(r.width/vb.width,r.height/vb.height);
       const cl=[...sv.querySelectorAll('path')].filter(p=>/cliff2/.test(p.getAttribute('fill')||'')),y=Math.max(...cl.map(p=>{const b=p.getBBox();return b.y+b.height})),
       py=r.top+(r.height-vb.height*s)/2+(y-vb.y)*s;const d=document.querySelector('.drg-dock').getBoundingClientRect();/* на компьютере колонка слева: тогда предел — низ окна */
       return {py:Math.round(py),dock:Math.round(d.height>d.width?innerHeight-10:d.top),inVb:y<vb.y+vb.height}});
@@ -30,9 +30,9 @@ module.exports=async(page,{OUT,need,store,UID,writes})=>{
   log('драконы во дворах',JSON.stringify(yard.map(y=>y.id+':'+(y.ok?'ok':'OUT')+':'+y.how)));
   need(yard.length>0&&yard.every(y=>y.ok),'все драконы внутри своих вольеров');need(yard.some(y=>y.tex),'живые драконы нарисованы');
   /* переход на Огненный остров */
-  const n0g=await page.evaluate(()=>document.querySelectorAll('.drg-map.full .drg-b').length);
+  const n0g=await page.evaluate(()=>document.querySelectorAll('.drg-world .drg-b').length);
   await page.click('.drg-isw');await w(2200);
-  const lv=await page.evaluate(()=>({lava:!!document.querySelector('.drg-map.full.lava svg.drg-isl.lava'),blds:[...document.querySelectorAll('.drg-map.full .drg-b')].map(e=>e.getAttribute('aria-label').split(':')[0])}));
+  const lv=await page.evaluate(()=>({lava:!!document.querySelector('.drg-world.lava svg.drg-isl.lava'),blds:[...document.querySelectorAll('.drg-world .drg-b')].map(e=>e.getAttribute('aria-label').split(':')[0])}));
   log('Огненный остров',JSON.stringify(lv));need(lv.lava,'Огненный остров нарисован в лавовой теме');need(lv.blds.length===3,'на Огненном острове только его постройки');
   g=await geo();need(!g.ov.length,'на Огненном острове кнопки не перекрываются');
   await shot('1-lava');
@@ -48,7 +48,9 @@ module.exports=async(page,{OUT,need,store,UID,writes})=>{
   else need(false,'кнопка стройки фермы доступна');
   await shot('3-built');
   /* обратно на Зелёный: его постройки на месте */
+  /* на телефоне открытая панель новой постройки закрывает кнопку острова: сначала закрыть панель */
+  const x=await page.$('#main>.drg-pan [data-act=drgpanel][data-v=""],#main>.drg-pan [data-act=drgsel][data-id=""]');if(x){await x.click();await w(500)}
   await page.click('.drg-isw');await w(1500);
-  const back=await page.evaluate(()=>({lava:!!document.querySelector('svg.drg-isl.lava'),n:document.querySelectorAll('.drg-map.full .drg-b').length}));
+  const back=await page.evaluate(()=>({lava:!!document.querySelector('svg.drg-isl.lava'),n:document.querySelectorAll('.drg-world .drg-b').length}));
   log('обратно',JSON.stringify(back));need(!back.lava&&back.n===n0g,'Зелёный остров с прежними постройками');
 };

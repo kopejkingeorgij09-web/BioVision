@@ -319,10 +319,10 @@ t('задания недели (4.4): три задания, прогресс п
   const c2=ctx(0,{today:'2026-11-03',inc:{week:{cards:0}}});assert.ok(!E.wqProgress(s,c2,'cards1').got);assert.strictEqual(E.wqState(s,'2026-11-03').c.feed||0,0);
 });
 
-t('головоломки дня (4.4): верное решение даёт 100 золота один раз в день за каждую, неверное — ничего',()=>{
+t('головоломки дня (5.0): верное решение даёт золото по сложности (60, 100, 140) один раз в день за каждую, неверное — ничего',()=>{
   const P=require('./puzzles.js');let s=E.normalize(start0(founders()),0,null);const day='2026-10-28',c=ctx(0,{today:day,uid:'u1'});const g0=s.bal.gold;
   P.KINDS.forEach(k=>{const p=P.make(k.kind,P.seedOf('u1',day));const bad=p.sol.map(r=>r.slice());bad[0][0]=k.kind==='bin'?1-bad[0][0]:bad[0][0]%p.N+1;
-    assert.ok(E.apply(s,c,{t:'puzzle',kind:k.kind,ans:bad}).err);s=ok(E.apply(s,c,{t:'puzzle',kind:k.kind,ans:p.sol}));
+    assert.ok(E.apply(s,c,{t:'puzzle',kind:k.kind,ans:bad}).err);const g1=s.bal.gold;s=ok(E.apply(s,c,{t:'puzzle',kind:k.kind,ans:p.sol}));assert.strictEqual(s.bal.gold-g1,P.rewardOf(k.kind));
     assert.ok(E.apply(s,c,{t:'puzzle',kind:k.kind,ans:p.sol}).err,'второй раз за день нельзя')});
   assert.strictEqual(s.bal.gold,g0+300,'до 300 в день');
   const p2=P.make('sky',P.seedOf('u1','2026-10-29'));assert.ok(!E.apply(s,ctx(0,{today:'2026-10-29',uid:'u1'}),{t:'puzzle',kind:'sky',ans:p2.sol}).err,'на следующий день снова можно');

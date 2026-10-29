@@ -145,7 +145,7 @@ function piecesOf(G,R,d,p){
 /* ---------- кадр ----------
    view: матрица «единицы рисунка в мире → пиксели холста» (VIEW помогает её собрать). */
 function draw(ctx,X,pose,view,o){
-  if(X.fullArt){const im=X.fullArt,b=X.artBox,k=Math.min(b.w/im.width,b.h/im.height),w=im.width*k,h=im.height*k,m=mul(view,pose.body||[1,0,0,1,0,0]);ctx.save();ctx.globalAlpha=(o&&o.alpha!=null?o.alpha:1)*.22;ctx.setTransform(...view);ctx.fillStyle='#10202D';ctx.beginPath();ctx.ellipse(b.x+b.w/2,b.y+b.h,w*.35,Math.max(1,h*.035),0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=o&&o.alpha!=null?o.alpha:1;ctx.setTransform(...m);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";ctx.drawImage(im,b.x+(b.w-w)/2,b.y+b.h-h,w,h);ctx.restore();return}
+  if(X.fullArt){const im=X.fullArt,b=X.artBox,k=Math.min(b.w/im.width,b.h/im.height),w=im.width*k,h=im.height*k,m=mul(view,pose.body||[1,0,0,1,0,0]);ctx.save();ctx.globalAlpha=(o&&o.alpha!=null?o.alpha:1)*.22;ctx.setTransform(...view);ctx.fillStyle='#10202D';ctx.beginPath();ctx.ellipse(b.x+b.w/2+(pose.x||0),b.y+b.h,w*.35,Math.max(1,h*.035),0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=o&&o.alpha!=null?o.alpha:1;ctx.setTransform(...m);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";if(root.DRARTMOTION)root.DRARTMOTION.draw(ctx,im,{x:b.x+(b.w-w)/2,y:b.y+b.h-h,w,h},pose,Math.hypot(view[0],view[1])*w);else ctx.drawImage(im,b.x+(b.w-w)/2,b.y+b.h-h,w,h);ctx.restore();return}
 
   const K=o&&o.alpha!=null?o.alpha:1;
   ctx.save();
@@ -238,7 +238,7 @@ function VIEW(X,o){const z=X.s*(o.px||X.px)*(o.dpr||X.dpr);return [z,0,0,z,o.x0-
 const TEX=()=>root.DRTEX.shared;
 function keyOf(ph,lvl,opt){const p=Object.assign({},ph);delete p.spanM;return 'rig:'+JSON.stringify([p,root.MORPH.stageOf(lvl),opt.px||1,opt.dpr||1])+(opt.part?':'+opt.part:'')}
 function get(ph,lvl,opt){opt=opt||{};const k=keyOf(ph,lvl,opt);
-  if(root.DRELEMENT)return TEX().acquire(k,async()=>{const M=root.MORPH.morph(ph,lvl),G=root.SHAPE.build(M),art=await root.DRELEMENT.prepare(ph,lvl);return {key:k,fullArt:art,artBox:G.box,R:G.rig,P:root.ANIM.profile(M,G.rig),s:G.scale,px:opt.px||1,dpr:opt.dpr||1,parts:{},order:[],bytes:0,ms:0,fx:{puff:root.DRAW.EL_COL[ph.elements[0]]||'#A3A3A3',spark:'#FFE07A',dust:'#B8A68C',food:'#E2553A',z:'#24333C'}}});
+  if(root.DRELEMENT)return TEX().acquire(k,async()=>{const M=root.MORPH.morph(ph,lvl),G=root.SHAPE.build(M),art=await root.DRELEMENT.prepare(ph,lvl,{pixels:Math.max(G.box.w,G.box.h)*G.scale*(opt.px||1)*(opt.dpr||1)});return {key:k,fullArt:art,artBox:G.box,R:G.rig,P:root.ANIM.profile(M,G.rig),s:G.scale,px:opt.px||1,dpr:opt.dpr||1,parts:{},order:[],bytes:art.width*art.height*4,ms:0,fx:{puff:root.DRAW.EL_COL[ph.elements[0]]||'#A3A3A3',spark:'#FFE07A',dust:'#B8A68C',food:'#E2553A',z:'#24333C'}}});
   return TEX().acquire(k,()=>make(root.MORPH.morph(ph,lvl),opt).then(async X=>{X.key=k;if(root.DRELEMENT){X.fullArt=await root.DRELEMENT.prepare(ph,lvl);X.artBox=root.SHAPE.build(root.MORPH.morph(ph,lvl)).box}return X}))}
 function release(X){if(X&&X.key)TEX().release(X.key)}
 

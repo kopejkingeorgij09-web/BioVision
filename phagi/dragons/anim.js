@@ -368,7 +368,7 @@ Animator.prototype.compute=function(){
   let r=this.rawOf(this.cur);
   if(this.prev)r=blendRaw(this.rawOf(this.prev),r,this.weight(),this);
   if(this.blinkT>=0&&!this.P.sleepy){const b=bump(this.blinkT,0,0.18);r.lid=Math.max(r.lid,b)}
-  this.raw=r;return solve(this,r)};
+  this.raw=r;const pose=solve(this,r);pose.sprite={time:this.t,phase:this.x/this.P.stride,walk:(this.cur.name==='walk'?this.weight():0)+(this.prev&&this.prev.name==='walk'?1-this.weight():0),head:r.head.rot,wing:r.wings.sy,blink:r.lid,reduce:this.reduce};return pose};
 Animator.prototype.update=function(dt){
   dt=clamp(dt||0,0,0.1);
   const ev=[],P=this.P,cur=this.cur,t0=cur.t;

@@ -272,11 +272,11 @@ function draw(){
   /* ночь тёмной темы (--isl-night из dragons.css): тот же лунный оттенок, что у острова; читается раз в 30 кадров */
   if(L.night==null||!(L.stats.frames%30)){try{L.night=(getComputedStyle(L.svg).getPropertyValue('--isl-night')||'').trim()}catch(e){L.night=''}}
   for(const d of list){
-    want(d,V.s);
     if(d.art)d.art.classList.toggle('lv',!!d.X&&!d.cover);
-    if(!d.X||d.cover||(d.g&&d.g.style.visibility==='hidden'))continue;
     const x=(V.ox+d.p[0]*V.s)*dpr,y=(V.oy+d.p[1]*V.s)*dpr,z=V.s*dpr*d.k;
     if(x+d.w*V.s*dpr<0||x-d.w*V.s*dpr>W||y-d.h*V.s*dpr*1.2>H||y<-20)continue;   /* за краем экрана не рисуем */
+    want(d,V.s);
+    if(!d.X||d.cover||(d.g&&d.g.style.visibility==='hidden'))continue;
     ctx.save();
     const yard=yardOf(L.map,root.ISL,d);
     if(yard){const c=toIsle(root.ISL,yard.x+1,yard.y+1);ctx.setTransform(1,0,0,1,0,0);ctx.beginPath();ctx.ellipse((V.ox+c[0]*V.s)*dpr,(V.oy+(c[1]-8)*V.s)*dpr,61*V.s*dpr,40*V.s*dpr,0,0,Math.PI*2);ctx.clip()}

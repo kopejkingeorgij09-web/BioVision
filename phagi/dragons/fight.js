@@ -232,7 +232,7 @@ function showPrep(id){
     return (st.length?`<span class="hup">сильнее против: ${esc(st.join(', '))}</span>`:'')+(wk.length?`<span class="hdn">уязвим для: ${esc(wk.join(', '))}</span>`:'')+(!d.els.length?'<span>бьёт Ударом, стихии нет</span>':'')};
   const card=d=>{const i=F.pick.indexOf(d.id);
     return `<button class="drf-pk${i>=0?' on':''}" data-fk="pick" data-id="${esc(d.id)}" aria-pressed="${i>=0}">${i>=0?`<span class="drf-ix" aria-hidden="true">${i+1}</span>`:''}${picHTML(d,104,78)}
-      <b>${esc(d.name)}</b><small>${d.lvl}-й ур. · ${elsText(d.els)}</small>${rankLine(d)}<span class="drf-sts"><span title="Здоровье">❤ ${d.hp}</span><span title="Атака">⚔ ${d.atk}</span><span title="Защита">🛡 ${d.def}</span><span title="Скорость">💨 ${d.spd}</span></span><span class="drf-hn">${hint(d)}</span></button>`};
+      <b>${esc(d.name)}</b><small>${d.lvl}-й ур. · ${elsText(d.els)}</small>${rankLine(d)}<span class="drf-power" title="${esc(root.DSTATS.POWER_NOTE)}">◆ Абсолютная сила: ${root.DSTATS.power(d)}</span><span class="drf-sts"><span title="Здоровье">❤ ${d.hp}</span><span title="Атака">⚔ ${d.atk}</span><span title="Защита">🛡 ${d.def}</span><span title="Скорость">💨 ${d.spd}</span></span><span class="drf-hn">${hint(d)}</span></button>`};
   const n=F.pick.length,lv=F.pick.map(x=>mine.find(d=>d.id===x).lvl),tr=[...new Set(foes.flatMap(f=>f.traits))];
   /* настройка стихий для выбранных драконов с тремя-четырьмя стихиями: в бою атак две, смена настройки занимает ход */
   const multi=F.pick.map(x=>mine.find(d=>d.id===x)).filter(d=>d&&d.els.length>2);

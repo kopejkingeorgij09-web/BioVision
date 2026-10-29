@@ -770,3 +770,21 @@ body.dri-open .drg-fly,body.drf-open .drg-fly{animation-play-state:paused}
 
 /* ночь в тёмной теме: остров приглушён фильтром по самому рисунку (небо и фон не трогаются), драконы на холсте — тем же оттенком (live.js) */
 .drg-world .drg-isl,.drg-map:not(.full) .drg-isl{filter:var(--isl-filter,none)}
+
+/* Быстрые действия зданий и компактная панель дома. */
+.drg-bub[role=button],.drg-lab[role=button]{pointer-events:all;cursor:pointer;outline:none}
+.drg-bub[role=button]:hover rect,.drg-bub[role=button]:focus-visible rect{stroke:var(--acc,#278944);stroke-width:2.5}
+.drg-lab[role=button]:focus-visible rect{stroke:#fff;stroke-width:2}
+.drg-store-tabs{display:flex;gap:8px;margin:12px 0;position:sticky;top:0;background:var(--card,#fff);padding:8px 0;z-index:2}
+.drg-home>.drg-pan-h{position:sticky;top:0;background:var(--card,#fff);z-index:3;padding-bottom:10px}
+.drg-home .drg-chest{padding:14px;border:1px solid var(--line,#cdded4);border-radius:16px;background:var(--soft,#eef5ef)}
+.drg-home .drg-chest button{min-height:44px}
+.drg-residents{grid-template-columns:1fr!important}
+.drg-home-manage{margin-top:16px;border-top:1px solid var(--line,#cdded4);padding:12px 0}.drg-home-manage summary{cursor:pointer;font-weight:700;min-height:32px}
+.drg-gen-guide{padding:12px;border:1px solid var(--line,#cdded4);border-radius:12px;font-size:.9em;line-height:1.55}.drg-gen-parents{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.drg-gen-parents pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.85em}.drg-gen-guide li{margin-bottom:6px}
+@media(max-width:480px){.drg-gen-parents{grid-template-columns:1fr}.drg-home .drg-chest{padding:10px}}
+
+.drg-resident .drg-pic{width:96px;min-width:64px;flex:0 0 96px}.drg-resident .drg-pic svg{width:100%;height:auto}.drg-resident .drg-info p{margin:5px 0}.drg-resident .drg-da .btn{min-height:44px}
+@media(max-width:480px){.drg-resident{align-items:flex-start;gap:8px;padding:10px}.drg-resident .drg-pic{flex-basis:72px;width:72px}.drg-home .drg-chest{grid-template-columns:1fr}.drg-home .drg-chest .btn{grid-column:1;grid-row:auto;width:100%}}
+
+.drg-power,.drf-power{display:block;font-weight:750;color:var(--ink);margin:6px 0}.dri-combat{border:1px solid var(--line);padding:12px;border-radius:12px;line-height:1.5}.dri-combat li{margin-bottom:6px}

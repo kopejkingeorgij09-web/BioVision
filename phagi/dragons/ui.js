@@ -393,7 +393,7 @@ function islandView(){
       return `<button class="drg-rb${o.big?' big':''}" data-act="${act}" data-v="${v}"${o.lab?` aria-label="${o.lab}${o.n?`, ждут: ${o.n}`:''}${o.k?' (клавиша '+o.k+')':''}"`:''}${o.k?` title="Клавиша ${o.k}" aria-keyshortcuts="${o.k}"`:''}${on?' aria-current="true"':''}><i aria-hidden="true">${ic}</i><span>${t}</span>${o.n?`<b class="drg-bdg" aria-hidden="true">${o.n}</b>`:''}${o.k?`<kbd class="drg-kb" aria-hidden="true">${o.k}</kbd>`:''}</button>`};
     const dock=own?rb('drgfull','0','🏠','Домой',{lab:'Домой: из острова на страницу',k:'Esc'})+rb('drgpanel','dragons','📖','Драконы',{lab:'Драконы',k:'D'})
         +rb('drgpanel','breed','🥚','<b class="lg">Скрещивание</b><b class="sm">Яйца</b>',{lab:'Скрещивание и яйца',k:'E'})
-        +(st.dragons.length?rb('drgfight','','⚔️','Поход',{lab:'Поход: бои драконов',k:'P'}):'')+rb('drgpanel','shop','🔨','Строить',{big:1,lab:'Строить',k:'B'})+rb('drgpanel','more','☰','Ещё',{lab:'Ещё: головоломки, задания недели, рейтинг, рынок, журнал',k:'M',n:todoN(st,c)})
+        +(st.dragons.length?rb('drgfight','','⚔️','Поход',{lab:'Поход: бои драконов',k:'P'}):'')+rb('drgpanel','shop','🔨','Строить',{big:1,lab:'Строить',k:'B'})+rb('drgpanel','market','🐉','Купить',{lab:'Купить дракона'})+rb('drgpanel','more','☰','Ещё',{lab:'Ещё: головоломки, задания недели, рейтинг, рынок, журнал',k:'M',n:todoN(st,c)})
       :visit?rb('drgvisit','','🏠','Домой',{lab:'Домой, на свой остров'})+rb('drgpanel','dragons','📖','Драконы')+rb('drgpanel','blds','🏘','Постройки')+rb('drgpanel','top','🏆','Рейтинг')
       :rb('drgfull','0','🏠','Назад')+rb('drgpanel','dragons','📖','Драконы')+rb('drgpanel','journal','📓','Журнал')+rb('drgpanel','blds','🏘','Постройки');
     /* 5.0: мир (фон и остров) — отдельный узел с подписью data-sig: если рисунок не изменился, страница оставляет старый узел,
@@ -444,14 +444,14 @@ function panel0(st,c,own){
   const b=st.bld.find(x=>x.id===S.drgSel);
   if(!b)return S.drgFull?'':`<p class="muted small drg-tip">${own?'Нажмите на здание, чтобы собрать золото, покормить драконов или посадить корм.':'Это остров ученицы, здесь можно только смотреть.'}</p>`;
   const T=E.TYPES[b.type],job=b.build||b.up;
-  let h=`<section class="sheet drg-pan"><div class="drg-pan-h"><h2>${T.name}${b.build?'':` · ${b.lvl}-й уровень`}</h2><button class="btn ghost sm" data-act="drgsel" data-id="">Закрыть</button></div>`;
+  let h=`<section class="sheet drg-pan drg-home"><div class="drg-pan-h"><h2>${T.name}${b.build?'':` · ${b.lvl}-й уровень`}</h2><button class="btn ghost sm" data-act="drgsel" data-id="">Закрыть</button></div>`;
   if(job){const lf=E.left(job,K);
     h+=`<p>${b.build?'Строится':'Улучшается до '+job.to+'-го уровня'}: осталось ${cardsAcc(lf)}.${b.up&&T.kind==='hab'?' Драконы при этом продолжают приносить золото.':''}</p>${own?`<div class="actions" style="justify-content:flex-start"><button class="btn sm" data-act="drgdo" data-t="speed" data-id="${b.id}">Ускорить за ${Math.ceil(lf/E.SKIP_CARDS)} 💎</button></div>`:''}`}
   if(T.kind==='hab'&&!b.build){
     const a=E.chestNow(st,b,K),cap=E.chestCap(b),ds=st.dragons.filter(d=>d.home===b.id),r=ds.reduce((n,d)=>n+E.goldNow(st,d,todayN()),0);
     h+=`<div class="drg-chest"><span>🪙 В сундуке <b>${fmt(a)}</b> из ${fmt(cap)}</span><span class="drg-bar"><i style="width:${Math.min(100,a/cap*100)}%"></i></span><span class="muted small">${r?`+${goldFmt(r)} за следующую карточку · сумма от ${ds.length} ${plural(ds.length,'дракона','драконов','драконов')}`:'Пока здесь нет драконов'}${a>=cap?', сундук полон: соберите, иначе золото пропадает':''}</span>${own?`<button class="btn sm" data-act="drgdo" data-t="collect" data-id="${b.id}"${a>=1?'':' disabled'}>Собрать</button>`:''}</div>`;
-    h+=`<p class="muted small">Живут: ${T.hosts.map(k=>HOSTS[k]).join(' и ')}. Мест ${ds.length} из ${E.habCap(b)}.</p>`;
-    h+=`<div class="drg-list">${ds.map(d=>dragonCard(st,d,own,L)).join('')||'<p class="muted small">Здесь пока никто не живёт.</p>'}</div>`}
+    h+=`<p class="muted small drg-home-info">Среда: ${T.hosts.map(k=>HOSTS[k]).join(' и ')}. Мест ${ds.length} из ${E.habCap(b)}.</p>`;
+    h+=`<h3>Жители · ${ds.length} из ${E.habCap(b)}</h3><div class="drg-list drg-residents">${ds.map(d=>residentCard(st,d,own,L)).join('')||'<p class="muted small">Здесь пока никто не живёт.</p>'}</div>`}
   if(T.kind==='farm'&&!b.build){
     h+=`<div class="drg-plots">${b.plots.map((pl,i)=>{
       if(!pl)return `<div class="drg-plot"><b>Грядка ${i+1}</b><span class="muted small">Пусто</span>${own?`<div class="drg-crops">${Object.entries(E.CROPS).map(([k,cr])=>`<button class="btn ghost sm" data-act="drgdo" data-t="plant" data-id="${b.id}" data-plot="${i}" data-crop="${k}"${L<cr.unlock?' disabled title="Откроется на '+cr.unlock+'-м уровне острова"':''}>${cr.name}<small>${cr.cost} 🪙 · сразу → ${Math.round(cr.food*E.streakMult(c.streak))} 🌾</small></button>`).join('')}</div>`:''}</div>`;
@@ -461,7 +461,7 @@ function panel0(st,c,own){
   if(T.kind==='hatch'&&!b.build)h+=hatchHTML(st,b,c,own);
   if(own){const nx=(E.lvTable(b.type)||[])[b.lvl+1];
     const upWhy=!nx?'':nx.L&&L<nx.L?`${b.lvl+1}-й уровень с ${nx.L}-го уровня острова`:b.type==='hatch'&&b.lvl===1&&!st.slot7?`Сначала второе место за серию ${E.SLOT7} дней подряд`:'';
-    h+=`<div class="actions" style="justify-content:flex-start">${nx&&!job?`<button class="btn ghost sm" data-act="drgdo" data-t="upgrade" data-id="${b.id}"${upWhy?' disabled':''}>Улучшить до ${b.lvl+1}-го: ${fmt(nx.cost)} 🪙, ${nx.need} к.${T.kind==='hab'?` (мест ${nx.cap}, сундук ${fmt(nx.chest)})`:T.kind==='farm'?` (грядок ${nx.plots})`:` (мест для яиц ${nx.slots}${b.id===E.firstHatch(st)?' + место за серию':''})`}</button>${upWhy?`<span class="drg-why">${upWhy}</span>`:''}`:''}<button class="btn ghost sm" data-act="drgmove" data-id="${b.id}" title="Клавиша G" aria-keyshortcuts="G">Переместить</button></div>`}
+    h+=`<details class="drg-home-manage"><summary>Улучшение и перемещение</summary><div class="actions" style="justify-content:flex-start">${nx&&!job?`<button class="btn ghost sm" data-act="drgdo" data-t="upgrade" data-id="${b.id}"${upWhy?' disabled':''}>Улучшить до ${b.lvl+1}-го: ${fmt(nx.cost)} 🪙, ${nx.need} к.${T.kind==='hab'?` (мест ${nx.cap}, сундук ${fmt(nx.chest)})`:T.kind==='farm'?` (грядок ${nx.plots})`:` (мест для яиц ${nx.slots}${b.id===E.firstHatch(st)?' + место за серию':''})`}</button>${upWhy?`<span class="drg-why">${upWhy}</span>`:''}`:''}<button class="btn ghost sm" data-act="drgmove" data-id="${b.id}" title="Клавиша G" aria-keyshortcuts="G">Переместить</button></div></details>`}
   return h+`</section>`}
 
 /* золото дракона за следующую карточку: удвоение и ступень лесенки сегодняшнего дня (одна десятая) */
@@ -470,12 +470,22 @@ const goldFmt=v=>String(Math.round(v*10)/10).replace('.',',');
 const goldTxt=(st,d)=>goldFmt(E.goldNow(st,d,todayN()));
 /* на каком уровне острова предел драконов станет больше cap */
 const capAt=cap=>{for(let k=1;k<=E.ISLE_MAX;k++)if(E.maxDragonLv(k)>cap)return k;return null};
+const combatCache=new Map();let powerLoading=null;
+function powerHTML(d){
+  if(!window.DSTATS||!window.MORPH||!window.SHAPE||!window.ANIM){if(!powerLoading&&window.DRGINSP)powerLoading=window.DRGINSP.loadAll().then(()=>render()).catch(()=>{});return ''}
+  const key=JSON.stringify([d.genome,d.lvl]);let val=combatCache.get(key);
+  if(val==null){const ph=phOf(d),m=window.MORPH.morph(ph,d.lvl),g=window.SHAPE.build(m);val=window.DSTATS.power(window.DSTATS.of(ph,d.lvl,window.ANIM.profile(m,g.rig)));if(combatCache.size>96)combatCache.clear();combatCache.set(key,val)}
+  return `<span class="drg-power" title="${esc(window.DSTATS.POWER_NOTE)}">◆ Абсолютная сила: ${val}</span>`}
+function residentCard(st,d,own,L){
+  const cost=E.feedPrice(st,d).cost,cap=E.maxDragonLv(L),ph=phOf(d);
+  return `<article class="drg-card drg-resident"><button class="drg-pic" data-act="drginsp" data-dragon="${d.id}" aria-label="Осмотреть: ${esc(d.name)}">${W.svg(ph,{stage:W.stageOf(d.lvl),key:'home'+d.id,size:96})}</button><div class="drg-info"><b>${esc(d.name)} ${SEX[d.genome.sex]}</b>${powerHTML(d)}<p>${d.lvl}-й уровень · +${goldTxt(st,d)} 🪙 за карточку</p><p class="muted small">Кормлений: ${d.fed||0} из ${E.FEEDS}</p>
+  <div class="drg-da">${own&&d.lvl<cap?`<button class="btn sm" data-act="drgdo" data-t="feed" data-dragon="${d.id}"${st.bal.food<cost?' disabled':''}>Покормить: ${cost} 🌾</button>${st.bal.food<cost?'<span class="drg-why">Не хватает корма</span>':''}`:own?'<span class="muted small">Достигнут предел уровня</span>':''}<button class="btn ghost sm" data-act="drginsp" data-dragon="${d.id}">Паспорт и действия</button></div></div></article>`}
 function dragonCard(st,d,own,L){
   const ph=phOf(d),rr=G.rarity(ph),fp=E.feedPrice(st,d),cost=fp.cost,cap=E.maxDragonLv(L),home=st.bld.find(b=>b.id===d.home),ms=E.mastery(d.lvl);
   const homes=own?st.bld.filter(b=>b.id!==d.home&&!b.build&&E.hosts(b.type,ph)&&st.dragons.filter(x=>x.home===b.id).length<E.habCap(b)):[];
   return `<article class="drg-card ${RCLS[rr]}"><button class="drg-pic" data-act="drginsp" data-dragon="${d.id}" aria-label="Осмотреть: ${esc(d.name)}" title="Осмотреть крупно">${W.svg(ph,{stage:W.stageOf(d.lvl),key:'c'+d.id,size:170,label:esc(d.name)})}</button>
   <div class="drg-info"><div class="drg-nm"><b>${esc(d.name)}</b><span class="drg-sex" title="${d.genome.sex==='F'?'самка ZW':'самец ZZ'}">${SEX[d.genome.sex]}</span><span class="drg-rar" title="Редкость: как трудно вывести такой фенотип">${G.RARITY[rr]}</span>${rankHTML(ph)}</div>
-  <div class="drg-dl"><span>${d.lvl}-й уровень, ${W.STAGE_NAME[W.stageOf(d.lvl)]}${ms?`, ${E.MASTERY[ms]}`:''}</span><span class="drg-pips" title="Кормлений до следующего уровня">${Array.from({length:E.FEEDS},(_,i)=>`<i${i<(d.fed||0)?' class="on"':''}></i>`).join('')}</span><span class="muted">+${goldTxt(st,d)} 🪙 за карточку</span></div>
+  ${powerHTML(d)}<div class="drg-dl"><span>${d.lvl}-й уровень, ${W.STAGE_NAME[W.stageOf(d.lvl)]}${ms?`, ${E.MASTERY[ms]}`:''}</span><span class="drg-pips" title="Кормлений до следующего уровня">${Array.from({length:E.FEEDS},(_,i)=>`<i${i<(d.fed||0)?' class="on"':''}></i>`).join('')}</span><span class="muted">+${goldTxt(st,d)} 🪙 за карточку</span></div>
   <ul>${W.describe(ph).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
   <p class="muted small" style="margin:4px 0 0">${home?'Живёт: '+E.TYPES[home.type].name:d.nurs?`В яслях Инкубатора, ждёт дом: ${E.habNames(ph)}`:'Без дома'}${d.parents?` · ${d.gen}-е поколение, родители ${d.parents.map(id=>esc(dname(st,id))).join(' × ')}`:d.from==='market'?' · с рынка':''}</p>
   ${d.parents?`<button class="btn ghost sm drg-origb" data-act="drgorig" data-dragon="${d.id}">🧬 Как получился: гены от родителей</button>`:''}
@@ -511,6 +521,14 @@ function classesOf(trait,m,f){
     case 'sex':return [['F','самка'],['M','самец']];
     default:return yes}}
 const sel=(id,opts,cur)=>`<select id="${id}" class="drg-in">${opts.map(([v,l])=>`<option value="${esc(v)}"${String(cur)===String(v)?' selected':''}>${esc(l)}</option>`).join('')}</select>`;
+function predictionGuide(m,f,tr){
+  const loci={elements:['E','E2','S'],color:['C'],hornsMace:['H','K'],crest:['R'],span:['Q1','Q2','Q3'],sex:[],shortWings:['Wg'],metal:['M'],night:['N'],spurs:['Sp'],glow:['G']}[tr]||Object.keys(G.LOCI);
+  const insp=window.DRGINSP;
+  return `<section class="drg-gen-guide"><h4>Данные для расчёта</h4><p>Каждый родитель передаёт по одному аллелю каждого аутосомного гена. Выпиши гаметы родителей, затем соедини их попарно. Вероятности независимых событий перемножаются, альтернативных — складываются.</p>
+    <div class="drg-gen-parents">${[m,f].map(d=>`<div><b>${esc(d.name)} ${SEX[d.genome.sex]}</b><pre>${esc(G.genoText(d.genome))}</pre></div>`).join('')}</div>
+    ${insp?`<ul>${loci.filter(l=>insp.RULE[l]).map(l=>`<li><b>${esc(G.LOCI[l].name)}:</b> ${esc(insp.RULE[l])}</li>`).join('')}</ul>`:''}
+    <p>Сцепление: H–K — 18 % рекомбинаций, M–N на Z — 10 %. Остальные соседние гены на аутосомах — 50 %. Порядок и сочетания аллелей на хромосомах указаны выше: каждая строка через / — две родительские копии. У самки ZW, у самца ZZ; W передаётся дочерям от матери, митохондрии — всем детям от матери.</p>
+    <ol><li>Определи гаметы и их вероятности.</li><li>Составь сочетания аллелей потомка и примени правила признака.</li><li>Исключи нежизнеспособные Wgˢ/Wgˢ и пересчитай долю среди вылупившихся.</li></ol></section>`}
 function nestHTML(st,b,c,own){
   const K=c.K;
   if(b.pair){const p=b.pair,m=st.dragons.find(x=>x.id===p.m),f=st.dragons.find(x=>x.id===p.f),rd=E.ready(p,K),lf=E.left(p,K);
@@ -528,8 +546,8 @@ function nestHTML(st,b,c,own){
   return `<div class="drg-breed"><label>Самка ${sel('drgM',fs.map(d=>[d.id,`${d.name} ♀ · ${d.lvl}-й ур.`]),mid)}</label><label>Самец ${sel('drgF',ms.map(d=>[d.id,`${d.name} ♂ · ${d.lvl}-й ур.`]),fid)}</label></div>
   ${famHTML(m,f,'bp')}
   <details class="drg-predbox" data-k="drgpred"${tr?' open':''}><summary>Сделать прогноз (по желанию)</summary>
-    <p class="muted small">Если догадалась о генотипах родителей, предскажи долю потомков с признаком. Доля считается среди вылупившихся потомков этой пары (яйца, которые не развились, в неё не входят) и без учёта редких мутаций. Пример: у двух короткокрылых родителей Wgˢ/+ четверть всех яиц (Wgˢ/Wgˢ) не развивается, а среди вылупившихся короткокрылых 2/3. Среди всех яиц короткокрылых 1/2, но в прогноз идёт 2/3. Ошибка до ${Math.round(E.PRED_TOL*100)} процентных пунктов засчитывается: скрещивание вдвое быстрее и самоцвет. Неверный прогноз ничего не стоит.</p>
-    <div class="drg-breed"><label>Признак ${sel('drgPt',[['','без прогноза'],...Object.entries(TRAITS)],tr)}</label>${tr?`<label>Вариант ${sel('drgPc',cls,cv)}</label><label>Доля, % <input id="drgPp" class="drg-in" type="number" min="0" max="100" step="0.1" inputmode="decimal" value="${esc(fv.drgPp||'')}" placeholder="например 25"></label>`:''}</div></details>
+    <p class="muted small">Генотипы обоих родителей и правила приведены ниже. Рассчитай долю потомков с выбранным признаком. Доля считается среди вылупившихся потомков этой пары (яйца, которые не развились, в неё не входят) и без учёта редких мутаций. Пример: у двух короткокрылых родителей Wgˢ/+ четверть всех яиц (Wgˢ/Wgˢ) не развивается, а среди вылупившихся короткокрылых 2/3. Среди всех яиц короткокрылых 1/2, но в прогноз идёт 2/3. Ошибка до ${Math.round(E.PRED_TOL*100)} процентных пунктов засчитывается: скрещивание вдвое быстрее и самоцвет. Неверный прогноз ничего не стоит.</p>
+    ${predictionGuide(m,f,tr)}<div class="drg-breed"><label>Признак ${sel('drgPt',[['','без прогноза'],...Object.entries(TRAITS)],tr)}</label>${tr?`<label>Вариант ${sel('drgPc',cls,cv)}</label><label>Доля, % <input id="drgPp" class="drg-in" type="number" min="0" max="100" step="0.1" inputmode="decimal" value="${esc(fv.drgPp||'')}" placeholder="например 25"></label>`:''}</div></details>
   ${low.length?`<p class="muted small">${low.map(d=>`${esc(d.name)} (${d.lvl}-й ур.)`).join(' и ')}: для скрещивания нужен ${E.BREED_LV}-й уровень. Кормят дракона кнопкой «Покормить» в его карточке, корм для этого растёт на ферме.</p><div class="actions" style="justify-content:flex-start"><button class="btn ghost sm" data-act="drgpanel" data-v="dragons">Открыть драконов</button></div>`:''}
   <div class="actions" style="justify-content:flex-start"><button class="btn sm" data-act="drgbreed" data-id="${b.id}" data-m="${mid}" data-f="${fid}"${low.length||st.bal.gold<cost?' disabled':''}>Скрестить: ${fmt(cost)} 🪙, ${cards(E.BREED_NEED)}</button>${!low.length&&st.bal.gold<cost?`<span class="drg-why">Не хватает ${fmt(cost-Math.floor(st.bal.gold))} 🪙. Золото копится в сундуках домов за каждую повторённую карточку.</span>`:''}</div>`}
 
@@ -706,6 +724,7 @@ function journalHTML(st){
 function bldThumb(k){
   const s=I.svg({land:[],bld:[{id:'s'+k,type:k,x:5,y:5,lvl:1,plots:[null,null]}],dragons:[]},{K:0,key:'s'+k,readonly:true,bare:true});
   return s.replace(/viewBox="[^"]+"/,'viewBox="326 186 148 150"')}
+function storeTabs(tab){return `<nav class="drg-store-tabs" aria-label="Покупки"><button class="btn ${tab==='shop'?'':'ghost'}" data-act="drgpanel" data-v="shop" aria-pressed="${tab==='shop'}">🔨 Здания</button><button class="btn ${tab==='market'?'':'ghost'}" data-act="drgpanel" data-v="market" aria-pressed="${tab==='market'}">🐉 Драконы</button></nav>`}
 function shopHTML(st,L){
   const row=k=>{const t=E.TYPES[k],lock=L<t.unlock,full=t.kind==='hab'?E.count(st,'hab')>=E.maxHabs(L):t.kind==='farm'?E.count(st,'farm')>=E.maxFarms(L):false;
     /* единственное на острове здание (Гнездовье, Инкубатор): уже есть, значит, открыть его, а не строить второе */
@@ -718,7 +737,7 @@ function shopHTML(st,L){
     return `<button class="drg-shop-i" data-act="drgbuild" data-type="${k}"${why?' disabled':''}><span class="drg-shop-pic">${bldThumb(k)}</span>
       <b>${t.name}</b><small>${t.kind==='hab'?'для: '+t.hosts.map(h=>HOSTS[h]).join(', '):t.kind==='farm'?'корм для драконов':'для скрещивания'}</small><span class="drg-price">${fmt(bc.gold)} 🪙${bc.gems?' + '+bc.gems+' 💎':''} · ${bc.need} к.</span>${why?`<em>${why}</em>`:''}</button>`};
   return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>Построить</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div>
-  <p class="muted small">Сред обитания ${E.count(st,'hab')} из ${E.maxHabs(L)}, ферм ${E.count(st,'farm')} из ${E.maxFarms(L)} на ${L}-м уровне. Стройка идёт в карточках: «10 к.» значит, что здание будет готово через 10 повторённых карточек.</p>
+  ${storeTabs('shop')}<p class="muted small">Сред обитания ${E.count(st,'hab')} из ${E.maxHabs(L)}, ферм ${E.count(st,'farm')} из ${E.maxFarms(L)} на ${L}-м уровне. Стройка идёт в карточках: «10 к.» значит, что здание будет готово через 10 повторённых карточек.</p>
   <div class="drg-shop">${[...E.HAB_ORDER,'farm','nest','hatch'].map(row).join('')}</div></section>`}
 
 const MK_NAME={F:'Огненный дракон',W:'Водный дракон',N:'Дымный дракон',T:'Земляной дракон',A:'Воздушный дракон',P:'Лесной дракон'};
@@ -727,7 +746,7 @@ function marketHTML(st,L){
     const ph=G.phenotype(E.marketGenome(k,'preview')),why=lock?`С ${t.unlock}-го уровня`:!home?`Нужен свободный дом: ${t.name}`:'';
     return `<div class="drg-shop-i"><span class="drg-shop-pic">${W.svg(ph,{key:'mk'+k,size:110})}</span><b>${MK_NAME[k]}</b><small>генотип неизвестен, редкость видна после покупки</small><span class="drg-price">${fmt(t.price)} 🪙</span>${why?`<em>${why}</em>`:`<button class="btn sm" data-act="drgdo" data-t="buy" data-type="${k}">Купить</button>`}</div>`};
   return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>Рынок драконов</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div>
-  <p class="muted small">На рынке продают драконов одной стихии, и у каждого свой генотип. Большинство обычные, примерно каждый десятый оказывается редким по окрасу, гребню или рогам, около одного из ста сверхредким. Двух стихий и света или тьмы у рыночных драконов не бывает, такие рождаются только при скрещивании. Какие скрытые аллели несёт дракон, покажет паспорт и потомство.</p>
+  ${storeTabs('market')}<p class="muted small">На рынке продают драконов одной стихии, и у каждого свой генотип. Большинство обычные, примерно каждый десятый оказывается редким по окрасу, гребню или рогам, около одного из ста сверхредким. Двух стихий и света или тьмы у рыночных драконов не бывает, такие рождаются только при скрещивании. Какие скрытые аллели несёт дракон, покажет паспорт и потомство.</p>
   <div class="drg-shop">${['F','W','N','T','A','P'].map(row).join('')}</div></section>`}
 
 /* «Ещё»: то, что не поместилось в нижние кнопки */

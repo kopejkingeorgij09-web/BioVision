@@ -592,7 +592,7 @@ function sideHTML(v){const s=v.stats,N=root.DSTATS.NAMES,els=elsOf(v),col=root.D
   const row=(ic,t,val,c)=>`<div class="dri-sr2"${c?` style="--c:${c}"`:''}><span class="dri-si" aria-hidden="true">${ic}</span><span><small>${esc(t)}</small>${val!=null?`<b>${val}</b>`:''}</span></div>`;
   return `<div class="dri-side" aria-label="Стихии, пол, стадия и характеристики">${els.length?els.map(e=>row(ELI[e],ELN[e],null,col[e])).join(''):row(elIcon(v),elText(v))}
     ${row(g.sex==='F'?'♀':'♂',g.sex==='F'?'Самка':'Самец')}${row('🐲',v.M.stageName)}
-    <div class="dri-sep"></div>${row('❤️',N.hp,s.hp)}${row('⚔️',N.atk,s.atk)}${row('🛡️',N.def,s.def)}${row('💨',N.spd,s.spd)}</div>`}
+    <div class="dri-sep"></div>${row('❤️',N.hp,s.hp)}${row('⚔️',N.atk,s.atk)}${row('🛡️',N.def,s.def)}${row('💨',N.spd,s.spd)}${row('◆','Абсолютная сила',root.DSTATS.power(s))}</div>`}
 function elText(v){return v.M.breath==='dormant'?'дремлющий, стихия не проявляется':v.M.breath==='smoke'?'дымный, без стихии':v.M.elements.map(e=>ELN[e]).join(' и ')}
 function renderHead(v){
   const i=v.info,M=v.M,rr=DRG.rarity(v.ph),f=i.feed,B=window.DSTATS&&DSTATS.badge(v.ph);
@@ -618,7 +618,14 @@ function partRows(P,links){
     ${P.cosm?`<p class="dri-age"><span class="dri-tag art">${TAG.art}</span> ${esc(P.cosm)}. Не наследуется.</p>`:''}`}
 function renderStats(v){const e=v.$('.dri-stats');if(!e)return;const s=v.stats,N=root.DSTATS.NAMES;
   const ic={hp:'❤️',atk:'⚔️',def:'🛡️',spd:'💨'};
-  setHTML(e,`<details class="dri-src" data-k="drisrc"><summary>Из чего складываются характеристики</summary>
+  const D=root.DSTATS,B=root.DRBATTLE,els=v.ph.breath==='element'?v.ph.elements:[],names=es=>es.map(x=>B.EL_NAME[x]).join(', ');
+  const gene=['hp','atk','def','spd'].flatMap(k=>s.src[k].filter(([label])=>label.includes('ген')).map(([label,n])=>`${label}: ${n>0?'+':''}${n} к «${N[k]}» до роста с уровнем`));
+  const roles=s.role.keys.map(k=>D.ROLE[k].name+': '+D.ROLE[k].text);
+  const stronger=B?Object.keys(B.EL_NAME).filter(x=>Math.max(1,...els.map(e=>B.mult(e,[x])))>1.001):[];
+  const vulnerable=B?Object.keys(B.EL_NAME).filter(x=>B.mult(x,els)>1.001):[];
+  setHTML(e,`<section class="dri-combat"><h3>◆ Абсолютная сила: ${D.power(s)}</h3><p>${esc(D.POWER_NOTE)}</p><h4>Боевые особенности генотипа и стихий</h4><ul>${roles.concat(gene).map(t=>`<li>${esc(t)}</li>`).join('')}</ul>
+    ${B?`<p><b>Сильная стихийная атака против:</b> ${esc(names(stronger)||'нейтральные отношения')}.</p><p><b>Уязвим для атак:</b> ${esc(names(vulnerable)||'стихийных уязвимостей нет')}.</p><p>Для гибридного противника множитель зависит от всех его стихий. У дракона с 3–4 стихиями в бою активны две выбранные атаки.</p>`:''}
+    <p>Без рогов, булавы или шпор нет их прибавки к атаке; отсутствие блеска и большого гребня уменьшает защитные прибавки. Короткие крылья исключают бонус скорости за полёт. Эти признаки уже учтены в характеристиках выше.</p></section><details class="dri-src" data-k="drisrc"><summary>Из чего складываются характеристики</summary>
     ${['hp','atk','def','spd'].map(k=>`<p><b>${N[k]} ${s[k]}</b> = ${s.src[k].map(([l,x])=>esc(l)+' '+x).join(' + ')}${k!=='spd'&&s.lvlK!==1?` × уровень ${num(s.lvlK)}`:''}</p>`).join('')}
     <p class="dri-note">${esc(s.note)}</p></details>`)}
 function renderFacts(v){const e=v.$('.dri-facts');if(!e)return;const i=v.info,L=[];

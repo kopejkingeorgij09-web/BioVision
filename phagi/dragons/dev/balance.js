@@ -11,14 +11,15 @@ const path=require('path'),fs=require('fs'),dir=path.join(__dirname,'..');
 const C=require(dir+'/campaign.js'),D=require(dir+'/genetics.js'),B=require(dir+'/battle.js');
 global.MORPH=require(dir+'/morph.js');const SH=require(dir+'/shape.js'),AN=require(dir+'/anim.js'),ST=require(dir+'/stats.js');
 const cache=new Map();
-function spec(id,g,lvl,traits){const k=JSON.stringify([g,lvl]);let c=cache.get(k);
-  if(!c){const ph=D.phenotype(g),M=MORPH.morph(ph,lvl),G=SH.build(M),P=AN.profile(M,G.rig),s=ST.of(ph,lvl,P);c={els:ph.breath==='element'?ph.elements:[],s};cache.set(k,c)}
+function spec(id,g,lvl,traits,academyRank){const k=JSON.stringify([g,lvl,academyRank||0]);let c=cache.get(k);
+  if(!c){const ph=Object.assign(D.gamePhenotype(g),{academyRank:academyRank||0}),M=MORPH.morph(ph,lvl),G=SH.build(M),P=AN.profile(M,G.rig),s=ST.of(ph,lvl,P);c={els:ph.breath==='element'?ph.elements:[],s};cache.set(k,c)}
   return {id,lvl,els:c.els,hp:c.s.hp,atk:c.s.atk,def:c.s.def,spd:c.s.spd,traits:traits||[]}}
 const PB={S:'S/S',C:'C/c',H:'H/h',K:'k/k',R:'R1/R2',Wg:'+/+',Q1:'+/-',Q2:'+/-',Q3:'+/-',sex:'M',M:'m/m',N:'N/N'};
 const POOL=['F/e','W/e','T/e','A/e','P/e','F/W','T/P','A/F'];
 const TEAMS=[{k:'mix',name:'лучший состав',from:POOL},{k:'fwt',name:'Огонь+Вода+Земля',from:['F/e','W/e','T/e']},
   {k:'apf',name:'Воздух+Флора+Огонь',from:['A/e','P/e','F/e']},{k:'hyb',name:'гибриды',from:['F/W','T/P','A/F']}];
-const mine=(E,L,i)=>spec('p'+i+E,D.make(Object.assign({},PB,{E})),L);
+/* Новая прогрессия: один ранг академии с 6-го уровня, два с 25-го, три с 45-го. */
+const mine=(E,L,i)=>spec('p'+i+E,D.make(Object.assign({},PB,{E})),L,[],(L>=6?1:0)+(L>=25?1:0)+(L>=45?1:0));
 /* выбор команды как по подсказкам подготовки: сколько противников мой дракон бьёт сильной стихией минус сколько бьют его */
 function pick(from,foes,max,L){
   const sc=E=>{const d=mine(E,L,0);return foes.reduce((a,f)=>{const o=d.els.length?Math.max(...d.els.map(e=>B.mult(e,f.els))):1,

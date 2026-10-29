@@ -1,10 +1,4 @@
-/* Базовые боевые характеристики дракона для сцены осмотра (этап 2 Драконов 3.0).
-   Это игровые параметры, а не биология: условность модели, черновик правил боя. Бой 3 на 3 (этап 5) может их уточнить.
-   Всё считается из того же фенотипа и морфологии, что и рисунок: тяжёлое телосложение даёт здоровье и защиту,
-   рога, булава и шпоры дают атаку, лёгкое тело и крылья дают скорость. Уровень растит здоровье, атаку и защиту.
-   У каждой характеристики список вкладов с генами, от которых зависит признак (по карте MORPH.SRC).
-   Нужны: фенотип ph (DRG.phenotype), уровень, профиль движения P (ANIM.profile): hv тяжесть 0…1, v скорость шага,
-   canFly, baby. Чистая функция без DOM. */
+/* Игровые параметры: только уровень и роль стихии. Декоративная внешность не даёт прибавок. */
 (function(root){
 'use strict';
 
@@ -47,14 +41,13 @@ function of(ph,lvl,P){
   const k=lvlK(lvl),R=roleOf(ph),src={hp:[],atk:[],def:[],spd:[]};P=P||{};
   const add=(s,label,v)=>{if(v)src[s].push([label,v])};
   /* основа и наследуемые части: рога, булава, шпоры, гребень, блеск, крылья. Роль стихии умножает основу */
-  const hp0=44+(ph.metal?4:0),def0=12+(CREST_DEF[ph.crest]||0)+(ph.metal?3:0),atk0=10+(ph.horns?3:0)+(ph.mace?3:0)+(ph.spurs?2:0)+(ph.breath==='element'?2:ph.breath==='smoke'?1:0);
-  add('hp','Основа',44);add('hp','Блеск чешуи (ген M)',ph.metal?4:0);add('hp','Роль: '+R.name+' (гены E, S)',Math.round(hp0*(R.hp-1)));
-  add('atk','Основа',10);add('atk','Рога (ген H)',ph.horns?3:0);add('atk','Булава (ген K)',ph.mace?3:0);add('atk','Шпоры (ген Sp)',ph.spurs?2:0);
-  add('atk','Дыхание (гены S, E)',ph.breath==='element'?2:ph.breath==='smoke'?1:0);add('atk','Роль: '+R.name+' (гены E, S)',Math.round(atk0*(R.atk-1)));
-  add('def','Основа',12);add('def','Гребень (ген R)',CREST_DEF[ph.crest]||0);add('def','Блеск чешуи (ген M)',ph.metal?3:0);add('def','Роль: '+R.name+' (гены E, S)',Math.round(def0*(R.def-1)));
-  /* скорость не растёт с уровнем: роль стихии и полёт */
-  add('spd','Основа',10);add('spd','Роль: '+R.name+' (гены E, S)',R.spd);add('spd','Полёт (гены Wg, Q1–Q3)',P.canFly?1:0);
+  const hp0=44,def0=12,atk0=10+(ph.breath==='element'?2:ph.breath==='smoke'?1:0);
+  add('hp','Основа',hp0);add('hp','Роль: '+R.name+' (стихия)',Math.round(hp0*(R.hp-1)));
+  add('atk','Основа',10);add('atk','Дыхание (стихия)',atk0-10);add('atk','Роль: '+R.name+' (стихия)',Math.round(atk0*(R.atk-1)));
+  add('def','Основа',def0);add('def','Роль: '+R.name+' (стихия)',Math.round(def0*(R.def-1)));
+  add('spd','Основа',10);add('spd','Роль: '+R.name+' (стихия)',R.spd);
   const sum=s=>src[s].reduce((a,[,v])=>a+v,0);
+  const training=Math.max(0,Math.min(3,Math.floor(ph.academyRank||0)));if(training){for(const stat of ['hp','atk','def'])add(stat,'Академия, ранг '+training,Math.round(sum(stat)*.2*training));add('spd','Академия',training)}
   return {hp:Math.round(sum('hp')*k),atk:Math.round(sum('atk')*k),def:Math.round(sum('def')*k),spd:sum('spd'),lvlK:k,src,note:NOTE,role:R}}
 
 /* подпись для карточек: боевой ранг ✦ по числу разных стихийных атак (не редкость и не звёзды боя ★), сочетание и роль */

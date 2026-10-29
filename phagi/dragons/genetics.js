@@ -145,6 +145,17 @@ function breed(mother,father,rnd){
   const g=fuse(gamete(mother,rnd),gamete(father,rnd));
   return {genome:g,viable:viable(g)}}
 
+/* Игровая модель 2026-10-29: наследуются только E, E2, S. Остальные поля
+   остаются совместимыми с архивом, но задают только декоративную внешность. */
+function breedElements(mother,father,rnd){
+ const e=breed(mother,father,rnd),g=e.genome;
+ AUTO.forEach(c=>CHROMS[c].loci.forEach((l,i)=>{if(['E','E2','S'].includes(l))return;const a=LOCI[l].alleles;g[c][0][i]=a[Math.floor(rnd()*a.length)];g[c][1][i]=a[Math.floor(rnd()*a.length)]}));
+ g.Z=g.sex==='M'?[['m','N'],['m','N']]:[['m','N'],null];g.W=g.sex==='F'?'sp':null;g.mt='g';
+ return {genome:g,viable:true,model:'elements'}
+}
+function gamePhenotype(g){return Object.assign(phenotype(g),{color:'dark',horns:true,mace:false,crest:'big',shortWings:false,span:3,spanM:4.5,metal:false,night:false,glow:false,spurs:false})}
+function gameRarity(ph){return Math.max(0,Math.min(3,ph.elements.length-1))}
+
 /* ---------- фенотип ---------- */
 const has=(p,a)=>p[0]===a||p[1]===a;
 const pairAt=(g,c,l)=>{const i=CHROMS[c].loci.indexOf(l);return [g[c][0][i],g[c][1][i]]};
@@ -176,7 +187,7 @@ function combatRank(ph){return ph.breath==='element'?ph.elements.length:0}
 function speciesKey(ph){return ph.breath==='dormant'?'dormant':ph.breath==='smoke'?'smoke':ph.elements.join('')}
 
 /* Редкость следует из того, насколько трудно вывести фенотип */
-const RARITY=['обычный','редкий','сверхредкий','эпический','легендарный'];
+const RARITY=['обычный','редкий','эпический','мифический','мифический'];
 function rarity(ph){
   if(ph.elements.some(a=>LEGEND.includes(a)))return 4;
   let p=0;
@@ -314,6 +325,6 @@ function origin(ch,mo,fa){
   out.genes.push({locus:'G',chr:'mt',m:ch.mt,f:null});if(mo&&mo.mt!==ch.mt)out.mut.push({who:'m',locus:'G',a:ch.mt});
   return out}
 
-const DRG={GV,upgrade,isOld,combatRank,LOCI,CHROMS,Z,ELEM,ELEM_ORDER,LEGEND,RARITY,MU,rng,hashStr,make,validate,clone,gamete,fuse,breed,viable,phenotype,speciesKey,rarity,hapDist,dist,lethalShare,genoText,origin};
+const DRG={gamePhenotype,breedElements,gameRarity,GV,upgrade,isOld,combatRank,LOCI,CHROMS,Z,ELEM,ELEM_ORDER,LEGEND,RARITY,MU,rng,hashStr,make,validate,clone,gamete,fuse,breed,viable,phenotype,speciesKey,rarity,hapDist,dist,lethalShare,genoText,origin};
 if(typeof module!=='undefined'&&module.exports)module.exports=DRG;else root.DRG=DRG;
 })(typeof window!=='undefined'?window:globalThis);

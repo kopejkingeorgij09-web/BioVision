@@ -49,11 +49,11 @@ t('части тела есть ровно тогда, когда их даёт 
     assert.strictEqual(M.wing.short,p.shortWings,'короткие крылья');
     assert.strictEqual(M.breath,p.breath);assert.deepStrictEqual(M.elements,p.breath==='element'?p.elements:[])})});
 
-t('шпоры появляются только с 4-го уровня, сияние только с 16-го',()=>{
+t('шпоры появляются только с 6-го уровня, сияние только с 16-го',()=>{
   const p=D.phenotype(D.make(Object.assign({},BASE,{sex:'F',M:'m',N:'N',Sp:'Sp',E:'F/F'})));
   assert.ok(p.spurs);
-  [1,2,3].forEach(lv=>assert.strictEqual(MO.morph(p,lv).spurs,null));
-  [4,9,15,20].forEach(lv=>assert.ok(MO.morph(p,lv).spurs));
+  [1,2,3,4,5].forEach(lv=>assert.strictEqual(MO.morph(p,lv).spurs,null));
+  [6,9,15,20].forEach(lv=>assert.ok(MO.morph(p,lv).spurs));
   for(let lv=1;lv<=20;lv++)assert.strictEqual(MO.morph(p,lv).aura,lv>=16?1:0)});
 
 t('размах крыльев растёт с числом «+» в Q1–Q3, короткие крылья Wg перекрывают его',()=>{
@@ -88,7 +88,7 @@ t('возраст меняет пропорции, а не только масш
   assert.ok(a.head.L/a.body.len>b.head.L/b.body.len*1.3);
   assert.ok(a.eyes.size>b.eyes.size);assert.ok(a.wing.span<b.wing.span);
   assert.deepStrictEqual([0,1,2,3].map(s=>MO.STAGES[s].name),['малыш','подросток','взрослый','развитый взрослый']);
-  [[1,0],[3,0],[4,1],[9,1],[10,2],[15,2],[16,3],[20,3]].forEach(([lv,s])=>assert.strictEqual(MO.stageOf(lv),s))});
+  [[1,0],[3,0],[4,0],[5,0],[6,1],[9,1],[10,2],[15,2],[16,3],[20,3]].forEach(([lv,s])=>assert.strictEqual(MO.stageOf(lv),s))});
 
 t('геометрия без NaN и бесконечностей для 300 случайных генотипов на всех уровнях',()=>{
   RANDOM.forEach((g,i)=>{const lv=1+i%20,G=SH.build(MO.morph(D.phenotype(g),lv));

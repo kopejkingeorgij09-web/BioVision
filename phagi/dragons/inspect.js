@@ -257,7 +257,7 @@ function failed(v,e){if(v.dead)return;console.error(e);v.root.classList.add('on'
    keep — тот же дракон заново (вырос до новой стадии или сильно изменилось окно): выбор части и вкладка остаются */
 async function show(v,info,mode){
   const tok=++v.tok;v.info=info;
-  const ph=DRG.phenotype(info.genome),M=root.MORPH.morph(ph,info.lvl),G=root.SHAPE.build(M),P=root.ANIM.profile(M,G.rig);
+  const ph=Object.assign(DRG.gamePhenotype(info.genome),{academyRank:info.academyRank||0}),M=root.MORPH.morph(ph,info.lvl),G=root.SHAPE.build(M),P=root.ANIM.profile(M,G.rig);
   const t0=performance.now();
   v.next={ph,M,G,P};
   layout(v,G);
@@ -433,6 +433,7 @@ function react(v,part){
   if(s==='idle'){A.play('happy');say(v,v.info.name+' радуется')}}
 const breathWord=v=>v.M.breath==='smoke'?'дым':v.M.breath==='dormant'?'дремлющий не дышит стихией':v.M.elements.map(e=>ELW[e]).join(' и ');
 function tap(v,x,y){
+  if(root.DRELEMENT){if(v.A)v.A.play('happy');return;}
   if(!v.A||v.fly)return;
   const part=hitTest(v,x*v.dpr,y*v.dpr);
   if(!part){if(v.sel)select(v,null,true);return}
@@ -575,7 +576,7 @@ function renderPanel(v){renderBadge(v);renderBar(v);renderNav(v);renderHead(v);i
 const ELI={F:'🔥',W:'💧',T:'⛰️',A:'🌬️',P:'🌿',L:'☀️',D:'🌙'};
 const elsOf=v=>v.M&&v.M.breath==='element'?v.M.elements:[];
 const elIcon=v=>{const e=elsOf(v);return e.length?ELI[e[0]]:v.M.breath==='smoke'?'💨':'💤'};
-function renderBadge(v){const e=v.$('.dri-badge');if(!e||!v.M)return;const i=v.info,rr=DRG.rarity(v.ph),els=elsOf(v),col=root.DRAW?root.DRAW.EL_COL:{};
+function renderBadge(v){const e=v.$('.dri-badge');if(!e||!v.M)return;const i=v.info,rr=DRG.gameRarity(v.ph),els=elsOf(v),col=root.DRAW?root.DRAW.EL_COL:{};
   setHTML(e,`<span class="dri-bi" style="--c:${els.length?col[els[0]]:'#8C8F96'}">${elIcon(v)}</span><span class="dri-bt"><b>${esc(i.name)}</b><small>Уровень ${i.lvl}</small>
     <span class="dri-stars" title="Редкость: ${esc(DRG.RARITY[rr])}">${[0,1,2,3,4].map(k=>`<i class="${k<=rr?'on':''}">★</i>`).join('')}</span></span>`)}
 function renderBar(v){const e=v.$('.dri-bar');if(!e)return;const i=v.info,f=i.feed;
@@ -595,7 +596,7 @@ function sideHTML(v){const s=v.stats,N=root.DSTATS.NAMES,els=elsOf(v),col=root.D
     <div class="dri-sep"></div>${row('❤️',N.hp,s.hp)}${row('⚔️',N.atk,s.atk)}${row('🛡️',N.def,s.def)}${row('💨',N.spd,s.spd)}${row('◆','Абсолютная сила',root.DSTATS.power(s))}</div>`}
 function elText(v){return v.M.breath==='dormant'?'дремлющий, стихия не проявляется':v.M.breath==='smoke'?'дымный, без стихии':v.M.elements.map(e=>ELN[e]).join(' и ')}
 function renderHead(v){
-  const i=v.info,M=v.M,rr=DRG.rarity(v.ph),f=i.feed,B=window.DSTATS&&DSTATS.badge(v.ph);
+  const i=v.info,M=v.M,rr=DRG.gameRarity(v.ph),f=i.feed,B=window.DSTATS&&DSTATS.badge(v.ph);
   setHTML(v.$('.dri-head'),`<div class="dri-hd"><h2 id="dri-t">${esc(i.name)}</h2><span class="dri-sex" title="${i.genome.sex==='F'?'самка, ZW':'самец, ZZ'}">${i.genome.sex==='F'?'♀':'♂'}<span class="sr"> ${i.genome.sex==='F'?'самка':'самец'}</span></span><span class="dri-rar r${rr}" title="Редкость: как трудно вывести такой фенотип">${esc(DRG.RARITY[rr])}</span>${B&&B.rank?`<span class="dri-rank" title="${esc(B.title)}">${B.stars}<span class="sr"> ${esc(B.title)}</span></span>`:''}</div>
   <p class="dri-sub">${i.lvl}-й уровень · ${esc(M.stageName)} · ${esc(elText(v))}${B&&B.hyb?' · сочетание «'+esc(B.hyb)+'»':''}</p>
   ${i.own&&f&&!f.can&&f.why?`<p class="dri-why">${esc(f.why)}</p>`:''}<p class="dri-say" aria-live="polite"></p>`)}
@@ -603,16 +604,16 @@ function renderMain(v){
   if(v.sub)return;
   setHTML(v.$('.dri-body'),sideHTML(v)+`<div class="dri-part"></div><div class="dri-chips"></div><div class="dri-stats"></div><div class="dri-facts"></div>`);
   renderPart(v);renderChips(v);renderStats(v);renderFacts(v)}
-function renderChips(v){const e=v.$('.dri-chips');if(!e||!v.parts)return;
+function renderChips(v){if(root.DRELEMENT){const e=v.$('.dri-chips');if(e)e.innerHTML='<p>Внешность определяется стихией и возрастом. Наследуются только E, E2 и S.</p>';return;}const e=v.$('.dri-chips');if(!e||!v.parts)return;
   setHTML(e,`<h3>Части тела</h3><div class="dri-cl" role="group" aria-label="Части тела">${v.parts.map(p=>`<button class="dri-chip" data-dk="part" data-p="${p}" aria-pressed="${v.sel===p}">${PART[p]}</button>`).join('')}</div>`)}
 function renderPart(v){const e=v.$('.dri-part');if(!e)return;
   if(!v.sel){e.innerHTML='';return}
-  const P=partInfo(v.M,v.info.genome,v.sel);
+  const P=partInfo(v.M,v.info.genome,v.sel);P.rows=P.rows.map(r=>Object.assign({},r,{loci:r.loci.filter(x=>['E','E2','S'].includes(x.l))}));
   setHTML(e,`<div class="dri-pc"><div class="dri-pch"><h3>${esc(P.name)}</h3><button class="dri-ux" data-dk="unsel" aria-label="Снять выделение">✕</button></div>${partRows(P)}</div>`)}
 /* гены части по наличию, форме и окраске, отдельно возраст и оформление; links — гены кнопками (в паспорте) */
 function partRows(P,links){
   const lb=x=>links?`<button class="dri-l dri-lk" data-dk="loc" data-l="${x.l}"><b>${x.l}</b> ${esc(x.al)}<small>${esc(x.why)}</small></button>`:`<span class="dri-l"><b>${x.l}</b> ${esc(x.al)}<small>${esc(x.why)}</small></span>`;
-  const rows=P.cosm?'':P.rows.map(r=>`<dt>${r.title}</dt><dd>${r.loci.length?r.loci.map(lb).join(''):r.c==='has'?'есть у всех драконов':'не зависит от генов'}</dd>`).join('');
+  const rows=P.cosm?'':P.rows.map(r=>`<dt>${r.title}</dt><dd>${r.loci.filter(x=>['E','E2','S'].includes(x.l)).length?r.loci.filter(x=>['E','E2','S'].includes(x.l)).map(lb).join(''):r.c==='has'?'есть у всех драконов':'не зависит от генов'}</dd>`).join('');
   return `${rows?`<dl>${rows}</dl>`:''}
     ${P.age?`<p class="dri-age"><span class="dri-tag art">Возраст</span> ${esc(P.age)}. Это развитие, оно не наследуется.</p>`:''}
     ${P.cosm?`<p class="dri-age"><span class="dri-tag art">${TAG.art}</span> ${esc(P.cosm)}. Не наследуется.</p>`:''}`}
@@ -625,7 +626,7 @@ function renderStats(v){const e=v.$('.dri-stats');if(!e)return;const s=v.stats,N
   const vulnerable=B?Object.keys(B.EL_NAME).filter(x=>B.mult(x,els)>1.001):[];
   setHTML(e,`<section class="dri-combat"><h3>◆ Абсолютная сила: ${D.power(s)}</h3><p>${esc(D.POWER_NOTE)}</p><h4>Боевые особенности генотипа и стихий</h4><ul>${roles.concat(gene).map(t=>`<li>${esc(t)}</li>`).join('')}</ul>
     ${B?`<p><b>Сильная стихийная атака против:</b> ${esc(names(stronger)||'нейтральные отношения')}.</p><p><b>Уязвим для атак:</b> ${esc(names(vulnerable)||'стихийных уязвимостей нет')}.</p><p>Для гибридного противника множитель зависит от всех его стихий. У дракона с 3–4 стихиями в бою активны две выбранные атаки.</p>`:''}
-    <p>Без рогов, булавы или шпор нет их прибавки к атаке; отсутствие блеска и большого гребня уменьшает защитные прибавки. Короткие крылья исключают бонус скорости за полёт. Эти признаки уже учтены в характеристиках выше.</p></section><details class="dri-src" data-k="drisrc"><summary>Из чего складываются характеристики</summary>
+    <p>Внешность, рога, крылья и окрас декоративные: боевые параметры определяются уровнем и ролью стихии. Наследуются только E, E2 и S.</p></section><details class="dri-src" data-k="drisrc"><summary>Из чего складываются характеристики</summary>
     ${['hp','atk','def','spd'].map(k=>`<p><b>${N[k]} ${s[k]}</b> = ${s.src[k].map(([l,x])=>esc(l)+' '+x).join(' + ')}${k!=='spd'&&s.lvlK!==1?` × уровень ${num(s.lvlK)}`:''}</p>`).join('')}
     <p class="dri-note">${esc(s.note)}</p></details>`)}
 function renderFacts(v){const e=v.$('.dri-facts');if(!e)return;const i=v.info,L=[];
@@ -680,7 +681,7 @@ function gtCard(v){const e=v.$('.dri-gcard');if(!e)return;const g=v.info.genome,
 /* дракон с подписями частей тела и их генов */
 const CALL=[['H','horns'],['R','crest'],['C','skin'],['K','mace'],['Wg','wings'],['G','eyes'],['Sp','spurs'],['M','metal']];
 function drawPic(v){const e=v.$('.dri-gpic');if(!e||!root.ART)return;
-  try{e.innerHTML=root.ART.svg(v.M,{width:300,key:'gp'+v.info.id,label:v.info.name})}catch(x){e.innerHTML='';return}
+  try{e.innerHTML=root.DRAW.svg(v.ph,{size:300,stage:root.DRAW.stageOf(v.info.lvl),key:'gp'+v.info.id,label:v.info.name})}catch(x){e.innerHTML='';return}
   const sv=e.querySelector('svg');if(!sv)return;
   requestAnimationFrame(()=>{if(!sv.isConnected)return;const R=e.getBoundingClientRect(),out=[],lines=[];
     CALL.forEach(([l,p])=>{const ps=partsOfLocus(l).filter(q=>v.parts.includes(q));const part=ps.includes(p)?p:ps[0];if(!part)return;
@@ -692,11 +693,10 @@ function drawPic(v){const e=v.$('.dri-gpic');if(!e||!root.ART)return;
       const x=side==='L'?4:W-4;lines.push(`<line x1="${side==='L'?x+86:x-86}" y1="${y}" x2="${o.cx}" y2="${o.cy}"/><circle cx="${o.cx}" cy="${o.cy}" r="3"/>`);
       return `<button class="dri-call ${side} ${v.loc===o.l?'on':''}" data-dk="loc" data-l="${o.l}" style="top:${y}px">${esc(PART[o.part])} (${o.l})</button>`});
     e.insertAdjacentHTML('beforeend',`<svg class="dri-cl2" width="${W}" height="${R.height}" aria-hidden="true">${lines.join('')}</svg>${lab.join('')}`)})}
-function lawHTML(){const sn=Object.keys(SOURCES),ref=f=>f.src.length?` <small class="dri-ref">Источник: ${f.src.map(k=>sn.indexOf(k)+1).join(', ')}</small>`:'';
-  return `<section class="dri-law" id="dri-law"><h4 tabindex="-1">Как устроено наследование</h4><p class="dri-gn">Метки: <span class="dri-tag nat">${TAG.nat}</span> так у настоящих организмов, <span class="dri-tag mod">${TAG.mod}</span> придумано для игры, <span class="dri-tag art">${TAG.art}</span> генами не задаётся.</p>
-    ${FACTS.map(f=>`<div class="dri-fact"><span class="dri-tag ${f.tag}">${TAG[f.tag]}</span><b>${esc(f.h)}</b><p>${esc(f.t)}${ref(f)}</p></div>`).join('')}
-    <h4>Источники</h4><ol class="dri-src">${sn.map(k=>`<li>${esc(SOURCES[k])}</li>`).join('')}</ol></section>`}
+function lawHTML(){return `<section class="dri-law"><h4>Наследование стихий</h4><p>Сами стихии вымышлены; механизм передачи аллелей использует упрощённую менделевскую модель.</p>${['E','E2','S'].map(l=>`<p><b>${l}:</b> ${esc(RULE[l])}</p>`).join('')}<p>Внешность и пол не дают генетических бонусов к характеристикам. В новом режиме нет генетически нежизнеспособных яиц.</p></section>`}
 function genoHTML(g,bred,noLaw){
+  return `<p>Наследуются только стихии: E, E2 и искра S. Внешность декоративная; здоровье, атака, защита и скорость зависят от уровня и роли стихии.</p><table><thead><tr><th>Ген</th><th>Аллели</th><th>Правило</th></tr></thead><tbody>${['E','E2','S'].map(l=>`<tr><th>${l}</th><td>${esc(allelesText(g,l))}</td><td>${esc(RULE[l])}</td></tr>`).join('')}</tbody></table>`}
+function legacyGenoHTML(g,bred,noLaw){
   const m=genoModel(g,bred),th=l=>`<th scope="col" data-l="${l}"><button class="dri-lb" data-dk="loc" data-l="${l}" aria-pressed="false" aria-label="Ген ${l}, ${esc(DRG.LOCI[l].name.toLowerCase())}: показать на драконе">${l}<small>${esc(DRG.LOCI[l].name.toLowerCase())}</small></button></th>`;
   const tbl=(loci,rows,show)=>`<table><thead><tr><th></th>${loci.map(th).join('')}</tr></thead><tbody>${rows.map(([n,h])=>`<tr><th scope="row">${n}</th>${h.map((a,i)=>`<td data-l="${loci[i]}">${esc(al(a))}</td>`).join('')}</tr>`).join('')}
     <tr class="ph"><th scope="row">видно</th>${show.map((x,i)=>`<td data-l="${loci[i]}">${esc(x)}</td>`).join('')}</tr></tbody></table>`;
@@ -748,6 +748,7 @@ function genoHi(v){
       ${gs.length?'<p class="dri-gn">Гены этой части подсвечены в таблице.</p>':''}${partRows(P,true)}</div>`)}
   else c.innerHTML=''}
 function selLoc(v,l){
+  if(l&&!(['E','E2','S'].includes(l)))return;
   v.loc=l||null;
   /* ген одной части: подсветить её и приблизить; ген всего тела (E, S, C): показать дракона целиком */
   if(l){const ps=partsOfLocus(l),here=ps.filter(p=>v.parts.includes(p));

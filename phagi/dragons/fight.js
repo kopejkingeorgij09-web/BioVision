@@ -34,17 +34,17 @@ const LS=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k);localStorag
 
 /* ---------- бойцы из драконов модели ---------- */
 const specCache=new Map();
-function specOf(id,name,genome,lvl,side){
-  const key=JSON.stringify([genome,lvl]);let c=specCache.get(key);
-  if(!c){const ph=root.DRG.phenotype(genome),M=root.MORPH.morph(ph,lvl),G=root.SHAPE.build(M),P=root.ANIM.profile(M,G.rig),s=root.DSTATS.of(ph,lvl,P);
+function specOf(id,name,genome,lvl,side,academyRank){
+  const key=JSON.stringify([genome,lvl,academyRank||0]);let c=specCache.get(key);
+  if(!c){const ph=Object.assign(root.DRG.gamePhenotype(genome),{academyRank:academyRank||0}),M=root.MORPH.morph(ph,lvl),G=root.SHAPE.build(M),P=root.ANIM.profile(M,G.rig),s=root.DSTATS.of(ph,lvl,P);
     c={ph,M,els:ph.breath==='element'?ph.elements.slice():[],s,baby:!!P.baby};if(specCache.size>80)specCache.clear();specCache.set(key,c)}
-  return {id,name,lvl,els:c.els,hp:c.s.hp,atk:c.s.atk,def:c.s.def,spd:c.s.spd,ref:{ph:c.ph,M:c.M,genome,side}}}
+  return {id,name,lvl,els:c.els,hp:c.s.hp,atk:c.s.atk,def:c.s.def,spd:c.s.spd,ref:{ph:c.ph,M:c.M,genome,side,stats:c.s}}}
 const foeSpecs=bt=>bt.foes().map(f=>Object.assign(specOf('x:'+f.id,f.name,f.genome,f.lvl,'B'),{traits:(f.traits||[]).slice()}));
 /* у дракона с тремя-четырьмя стихиями в бой идёт настройка из двух (выбирается в подготовке, помнится в браузере) */
 const loadKey=id=>'drgLoad:'+id;
 function loadOf(d){if(d.els.length<=2)return d.els.slice();let v=null;try{v=JSON.parse(LS(loadKey(d.id))||'null')}catch(e){}
   return Array.isArray(v)&&v.length===2&&v.every(e=>d.els.includes(e))&&v[0]!==v[1]?v:d.els.slice(0,2)}
-const myDragons=()=>(F&&F.api.dragons()||[]).map(d=>{const x=specOf(d.id,d.name,d.genome,d.lvl,'A');x.load=loadOf(x);return x});
+const myDragons=()=>(F&&F.api.dragons()||[]).map(d=>{const x=specOf(d.id,d.name,d.genome,d.lvl,'A',d.academyRank||0);x.load=loadOf(x);return x});
 /* боевой ранг ✦ и сочетание: подпись в карточке подготовки */
 function rankLine(d){const ph=d.ref&&d.ref.ph,B=ph&&root.DSTATS.badge(ph);if(!B)return '';
   return `<span class="drf-rk" title="${esc(B.title)}">${B.rank?`<b aria-hidden="true">${B.stars}</b> `:''}${esc(B.hyb||B.role)}</span>`}
@@ -227,7 +227,7 @@ function showPrep(id){
   F.want=null;
   F.pick=F.pick.filter(ok).slice(0,max);
   const trs=f=>f.traits.length?`<span class="drf-trs">${f.traits.map(t=>`<span title="${esc(root.DRBATTLE.TRAITS[t].text)}">${TRAIT_IC(t)} ${esc(root.DRBATTLE.TRAITS[t].name)}</span>`).join('')}</span>`:'';
-  const foe=f=>`<div class="drf-foe">${picHTML(f,96,72)}<b>${esc(f.name)}</b><small>${f.lvl}-й ур. · ${elsText(f.els)}</small>${trs(f)}</div>`;
+  const foe=f=>`<div class="drf-foe">${picHTML(f,96,72)}<b>${esc(f.name)}</b><small>${f.lvl}-й ур. · ${elsText(f.els)}</small><span class="drf-sts">❤ ${f.hp} · ⚔ ${f.atk} · 🛡 ${f.def} · 💨 ${f.spd}</span><small>◆ Сила ${root.DSTATS.power(f)}</small>${trs(f)}</div>`;
   const hint=d=>{const st=foes.filter(f=>edge(d,f).out>1).map(f=>f.name),wk=foes.filter(f=>edge(d,f).inn>1).map(f=>f.name);
     return (st.length?`<span class="hup">сильнее против: ${esc(st.join(', '))}</span>`:'')+(wk.length?`<span class="hdn">уязвим для: ${esc(wk.join(', '))}</span>`:'')+(!d.els.length?'<span>бьёт Ударом, стихии нет</span>':'')};
   const card=d=>{const i=F.pick.indexOf(d.id);
@@ -256,7 +256,7 @@ function showPrep(id){
       <li>Пока стихия летит, по кругу у дракона бежит кольцо. Нажмите (или пробел), когда оно сойдётся с меткой: Точный удар даёт +25 % урона.</li>
       <li>Шкала ярости копится от ударов. Когда она полна, один раз за бой можно выпустить Ярость дракона.</li>
       <li>Особенности противников (толстая шкура, вожак, регенерация, закалка, гнев) — открытые правила: всё, что о них знает компьютер, написано здесь.</li></ul></details></div>
-    <footer class="drf-go"><span class="drf-rec">Рекомендуемый уровень ${bt.rec}.${n?` У вас: ${lv.join(', ')}.`:''}</span><button class="btn" data-fk="start"${n&&rk.ok?'':' disabled'}>В бой · ${n} из ${max}</button></footer>`)}
+    <footer class="drf-go"><span class="drf-rec">Рекомендуемый уровень ${bt.rec}, академия ${(bt.rec>=6?1:0)+(bt.rec>=25?1:0)+(bt.rec>=45?1:0)}.${n?` У вас: ${lv.join(', ')}.`:''}</span><button class="btn" data-fk="start"${n&&rk.ok?'':' disabled'}>В бой · ${n} из ${max}</button></footer>`)}
 
 /* ---------- бой ---------- */
 const RING=1.05,LEAD=0.5,WIN=0.12;   /* кольцо Точного удара: 1,05 с до выпуска, атака стартует через 0,5 с, окно ±0,12 с */
@@ -273,7 +273,7 @@ async function startFight(){
     <div class="drf-team b" role="group" aria-label="Противники"></div>
     <div class="drf-stage"><canvas class="drf-cv" aria-hidden="true"></canvas><p class="drf-load">Драконы выходят на поле…</p></div>
     <div class="drf-team a" role="group" aria-label="Ваша команда"></div>
-    <div class="drf-cmd"><p class="drf-say" aria-live="polite"></p><div class="drf-sk"></div></div>`);
+    <details class="drf-details"><summary>Характеристики и особенности всех драконов</summary><div class="drf-details-body"></div></details><div class="drf-cmd"><p class="drf-say" aria-live="polite"></p><div class="drf-sk"></div></div>`);
   const cv=F.$('.drf-cv'),sc=new root.DRSCENE.Scene(cv,{reduce:reduced()});F.scene=sc;F.cv=cv;
   const st=F.$('.drf-stage');
   st.addEventListener('pointerdown',e=>stageTap(e));
@@ -521,21 +521,23 @@ function renderTeams(){
         <span class="drf-fn"><b>${esc(f.name)}</b><i>${f.lvl}</i>${f.els.map(e=>EL_IC[e]).join('')}</span>
         <span class="drf-hp"><i style="width:${(hp/f.maxHp*100).toFixed(1)}%"></i></span><span class="drf-hpn">${hp}/${f.maxHp}</span>
         <span class="drf-rg${f.rage>=100&&!f.rageUsed?' full':''}"><i style="width:${f.rageUsed?0:f.rage}%"></i></span><span class="drf-fxs">${fx}</span>
-        ${tg&&mul!==1?`<span class="drf-mul ${mul>1?'mup':'mdn'}">×${f1(mul)}</span>`:''}</button>`}).join('')})}
+        <span class="drf-mini-stats">⚔ ${b.atkOf(f)} · 🛡 ${b.defOf(f)} · 💨 ${f.spd}</span>${tg&&mul!==1?`<span class="drf-mul ${mul>1?'mup':'mdn'}">×${f1(mul)}</span>`:''}</button>`}).join('')});
+  const info=F.$('.drf-details-body');if(info)info.innerHTML=b.f.map(f=>{const s=f.ref&&f.ref.stats,ph=f.ref&&f.ref.ph,els=f.els,B=root.DRBATTLE;
+    const names=a=>a.map(e=>B.EL_NAME[e]).join(', ')||'нет';
+    return `<article><h4>${f.side==='A'?'Союзник':'Враг'} · ${esc(f.name)} · ${f.lvl}-й уровень</h4><p>❤ ${Math.max(0,f.hp)}/${f.maxHp} · ⚔ ${b.atkOf(f)} (база ${f.atk}) · 🛡 ${b.defOf(f)} (база ${f.def}) · 💨 ${f.spd} · ярость ${Math.round(f.rage)} %</p><p>◆ Базовая сила: ${root.DSTATS.power({hp:f.maxHp,atk:f.atk,def:f.def,spd:f.spd})}. Активные стихии: ${elsText(f.load)}.</p>${s?`<p>${esc(s.role.keys.map(k=>root.DSTATS.ROLE[k].text).join('; '))}</p><ul>${['hp','atk','def','spd'].flatMap(k=>s.src[k].filter(([l])=>l.includes('ген')).map(([l,n])=>`<li>${esc(l)}: ${n>0?'+':''}${n} ${root.DSTATS.NAMES[k]} до роста с уровнем</li>`)).join('')}</ul>`:''}<p>Сильные атаки против: ${esc(names(Object.keys(B.EL_NAME).filter(e=>f.load.some(x=>B.mult(x,[e])>1.001))))}. Уязвим для: ${esc(names(Object.keys(B.EL_NAME).filter(e=>B.mult(e,els)>1.001)))}.</p><p>${esc(Object.entries(f.fx).map(([k,n])=>(FX_TXT[k]||k)+': '+n+' ход.').join('; ')||'Нет временных эффектов')}</p></article>`}).join('')}
 function renderSkills(){
   const el=F&&F.$('.drf-sk');if(!el)return;
   if(F.ring&&!F.ring.pressed){el.innerHTML=`<button class="btn drf-hit" data-fk="press" data-first>Удар! <small>нажмите, когда кольцо сойдётся · пробел</small></button>`;el.querySelector('button').focus({preventScroll:true});return}
   if(F.ring){el.innerHTML=`<p class="drf-small">${F.ring.ok?'Точный удар: урон +25 %':'Мимо окна: обычный удар'}</p>`;return}
   if(!F.pend){el.innerHTML='';return}
-  if(F.tgtMode){el.innerHTML=`<p class="drf-small">Цель для приёма «${esc(F.tgtMode.skill.name)}»: нажмите на противника на поле или на его карточку.</p><button class="btn ghost sm" data-fk="untgt">Другой приём</button>`;
-    const t=F.$('.drf-team.b .drf-fc.tg');if(t)t.focus({preventScroll:true});return}
   const B=root.DRBATTLE,f=F.pend.f;
-  el.innerHTML=F.ops.map((o,i)=>{const s=o.skill,E=s.el&&B.EFFECT[s.el],atk=s.el?root.DRATK.ATTACKS[s.el].name:'';
+  const mode=F.tgtMode,targets=mode?`<div class="drf-targets"><p><b>Цель для «${esc(mode.skill.name)}»</b> · Q / W / E</p>${mode.targets.map((id,i)=>{const t=F.b.get(id),dmg=Math.round(F.b.expect(f,mode.skill,t)),mult=mode.skill.el?B.mult(mode.skill.el,t.els):1;return `<button class="btn ghost drf-target" data-fk="tgt" data-id="${esc(id)}"><kbd>${['Q','W','E'][i]||i+1}</kbd><b>${esc(t.name)}</b><small>❤ ${Math.max(0,t.hp)}/${t.maxHp} · ≈${dmg} урона · ×${f1(mult)}</small></button>`}).join('')}<small>Урон приблизительный, до точного удара. Можно сменить приём ниже.</small></div>`:'';
+  el.innerHTML=targets+'<p class="drf-step"><b>Выбери приём или стихию</b> · клавиши 1–9</p>'+F.ops.map((o,i)=>{const s=o.skill,E=s.el&&B.EFFECT[s.el],atk=s.el?root.DRATK.ATTACKS[s.el].name:'';
     const sub=s.swap?'займёт ход, в настройке две стихии':s.id==='strike'?'обычный урон':s.id==='guard'?'урон по нему ×0,5 до своего хода':s.id==='rage'?`урон ×${f1(B.POWER.rage)}, один раз за бой`:
       `${atk} · урон ×${f1(B.POWER.element)}${E?', '+(E.k==='heal'?'лечит себя':E.k==='drain'?`вытягивает силы, ${Math.round(E.weak*100)} %: ослабляет`:`${Math.round(E.chance*100)} %: ${E.name.toLowerCase()}`):''}${s.el==='A'?', Натиск по тем, кто ещё не ходил':''}`;
     const ic=s.swap?'⇄':s.id==='strike'?'🐾':s.id==='guard'?'🛡':s.id==='rage'?'💥':EL_IC[s.el];
-    return `<button class="drf-skb${s.id==='rage'?' rage':''}" data-fk="skill" data-sk="${s.id}"${i===0?' data-first':''}><span aria-hidden="true">${ic}</span><b>${esc(s.id==='rage'?'Ярость дракона':s.name)}</b><small>${esc(sub)}</small><kbd>${i+1}</kbd></button>`}).join('');
-  const b=el.querySelector('[data-first]');if(b&&!F.el.querySelector('.drf-res'))b.focus({preventScroll:true})}
+    return `<button class="drf-skb${s.id==='rage'?' rage':''}${mode&&mode.skill.id===s.id?' selected':''}" aria-pressed="${!!(mode&&mode.skill.id===s.id)}" data-fk="skill" data-sk="${s.id}"${i===0?' data-first':''}><span aria-hidden="true">${ic}</span><b>${esc(s.id==='rage'?'Ярость дракона':s.name)}</b><small>${esc(sub)}</small><kbd>${i+1}</kbd></button>`}).join('');
+  const b=el.querySelector('[data-first]');if(b&&!mode&&!F.el.querySelector('.drf-res'))b.focus({preventScroll:true})}
 
 /* ---------- события ---------- */
 async function onClick(e){
@@ -580,7 +582,8 @@ function onKey(e){
   if(k==='Tab'){trap(e);return}
   if(F.screen!=='fight'||e.ctrlKey||e.metaKey||e.altKey)return;
   if(k===' '&&F.ring){e.preventDefault();press();return}
-  if(/^[1-5]$/.test(k)&&F.ops&&!F.tgtMode){const o=F.ops[+k-1];if(o){e.preventDefault();pickSkill(o.skill.id)}}}
+  if(F.tgtMode&&['q','w','e','й','ц','у'].includes(k.toLowerCase())){const i=['q','w','e'].indexOf(k.toLowerCase())>=0?['q','w','e'].indexOf(k.toLowerCase()):['й','ц','у'].indexOf(k.toLowerCase()),id=F.tgtMode.targets[i];if(id){e.preventDefault();pickTarget(id)}return}
+  if(/^[1-9]$/.test(k)&&F.ops){const o=F.ops[+k-1];if(o){e.preventDefault();pickSkill(o.skill.id)}}}
 function trap(e){
   const f=[...F.el.querySelectorAll('button:not([disabled]):not([tabindex="-1"]),summary')].filter(x=>x.getClientRects().length);if(!f.length)return;
   const res=F.el.querySelector('.drf-res'),list=res?f.filter(x=>res.contains(x)):f,i=list.indexOf(document.activeElement);

@@ -18,8 +18,8 @@ function baseColors(ph){
   const raw=els.length?els.map(e=>EL_COL[e]||SMOKE):[ph.breath==='smoke'?SMOKE:DORMANT];
   return raw.map(c=>tone(c,ph.color))}
 
-const stageOf=lvl=>(lvl||1)>=10?2:(lvl||1)>=4?1:0;
-const STAGE_NAME=['малыш','подросток','взрослый'];
+const stageOf=lvl=>(lvl||1)>=16?3:(lvl||1)>=10?2:(lvl||1)>=6?1:0;
+const STAGE_NAME=['детёныш','подросток','взрослый','развитый взрослый'];
 
 /* силуэты (вид сбоку, морда вправо) */
 const BODY='M62 110 C 60 90 80 76 106 76 C 132 76 150 90 151 108 C 152 126 134 139 106 139 C 80 139 63 128 62 110 Z';
@@ -45,6 +45,7 @@ function breathFX(el,x,y){
   }return ''}
 
 function svg(ph,opt){
+  if(root.DRELEMENT&&root.DRART_MANIFEST)return root.DRELEMENT.svg(ph,opt);
   opt=opt||{};
   const key=String(opt.key||'d').replace(/[^A-Za-z0-9_-]/g,'');
   const size=opt.size||160,stage=opt.stage==null?2:opt.stage;
@@ -132,19 +133,7 @@ function svg(ph,opt){
 
 /* Описание внешности словами (без генотипа) */
 const ELN={F:'огонь',W:'вода',T:'земля',A:'воздух',P:'флора',L:'свет',D:'тьма'};
-function describe(ph){
-  const l=[];
-  l.push(ph.breath==='dormant'?'Дремлющий: железа не работает':ph.breath==='smoke'?'Дымный: без стихии':'Стихия: '+ph.elements.map(e=>ELN[e]).join(' и '));
-  l.push('Окрас: '+({dark:'тёмный',bronze:'бронзовый',pale:'бледный'})[ph.color]);
-  l.push(ph.horns?'С рогами':'Без рогов');
-  l.push(ph.mace?'Хвост с булавой':'Хвост без булавы');
-  l.push('Гребень: '+({big:'большой',mid:'средний',none:'нет'})[ph.crest]);
-  l.push(ph.shortWings?'Короткие крылья':'Размах крыльев '+String(ph.spanM).replace('.',',')+' м');
-  if(ph.metal)l.push('Чешуя с металлическим блеском');
-  if(ph.night)l.push('Ночное зрение');
-  if(ph.glow)l.push('Светящиеся глаза');
-  if(ph.spurs)l.push('Шпоры на лапах');
-  return l}
+function describe(ph){return [ph.breath==='dormant'?'Дремлющий: стихия подавлена геном S':ph.breath==='smoke'?'Дымный: без стихии':'Стихии: '+ph.elements.map(e=>ELN[e]).join(' и '),'Внешность декоративная; боевые параметры зависят от уровня и роли стихии']}
 
 const DRAW={svg,describe,EL_COL,ELN,stageOf,STAGE_NAME};
 if(typeof module!=='undefined'&&module.exports)module.exports=DRAW;else root.DRAW=DRAW;

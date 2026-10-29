@@ -84,7 +84,7 @@ function blend(group,els,part){
    крылышки; у развитого взрослого шире грудь, больше крылья и рога. Генотип от уровня не меняется. */
 const STAGES=[
   {name:'малыш',from:1,to:3},{name:'подросток',from:4,to:9},{name:'взрослый',from:10,to:15},{name:'развитый взрослый',from:16,to:20}];
-const stageOf=lvl=>{lvl=lvl||1;return lvl>=16?3:lvl>=10?2:lvl>=4?1:0};
+const stageOf=lvl=>{lvl=lvl||1;return lvl>=16?3:lvl>=10?2:lvl>=6?1:0};
 const AGE=[
   {scale:.58,len:.84,legs:.8,legT:1.15,radius:1.08,head:1.5,eye:1.7,snout:.62,neck:.62,tail:.72,wing:.5,horn:.3,crest:.35,mace:.55,spurs:0,chest:.92,detail:0,aura:0},
   {scale:.78,len:.95,legs:.95,legT:1.02,radius:1,head:1.18,eye:1.25,snout:.86,neck:.86,tail:.88,wing:.8,horn:.68,crest:.72,mace:.8,spurs:.6,chest:.97,detail:.6,aura:0},

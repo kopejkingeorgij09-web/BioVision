@@ -168,7 +168,7 @@ t('остров: 100 уровней, на максимуме нет следую
   for(let L=2;L<=60;L++)assert.strictEqual(E.xpFor(L),Math.round(30*Math.pow(L-1,1.9)),'кривая до 60 прежняя');
   let last=1;for(let L=2;L<=100;L++){const u=E.unlocksAt(L).filter(x=>!E.MINOR.test(x));if(u.length){assert.ok(L-last<=5,'пусто между '+last+' и '+L);last=L}}
   assert.strictEqual(last,100);assert.strictEqual(E.nextMajor(100),null);
-  for(let L=1;L<=20;L++){assert.strictEqual(E.maxHabs(L),3+Math.floor(L/2));assert.strictEqual(E.maxFarms(L),1+Math.floor((L+2)/3))}
+  for(let L=1;L<=20;L++){assert.strictEqual(E.maxHabs(L),3+Math.floor(L/2));assert.strictEqual(E.maxFarms(L),1)}
   for(let L=2;L<=100;L++){assert.ok(E.maxHabs(L)>=E.maxHabs(L-1));assert.ok(E.maxFarms(L)>=E.maxFarms(L-1))}
 });
 

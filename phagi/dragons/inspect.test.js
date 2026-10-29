@@ -92,13 +92,13 @@ t('характеристики: сумма вкладов, уровень ра�
   assert.strictEqual(s20.spd,sum(s20,'spd'));
   assert.ok(s20.hp>s1.hp&&s20.atk>s1.atk);assert.ok(/условность/.test(s1.note))});
 
-t('характеристики следуют признакам: рога и булава дают атаку, тяжёлая Земля крепче Воздуха',()=>{
+t('внешность не меняет атаку, роль Земли крепче Воздуха',()=>{
   const ad=12,with_=prof(mk({H:'H/H',K:'K/K'}),ad),none=prof(mk({H:'h/h',K:'k/k'}),ad);
-  const dA=ST.of(with_.ph,1,with_.P).atk-ST.of(none.ph,1,none.P).atk,rk=ST.roleOf(with_.ph).atk;assert.ok(Math.abs(dA-6*rk)<=1,'рога и булава дают +6 с поправкой роли: '+dA);
+  const dA=ST.of(with_.ph,1,with_.P).atk-ST.of(none.ph,1,none.P).atk,rk=ST.roleOf(with_.ph).atk;assert.strictEqual(dA,0,'рога и булава декоративные');
   const T=prof(mk({E:'T/T'}),ad),A=prof(mk({E:'A/A'}),ad),sT=ST.of(T.ph,ad,T.P),sA=ST.of(A.ph,ad,A.P);
   assert.ok(sT.hp>sA.hp&&sT.def>sA.def,'Земля крепче');
   assert.ok(sA.spd>sT.spd,'Воздух быстрее');
-  assert.ok(sA.src.spd.some(([l])=>/Полёт/.test(l))===A.P.canFly)});
+  assert.ok(!sA.src.spd.some(([l])=>/Полёт/.test(l)),'косметические крылья не меняют скорость')});
 
 t('паспорт: правило каждого гена совпадает с фенотипом, числа в тексте совпадают с моделью',()=>{
   Object.keys(D.LOCI).forEach(l=>assert.ok(I.RULE[l],'нет правила для '+l));

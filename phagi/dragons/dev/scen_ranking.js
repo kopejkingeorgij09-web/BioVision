@@ -8,6 +8,6 @@ module.exports=async(page,{OUT,store,UID,need})=>{
  await page.screenshot({path:OUT+'/ranking.png'});
  d=store.get(path).d;d.dragons[0].lvl=1;d.dragons[1].lvl=60;store.set(path,{d,t:new Date().toISOString()});await page.reload();await w(2200);
  if(!await page.locator('.drg-dock').count()){await page.click('[data-act=go][data-v=cards]');await w(300);await page.click('[data-act=drgopen][data-full]');await w(1000)}
- await page.click('.drg-dock [data-v=dragons]');await page.locator('.drg-favorite').waitFor();need(await page.locator('.drg-favorite [data-dragon]').getAttribute('data-dragon')===d.dragons[1].id,'любимчик пересчитан после роста другого дракона');
+ if(!await page.locator('.drg-favorite').count())await page.click('.drg-dock [data-v=dragons]');await page.locator('.drg-favorite').waitFor();need(await page.locator('.drg-favorite [data-dragon]').getAttribute('data-dragon')===d.dragons[1].id,'любимчик пересчитан после роста другого дракона');
  need(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'нет горизонтальной прокрутки');
 };

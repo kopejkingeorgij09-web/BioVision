@@ -425,7 +425,7 @@ function panel0(st,c,own){
   const K=c.K,L=E.level(st),p=S.drgPanel;
   if(own&&p==='shop')return shopHTML(st,L);
   if(own&&p==='market')return marketHTML(st,L);
-  if(p==='dragons')return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>Драконы острова</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div><div class="drg-list">${st.dragons.map(d=>dragonCard(st,d,own,L)).join('')}</div></section>`;
+  if(p==='dragons'||p==='ranking')return dragonsHTML(st,own,L,p==='ranking');
   if(p==='help')return helpHTML(st,c);
   if(p==='breed')return breedHTML(st,c,own);
   if(p==='more')return moreHTML(st,own,c);
@@ -471,11 +471,21 @@ const goldTxt=(st,d)=>goldFmt(E.goldNow(st,d,todayN()));
 /* на каком уровне острова предел драконов станет больше cap */
 const capAt=cap=>{for(let k=1;k<=E.ISLE_MAX;k++)if(E.maxDragonLv(k)>cap)return k;return null};
 const combatCache=new Map();let powerLoading=null;
-function powerHTML(d){
-  if(!window.DSTATS||!window.MORPH||!window.SHAPE||!window.ANIM){if(!powerLoading&&window.DRGINSP)powerLoading=window.DRGINSP.loadAll().then(()=>render()).catch(()=>{});return ''}
+function powerValue(d){
+  if(!window.DSTATS||!window.MORPH||!window.SHAPE||!window.ANIM){if(!powerLoading&&window.DRGINSP)powerLoading=window.DRGINSP.loadAll().then(()=>render()).catch(()=>{});return null}
   const key=JSON.stringify([d.genome,d.lvl]);let val=combatCache.get(key);
   if(val==null){const ph=phOf(d),m=window.MORPH.morph(ph,d.lvl),g=window.SHAPE.build(m);val=window.DSTATS.power(window.DSTATS.of(ph,d.lvl,window.ANIM.profile(m,g.rig)));if(combatCache.size>96)combatCache.clear();combatCache.set(key,val)}
+  return val}
+function powerHTML(d){const val=powerValue(d);if(val==null)return '';
   return `<span class="drg-power" title="${esc(window.DSTATS.POWER_NOTE)}">◆ Абсолютная сила: ${val}</span>`}
+function dragonsHTML(st,own,L,ranking){
+  const rows=st.dragons.map(d=>({d,power:powerValue(d)})),ready=rows.every(r=>r.power!=null);
+  rows.sort((a,b)=>(b.power||0)-(a.power||0)||String(a.d.id).localeCompare(String(b.d.id)));
+  const best=ready&&rows[0],tabs=`<nav class="drg-store-tabs" aria-label="Драконы"><button class="btn ${ranking?'ghost':''}" data-act="drgpanel" data-v="dragons" aria-pressed="${!ranking}">Все драконы</button><button class="btn ${ranking?'':'ghost'}" data-act="drgpanel" data-v="ranking" aria-pressed="${ranking}">🏆 По силе</button></nav>`;
+  return `<section class="sheet drg-pan drg-ranking"><div class="drg-pan-h"><h2>${ranking?'Рейтинг драконов':'Драконы острова'}</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div>${tabs}
+    ${best?`<div class="drg-favorite"><span>⭐ Любимчик · самый сильный</span><b>${esc(best.d.name)} · ◆ ${best.power}</b><small>${best.d.lvl}-й уровень${rows[1]&&rows[1].power===best.power?' · несколько драконов делят первое место':''}</small><button class="btn sm" data-act="drginsp" data-dragon="${best.d.id}">Открыть паспорт</button></div>`:''}
+    ${ranking?`<p class="muted small">По абсолютной силе на текущем уровне. Для сравнения наследуемых качеств выбирай драконов одного уровня. При равной силе порядок определяется постоянным идентификатором; любимчик — первый из лидеров.</p>${!ready?'<p role="status">Считаю силу…</p>':`<ol class="drg-power-list">${rows.map((r,i)=>`<li data-power="${r.power}" data-dragon="${r.d.id}"><span class="drg-power-place">${i+1}</span><button class="drg-power-open" data-act="drginsp" data-dragon="${r.d.id}"><b>${esc(r.d.name)}${i===0?' ⭐':''}</b><small>${r.d.lvl}-й уровень</small></button><strong>◆ ${r.power}</strong></li>`).join('')}</ol>`}`:`<div class="drg-list">${st.dragons.map(d=>dragonCard(st,d,own,L)).join('')}</div>`}
+    ${!rows.length?'<p class="muted">На острове пока нет драконов.</p>':''}</section>`}
 function residentCard(st,d,own,L){
   const cost=E.feedPrice(st,d).cost,cap=E.maxDragonLv(L),ph=phOf(d);
   return `<article class="drg-card drg-resident"><button class="drg-pic" data-act="drginsp" data-dragon="${d.id}" aria-label="Осмотреть: ${esc(d.name)}">${W.svg(ph,{stage:W.stageOf(d.lvl),key:'home'+d.id,size:96})}</button><div class="drg-info"><b>${esc(d.name)} ${SEX[d.genome.sex]}</b>${powerHTML(d)}<p>${d.lvl}-й уровень · +${goldTxt(st,d)} 🪙 за карточку</p><p class="muted small">Кормлений: ${d.fed||0} из ${E.FEEDS}</p>

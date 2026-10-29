@@ -59,7 +59,8 @@ function portrait(sp,W,H){
   const key=JSON.stringify([sp.ref.genome,sp.lvl,W,H]);if(pics.has(key))return pics.get(key);
   const p=picQ=picQ.then(async()=>{
     const ph=sp.ref.ph,M=root.MORPH.morph(ph,sp.lvl),G=root.SHAPE.build(M),dpr=Math.min(3,root.devicePixelRatio||1);
-    const bw=G.box.w*G.scale,bh=G.box.h*G.scale,z=Math.min(W*dpr*0.92/bw,H*dpr*0.9/bh);
+    /* RIG.draw получает исходные координаты геометрии: возрастной масштаб здесь повторять нельзя. */
+    const bw=G.box.w,bh=G.box.h,z=Math.min(W*dpr*0.92/bw,H*dpr*0.9/bh);
     const X=await root.RIG.get(ph,sp.lvl,{px:Math.max(0.5,z/dpr/G.scale),dpr});
     try{const A=new root.ANIM.Animator(M,X.R,{seed:7,reduce:true,noPuff:true});A.update(0.02);
       const cv=document.createElement('canvas');cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);const c=cv.getContext('2d');

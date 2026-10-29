@@ -8,7 +8,7 @@ const UID='u_test1';
 const day=o=>{const d=new Date();d.setDate(d.getDate()+o);return d.toISOString().slice(0,10)};
 const store=new Map();const fail={set:0,get:0,lost:0};const writes=[];const blocked=[];const T=()=>new Date().toISOString();
 const put=(p,d)=>store.set(p,{d,t:T()});
-put('people/'+UID,{label:'Тестовая'});
+put('people/'+UID,{label:process.env.TEST_LABEL||'Тестовая'});
 put('decks/dk1',{title:'Белки',subject:'bio',to:[UID],createdAt:T(),cards:Array.from({length:30},(_,i)=>({i:'c'+i,f:'Вопрос '+i,b:'Ответ '+i}))});
 put(`srs/${UID}/meta/streak`,{days:{[day(-2)]:22,[day(-1)]:40,[day(0)]:7},ack:null,muts:[]});
 if(process.env.DRAG)put(`srs/${UID}/meta/dragons`,JSON.parse(process.env.DRAG));

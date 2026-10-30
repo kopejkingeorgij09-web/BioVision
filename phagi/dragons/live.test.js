@@ -51,7 +51,7 @@ t('заслоняет только то, что стоит впереди: др�
   const s=D.startState([]);s.clr=D.obstacles(s).map(o=>o.id);s.bld=s.bld.slice(0,1);
   const m=LV.mapOf(s,D,I),b=s.bld[0],c=I.P(b.x+1,b.y+1);
   /* b1 — вольер (4.1): заслоняет только знак среды в глубине, двор перед ним открыт */
-  assert.ok(LV.hidden(m,[c[0],c[1]-14],50,40),'за знаком среды должен быть заслонён');
+  assert.ok(LV.hidden(m,[c[0],c[1]-48],50,40),'за знаком среды должен быть заслонён');
   assert.ok(!LV.hidden(m,[c[0],c[1]+20],50,40),'во дворе не заслонён');
   const f={id:'f',type:'farm',x:8,y:4,lvl:1,plots:[null,null],build:null,up:null};s.bld.push(f);const m2=LV.mapOf(s,D,I),cf=I.P(f.x+1,f.y+1);
   assert.ok(LV.hidden(m2,[cf[0],cf[1]-4],50,40),'за обычной постройкой заслонён');assert.ok(!LV.hidden(m2,[cf[0],cf[1]+20],50,40))});
@@ -59,7 +59,7 @@ t('заслоняет только то, что стоит впереди: др�
 t('вольер (4.1): дракон гуляет и летает только во дворе своего дома',()=>{
   const s=crowded(),m=LV.mapOf(s,D,I),r=rng(7);let n=0,cov=0;
   s.bld.filter(b=>D.TYPES[b.type].kind==='hab').forEach(b=>{assert.ok(m.yards[b.id],'у среды есть двор');
-    const h=homeOf(b,0,21),d={hid:b.id,home:h,p:h.slice(),w:36,h:26};
+    const h=homeOf(b,0,-12),d={hid:b.id,home:h,p:h.slice(),w:32,h:25};
     LV.settle(m,I,d,[]);if(d.cover){cov++;return}assert.ok(LV.yardHas(m,I,d,d.p),'после settle во дворе');
     for(let i=0;i<60;i++){const air=i%3===0,to=air?LV.yardTarget(m,I,d,[],r,true):LV.pickTarget(m,I,d,[],r);if(!to)continue;n++;
       const g=LV.toGrid(I,to[0],to[1]);assert.ok(LV.inYard(I.YARD,g[0]-b.x,g[1]-b.y),'цель за бортиком: '+b.type);

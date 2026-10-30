@@ -926,11 +926,11 @@ function camApplyNow(){const st=document.querySelector('.drg-world .drg-stage'),
     if(c.auto)camFit(r,false,fitKind(r));else{const o=svgMap({width:c.W,height:c.H}),n=svgMap(r),u=((c.W/2-c.x)/c.z-o.x(0))/o.s0,v=((c.H/2-c.y)/c.z-o.y(0))/o.s0;
       c.x=r.width/2-c.z*n.x(u);c.y=r.height/2-c.z*n.y(v);c.W=r.width;c.H=r.height}}
   camClamp(c,r);
-  /* Stable layout size; camera updates only its transform once per frame. */
-  const sw=+r.width.toFixed(2)+'px',sh=+r.height.toFixed(2)+'px';
+  /* Rasterize the SVG at the actual zoom size; CSS scale would magnify a cached bitmap. */
+  const sw=+(r.width*c.z).toFixed(2)+'px',sh=+(r.height*c.z).toFixed(2)+'px';
   const resized=st.style.width!==sw||st.style.height!==sh;
   if(resized){st.style.width=sw;st.style.height=sh}
-  const tr=`translate(${c.x.toFixed(1)}px,${c.y.toFixed(1)}px) scale(${c.z.toFixed(5)})`;
+  const tr=`translate(${c.x.toFixed(1)}px,${c.y.toFixed(1)}px)`;
   const moved=resized||st.style.transform!==tr;if(moved)st.style.transform=tr;
   /* фон за островом движется медленнее камеры: далёкие острова и облака дают глубину */
   const bgs=st.parentElement.querySelector('.drg-bgs');

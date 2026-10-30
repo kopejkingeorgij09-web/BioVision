@@ -96,7 +96,7 @@ const HEIGHT={F:66,W:44,N:60,T:80,A:108,P:104,L:98,D:108,farm:40,nest:82,hatch:6
    в глубине площадки, перед ним двор: там драконы живут, ходят и взлетают, за бортик не выходят.
    Двор в клетках постройки: u, v от YARD.lo до YARD.hi и u+v ≥ YARD.front (перед знаком среды), см. live.js.
    Пол площадки на уровне земли, поэтому лапы драконов стоят на полу; бортик и цоколь выступают над и под ним. */
-const HAB_SC=1,HAB_DY=0,YARD={lo:0.32,hi:1.68,front:1.75};
+const HAB_SC=1,HAB_DY=0,YARD={lo:0.32,hi:1.68,front:1.05};
 const PAD={
   F:{L:'#6E6576',M:'#504858',D:'#352E3C',base:'#3E3644',baseD:'#221D27',fl:'#463A40',fl2:'#2A2226'},
   W:{L:'#F0F4F8',M:'#C9D2DD',D:'#98A4B4',base:'#B6C0CD',baseD:'#7E8A9B',fl:'#5FDCEB',fl2:'#1C7FB4'},
@@ -572,8 +572,8 @@ function svg(st,opt){
       const original=T.kind==='farm'?farmSprite(b,st,K,D,k):T.kind==='nest'?nestSprite(b,st,k,c,K,D):T.kind==='hatch'?hatchSprite(b,K,D,k):hab?habPad(b.type,k,b.lvl||1)+habMark(b.type,k):habPad('P',k);if(T.kind==='nest'||T.kind==='hatch'){if(world())out.push(painted(b.type));out.push(original)}else{out.push(`<g class="drg-building-original">${original}</g>`);if(world())out.push(painted(hab?'hab'+b.type:b.type));}
       if(T.kind==='hab'){
         /* драконы во дворе, перед знаком среды; живой слой потом водит их по двору */
-        const ds=st.dragons.filter(d=>d.home===b.id),pos=[[-22,12],[22,14],[0,21],[-24,6],[24,6]];
-        out.push(`<clipPath id="${k+b.id}-yard"><ellipse cx="0" cy="-8" rx="61" ry="40"/></clipPath><g clip-path="url(#${k+b.id}-yard)">`);
+        const ds=st.dragons.filter(d=>d.home===b.id),pos=[[-18,-10],[18,-10],[0,-4],[-24,-13],[24,-13]];
+        out.push(`<clipPath id="${k+b.id}-yard"><rect x="-68" y="-105" width="136" height="135"/></clipPath><g clip-path="url(#${k+b.id}-yard)">`);
         ds.forEach((d,n)=>{const [dx,dy]=pos[n%5];out.push(dragonAt(d,dx,dy,hab?34:66,k+b.id+d.id,c,b,'hab',dx>0?-1:1))})
         out.push('</g>');
         if(hab)out.push('<g class="drg-building-original">'+habFront(b.type,b.lvl||1)+'</g>')}

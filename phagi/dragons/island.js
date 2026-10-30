@@ -7,6 +7,8 @@
 (function(root){
 'use strict';
 const TW=64,TH=32,OX=400,OY=110;
+const world=()=>root.DRWORLD;
+function painted(type){const W=world();return W?`<image class="drg-painted" data-world-detail="${type}" href="${W.url(type+'-small')}" x="-77" y="-105" width="154" height="145" preserveAspectRatio="none" pointer-events="visiblePainted"/>`:''}
 /* полный вид выше прежнего (4.1): кончик скалы на 418 единиц ниже переднего угла P(n,n), весь остров помещается */
 const VIEW={norm:[10,70,780,520],full:[-260,-40,1320,972]};
 /* остров растёт кольцами участков: сторона рисунка n = 12, 16, 20 или 24 клетки */
@@ -298,7 +300,7 @@ function farmSprite(b,st,K,D,k){
     const T=[cx,cy-hh-lift],R=[cx+w,cy-lift],B=[cx,cy+hh-lift],L=[cx-w,cy-lift],dn=q=>[q[0],q[1]+lift];
     out.push(path([L,B,dn(B),dn(L)],'#B07A45')+path([B,R,dn(R),dn(B)],'#7E5428')+path([T,R,B,L],`url(#${k}-soil)`)+`<path d="M${pp(L)} L${pp(T)} L${pp(R)}" stroke="#E1B479" stroke-width="1.4" fill="none"/>`);
     out.push(`<path d="${[.25,.5,.75].map(t=>`M${pp([L[0]+(T[0]-L[0])*t,L[1]+(T[1]-L[1])*t])} L${pp([B[0]+(R[0]-B[0])*t,B[1]+(R[1]-B[1])*t])}`).join(' ')}" stroke="#4A3018" stroke-width="2.4" fill="none" opacity=".55"/><path d="${[.25,.5,.75].map(t=>`M${pp([L[0]+(T[0]-L[0])*t,L[1]+(T[1]-L[1])*t-1.2])} L${pp([B[0]+(R[0]-B[0])*t,B[1]+(R[1]-B[1])*t-1.2])}`).join(' ')}" stroke="#A97B4E" stroke-width="1" fill="none" opacity=".7"/>`);
-    if(p){const done=D.ready(p,K),kk=done?1:Math.min(1,(K-p.at+(p.skip||0)*D.SKIP_CARDS)/Math.max(1,p.need)),h=4+kk*10,dr=CROP_DRAW[p.crop]||CROP_DRAW.ember;
+    if(p){const done=D.ready(p,K),kk=done?1:Math.min(1,(p.need-D.left(p,K))/Math.max(1,p.need)),h=4+kk*10,dr=CROP_DRAW[p.crop]||CROP_DRAW.ember;
       [[-10,-2],[4,4],[-3,-8],[12,-2]].forEach(([dx,dy])=>out.push(dr(cx+dx,cy+dy-lift+2,h,done)))}
   });
   out.push(fence([-58,-2],[0,25],5)+fence([0,25],[58,-2],5));
@@ -322,21 +324,21 @@ let HITS=[];
 const dragonAt=(d,x,y,size,key,c,b,mode,face)=>{const W=root.DRAW,G=root.DRG,ix=c[0]+x,iy=c[1]+y;
   HITS.push(`<g class="drg-dr" data-act="drginsp" data-dragon="${escA(d.id)}" data-ix="${f1(ix)}" data-iy="${f1(iy)}" data-sz="${size}" data-home="${escA(b.id)}" data-mode="${mode}" data-face="${face||1}"><title>${escA(d.name)}: осмотреть</title><ellipse cx="${f1(ix)}" cy="${f1(iy-size*0.38)}" rx="${f1(size*0.44)}" ry="${f1(size*0.4)}" fill="rgba(255,255,255,.001)"/></g>`);
   return `<g class="drg-art" data-art="${escA(d.id)}">${W.svg(G.phenotype(d.genome),{key,size,label:'',stage:W.stageOf(d.lvl)}).replace('<svg class="dragon"',`<svg class="dragon drg-on" x="${f1(x-size/2)}" y="${f1(y-size*0.8)}"`)}</g>`};
-function nestSprite(b,st,k,c,K,D){const out=[nestBase(k)];
+function nestSprite(b,st,k,c,K,D){const out=['<g class="drg-building-original">'+nestBase(k)+'</g>'];
   /* яйцо в гнезде видно только когда оно отложено (пара досидела), пустое гнездо пустое */
   if(b.pair&&D&&D.ready(b.pair,K)){fx('g',0,-16,18,'#FFE27A',.6);fx('s',0,-18,12,'#FFF5C2');out.push(eggSVG(0,-16,{viable:false},.95).replace('#D8D4CC','#F5EBD6').replace(/#9A958C/g,'#C9A86A'))}
   if(b.pair){[b.pair.m,b.pair.f].forEach((id,i)=>{const d=st.dragons.find(x=>x.id===id);if(!d)return;out.push(dragonAt(d,i?20:-20,-10,58,'n'+b.id+id,c,b,'nest',i?-1:1))})}
-  out.push(nestFront());
+  out.push('<g class="drg-building-original">'+nestFront()+'</g>');
   return out.join('')}
-function hatchSprite(b,K,D,k){const out=[hatchBase(k)];let ready=0;
+function hatchSprite(b,K,D,k){const out=['<g class="drg-building-original">'+hatchBase(k)+'</g><g class="drg-hatch-eggs">'];let ready=0;
   (b.slots||[]).forEach((eg,i)=>{const x=[-18,18,-6,8][i],y=[-14,-14,-24,-24][i];
     out.push(`<ellipse cx="${x}" cy="${y+10}" rx="10" ry="4" fill="#B8925A"/><ellipse cx="${x}" cy="${y+9}" rx="10" ry="3.6" fill="none" stroke="#E3C07A" stroke-width="2"/>`);if(eg){out.push(eggSVG(x,y,eg,.9));if(D&&D.ready(eg,K))ready++}});
   if(ready)fx('s',0,-22,24,'#FFF5C2');
-  out.push(hatchDome(k));
+  out.push('</g><g class="drg-building-original">'+hatchDome(k)+'</g>');
   return out.join('')}
 
 /* строительные леса и полоска остатка */
-function scaffold(job,K,D){const k=Math.max(0,Math.min(1,(K-job.at+(job.skip||0)*D.SKIP_CARDS)/job.need));
+function scaffold(job,K,D){const k=Math.max(0,Math.min(1,(job.need-D.left(job,K))/Math.max(1,job.need)));
   const pole=(x,y0,y1)=>`<path d="M${x} ${y0} L${x} ${y1}" stroke="#8A5A2C" stroke-width="3.4" stroke-linecap="round"/><path d="M${x-1} ${y0} L${x-1} ${y1}" stroke="#C9935A" stroke-width="1.2"/>`;
   return `<g class="drg-scaf"><ellipse cx="0" cy="6" rx="54" ry="18" fill="#0B1A10" opacity=".14"/>${pole(-40,6,-52)}${pole(40,6,-52)}${pole(-14,12,-40)}${pole(14,12,-40)}
     <path d="M-42 -50 L42 -50 M-42 -22 L42 -22" stroke="#B5833F" stroke-width="4" stroke-linecap="round"/><path d="M-42 -51.4 L42 -51.4 M-42 -23.4 L42 -23.4" stroke="#E1B479" stroke-width="1.2"/>
@@ -448,7 +450,7 @@ function trails(st,lava){const at=new Set(st.bld.map(b=>b.x+':'+b.y)),out=[];
   return out.join('')}
 /* короткое состояние постройки: для aria-label и всплывающей подсказки */
 function bldState(b,st,K,D){const T=D.TYPES[b.type];
-  if(b.build)return D.ready(b.build,K)?'стройка готова':'строится, ещё '+D.left(b.build,K)+' к.';
+  if(b.build)return D.ready(b.build,K)?'стройка готова':'строится, ещё '+D.timeShort(b.build,K);
   const o=[];if(b.up&&!D.ready(b.up,K))o.push('улучшается');
   if(T.kind==='hab'){const n=st.dragons.filter(d=>d.home===b.id).length,a=Math.floor(D.chestNow(st,b,K));o.push(n?'драконов '+n:'пустует');if(a>=1)o.push('в сундуке '+a+' золота')}
   if(T.kind==='farm'){const r=(b.plots||[]).filter(p=>p&&D.ready(p,K)).length;if(r)o.push('созрело '+r)}
@@ -518,7 +520,7 @@ function bgClouds(st){const D=root.DECO,n=st&&st.land&&D?D.extent(st).n:12,vb=vi
 function svg(st,opt){
   const D=root.DECO,K=opt.K,sel=opt.sel,place=opt.place,k=opt.key||'i',ro=!!opt.readonly;
   const n=opt.bare?12:D.extent(st).n,g=geo(n),vb=viewFor(n)[opt.full?"full":"norm"],lava=st.isl===1||opt.theme==='lava';
-  HITS=[];FX=[];ORG={x:0,y:0,s:1};
+  HITS=[];FX=[];ORG={x:0,y:0,s:1};if(world()&&!opt.bare)world().warm();
   const out=[null];
   out.push(defs(k,lava));
   if(!opt.bare){
@@ -526,7 +528,7 @@ function svg(st,opt){
       /* в рамке на странице облака неподвижны и лежат в самом рисунке; на весь экран — в отдельном слое (bg) */
       const bank=[[-180,640,1.6],[60,610,1.3],[300,660,1.8],[560,620,1.4],[820,650,1.7],[1000,600,1.2],[-120,300,.9],[930,260,.8],[700,40,.7],[60,60,.6]];
       out.push(bank.map(([x,y,s],i)=>cloud(x,y,s,i>5?.85:1)).join(''))}
-    out.push(cliffs(k,g,lava));
+    out.push('<g class="drg-terrain-original'+(lava?' lava':'')+'">'+cliffs(k,g,lava));
     /* верх острова: трава с мягким светом слева сверху */
     out.push(`<path d="${smooth(g.RIM)}" fill="url(#${k}-grass)"/><path d="${smooth(g.RIM)}" fill="url(#${k}-gtex)"/><path d="${smooth(g.RIM)}" fill="url(#${k}-sun)"/>`);
     out.push(`<path d="${smooth(g.RIM)}" fill="none" stroke="${lava?'#1E1416':'#3F8F2A'}" stroke-width="2" opacity=".6"/>`);
@@ -542,7 +544,8 @@ function svg(st,opt){
       if(lava){if(r>0.9)det.push(crack(c[0],c[1],'ck'+i+':'+j));else if(r>0.86){det.push(stone(c[0],c[1],.35,BAS,i+j));if(r>0.88)withOrg(c[0],c[1],1,()=>fx('e',0,-2,9,'#FFB347'))}continue}
       if(r>0.9)det.push(tuft(c[0]+(r-.9)*80,c[1]));else if(r>0.85)det.push(flowers(c[0],c[1],'f'+i+j));else if(r>0.83)det.push(pebbles(c[0],c[1],'pb'+i+j));else if(r>0.825)det.push(shroom(c[0],c[1],hrand('gm'+i+j)>.5,'sm'+i+j))}
     out.push(det.join(''));
-    out.push(trails(st,lava));
+    out.push(trails(st,lava));out.push('</g>');
+    if(world()&&!lava){const w=n*64/.92,h=n*32/.64;out.push(`<image class="drg-painted drg-terrain-art" href="${world().url('island')}" x="${400-w/2}" y="${110-h*.04}" width="${w}" height="${h}" preserveAspectRatio="none" pointer-events="none"/>`);out.push(trails(st,false));}
   }
   /* ячейки для установки: размером со здание 2×2, только свободные; нажатие ставит здание в эту ячейку */
   if(place){
@@ -567,14 +570,14 @@ function svg(st,opt){
     if(isSel)out.push(`<ellipse cx="0" cy="2" rx="74" ry="37" fill="#FFF3B0" opacity=".22"/><path d="M0 -36 L72 0 L0 36 L-72 0 Z" fill="none" stroke="#FFF3B0" stroke-width="3.4" stroke-dasharray="7 5"/>`);
     if(b.build){out.push(scaffold(b.build,K,D))}
     else{
-      out.push(T.kind==='farm'?farmSprite(b,st,K,D,k):T.kind==='nest'?nestSprite(b,st,k,c,K,D):T.kind==='hatch'?hatchSprite(b,K,D,k):hab?habPad(b.type,k,b.lvl||1)+habMark(b.type,k):habPad('P',k));
+      const original=T.kind==='farm'?farmSprite(b,st,K,D,k):T.kind==='nest'?nestSprite(b,st,k,c,K,D):T.kind==='hatch'?hatchSprite(b,K,D,k):hab?habPad(b.type,k,b.lvl||1)+habMark(b.type,k):habPad('P',k);if(T.kind==='nest'||T.kind==='hatch'){if(world())out.push(painted(b.type));out.push(original)}else{out.push(`<g class="drg-building-original">${original}</g>`);if(world())out.push(painted(hab?'hab'+b.type:b.type));}
       if(T.kind==='hab'){
         /* драконы во дворе, перед знаком среды; живой слой потом водит их по двору */
         const ds=st.dragons.filter(d=>d.home===b.id),pos=[[-22,12],[22,14],[0,21],[-24,6],[24,6]];
         out.push(`<clipPath id="${k+b.id}-yard"><ellipse cx="0" cy="-8" rx="61" ry="40"/></clipPath><g clip-path="url(#${k+b.id}-yard)">`);
         ds.forEach((d,n)=>{const [dx,dy]=pos[n%5];out.push(dragonAt(d,dx,dy,hab?34:66,k+b.id+d.id,c,b,'hab',dx>0?-1:1))})
         out.push('</g>');
-        if(hab)out.push(habFront(b.type,b.lvl||1))}
+        if(hab)out.push('<g class="drg-building-original">'+habFront(b.type,b.lvl||1)+'</g>')}
       if(b.up)out.push(scaffold(b.up,K,D))}
     if(!fxOn)FX.length=fx0;
     ORG={x:0,y:0,s:1};
@@ -591,7 +594,7 @@ function svg(st,opt){
         bubs[bubs.length-1]=bubs[bubs.length-1].replace('<g class=',`<g data-act="${action}" data-id="${b.id}" ${collect?'data-t="collect"':''} role="button" tabindex="0" aria-label="${escA(collect?'Собрать золото: '+T.name:'Открыть: '+T.name)}" class=`)}
     }
   });
-  if(!opt.bare)out.push(rimDecor(false,g,lava,k));
+  if(!opt.bare)out.push('<g class="drg-rim-original">'+rimDecor(false,g,lava,k)+'</g>');
   out.push(`<g class="drg-drs">${HITS.join('')}</g>`);HITS=[];
   out.push(`<g class="drg-labs">${labs.join('')}</g>`);
   out.push(`<g class="drg-bubs">${bubs.join('')}</g>`);

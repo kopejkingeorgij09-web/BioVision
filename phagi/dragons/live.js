@@ -251,7 +251,7 @@ function islandView(){
   return {s,ox:ox-vb.x*s,oy:oy-vb.y*s,cw:c.width,ch:c.height}}
 const pxStep=v=>clamp(Math.pow(2,Math.round(Math.log2(Math.max(0.05,v))*2)/2),0.25,3);
 function want(d,css){
-  const dpr=Math.min(2,root.devicePixelRatio||1),px=pxStep(css*d.k/d.G.scale*1.3);   /* с запасом 30 %: при приближении камеры дракон не мылится до следующей ступени */
+  const dpr=(root.DRPERF?root.DRPERF.dpr:Math.min(2,root.devicePixelRatio||1)),px=pxStep(css*d.k/d.G.scale*1.3);   /* с запасом 30 %: при приближении камеры дракон не мылится до следующей ступени */
   if(d.px===px||d.loadPx===px)return;
   if(d.X&&performance.now()-L.camT<260)return;   /* камера движется: старая текстура, новая — когда жест закончится */
   d.loadPx=px;
@@ -264,8 +264,8 @@ function cover(){const cv=L.cv,sv=L.svg;if(cv.classList.contains('fs'))return;
   const v=[r.left-q.left-m.clientLeft+m.scrollLeft,r.top-q.top-m.clientTop+m.scrollTop,r.width,r.height].map(x=>x.toFixed(1)+'px');
   if(cv.style.left!==v[0])cv.style.left=v[0];if(cv.style.top!==v[1])cv.style.top=v[1];if(cv.style.width!==v[2])cv.style.width=v[2];if(cv.style.height!==v[3])cv.style.height=v[3]}
 function draw(){
-  const cv=L.cv,ctx=L.ctx;if(!cv)return;const t0=performance.now();cover();
-  const dpr=Math.min(2,root.devicePixelRatio||1),V=islandView(),W=Math.round(V.cw*dpr),H=Math.round(V.ch*dpr);
+  const cv=L.cv,ctx=L.ctx;if(!cv)return;const t0=performance.now();if(root.DRPERF)root.DRPERF.busy=(L.ema||0)>7||performance.now()-L.camT<200;cover();
+  const dpr=(root.DRPERF?root.DRPERF.dpr:Math.min(2,root.devicePixelRatio||1)),V=islandView(),W=Math.round(V.cw*dpr),H=Math.round(V.ch*dpr);
   if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H}
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);
   const list=[...L.ds.values()].sort((a,b)=>a.p[1]-b.p[1]);
@@ -306,17 +306,18 @@ function tick(ts){
     if(L.dirty||key!==L.lastKey){L.lastKey=key;draw()}L.last=0;return}
   L.raf=requestAnimationFrame(tick);
   const cm=L.camDirty;L.camDirty=false;
-  const gap=Math.min(FPS_LOW,Math.max(FPS_MIN,(L.ema||0)/BUDGET));
+  const gap=Math.min(FPS_LOW,Math.max(root.DRPERF?1000/root.DRPERF.fps:FPS_MIN,(L.ema||0)/BUDGET));
   if(!cm&&L.last&&ts-L.last<gap-1)return;
   const dt=L.last?clamp((ts-L.last)/1000,0,0.1):1/30;if(L.last){L.stats.frame.push(ts-L.last);if(L.stats.frame.length>240)L.stats.frame.shift()}
   L.last=ts;
   /* ошибка кадра (4.1): живой слой выключается, остров остаётся с обычными рисунками драконов, страница работает дальше */
-  try{if(L.ready)L.ds.forEach(d=>{think(d,dt);d.A.update(dt);place(d)});draw()}
+  try{if(L.ready)L.ds.forEach(d=>{think(d,dt);d.A.update(dt);if(L.stats.frames%3===0)place(d)});draw()}
   catch(e){console.warn('живой остров выключен из-за ошибки',e);L.broken=true;stop();if(L.svg)L.svg.querySelectorAll('g.drg-art.lv').forEach(g=>g.classList.remove('lv'));if(L.cv)L.cv.remove()}}
 if(typeof document!=='undefined'){
   document.addEventListener('visibilitychange',wake);
   /* после осмотра и похода цикл продолжается: они живут вне острова, их закрытие удаляет .dri и .drf */
   new MutationObserver(()=>{if(!L.raf&&!document.querySelector('.dri,.drf'))wake()}).observe(document.documentElement,{childList:true,subtree:false});
+  addEventListener('drgquality',()=>{L.dirty=true;wake()});
   addEventListener('DOMContentLoaded',()=>new MutationObserver(()=>{if(!L.raf&&!document.querySelector('.dri,.drf'))wake()}).observe(document.body,{childList:true}))}
 
 /* камера сдвинулась (ui.js, camApply): этот же кадр перерисовывает драконов и эффекты под новый вид */

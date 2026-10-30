@@ -119,9 +119,30 @@ Run.prototype.draw=function(ctx){
     for(let i=0;i<4;i++){const x0=M[0]-h*0.2+i*h*0.12;ctx.beginPath();ctx.moveTo(x0,this.gy);ctx.lineTo(x0+h*0.08*(i-1.5),this.gy-0.01);ctx.lineTo(x0+h*0.16*(i-1.5),this.gy);ctx.stroke()}}
   /* снаряд */
   if(t>=tl.launch&&t<tl.impact+0.02)this.shot(ctx);
+  this.spectacle(ctx);
   /* частицы */
   for(const q of this.p)part(ctx,q,C);
   ctx.restore()};
+/* Bounded vector effects: elemental ribbons, impact crowns and ground sigils.
+   No full-screen flashes, expensive blur filters, or unbounded particle emitters. */
+Run.prototype.spectacle=function(c){if(this.reduce)return;const h=this.h,C=this.a.col,t=this.t,tl=this.tl,A=this.start,B=this.end,el=this.el;
+ c.save();c.lineCap='round';
+ if(t>=tl.launch&&t<tl.impact){const q=this.prog(),N=24,width=h*(el==='W'?.42:el==='L'?.3:.2);c.globalCompositeOperation=el==='D'?'source-over':'screen';
+  for(let layer=2;layer>=0;layer--){c.globalAlpha=[.8,.4,.16][layer];c.strokeStyle=C[layer];c.lineWidth=width*(1+layer*1.4);c.beginPath();
+   for(let i=0;i<=N;i++){const u=q*i/N,P=this.head(u),wave=Math.sin(u*18-t*16)*h*.09*Math.sin(Math.PI*i/N);i?c.lineTo(P[0],P[1]+wave):c.moveTo(P[0],P[1])}c.stroke()}
+  if(el==='T'){for(let i=0;i<5;i++){const u=Math.max(0,q-i*.055),P=this.head(u);rock(c,P,h*(.2-i*.025),t*5+i,C)}}
+  if(el==='A'){const P=this.head(q);for(let i=0;i<4;i++){c.globalAlpha=.65-i*.1;c.strokeStyle=C[1];c.lineWidth=h*.035;c.beginPath();c.ellipse(P[0]-i*h*.1,P[1],h*(.5-i*.06),h*.24,t*5+i*.7,0,TAU*.8);c.stroke()}}
+ }
+ const impact=(t-tl.impact)/.65;
+ if(impact>=0&&impact<1){const u=sm(impact),r=h*(.4+u*1.5);c.globalCompositeOperation=el==='D'?'source-over':'screen';c.globalAlpha=(1-impact)*.8;c.strokeStyle=C[1];c.lineWidth=h*.055;
+  c.beginPath();c.ellipse(B[0],this.gy,r,r*.28,0,0,TAU);c.stroke();
+  for(let i=0;i<10;i++){const ang=i*TAU/10,rx=Math.cos(ang),ry=Math.sin(ang),n=el==='P'||el==='T'?h*(.4+.4*Math.sin(i*4+1)**2)*(1-impact):h*.24;
+   c.strokeStyle=C[i%3];c.lineWidth=h*(el==='T'?.1:.04);c.beginPath();c.moveTo(B[0]+rx*r*.6,B[1]+ry*r*.6);c.lineTo(B[0]+rx*(r+n),B[1]+ry*(r+n));c.stroke()}
+  if(el==='L'){c.globalAlpha=(1-impact)*.65;c.fillStyle=C[1];c.beginPath();c.moveTo(B[0],B[1]-h*1.3);c.lineTo(B[0]+h*.13,B[1]);c.lineTo(B[0],B[1]+h*.8);c.lineTo(B[0]-h*.13,B[1]);c.fill()}
+  if(el==='P'){c.strokeStyle=C[2];c.lineWidth=h*.08;for(let i=0;i<3;i++){c.beginPath();c.ellipse(B[0],B[1]+h*(i*.18-.1),h*(.5-u*.15),h*.17,-.25,0,TAU*.85);c.stroke()}}
+  if(el==='D'){c.globalAlpha=(1-impact)*.7;c.strokeStyle=C[1];for(let i=0;i<3;i++){c.beginPath();c.arc(B[0],B[1],h*(1-u)*(.5+i*.25),t*4+i,t*4+i+Math.PI*1.4);c.stroke()}}
+ }
+ c.restore()};
 Run.prototype.shot=function(ctx){
   const a=this.a,C=a.col,h=this.h,q=this.prog(),P=this.head(q),A=this.start,B=this.end,red=this.reduce,t=this.t;
   if(a.kind==='shot'){                      /* огненный шар: ядро, корона, дрожащий хвост */

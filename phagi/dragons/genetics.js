@@ -325,6 +325,8 @@ function origin(ch,mo,fa){
   out.genes.push({locus:'G',chr:'mt',m:ch.mt,f:null});if(mo&&mo.mt!==ch.mt)out.mut.push({who:'m',locus:'G',a:ch.mt});
   return out}
 
-const DRG={gamePhenotype,breedElements,gameRarity,GV,upgrade,isOld,combatRank,LOCI,CHROMS,Z,ELEM,ELEM_ORDER,LEGEND,RARITY,MU,rng,hashStr,make,validate,clone,gamete,fuse,breed,viable,phenotype,speciesKey,rarity,hapDist,dist,lethalShare,genoText,origin};
+function gameName(genome){const ph=gamePhenotype(genome),names={F:'Огонь',T:'Земля',W:'Вода',A:'Воздух',P:'Флора',L:'Свет',D:'Тьма'};
+ return (['F','T','W','A','P','L','D'].filter(e=>ph.elements.includes(e)).map(e=>names[e]).join('-')||'Без стихии')+' '+(genome.sex==='F'?'♀':'♂')}
+const DRG={gameName,gamePhenotype,breedElements,gameRarity,GV,upgrade,isOld,combatRank,LOCI,CHROMS,Z,ELEM,ELEM_ORDER,LEGEND,RARITY,MU,rng,hashStr,make,validate,clone,gamete,fuse,breed,viable,phenotype,speciesKey,rarity,hapDist,dist,lethalShare,genoText,origin};
 if(typeof module!=='undefined'&&module.exports)module.exports=DRG;else root.DRG=DRG;
 })(typeof window!=='undefined'?window:globalThis);

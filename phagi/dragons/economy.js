@@ -56,6 +56,7 @@ const TYPES={
   P:{name:'Роща',kind:'hab',hosts:['P'],cost:900,need:30,unlock:7,price:1400},
   L:{name:'Храм рассвета',kind:'hab',hosts:['L'],cost:6000,gems:25,need:60,unlock:12},
   D:{name:'Обсидиановая башня',kind:'hab',hosts:['D'],cost:6000,gems:25,need:60,unlock:12},
+  academy:{name:'Академия',kind:'academy',cost:0,need:0,unlock:1,max:1},
   farm:{name:'Ферма',kind:'farm',cost:100,need:6,unlock:1},
   nest:{name:'Гнездовье',kind:'nest',cost:400,need:15,unlock:1,max:1,more:{L:35,cost:20000,need:120}},
   hatch:{name:'Инкубатор',kind:'hatch',cost:300,need:12,unlock:1,max:1,more:{L:55,cost:40000,need:160}}
@@ -161,7 +162,7 @@ function startState(founders,K){
   arrange(s);
   (founders||[]).forEach(d=>{d=Object.assign({},d,{genome:G.upgrade(d.genome)});const ph=G.phenotype(d.genome),home=s.bld.find(b=>TYPES[b.type].kind==='hab'&&hosts(b.type,ph));
     s.dragons.push(Object.assign({lvl:1,fed:0,home:home?home.id:null},d))});
-  return s}
+  ensureAcademy(s);renameDragons(s);return s}
 /* место для базовой зоны на старом острове: ближайшая к середине свободная клетка открытой земли. Если места нет,
    бесплатно открывается соседний участок (у него свои препятствия, поэтому выбирается клетка без них) */
 function zoneSpot(s0){
@@ -196,6 +197,12 @@ function mergeFarms(s){const farms=s.bld.filter(b=>b.type==='farm');if(farms.len
  farms.slice(1).forEach((b,i)=>{refund+=Math.round(TYPES.farm.cost*Math.pow(1.5,Math.max(0,i+1-3))/10)*10;for(let l=2;l<=b.lvl;l++)refund+=FARM_LV[l].cost||0;if(b.up)refund+=FARM_LV[b.up.to].cost||0;(b.plots||[]).forEach(job=>{if(job)s.farmReserve.push({job})});keep.lvl=Math.max(keep.lvl,b.lvl)});
  if(keep.up&&keep.up.to<=keep.lvl){refund+=FARM_LV[keep.up.to].cost||0;keep.up=null}
  const remove=new Set(farms.slice(1).map(b=>b.id));s.bld=s.bld.filter(b=>!remove.has(b.id));while(keep.plots.length<FARM_LV[keep.lvl].plots)keep.plots.push(null);s.bal.gold+=refund;s.farmsMerged={count:farms.length,refund};}
+const ACADEMY_LEVEL=10,SPECIAL_COST=3000;
+function renameDragons(s){s.dragons.forEach(d=>{if(d.elementNameV)return;d.elementNameV=1;const n=G.gameName(d.genome);if(d.name!==n){if(!d.originalName)d.originalName=d.name;d.name=n}})}
+function ensureAcademy(s){if(s.bld.some(b=>b.type==='academy'))return;let p=freeSlots(isle(s,0))[0];
+ if(!p){for(const chunk of allChunks().filter(k=>!s.land.includes(k))){s.land.push(chunk);p=freeSlots(isle(s,0))[0];if(p)break}}
+ if(!p)return;s.bld.push({id:'b'+s.bseq++,type:'academy',x:p.x,y:p.y,lvl:1,build:null,up:null})}
+
 const ACADEMY_MAX=3,academyCost=rank=>[0,500,1500,4500][rank]||0;
 const DQ={cards:{t:'Повтори 15 карточек',goal:15,r:{gold:100,food:20}},feed:{t:'Покорми драконов 2 раза',goal:2,r:{gold:60}},harvest:{t:'Собери урожай 2 раза',goal:2,r:{gold:60}},win:{t:'Выиграй бой',goal:1,r:{gold:100}},pz:{t:'Реши головоломку',goal:1,r:{food:30}},breed:{t:'Скрести пару',goal:1,r:{gold:60}},academy:{t:'Начни обучение в академии',goal:1,r:{food:40}}};
 const dailyState=(s,day)=>s.dq&&s.dq.day===day?s.dq:{day,c:{},got:[]};
@@ -236,8 +243,8 @@ const goldNow=(s,d,n)=>goldRate(d)*(s&&typeof s.evK==='number'?ECON.goldX*ladder
 /* приводим состояние к моменту K: дозачисляем доход за дни, заканчиваем стройки.
    inc.streakBest — лучшая серия на платформе (та же, что в «Карточках»): с 7 дней открывает второе место Инкубатора навсегда */
 function normalize(s,K,inc,gk){
-  s=clone(s);if(inc&&inc.wallTime){mergeFarms(s);stampJobs(s,Date.parse(s.updatedAt)||Date.now())}
-  s.dragons.forEach(d=>{if(d.training&&ready(d.training,K)){d.academyRank=Math.min(ACADEMY_MAX,d.training.rank);d.training=null}});gk=gk||(inc&&inc.gk)||ID;
+  s=clone(s);ensureAcademy(s);renameDragons(s);if(inc&&inc.wallTime){mergeFarms(s);stampJobs(s,Date.parse(s.updatedAt)||Date.now())}
+  s.dragons.forEach(d=>{if(d.training&&ready(d.training,K)){if(d.training.element){d.specialties=Object.assign({},d.specialties,{[d.training.element]:1})}else d.academyRank=Math.min(ACADEMY_MAX,d.training.rank);d.training=null}});gk=gk||(inc&&inc.gk)||ID;
   if(inc){const df=inc.food-(s.credited.food||0),dg=inc.gems-(s.credited.gems||0);
     if(df>0){s.bal.food+=df;s.credited.food=inc.food}if(dg>0){s.bal.gems+=dg;s.credited.gems=inc.gems}
     /* бонус за ДЗ (inc.hw: сумма за все засчитанные задания): начисляется только прирост, своё поле учёта, не смешивается с серией */
@@ -613,7 +620,8 @@ const ACTS={
     if(s.pz.done.includes(kind))return 'Эта головоломка сегодня уже решена';
     if(!PZ.check(kind,c.uid,d,ans))return 'Пока не сходится. Проверьте правила ещё раз';
     const g=PZ.rewardOf?PZ.rewardOf(kind):PZ.REWARD;s.pz.done=s.pz.done.concat(kind);s.bal.gold+=g;xp(s,20);s.got={pz:g}},
-  academy(s,c,{dragon}){const d=s.dragons.find(x=>x.id===dragon);if(!d)return 'Нет дракона';if(d.training)return 'Обучение уже идёт';const rank=(d.academyRank||0)+1;if(rank>ACADEMY_MAX)return 'Максимальное обучение';const err=pay(s,{gold:academyCost(rank)});if(err)return err;d.training={at:c.K,need:20*rank,skip:0,rank};},
+  specialize(s,c,{dragon,element}){const d=s.dragons.find(x=>x.id===dragon);if(!d)return 'Нет дракона';if(d.lvl<ACADEMY_LEVEL)return 'Обучение с 10-го уровня дракона';if((d.academyRank||0)<ACADEMY_MAX)return 'Сначала завершите 3 общих ранга';if(d.training)return 'Обучение уже идёт';if(!G.gamePhenotype(d.genome).elements.includes(element))return 'У дракона нет этой стихии';if(d.specialties&&d.specialties[element])return 'Специализация уже изучена';const err=pay(s,{gold:SPECIAL_COST});if(err)return err;d.training={at:c.K,need:40,skip:0,element}},
+  academy(s,c,{dragon}){const d=s.dragons.find(x=>x.id===dragon);if(!d)return 'Нет дракона';if(d.training)return 'Обучение уже идёт';const rank=(d.academyRank||0)+1;if(d.lvl<ACADEMY_LEVEL)return 'Обучение с 10-го уровня дракона';if(rank>ACADEMY_MAX)return 'Максимальное обучение';const err=pay(s,{gold:academyCost(rank)});if(err)return err;d.training={at:c.K,need:20*rank,skip:0,rank};},
   daily(s,c,{id}){if(!DQ[id])return 'Нет задания';const p=dailyProgress(s,c,id);if(p.got)return 'Уже получено';if(!p.done)return 'Ещё не выполнено';const st=dailyState(s,c.today);st.got=st.got.concat(id);s.dq=st;const r=DQ[id].r;for(const k of ['gold','food','gems'])s.bal[k]+=r[k]||0;s.got={daily:r}},
   reserve(s,c){const rows=s.farmReserve||[],done=rows.filter(x=>ready(x.job,c.K));if(!done.length)return 'Урожай ещё не готов';s.bal.food+=done.reduce((n,x)=>n+Math.round(CROPS[x.job.crop].food*streakMult(c.streak)),0);s.farmReserve=rows.filter(x=>!done.includes(x));},
   /* награда задания недели */
@@ -642,7 +650,7 @@ function apply(s,ctx,act){
   const n=clone(s);delete n.got;delete n.lvup;delete n.last;
   const err=fn(n,ctx,act);if(err)return {err};
   wqCount(n,ctx,act.t);
-  if(ctx.wallTime){stampJobs(n,Date.now());const k=({feed:'feed',harvest:'harvest',pvewin:'win',puzzle:'pz',breed:'breed',academy:'academy'})[act.t];if(k){const ds=dailyState(n,ctx.today);ds.c[k]=(ds.c[k]||0)+1;n.dq=ds}}
+  if(ctx.wallTime){stampJobs(n,Date.now());const k=({feed:'feed',harvest:'harvest',pvewin:'win',puzzle:'pz',breed:'breed',academy:'academy',specialize:'academy'})[act.t];if(k){const ds=dailyState(n,ctx.today);ds.c[k]=(ds.c[k]||0)+1;n.dq=ds}}
   const L0=level(s),r=normalize(n,ctx.K,null,GK(ctx));
   return {s:r,levelUp:level(r)>L0?level(r):0}}
 
@@ -755,7 +763,7 @@ const MINOR=/^(ещё|драконы растут)/;
 /* ближайший уровень после L, на котором открывается что-то кроме мест, ферм и предела драконов */
 function nextMajor(L){for(let k=L+1;k<=ISLE_MAX;k++){const u=unlocksAt(k).filter(x=>!MINOR.test(x));if(u.length)return {L:k,list:u}}return null}
 
-const DECO={HOUR,CARD_SPEED,cardsLeft,timeShort,academyCost,ACADEMY_MAX,DQ,dailyState,dailyProgress,DRAGON_MAX,ISLE_MAX,repair,unlocksAt,nextMajor,MINOR,NURSERY,nurseryCap,homeFor,nursery,breedPath,HATCH_LV,BREED_LV,breedCost,BREED_NEED,HATCH_NEED,PRED_TOL,lvTable,summary,habNames,TYPES,HAB_ORDER,HAB_LV,FARM_LV,CROPS,RAR_GOLD,SKIP_CARDS,GRID,CHUNK,START_LAND,LAND_COST,MILESTONES,FEEDS,RATION,
+const DECO={ACADEMY_LEVEL,SPECIAL_COST,jobsOf,HOUR,CARD_SPEED,cardsLeft,timeShort,academyCost,ACADEMY_MAX,DQ,dailyState,dailyProgress,DRAGON_MAX,ISLE_MAX,repair,unlocksAt,nextMajor,MINOR,NURSERY,nurseryCap,homeFor,nursery,breedPath,HATCH_LV,BREED_LV,breedCost,BREED_NEED,HATCH_NEED,PRED_TOL,lvTable,summary,habNames,TYPES,HAB_ORDER,HAB_LV,FARM_LV,CROPS,RAR_GOLD,SKIP_CARDS,GRID,CHUNK,START_LAND,LAND_COST,MILESTONES,FEEDS,RATION,
   ECON,ladderK,ladderNext,todayBonus,SLOT7,hatchCap,firstHatch,maxOf,buildCost,feedPrice,lvlGold,goldRate,goldNow,landState,adjacent,extent,allChunks,zoneSpot,GIFTS,giftGenome,RESEARCH,MASTERY,mastery,hasE2,
   xpFor,levelOf,maxHabs,maxFarms,maxDragonLv,feedCost,income,startState,hosts,dragonKeys,goldPerCard,rate,settle,chestNow,normalize,
   canPlace,chunkOf,apply,hwGiftGenome,WQ,wqList,wqProgress,wqState,weekOf,LVL_CHEST,RINGS,SLOT,SLOT0,snap,slots,freeSlots,arrange,growLand,ISLE2,isle,isleOf,isleState,PVE_DAY,pveGain,legacyPveGrant,OBST,OBST_KIND,obstacles,ready,left,level,count,streakMult,marketGenome,habCap,chestCap};

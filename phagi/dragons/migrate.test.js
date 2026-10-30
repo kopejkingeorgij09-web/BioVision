@@ -39,7 +39,7 @@ t('старый документ без v (Чашка Петри и дракон
   const old={mode:'dragons',dragons:[{id:'d1',name:'Искра',born:'2026-09-30',genome:G.make({sex:'F',E:'F/W',C:'Cb/c'})},{id:'d2',name:'Туман',born:'2026-09-30',genome:G.make({sex:'M',E:'T/e'})}],periods:[{from:'2026-09-30',to:null}]};
   assert.deepStrictEqual(E.repair(old,inc).bad,['документ не версии 2'],'старый документ идёт по пути startState, а не через repair');
   const s=E.normalize(E.startState(old.dragons),0,null);
-  assert.deepStrictEqual(s.dragons.map(d=>[d.id,d.name,JSON.stringify(d.genome)]),old.dragons.map(d=>[d.id,d.name,JSON.stringify(d.genome)]));
+  assert.deepStrictEqual(s.dragons.map(d=>[d.id,d.name,JSON.stringify(d.genome)]),old.dragons.map(d=>[d.id,G.gameName(d.genome),JSON.stringify(d.genome)]));
   s.dragons.forEach(d=>assert.strictEqual(d.lvl,1));
   assert.strictEqual(s.dragons[0].home,'b1','огненно-водный в Кальдере');assert.strictEqual(s.dragons[1].home,null,'земляному на старте дома нет: он в яслях, а не пропал')});
 
@@ -59,7 +59,7 @@ t('неполный v2 (писала старая версия страницы)
 
 t('испорченный v2: драконы, постройки и баланс не чинятся догадкой, а помечаются, документ не меняется',()=>{
   const base=fresh(),cases=[
-    [d=>{d.dragons='x'},'драконы'],[d=>{d.dragons[0].genome={sex:'F'}},'дракон Ж'],[d=>{d.dragons[1].lvl=-3},'дракон П: уровень'],
+    [d=>{d.dragons='x'},'драконы'],[d=>{d.dragons[0].genome={sex:'F'}},'дракон '+base.dragons[0].name],[d=>{d.dragons[1].lvl=-3},'дракон '+base.dragons[1].name+': уровень'],
     [d=>{d.bld='x'},'постройки'],[d=>{d.bld[0].type='zz'},'постройка b1'],[d=>{d.bal.gold='много'},'баланс: gold'],[d=>{d.bal=null},'нет баланса'],
     [d=>{d.bal.food=NaN},'баланс: food']];
   cases.forEach(([spoil,want])=>{const d=clone(base);spoil(d);const snap=JSON.stringify(d),r=E.repair(d,inc);

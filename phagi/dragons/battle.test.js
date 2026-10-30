@@ -60,12 +60,16 @@ t('Промок: замедление и сразу −15 ярости, поле
   let weak=0,n=0;for(let seed=1;seed<400;seed++){const c=start([F('a',{els:['D'],spd:20})],[F('d',{spd:1,hp:99999})],seed);c.act({skill:'el:D',target:'d'});n++;if(c.get('d').fx.weak)weak++}
   assert.ok(weak/n>0.15&&weak/n<0.35,'ослабление '+weak/n)});
 
-t('настройка двух стихий у дракона с четырьмя: атак не больше двух, смена занимает ход, одно действие за ход',()=>{
-  const b=start([F('a',{els:['F','W','T','A'],spd:20})],[F('d',{spd:1,hp:999})],5);
-  const ids=b.options().map(o=>o.skill.id);assert.deepStrictEqual(ids.filter(x=>x.startsWith('el:')),['el:F','el:W']);
-  assert.ok(ids.includes('swap:FT'));const ev=b.act({skill:'swap:FT'});assert.ok(ev.some(e=>e.type==='swap'));assert.deepStrictEqual(b.get('a').load,['T','W']);
-  b.next();assert.strictEqual(b.cur,'d','смена настройки заняла ход');
-  const s4=B.skillsOf(b.get('a')).filter(x=>x.power&&x.id!=='rage').length;assert.strictEqual(s4,3,'Удар и две стихии')});
+t('все четыре стихии доступны сразу, старая настройка не ограничивает выбор',()=>{
+ for(const e of ['F','W','T','A']){const b=start([F('a',{els:['F','W','T','A'],load:['F','W'],spd:20})],[F('d',{spd:1,hp:999})],5);
+ const ids=b.options().map(o=>o.skill.id);assert.deepStrictEqual(ids.filter(x=>x.startsWith('el:')),['el:F','el:W','el:T','el:A']);assert.ok(!ids.some(x=>x.startsWith('swap:')));
+ const ev=b.act({skill:'el:'+e,target:'d'});assert.strictEqual(ev.filter(e=>e.type==='hit').length,1);b.next();assert.strictEqual(b.cur,'d')}});
+t('специализации: дополнительный эффект, иммунитет и очищение',()=>{
+ for(const el of ['F','W','T','A','P','D']){const b=start([F('a',{els:[el],specialties:{[el]:1},spd:20})],[F('d',{hp:9999,spd:1})],5);b.get('a').rage=100;
+ const ev=b.act({skill:'rage',target:'d'});assert.ok(ev.some(e=>e.type==='effect'&&e.name===B.SPECIAL[el].name));
+ const c=start([F('a',{els:[el],specialties:{[el]:1},spd:20})],[F('d',{hp:9999,spd:1,traits:['ward']})],5);c.get('a').rage=100;c.act({skill:'rage',target:'d'});assert.deepStrictEqual(c.get('d').fx,{})}
+ const b=start([F('a',{els:['L'],specialties:{L:1},spd:20})],[F('d',{hp:9999,spd:1})],5);b.get('a').fx={burn:2,brk:2};const ev=b.act({skill:'el:L',target:'d'});assert.ok(ev.some(e=>e.type==='cleanse'));assert.deepStrictEqual(b.get('a').fx,{});
+});
 
 t('урон: формула с разбросом ±10 %, не меньше 1, здоровье не уходит ниже нуля, событие попадания одно на действие',()=>{
   for(let seed=1;seed<200;seed++){const a=F('a',{els:['F']}),d=F('d',{els:['P'],hp:500,spd:1});const b=start([a],[d],seed);

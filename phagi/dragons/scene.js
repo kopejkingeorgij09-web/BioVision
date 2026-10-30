@@ -32,10 +32,10 @@ Scene.prototype.place=function(d){const k=d.s*d.face;return [k,0,0,d.s,d.x-k*d.c
 /* рамка для боя 3 на 3: прямоугольник сцены {x0,x1,y0,y1} целиком в холсте по центру, pad и padTop в CSS-пикселях.
    Драконы тогда могут стоять в глубину (d.y > 0 ближе к зрителю), а холст любой формы */
 Scene.prototype.frame=function(b){this.fb=b};
-Scene.prototype.zoomFb=function(W,H){const b=this.fb,p=b.pad||0,pt=b.padTop||0;return Math.max(0.01,Math.min((W-2*p)/(b.x1-b.x0),(H-p-pt)/(b.y1-b.y0)))};
+Scene.prototype.zoomFb=function(W,H){const b=this.fb,p=b.pad||0,pt=b.padTop||0;return Math.max(0.01,Math.min((W-2*p)/(b.x1-b.x0),(H-(b.padBottom||p)-pt)/(b.y1-b.y0)))};
 Scene.prototype.view=function(){
   const W=this.cv.width,H=this.cv.height;let z=W/this.w,ox=0,gy=H-Math.max(8,H*0.12);
-  if(this.fb){const b=this.fb,k=this.dpr,p=(b.pad||0)*k,pt=(b.padTop||0)*k;z=this.zoomFb(W/k,H/k)*k;ox=W/2-z*(b.x0+b.x1)/2;gy=(pt+H-p)/2-z*(b.y0+b.y1)/2}
+  if(this.fb){const b=this.fb,k=this.dpr,p=(b.pad||0)*k,pt=(b.padTop||0)*k;z=this.zoomFb(W/k,H/k)*k;ox=W/2-z*(b.x0+b.x1)/2;gy=(pt+H-(b.padBottom||b.pad||0)*k)/2-z*(b.y0+b.y1)/2}
   let sx=0,sy=0;const sh=this.runs.reduce((a,r)=>Math.max(a,r.shake),0);
   if(sh>0&&!this.reduce){sx=(Math.random()-0.5)*sh*z*2;sy=(Math.random()-0.5)*sh*z*1.2}
   return [z,0,0,z,ox+sx,gy+sy]};

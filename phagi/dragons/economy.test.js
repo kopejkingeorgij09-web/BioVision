@@ -337,5 +337,15 @@ t('эпистаз из ревью: самка F/F s/s × самец W/W S/S да
   assert.strictEqual(G.phenotype(m).breath,'dormant');assert.deepStrictEqual(G.dist(m,f,'elements'),{'F+W':1});
 });
 
+t('урожай сразу: новый, старый таймер, резерв; повторный сбор не платит',()=>{
+ let s=E.normalize(E.startState(founders()),0,null);const farm=s.bld.find(b=>b.type==='farm');s.bal.gold=10000;
+ const c=ctx(0,{wallTime:true}),plant={t:'plant',id:farm.id,plot:0,crop:'ember'};
+ s=ok(E.apply(s,c,plant));let job=s.bld.find(b=>b.id===farm.id).plots[0];assert.strictEqual(E.left(job,0),0);assert.strictEqual(E.timeShort(job,0),'Готово');
+ const old={crop:'pump',at:0,need:15,skip:0,rt:true,startedAt:Date.now()};s.bld.find(b=>b.id===farm.id).plots[1]=old;s.farmReserve=[{job:{...old}}];assert.ok(E.ready(old,0));
+ const food=s.bal.food;s=ok(E.apply(s,c,{t:'harvest',id:farm.id,plot:0}));assert.strictEqual(s.bal.food,food+E.CROPS.ember.food);
+ assert.ok(E.apply(s,c,{t:'harvest',id:farm.id,plot:0}).err);s=ok(E.apply(s,c,{t:'harvest',id:farm.id,plot:1}));s=ok(E.apply(s,c,{t:'reserve'}));assert.strictEqual(s.bal.food,food+E.CROPS.ember.food+2*E.CROPS.pump.food);assert.ok(E.apply(s,c,{t:'reserve'}).err);
+ assert.ok(E.left({at:0,need:20,rt:true,startedAt:Date.now()},0)>19,'стройка продолжает ждать');
+});
+
 console.log(`\n${n-fails} из ${n} тестов прошли`);
 process.exit(fails?1:0);

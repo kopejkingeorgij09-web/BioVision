@@ -187,9 +187,9 @@ const clone=x=>JSON.parse(JSON.stringify(x));
 const B=(s,id)=>s.bld.find(b=>b.id===id);
 const ready=(job,K)=>!!job&&left(job,K)<=0;
 const HOUR=3600000,CARD_SPEED=10;
-const left=(job,K,now)=>job?Math.max(0,job.need-(K-job.at)*(job.rt?CARD_SPEED:1)-(job.skip||0)*SKIP_CARDS-(job.rt?Math.max(0,(now==null?Date.now():now)-job.startedAt)/HOUR*10:0)):0;
+const left=(job,K,now)=>job&&!CROPS[job.crop]?Math.max(0,job.need-(K-job.at)*(job.rt?CARD_SPEED:1)-(job.skip||0)*SKIP_CARDS-(job.rt?Math.max(0,(now==null?Date.now():now)-job.startedAt)/HOUR*10:0)):0;
 const cardsLeft=(job,K)=>Math.ceil(left(job,K)/(job&&job.rt?CARD_SPEED:1));
-function timeShort(job,K){if(!job)return '';if(!job.rt)return cardsLeft(job,K)+' к.';const mins=Math.ceil(left(job,K)/10*60);return mins<=0?'Готово':mins>=60?Math.floor(mins/60)+' ч '+(mins%60?mins%60+' мин':''):mins+' мин'}
+function timeShort(job,K){if(!job)return '';if(CROPS[job.crop])return 'Готово';if(!job.rt)return cardsLeft(job,K)+' к.';const mins=Math.ceil(left(job,K)/10*60);return mins<=0?'Готово':mins>=60?Math.floor(mins/60)+' ч '+(mins%60?mins%60+' мин':''):mins+' мин'}
 function jobsOf(s){return s.bld.flatMap(b=>[b.build,b.up,b.pair,...(b.plots||[]),...(b.slots||[])]).concat((s.farmReserve||[]).map(x=>x.job),(s.dragons||[]).map(d=>d.training)).filter(Boolean)}
 function stampJobs(s,now){jobsOf(s).forEach(j=>{if(!j.rt&&j.need>0){j.rt=true;j.startedAt=now}});s.clockV=1}
 function mergeFarms(s){const farms=s.bld.filter(b=>b.type==='farm');if(farms.length<=1)return;const keep=farms[0];s.farmReserve=s.farmReserve||[];let refund=0;
@@ -515,7 +515,7 @@ const ACTS={
   plant(s,c,{id,plot,crop}){const b=B(s,id),cr=CROPS[crop];if(!b||!b.plots||b.build)return 'Ферма не готова';if(!cr)return 'Нет такой культуры';
     if(level(s)<cr.unlock)return `Откроется на ${cr.unlock}-м уровне острова`;
     if(b.plots[plot]===undefined)return 'Нет грядки';if(b.plots[plot])return 'Грядка занята';
-    const e=pay(s,{gold:cr.cost});if(e)return e;b.plots[plot]={crop,at:c.K,need:c.wallTime?cr.need:0,skip:0}},   /* 4.2: урожай готов сразу после посадки */
+    const e=pay(s,{gold:cr.cost});if(e)return e;b.plots[plot]={crop,at:c.K,need:0,skip:0}},   /* 4.2: урожай готов сразу после посадки */
   harvest(s,c,{id,plot}){const b=B(s,id),p=b&&b.plots&&b.plots[plot];if(!p)return 'Пусто';if(!ready(p,c.K))return 'Ещё не созрело';
     const f=Math.round(CROPS[p.crop].food*streakMult(c.streak));s.bal.food+=f;b.plots[plot]=null;xp(s,f/10);s.got={food:f}},
   feed(s,c,{dragon}){const d=s.dragons.find(x=>x.id===dragon);if(!d)return 'Нет дракона';

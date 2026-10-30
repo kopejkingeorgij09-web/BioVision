@@ -545,7 +545,6 @@ function svg(st,opt){
       if(r>0.9)det.push(tuft(c[0]+(r-.9)*80,c[1]));else if(r>0.85)det.push(flowers(c[0],c[1],'f'+i+j));else if(r>0.83)det.push(pebbles(c[0],c[1],'pb'+i+j));else if(r>0.825)det.push(shroom(c[0],c[1],hrand('gm'+i+j)>.5,'sm'+i+j))}
     out.push(det.join(''));
     out.push(trails(st,lava));out.push('</g>');
-    if(world()&&!lava){const w=n*64/.92,h=n*32/.64;out.push(`<image class="drg-painted drg-terrain-art" href="${world().url('island')}" x="${400-w/2}" y="${110-h*.04}" width="${w}" height="${h}" preserveAspectRatio="none" pointer-events="none"/>`);out.push(trails(st,false));}
   }
   /* ячейки для установки: размером со здание 2×2, только свободные; нажатие ставит здание в эту ячейку */
   if(place){

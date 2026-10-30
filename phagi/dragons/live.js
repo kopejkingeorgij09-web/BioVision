@@ -246,7 +246,7 @@ function place(d){if(!d.g)return;const x=(d.p[0]-d.home[0]).toFixed(1),y=(d.p[1]
 /* ---------- кадр ---------- */
 /* единицы острова → CSS-пиксели холста: из прямоугольников SVG и холста на экране (учитывает камеру и прокрутку) */
 function islandView(){
-  const sv=L.svg,cv=L.cv,vb=sv.viewBox.baseVal,r=sv.getBoundingClientRect(),c=cv.getBoundingClientRect();
+  const sv=L.svg,cv=L.cv,vb=sv.viewBox.baseVal,r=sv.getBoundingClientRect(),c=cv.classList.contains('fs')?cv.parentElement.getBoundingClientRect():cv.getBoundingClientRect();
   const s=Math.min(r.width/vb.width,r.height/vb.height),ox=r.left+(r.width-vb.width*s)/2-c.left,oy=r.top+(r.height-vb.height*s)/2-c.top;
   return {s,ox:ox-vb.x*s,oy:oy-vb.y*s,cw:c.width,ch:c.height}}
 const pxStep=v=>clamp(Math.pow(2,Math.round(Math.log2(Math.max(0.05,v))*2)/2),0.25,3);
@@ -264,9 +264,9 @@ function cover(){const cv=L.cv,sv=L.svg;if(cv.classList.contains('fs'))return;
   const v=[r.left-q.left-m.clientLeft+m.scrollLeft,r.top-q.top-m.clientTop+m.scrollTop,r.width,r.height].map(x=>x.toFixed(1)+'px');
   if(cv.style.left!==v[0])cv.style.left=v[0];if(cv.style.top!==v[1])cv.style.top=v[1];if(cv.style.width!==v[2])cv.style.width=v[2];if(cv.style.height!==v[3])cv.style.height=v[3]}
 function draw(){
-  const cv=L.cv,ctx=L.ctx;if(!cv)return;const t0=performance.now();if(root.DRPERF)root.DRPERF.busy=(L.ema||0)>7||performance.now()-L.camT<200;cover();
+  const cv=L.cv,ctx=L.ctx;if(!cv)return;cv.style.transform='';const t0=performance.now();if(root.DRPERF)root.DRPERF.busy=(L.ema||0)>7||performance.now()-L.camT<200;cover();
   const dpr=(root.DRPERF?root.DRPERF.dpr:Math.min(2,root.devicePixelRatio||1)),V=islandView(),W=Math.round(V.cw*dpr),H=Math.round(V.ch*dpr);
-  if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H}
+  L.rasterView=V;L.rasterAt=performance.now();if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H}
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);
   const list=[...L.ds.values()].sort((a,b)=>a.p[1]-b.p[1]);
   /* ночь тёмной темы (--isl-night из dragons.css): тот же лунный оттенок, что у острова; читается раз в 30 кадров */
@@ -306,12 +306,15 @@ function tick(ts){
     if(L.dirty||key!==L.lastKey){L.lastKey=key;draw()}L.last=0;return}
   L.raf=requestAnimationFrame(tick);
   const cm=L.camDirty;L.camDirty=false;
+  const moving=performance.now()-L.camT<180;
+  if(moving&&L.cv&&L.cv.classList.contains('fs')&&L.rasterView&&performance.now()-L.rasterAt<90){const v=islandView(),o=L.rasterView,k=v.s/o.s;
+    L.cv.style.transformOrigin='0 0';L.cv.style.transform=`translate(${v.ox-k*o.ox}px,${v.oy-k*o.oy}px) scale(${k})`;return}
   const gap=Math.min(FPS_LOW,Math.max(root.DRPERF?1000/root.DRPERF.fps:FPS_MIN,(L.ema||0)/BUDGET));
   if(!cm&&L.last&&ts-L.last<gap-1)return;
   const dt=L.last?clamp((ts-L.last)/1000,0,0.1):1/30;if(L.last){L.stats.frame.push(ts-L.last);if(L.stats.frame.length>240)L.stats.frame.shift()}
   L.last=ts;
   /* ошибка кадра (4.1): живой слой выключается, остров остаётся с обычными рисунками драконов, страница работает дальше */
-  try{if(L.ready)L.ds.forEach(d=>{think(d,dt);d.A.update(dt);if(performance.now()-L.camT>200&&L.stats.frames%3===0)place(d)});draw()}
+  try{if(L.ready&&!moving)L.ds.forEach(d=>{think(d,dt);d.A.update(dt);if(performance.now()-L.camT>200&&L.stats.frames%3===0)place(d)});draw()}
   catch(e){console.warn('живой остров выключен из-за ошибки',e);L.broken=true;stop();if(L.svg)L.svg.querySelectorAll('g.drg-art.lv').forEach(g=>g.classList.remove('lv'));if(L.cv)L.cv.remove()}}
 if(typeof document!=='undefined'){
   document.addEventListener('visibilitychange',wake);

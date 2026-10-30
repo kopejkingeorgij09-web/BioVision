@@ -38,13 +38,9 @@ function specOf(id,name,genome,lvl,side,academyRank){
   const key=JSON.stringify([genome,lvl,academyRank||0]);let c=specCache.get(key);
   if(!c){const ph=Object.assign(root.DRG.gamePhenotype(genome),{academyRank:academyRank||0}),M=root.MORPH.morph(ph,lvl),G=root.SHAPE.build(M),P=root.ANIM.profile(M,G.rig),s=root.DSTATS.of(ph,lvl,P);
     c={ph,M,els:ph.breath==='element'?ph.elements.slice():[],s,baby:!!P.baby};if(specCache.size>80)specCache.clear();specCache.set(key,c)}
-  return {id,name,lvl,els:c.els,hp:c.s.hp,atk:c.s.atk,def:c.s.def,spd:c.s.spd,ref:{ph:c.ph,M:c.M,genome,side,stats:c.s}}}
+  return {id,name:side==='B'?root.DRG.gameName(genome):name||root.DRG.gameName(genome),lvl,els:c.els,hp:c.s.hp,atk:c.s.atk,def:c.s.def,spd:c.s.spd,ref:{ph:c.ph,M:c.M,genome,side,stats:c.s}}}
 const foeSpecs=bt=>bt.foes().map(f=>Object.assign(specOf('x:'+f.id,f.name,f.genome,f.lvl,'B'),{traits:(f.traits||[]).slice()}));
-/* у дракона с тремя-четырьмя стихиями в бой идёт настройка из двух (выбирается в подготовке, помнится в браузере) */
-const loadKey=id=>'drgLoad:'+id;
-function loadOf(d){if(d.els.length<=2)return d.els.slice();let v=null;try{v=JSON.parse(LS(loadKey(d.id))||'null')}catch(e){}
-  return Array.isArray(v)&&v.length===2&&v.every(e=>d.els.includes(e))&&v[0]!==v[1]?v:d.els.slice(0,2)}
-const myDragons=()=>(F&&F.api.dragons()||[]).map(d=>{const x=specOf(d.id,d.name,d.genome,d.lvl,'A',d.academyRank||0);x.load=loadOf(x);return x});
+const myDragons=()=>(F&&F.api.dragons()||[]).map(d=>{const x=specOf(d.id,d.name,d.genome,d.lvl,'A',d.academyRank||0);x.load=x.els.slice();x.specialties=d.specialties||{};return x});
 /* боевой ранг ✦ и сочетание: подпись в карточке подготовки */
 function rankLine(d){const ph=d.ref&&d.ref.ph,B=ph&&root.DSTATS.badge(ph);if(!B)return '';
   return `<span class="drf-rk" title="${esc(B.title)}">${B.rank?`<b aria-hidden="true">${B.stars}</b> `:''}${esc(B.hyb||B.role)}</span>`}
@@ -234,9 +230,7 @@ function showPrep(id){
     return `<button class="drf-pk${i>=0?' on':''}" data-fk="pick" data-id="${esc(d.id)}" aria-pressed="${i>=0}">${i>=0?`<span class="drf-ix" aria-hidden="true">${i+1}</span>`:''}${picHTML(d,104,78)}
       <b>${esc(d.name)}</b><small>${d.lvl}-й ур. · ${elsText(d.els)}</small>${rankLine(d)}<span class="drf-power" title="${esc(root.DSTATS.POWER_NOTE)}">◆ Абсолютная сила: ${root.DSTATS.power(d)}</span><span class="drf-sts"><span title="Здоровье">❤ ${d.hp}</span><span title="Атака">⚔ ${d.atk}</span><span title="Защита">🛡 ${d.def}</span><span title="Скорость">💨 ${d.spd}</span></span><span class="drf-hn">${hint(d)}</span></button>`};
   const n=F.pick.length,lv=F.pick.map(x=>mine.find(d=>d.id===x).lvl),tr=[...new Set(foes.flatMap(f=>f.traits))];
-  /* настройка стихий для выбранных драконов с тремя-четырьмя стихиями: в бою атак две, смена настройки занимает ход */
-  const multi=F.pick.map(x=>mine.find(d=>d.id===x)).filter(d=>d&&d.els.length>2);
-  const loadH=multi.length?`<h3>Настройка стихий <small>в бою у дракона две стихийные атаки, сменить настройку можно за ход</small></h3>${multi.map(d=>`<div class="drf-load"><b>${esc(d.name)}</b>${d.els.map(e=>`<button class="drf-le${d.load.includes(e)?' on':''}" data-fk="load" data-id="${esc(d.id)}" data-e="${e}" aria-pressed="${d.load.includes(e)}">${EL_IC[e]} ${esc(root.DRBATTLE.EL_NAME[e])}</button>`).join('')}</div>`).join('')}`:'';
+  const loadH='<p class="drf-tac">Все стихии выбранных драконов доступны сразу. За ход — один приём.</p>';
   const word=k=>k===1?'дракона':'драконов';
   /* правило испытания: состав проверяется до боя, кнопка закрыта, пока правило не выполнено */
   const rk=C.teamOk(bt,F.pick.map(x=>mine.find(d=>d.id===x)).filter(Boolean).map(d=>d.els));
@@ -247,11 +241,11 @@ function showPrep(id){
     <h3>Противники</h3><div class="drf-foes">${foes.map(foe).join('')}</div>
     ${tr.length?`<ul class="drf-trl">${tr.map(t=>`<li><b>${TRAIT_IC(t)} ${esc(root.DRBATTLE.TRAITS[t].name)}.</b> ${esc(root.DRBATTLE.TRAITS[t].text)}</li>`).join('')}</ul>`:''}
     ${bt.rule?`<p class="drf-rule${rk.ok?'':' bad'}" role="status">⚑ ${esc(C.ruleText(bt.rule))}${rk.ok?' Состав подходит.':' Сейчас состав не подходит.'}</p>`:''}
-    <h3>Ваша команда <small>${max===3?'выберите до трёх драконов, первый встанет впереди':max===2?'в этот бой идут только двое':'в этот бой идёт один дракон'}</small></h3>
+    <h3>Ваша команда <small>${max===3?'выберите до трёх драконов':max===2?'в этот бой идут только двое':'в этот бой идёт один дракон'}</small></h3>
     ${mine.length?`<div class="drf-grid">${mine.map(card).join('')}</div>`:'<p class="drf-intro">На острове пока нет драконов.</p>'}${loadH}
     <p class="drf-small">Звёзды: ${esc(bt.stars.text)} Награда: ${esc(lootText(bt))}</p>
     <details class="drf-rules"><summary>Как идёт бой</summary><ul>
-      <li>Ходят по очереди, первым самый быстрый. У каждого дракона есть Удар, атака своей стихии (у гибрида две) и Защита: до своего следующего хода он получает вдвое меньше урона.</li>
+      <li>Ходят по очереди, первым самый быстрый. У каждого дракона есть Удар, атаки всех своих стихий и Защита: до своего следующего хода он получает вдвое меньше урона.</li>
       <li>${esc(matrixText())}</li>
       <li>Пока стихия летит, по кругу у дракона бежит кольцо. Нажмите (или пробел), когда оно сойдётся с меткой: Точный удар даёт +25 % урона.</li>
       <li>Шкала ярости копится от ударов. Когда она полна, один раз за бой можно выпустить Ярость дракона.</li>
@@ -260,7 +254,7 @@ function showPrep(id){
 
 /* ---------- бой ---------- */
 const RING=1.05,LEAD=0.5,WIN=0.12;   /* кольцо Точного удара: 1,05 с до выпуска, атака стартует через 0,5 с, окно ±0,12 с */
-const FORM={rows:[[0.82,0],[0.82,1.05],[0.82,2.1]],wide:[[0.62,1.12],[1.82,1.12],[1.22,0]]};
+const FORM={rows:[[.72,0],[.72,1],[.72,2]]};
 
 async function startFight(){
   const C=root.DRCAMP,B=root.DRBATTLE,bt=C.byId(F.bid),mine=myDragons();
@@ -271,12 +265,12 @@ async function startFight(){
   setScreen('fight',`<div class="drf-bar"><button class="drf-x sm" data-fk="quit">✕ Выйти</button><span class="drf-rd" aria-live="off">Раунд 1</span><span class="drf-bt">${esc(bt.name)}</span>
       <span class="drf-ctl"><button data-fk="speed" aria-pressed="${F.speed>1}" title="Скорость">×2</button><button data-fk="auto" aria-pressed="${F.auto}" title="Компьютер ходит за вас">Авто</button><button data-fk="snd" aria-pressed="${F.snd}" aria-label="Звук">${F.snd?'🔊':'🔇'}</button></span></div>
     <div class="drf-team b" role="group" aria-label="Противники"></div>
-    <div class="drf-stage"><canvas class="drf-cv" aria-hidden="true"></canvas><p class="drf-load">Драконы выходят на поле…</p></div>
+    <div class="drf-stage"><canvas class="drf-cv" aria-hidden="true"></canvas><div class="drf-orbit" hidden role="group" aria-label="Стихии атакующего"></div><p class="drf-load">Драконы выходят на поле…</p></div>
     <div class="drf-team a" role="group" aria-label="Ваша команда"></div>
     <div class="drf-cmd"><p class="drf-say" aria-live="polite"></p><div class="drf-sk"></div><details class="drf-details"><summary>Характеристики драконов</summary><div class="drf-details-body"></div></details><details class="drf-journal"${innerWidth>=1000?" open":""}><summary>Очередь и журнал боя</summary><ol class="drf-order"></ol><div class="drf-log" aria-live="off"></div></details></div>`);
   const cv=F.$('.drf-cv'),sc=new root.DRSCENE.Scene(cv,{reduce:reduced()});F.scene=sc;F.cv=cv;
   const st=F.$('.drf-stage');
-  st.addEventListener('pointerdown',e=>stageTap(e));
+  st.addEventListener('pointerdown',e=>{if(!e.target.closest('.drf-orbit'))stageTap(e)});
   F.ro=new ResizeObserver(()=>resize());F.ro.observe(st);
   try{for(const f of F.b.f){const r=f.ref,d=await sc.add(r.ph,f.lvl,0,f.side==='A'?1:-1,{id:f.id,side:f.side,slot:f.slot,s0:0,hpS:1,rgS:0});if(tok!==F.tok)return;d.s0=d.s}}
   catch(e){console.error(e);if(tok===F.tok)say('Не получилось вывести драконов на поле. Выйдите и попробуйте ещё раз.');return}
@@ -296,17 +290,18 @@ function resize(){
   const w=st.clientWidth,h=st.clientHeight,dpr=sc.dpr;if(w<10||h<10)return;
   const cw=Math.round(w*dpr),ch=Math.round(h*dpr);if(F.cv.width!==cw)F.cv.width=cw;if(F.cv.height!==ch)F.cv.height=ch;F.cv.style.width=w+'px';F.cv.style.height=h+'px';
   const U=Math.max(...sc.ds.map(d=>d.G.box.w*d.s0));let best=null;
-  for(const k of [w>h*1.25?'wide':'rows']){
-    const P=sc.ds.map(d=>{const [dx,dy]=FORM[k][d.slot]||FORM[k][0],s=Math.min(d.s0*1.45,U*1.05/d.G.box.w),x=(d.side==='A'?-1:1)*dx*U,y=dy*U,b=d.G.box;
+  const rowH=Math.max(...sc.ds.map(d=>d.G.box.h*Math.min(d.s0*1.45,U*1.05/d.G.box.w)))*1.3;
+  for(const k of ['rows']){
+    const P=sc.ds.map(d=>{const [dx,dy]=FORM[k][d.slot]||FORM[k][0],s=Math.min(d.s0*1.45,U*1.05/d.G.box.w),x=(d.side==='A'?-1:1)*dx*U,y=dy*rowH,b=d.G.box;
       return {d,s,x,y,x0:x-b.w*s*.56,x1:x+b.w*s*.56,y0:y+(b.y-b.h*.12)*s,y1:y+(b.y+b.h+b.h*.12)*s}});
-    const fb={x0:Math.min(...P.map(p=>p.x0))-U*.06,x1:Math.max(...P.map(p=>p.x1))+U*.06,y0:Math.min(...P.map(p=>p.y0)),y1:Math.max(...P.map(p=>p.y1))+U*0.18,pad:Math.max(24,w*.08),padTop:Math.max(36,h*.23)};
+    const fb={x0:Math.min(...P.map(p=>p.x0))-U*.06,x1:Math.max(...P.map(p=>p.x1))+U*.06,y0:Math.min(...P.map(p=>p.y0)),y1:Math.max(...P.map(p=>p.y1))+U*0.18,pad:Math.max(16,w*.05),padTop:Math.max(30,h*.08),padBottom:76};
     sc.frame(fb);const z=sc.zoomFb(w,h);if(!best||z>best.z)best={z,P,fb,k}}
   best.P.forEach(p=>{p.d.s=p.s;p.d.x=p.d.hx=p.x;p.d.y=p.y});sc.frame(best.fb);F.form=best.k;
   F.U=U;F.gy0=Math.min(...best.P.map(p=>p.y))-U*0.24;F.gy1=Math.max(...best.P.map(p=>p.y));
   sc.ds.sort((a,b)=>a.y-b.y);
   const px=sc.texPx();if(!F.texPx)F.texPx=px;
   else if(Math.abs(px-F.texPx)/F.texPx>0.3){F.texPx=px;sc.ds.forEach(d=>{root.RIG.get(d.ph,d.lvl,{px,dpr}).then(X=>{if(!F||!F.scene||F.scene!==sc){root.RIG.release(X);return}root.RIG.release(d.X);d.X=X})})}
-  if(F.raf===0)return;sc.draw()}
+  placeOrbit();if(F.raf===0)return;sc.draw()}
 
 function frame(ts){
   if(!F||!F.scene){return}F.raf=requestAnimationFrame(frame);
@@ -423,8 +418,6 @@ function done(c){const P=F.pend;F.pend=null;F.tgtMode=null;F.ops=null;renderSkil
 
 async function perform(f,c,tok){
   const b=F.b,sk=c.skill,a=dOf(f.id);
-  if(sk.startsWith('swap:')){const ev=b.act(c),x=ev.find(e=>e.type==='swap');sfx('tap');num(f.id,'⇄ '+x.load.map(e=>root.DRBATTLE.EL_NAME[e]).join(' + '),'#E6E6FF');
-    say(`${f.name} меняет настройку стихий: ${x.load.map(e=>root.DRBATTLE.EL_NAME[e]).join(' и ')}`);renderTeams();await wait(0.7,tok);return ev}
   if(sk==='guard'){const ev=b.act(c);a.A.play('happy');sfx('guard');num(f.id,'🛡 защита','#8FD3FF');say(`${f.name} встаёт в защиту`);renderTeams();await wait(0.8,tok);return ev}
   const t=dOf(c.target),s=root.DRBATTLE.skillsOf(f).find(x=>x.id===sk),el=s.el,size=sk==='rage'?1.7:1;
   F.acting=f.id;say(`${f.name}: ${sk==='rage'?'Ярость дракона':s.name} → ${b.get(c.target).name}`);
@@ -451,8 +444,9 @@ function hitShow(ev,f){
       if(m>1)num(e.target,'сильная стихия ×'+f1(m),'#FF8A3D');else if(m<1)num(e.target,'слабая стихия ×'+f1(m),'#B8C2CC');
       if(e.guarded)num(e.target,'🛡 ×0,5','#8FD3FF');
       sfx(e.perfect?'perfect':big?'big':'hit')}
-    else if(e.type==='heal')num(e.id,'+'+e.amt,'#6BE38A')
-    else if(e.type==='effect')num(e.target,(FX_IC[e.fx]||'')+' '+e.name.toLowerCase(),'#E6E6FF')
+    else if(e.type==='heal'){num(e.id,'+'+e.amt,'#6BE38A');say(F.b.get(e.id).name+': восстановлено '+e.amt+' здоровья')}
+    else if(e.type==='cleanse'){num(e.id,'✦ Очищение','#FFF4B0');say(F.b.get(e.id).name+': очищение сняло '+e.removed.map(k=>FX_TXT[k]).join(', '))}
+    else if(e.type==='effect'){num(e.target,(FX_IC[e.fx]||'')+' '+e.name.toLowerCase(),'#E6E6FF');say(F.b.get(e.target).name+' · '+e.name+': '+root.DRBATTLE.FX_INFO[e.fx]+' Длительность: '+e.turns+' ход.')}
     else if(e.type==='resist')num(e.target,e.why==='firm'?'🪢 лоза не держит':'💎 закалка: без эффекта','#D8E6FF')
     else if(e.type==='enrage'){num(e.id,'💢 гнев: атака +30 %','#FF6A5A');say(`${F.b.get(e.id).name} в гневе: атака +30 % до конца боя`)}
     else if(e.type==='ko'){}});
@@ -514,7 +508,7 @@ function renderTeams(){
   if(!F||!F.b)return;const b=F.b,m=F.tgtMode,cur=b.cur||F.acting;
   ['a','b'].forEach(s=>{const el=F.$('.drf-team.'+s);if(!el)return;const side=s.toUpperCase(),act=F.pend&&F.pend.f;
     el.innerHTML=b.f.filter(f=>f.side===side).map(f=>{const tg=m&&m.targets.includes(f.id),mul=tg&&m.skill.el?root.DRBATTLE.mult(m.skill.el,f.els):1;
-      const fx=Object.entries(f.fx).map(([k,n])=>`<span title="${FX_TXT[k]}, ещё ${n}">${FX_IC[k]}${n}</span>`).join('')+(f.guard?'<span title="защита">🛡</span>':'')+
+      const fx=Object.entries(f.fx).map(([k,n])=>`<span title="${FX_TXT[k]}: ${root.DRBATTLE.FX_INFO[k]} Ещё своих ходов: ${n}">${FX_IC[k]}${n}</span>`).join('')+(f.guard?'<span title="защита">🛡</span>':'')+
         f.traits.map(t=>{const T=root.DRBATTLE.TRAITS[t];return `<span class="drf-tr${t==='enrage'&&f.enraged?' hot':''}" title="${esc(T.name+': '+T.text)}">${T.ic}</span>`}).join('');
       const hp=Math.max(0,f.hp);
       return `<button class="drf-fc${f.id===cur?' cur':''}${f.ko?' ko':''}${tg?' tg':''}" data-fk="tgt" data-id="${esc(f.id)}"${tg?'':' tabindex="-1" aria-disabled="true"'}
@@ -526,20 +520,25 @@ function renderTeams(){
   const order=F.$('.drf-order');if(order)order.innerHTML=(b.queue||[]).map(id=>b.get(id)).filter(f=>f&&!f.ko).map(f=>`<li class="${f.id===cur?'active':''}"><span><span class="drf-elements">${f.els.map(e=>EL_IC[e]).join('')}</span></span><b>${esc(f.name)}</b><small>${Math.max(0,f.hp)}/${f.maxHp}</small></li>`).join('');
   const info=F.$('.drf-details-body');if(info)info.innerHTML=b.f.map(f=>{const s=f.ref&&f.ref.stats,ph=f.ref&&f.ref.ph,els=f.els,B=root.DRBATTLE;
     const names=a=>a.map(e=>B.EL_NAME[e]).join(', ')||'нет';
-    return `<article><h4>${f.side==='A'?'Союзник':'Враг'} · ${esc(f.name)} · ${f.lvl}-й уровень</h4><p>❤ ${Math.max(0,f.hp)}/${f.maxHp} · ⚔ ${f1(b.atkOf(f))} (база ${f.atk}) · 🛡 ${f1(b.defOf(f))} (база ${f.def}) · 💨 ${f.spd} · ярость ${Math.round(f.rage)} %</p><p>◆ Базовая сила: ${root.DSTATS.power({hp:f.maxHp,atk:f.atk,def:f.def,spd:f.spd})}. Активные стихии: ${elsText(f.load)}.</p>${s?`<p>${esc(s.role.keys.map(k=>root.DSTATS.ROLE[k].text).join('; '))}</p><ul>${['hp','atk','def','spd'].flatMap(k=>s.src[k].filter(([l])=>l.includes('ген')).map(([l,n])=>`<li>${esc(l)}: ${n>0?'+':''}${n} ${root.DSTATS.NAMES[k]} до роста с уровнем</li>`)).join('')}</ul>`:''}<p>Сильные атаки против: ${esc(names(Object.keys(B.EL_NAME).filter(e=>f.load.some(x=>B.mult(x,[e])>1.001))))}. Уязвим для: ${esc(names(Object.keys(B.EL_NAME).filter(e=>B.mult(e,els)>1.001)))}.</p><p>${esc(f.traits.map(t=>B.TRAITS[t].name+': '+B.TRAITS[t].text).join('; '))}</p><p>${esc(Object.entries(f.fx).map(([k,n])=>(FX_TXT[k]||k)+': '+n+' ход.').join('; ')||'Нет временных эффектов')}</p></article>`}).join('')}
+    return `<article><h4>${f.side==='A'?'Союзник':'Враг'} · ${esc(f.name)} · ${f.lvl}-й уровень</h4><p>❤ ${Math.max(0,f.hp)}/${f.maxHp} · ⚔ ${f1(b.atkOf(f))} (база ${f.atk}) · 🛡 ${f1(b.defOf(f))} (база ${f.def}) · 💨 ${f.spd} · ярость ${Math.round(f.rage)} %</p><p>◆ Базовая сила: ${root.DSTATS.power({hp:f.maxHp,atk:f.atk,def:f.def,spd:f.spd})}. Активные стихии: ${elsText(f.load)}.</p>${s?`<p>${esc(s.role.keys.map(k=>root.DSTATS.ROLE[k].text).join('; '))}</p><ul>${['hp','atk','def','spd'].flatMap(k=>s.src[k].filter(([l])=>l.includes('ген')).map(([l,n])=>`<li>${esc(l)}: ${n>0?'+':''}${n} ${root.DSTATS.NAMES[k]} до роста с уровнем</li>`)).join('')}</ul>`:''}<p>Сильные атаки против: ${esc(names(Object.keys(B.EL_NAME).filter(e=>f.load.some(x=>B.mult(x,[e])>1.001))))}. Уязвим для: ${esc(names(Object.keys(B.EL_NAME).filter(e=>B.mult(e,els)>1.001)))}.</p><p>${esc(f.traits.map(t=>B.TRAITS[t].name+': '+B.TRAITS[t].text).join('; '))}</p><p>${esc(Object.entries(f.fx).map(([k,n])=>(FX_TXT[k]||k)+': '+B.FX_INFO[k]+' Осталось своих ходов: '+n).join('; ')||'Нет временных эффектов')}</p></article>`}).join('')}
 function renderSkills(){
-  const el=F&&F.$('.drf-sk');if(!el)return;
+  const el=F&&F.$('.drf-sk');if(!el)return;renderOrbit();
   if(F.ring&&!F.ring.pressed){el.innerHTML=`<button class="btn drf-hit" data-fk="press" data-first>Удар! <small>нажмите, когда кольцо сойдётся · пробел</small></button>`;el.querySelector('button').focus({preventScroll:true});return}
   if(F.ring){el.innerHTML=`<p class="drf-small">${F.ring.ok?'Точный удар: урон +25 %':'Мимо окна: обычный удар'}</p>`;return}
   if(!F.pend){el.innerHTML='<p class="drf-wait">'+(F.auto?'Автобой включён':'Ход противника · готовь следующий приём')+'</p>';return}
   const B=root.DRBATTLE,f=F.pend.f;
   const mode=F.tgtMode,targets=mode?`<div class="drf-targets"><p><b>Цель для «${esc(mode.skill.name)}»</b> <span class="drf-keyhint">· Q / W / E</span></p>${mode.targets.map((id,i)=>{const t=F.b.get(id),dmg=Math.round(F.b.expect(f,mode.skill,t)),mult=mode.skill.el?B.mult(mode.skill.el,t.els):1;return `<button class="btn ghost drf-target" data-fk="tgt" data-id="${esc(id)}"><kbd>${['Q','W','E'][i]||i+1}</kbd><b>${esc(t.name)}</b><small>❤ ${Math.max(0,t.hp)}/${t.maxHp} · ≈${dmg} урона · ×${f1(mult)}</small></button>`}).join('')}<small>Урон приблизительный, до точного удара. Можно сменить приём ниже.</small></div>`:'';
   el.innerHTML=targets+'<p class="drf-step"><b>Твой ход · '+esc(f.name)+'</b><span class="drf-keyhint"> · 1–9</span></p>'+F.ops.map((o,i)=>{const s=o.skill,E=s.el&&B.EFFECT[s.el];
-    const sub=s.swap?'займёт ход, в настройке две стихии':s.id==='strike'?'обычный урон':s.id==='guard'?'получаемый урон −50 % до своего хода':s.id==='rage'?`урон ×${f1(B.POWER.rage)}, один раз за бой`:
-      `урон ×${f1(B.POWER.element)}${E?', '+(E.k==='heal'?'лечит себя':E.k==='drain'?`вытягивает силы, ${Math.round(E.weak*100)} %: ослабляет`:`${Math.round(E.chance*100)} %: ${E.name.toLowerCase()}`):''}${s.el==='A'?', Натиск по тем, кто ещё не ходил':''}`;
+    const sub=s.id==='strike'?'Обычный урон без стихийного эффекта.':s.id==='guard'?'Получаемый урон −50 % до своего хода.':s.id==='rage'?`Урон ×${f1(B.POWER.rage)}, один раз за бой. Эффект ${B.EL_NAME[s.el]||''} гарантирован (кроме иммунитета).`:`Урон ×${f1(B.POWER.element)}. ${B.effectText(s.el,f.specialties[s.el])}`;
     const ic=s.swap?'⇄':s.id==='strike'?'🐾':s.id==='guard'?'🛡':s.id==='rage'?'💥':EL_IC[s.el];
     return `<button class="drf-skb${s.id==='rage'?' rage':''}${mode&&mode.skill.id===s.id?' selected':''}" aria-pressed="${!!(mode&&mode.skill.id===s.id)}" data-fk="skill" data-sk="${s.id}"${i===0?' data-first':''}><span aria-hidden="true">${ic}</span><b>${esc(s.id==='rage'?'Ярость дракона':s.name)}</b><small>${esc(sub)}</small><kbd>${i+1}</kbd></button>`}).join('');
   const b=el.querySelector('[data-first]');if(b&&!mode&&!F.el.querySelector('.drf-res'))b.focus({preventScroll:true})}
+
+function renderOrbit(){const bar=F&&F.$('.drf-orbit');if(!bar)return;const show=!!(F.pend&&!F.ring&&!F.auto);bar.hidden=!show;if(!show)return;const f=F.pend.f;
+ bar.innerHTML=F.ops.filter(o=>o.skill.id.startsWith('el:')).map(o=>{const s=o.skill;return `<button type="button" data-fk="skill" data-sk="${s.id}" aria-label="${s.name}" aria-pressed="${!!(F.tgtMode&&F.tgtMode.skill.id===s.id)}" title="${esc(s.name+': '+root.DRBATTLE.effectText(s.el,f.specialties[s.el]))}"><span>${EL_IC[s.el]}</span><small>${s.name}</small></button>`}).join('');if(!bar.childElementCount)bar.hidden=true;placeOrbit()}
+function placeOrbit(){const bar=F&&F.$('.drf-orbit'),d=F&&F.pend&&F.scene&&dOf(F.pend.f.id);if(!bar||bar.hidden||!d)return;const V=F.scene.view(),k=F.scene.dpr,st=F.$('.drf-stage'),bw=bar.offsetWidth||200,bh=bar.offsetHeight||54;
+ const x=(d.x*V[0]+V[4])/k,y=(d.y*V[3]+V[5])/k+12;
+ bar.style.left=clamp(x-bw/2,8,Math.max(8,st.clientWidth-bw-8))+'px';bar.style.top=Math.max(8,st.clientHeight-bh-8)+'px';bar.setAttribute('aria-label','Стихии: '+F.pend.f.name)}
 
 /* ---------- события ---------- */
 async function onClick(e){
@@ -557,9 +556,6 @@ async function onClick(e){
   else if(k==='pick'){const id=b.dataset.id,i=F.pick.indexOf(id),max=F.pickMax||3;if(i>=0)F.pick.splice(i,1);else if(F.pick.length<max)F.pick.push(id);else{F.pick[max-1]=id}
     LS(pickKey(max),JSON.stringify(F.pick));const y=(F.$('.drf-scroll')||{}).scrollTop;showPrep(F.bid);const sc=F.$('.drf-scroll');if(sc)sc.scrollTop=y;
     const nb=[...F.el.querySelectorAll('[data-fk=pick]')].find(x=>x.dataset.id===id);if(nb)nb.focus({preventScroll:true})}
-  else if(k==='load'){const d=myDragons().find(x=>x.id===b.dataset.id),e=b.dataset.e;if(!d)return;let l=d.load.slice();
-    if(l.includes(e)){if(l.length>1)return}else{l=[l[1],e]}LS(loadKey(d.id),JSON.stringify(l));const y=(F.$('.drf-scroll')||{}).scrollTop;showPrep(F.bid);const sc=F.$('.drf-scroll');if(sc)sc.scrollTop=y;
-    const nb=[...F.el.querySelectorAll('[data-fk=load]')].find(x=>x.dataset.id===d.id&&x.dataset.e===e);if(nb)nb.focus({preventScroll:true})}
   else if(k==='start')startFight();
   else if(k==='claim'&&F.api.claim){const r=F.api.claim(b.dataset.id);if(r){const box=F.$('.drf-res');if(box){const g=box.querySelector('.drf-gift'),bb=box.querySelector('[data-fk="claim"]');if(bb)bb.remove();if(g)g.outerHTML=giftHTML(root.DRCAMP.byId(b.dataset.id))}else showMap()}}
   else if(k==='again'){F.tok++;stopFight(F);startFight()}
@@ -594,7 +590,7 @@ function trap(e){
 /* для проверок: состояние боя и ход за игрока */
 function state(){if(!F)return null;const b=F.b;
   return {screen:F.screen,bid:F.bid,reg:F.reg,sel:F.sel,pick:F.pick&&F.pick.slice(),form:F.form,waiting:!!F.pend,targeting:!!F.tgtMode,ring:F.ring?{pressed:F.ring.pressed,ok:F.ring.ok,dt:F.scene.t-(F.ring.t0+RING)}:null,
-    result:F.result,round:b&&b.round,over:b&&b.over,f:b?b.f.map(x=>({id:x.id,side:x.side,hp:x.hp,ko:x.ko,rage:x.rage})):[],
+    result:F.result,round:b&&b.round,over:b&&b.over,f:b?b.f.map(x=>({id:x.id,side:x.side,hp:x.hp,maxHp:x.maxHp,atk:x.atk,els:x.els.slice(),specialties:x.specialties,ko:x.ko,rage:x.rage})):[],
     draw:F.scene?F.scene.stats.draw.slice():[],frame:F.scene?F.scene.stats.frame.slice():[]}}
 root.DRFIGHT={open,close:finish,state,press,loadAll};
 addEventListener('pagehide',()=>{if(F)finish()});

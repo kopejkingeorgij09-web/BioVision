@@ -90,7 +90,7 @@ function cloud(x,y,s,op){return `<g transform="translate(${f1(x)} ${f1(y)}) scal
 
 /* ---------- постройки в локальных координатах: центр площадки 2×2 = (0,0), ромб ±64 × ±32 ---------- */
 /* HEIGHT — высота рисунка над центром: по ней ставится пузырь и считается, кого постройка загораживает (live.js) */
-const HEIGHT={F:66,W:44,N:60,T:80,A:108,P:104,L:98,D:108,farm:40,nest:82,hatch:66};
+const HEIGHT={F:66,W:44,N:60,T:80,A:108,P:104,L:98,D:108,farm:40,nest:82,hatch:66,academy:110};
 /* ---------- жилище-вольер ----------
    Среда обитания — круглая каменная площадка из плит на всю клетку 2×2. Знак среды (вулкан, водопад, пещера…) стоит
    в глубине площадки, перед ним двор: там драконы живут, ходят и взлетают, за бортик не выходят.
@@ -242,6 +242,7 @@ const habMark=(t,k)=>MARK[t](k);
 
 /* ---------- Гнездовье: площадка в цветах, каменная арка с розовым светом и руной, рунный круг, плетёное гнездо ---------- */
 const NPAD={L:'#F2E6EA',M:'#D9C6CE',D:'#A8939E',base:'#C2AEB8',baseD:'#86707C'};
+function academySprite(){return `<g class="drg-academy-building"><ellipse cy="2" rx="69" ry="29" fill="#213a4e"/><path d="M-61 -6L0 -35L61 -6L61 8L0 37L-61 8Z" fill="#a59365" stroke="#eed296" stroke-width="2"/><path d="M-51 -13L0 -37L51 -13L0 12Z" fill="#e5d7b1"/><path d="M-46 -17V-58L0 -79L46 -58V-17L0 5Z" fill="#1b5261" stroke="#e3bd69" stroke-width="2"/><path d="M0 -79V5L46 -17V-58Z" fill="#123944"/><path d="M-55 -58L0 -91L55 -58L0 -32Z" fill="#26677c" stroke="#ebcf88" stroke-width="2"/><path d="M-34 -29V-51M-19 -22V-43M19 -22V-43M34 -29V-51" stroke="#f3dfaa" stroke-width="7"/><path d="M-8 0V-24Q0 -36 8 -24V0" fill="#081f35" stroke="#dfbd75" stroke-width="2"/><path d="M-21 -80L0 -111L21 -80L0 -69Z" fill="#63dbe5" stroke="#eeebbd" stroke-width="2"/><path d="M0 -111V-69L21 -80Z" fill="#2891ba"/><path d="M-22 20L0 9L22 20L0 31Z" fill="#fff0c2" stroke="#a18b5e"/><path d="M-12 -55L0 -59L12 -55V-43L0 -47L-12 -43Z" fill="#fff0c2" stroke="#b28d42"/><path d="M0 -59V-47" stroke="#b28d42"/></g>`}
 function nestBase(k){fx('g',0,-30,30,'#FF8CC6',.5);fx('s',0,-40,26,'#FFE0F0');fx('g',0,-77,9,'#FF5AB0',.6);
   const C=[0,-30],RO=46,RI=33,N=9,ar=(a,r,dx,dy)=>[C[0]+Math.cos(a)*r+(dx||0),C[1]+Math.sin(a)*r+(dy||0)];
   const back=[],face=[];
@@ -348,12 +349,12 @@ function scaffold(job,K,D){const k=Math.max(0,Math.min(1,(job.need-D.left(job,K)
     <path d="M30 -50 Q 32 -36 30 -24" stroke="#D9C49A" stroke-width="1.2" fill="none"/>
     <rect x="-34" y="-74" width="68" height="9" rx="4.5" fill="rgba(0,0,0,.45)"/><rect x="-32" y="-72" width="${(64*k).toFixed(1)}" height="5" rx="2.5" fill="#7CD67A"/></g>`}
 
-function bubble(x,y,kind,txt,full){const bg=kind==='gold'?(full?'#F2C94C':'#FFF4C9'):kind==='food'?'#E6F7D9':kind==='egg'?'#FFF0E0':'#FFFFFF';
+function bubble(x,y,kind,txt,full,end){const bg=kind==='gold'?(full?'#F2C94C':'#FFF4C9'):kind==='food'?'#E6F7D9':kind==='egg'?'#FFF0E0':'#FFFFFF';
   /* ширина по тексту: значок слева, текст после него не наезжает (4.1) */
   const w=Math.max(54,32+String(txt).length*7.4);
   const ic=kind==='gold'?'🪙':kind==='food'?'🌾':kind==='egg'?'🥚':kind==='baby'?'🐣':kind==='empty'?'🏚':'🔨';
   if(full){const o=ORG;ORG={x:0,y:0,s:1};fx('o',x,y-2.5,w,'#FFE27A');ORG=o}
-  return `<g class="drg-bub${full?' full':''}" transform="translate(${f1(x)} ${f1(y)})"><ellipse cx="0" cy="18" rx="${f1(w*.32)}" ry="3" fill="#000" opacity=".12"/><path d="M-6 9 L0 16 L6 9 Z" fill="${bg}" stroke="rgba(0,0,0,.25)"/><rect x="${f1(-w/2)}" y="-15" width="${f1(w)}" height="25" rx="12.5" fill="${bg}" stroke="rgba(0,0,0,.25)"/><rect x="${f1(-w/2+4)}" y="-13" width="${f1(w-8)}" height="8" rx="4" fill="#fff" opacity=".45"/><text x="${f1(-w/2+7)}" y="3" font-size="13">${ic}</text><text x="${f1(-w/2+25)}" y="3.5" font-size="12" font-weight="700" fill="#3A2A10">${txt}</text></g>`}
+  return `<g class="drg-bub${full?' full':''}" transform="translate(${f1(x)} ${f1(y)})"><ellipse cx="0" cy="18" rx="${f1(w*.32)}" ry="3" fill="#000" opacity=".12"/><path d="M-6 9 L0 16 L6 9 Z" fill="${bg}" stroke="rgba(0,0,0,.25)"/><rect x="${f1(-w/2)}" y="-15" width="${f1(w)}" height="25" rx="12.5" fill="${bg}" stroke="rgba(0,0,0,.25)"/><rect x="${f1(-w/2+4)}" y="-13" width="${f1(w-8)}" height="8" rx="4" fill="#fff" opacity=".45"/><text x="${f1(-w/2+7)}" y="3" font-size="13">${ic}</text><text x="${f1(-w/2+25)}" y="3.5" font-size="12" font-weight="700" fill="#3A2A10"${end?` data-drgtimer="${end}"`:""}>${txt}</text></g>`}
 
 /* ---------- край острова: неровная кромка, дёрн, слоистые скалы снизу ----------
    Геометрия зависит от стороны n (12, 16, 20, 24) */
@@ -569,7 +570,7 @@ function svg(st,opt){
     if(isSel)out.push(`<ellipse cx="0" cy="2" rx="74" ry="37" fill="#FFF3B0" opacity=".22"/><path d="M0 -36 L72 0 L0 36 L-72 0 Z" fill="none" stroke="#FFF3B0" stroke-width="3.4" stroke-dasharray="7 5"/>`);
     if(b.build){out.push(scaffold(b.build,K,D))}
     else{
-      const original=T.kind==='farm'?farmSprite(b,st,K,D,k):T.kind==='nest'?nestSprite(b,st,k,c,K,D):T.kind==='hatch'?hatchSprite(b,K,D,k):hab?habPad(b.type,k,b.lvl||1)+habMark(b.type,k):habPad('P',k);if(T.kind==='nest'||T.kind==='hatch'){if(world())out.push(painted(b.type));out.push(original)}else{out.push(`<g class="drg-building-original">${original}</g>`);if(world())out.push(painted(hab?'hab'+b.type:b.type));}
+      const original=T.kind==='farm'?farmSprite(b,st,K,D,k):T.kind==='nest'?nestSprite(b,st,k,c,K,D):T.kind==='hatch'?hatchSprite(b,K,D,k):hab?habPad(b.type,k,b.lvl||1)+habMark(b.type,k):habPad('P',k);if(T.kind==='nest'||T.kind==='hatch'){if(world())out.push(painted(b.type));out.push(original)}else if(T.kind==='academy'){out.push(academySprite())}else{out.push(`<g class="drg-building-original">${original}</g>`);if(world())out.push(painted(hab?'hab'+b.type:b.type));}
       if(T.kind==='hab'){
         /* драконы во дворе, перед знаком среды; живой слой потом водит их по двору */
         const ds=st.dragons.filter(d=>d.home===b.id),pos=[[-18,-10],[18,-10],[0,-4],[-24,-13],[24,-13]];
@@ -583,12 +584,12 @@ function svg(st,opt){
     out.push(`</g>`);
     /* пузырь над зданием: в отдельном слое поверх всего */
     if(!ro&&!place){const start=bubs.length,x=c[0],y=c[1]-(b.build?84:HEIGHT[b.type]||70)-16;
-      if(job&&!D.ready(job,K))bubs.push(bubble(x,y,'build',D.timeShort(job,K)));
+      if(job&&!D.ready(job,K))bubs.push(bubble(x,y,'build','00:00:00',false,Date.now()+D.left(job,K)/10*D.HOUR));
       else if(T.kind==='hab'){const a=Math.floor(D.chestNow(st,b,K));if(a>=1)bubs.push(bubble(x,y,'gold',a>=1000?Math.floor(a/100)/10+'к':a,a>=D.chestCap(b)));
         else if(!st.dragons.some(d=>d.home===b.id))bubs.push(bubble(x,y,'empty','пусто'))}
       else if(T.kind==='farm'){const r=(b.plots||[]).filter(p=>p&&D.ready(p,K)).length;if(r)bubs.push(bubble(x,y,'food','×'+r))}
-      else if(T.kind==='nest'&&b.pair){bubs.push(D.ready(b.pair,K)?bubble(x,y,'egg','готово',true):bubble(x,y,'egg',D.timeShort(b.pair,K)))}
-      else if(T.kind==='hatch'){const r=(b.slots||[]).filter(p=>p&&D.ready(p,K)).length;if(r)bubs.push(bubble(x,y,'baby','×'+r,true))}
+      else if(T.kind==='nest'&&b.pair){bubs.push(D.ready(b.pair,K)?bubble(x,y,'egg','готово',true):bubble(x,y,'egg','00:00:00',false,Date.now()+D.left(b.pair,K)/10*D.HOUR))}
+      else if(T.kind==='hatch'){const r=(b.slots||[]).filter(p=>p&&D.ready(p,K)).length;if(r)bubs.push(bubble(x,y,'baby','×'+r,true));else{const egg=(b.slots||[]).filter(Boolean).sort((a,b)=>D.left(a,K)-D.left(b,K))[0];if(egg)bubs.push(bubble(x,y,'egg','00:00:00',false,Date.now()+D.left(egg,K)/10*D.HOUR))}}
       if(bubs.length>start){const collect=T.kind==='hab'&&!b.build&&D.chestNow(st,b,K)>=1,action=collect?'drgdo':'drgsel';
         bubs[bubs.length-1]=bubs[bubs.length-1].replace('<g class=',`<g data-act="${action}" data-id="${b.id}" ${collect?'data-t="collect"':''} role="button" tabindex="0" aria-label="${escA(collect?'Собрать золото: '+T.name:'Открыть: '+T.name)}" class=`)}
     }

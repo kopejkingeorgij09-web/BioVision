@@ -285,7 +285,7 @@ function draw(){
     ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=0.2;ctx.fillStyle='#000';ctx.beginPath();
     ctx.ellipse(x,y+z*2,d.w*V.s*dpr*0.42/(1+lift),d.w*V.s*dpr*0.07,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
     const flip=d.turn>0?d.face*Math.cos((1-d.turn)*Math.PI):d.face;
-    const view=[z*flip,0,0,z,x-z*flip*d.cx,y];
+    const view=[z*flip,0,0,z,x-z*flip*(d.cx+(d.A.pose.x||0)),y];
     root.RIG.draw(ctx,d.X,d.A.pose,view);
     root.RIG.drawFx(ctx,d.X,d.A.fx,view);ctx.restore()}
   ctx.setTransform(1,0,0,1,0,0);

@@ -311,7 +311,7 @@ function tick(ts){
   const dt=L.last?clamp((ts-L.last)/1000,0,0.1):1/30;if(L.last){L.stats.frame.push(ts-L.last);if(L.stats.frame.length>240)L.stats.frame.shift()}
   L.last=ts;
   /* ошибка кадра (4.1): живой слой выключается, остров остаётся с обычными рисунками драконов, страница работает дальше */
-  try{if(L.ready)L.ds.forEach(d=>{think(d,dt);d.A.update(dt);if(L.stats.frames%3===0)place(d)});draw()}
+  try{if(L.ready)L.ds.forEach(d=>{think(d,dt);d.A.update(dt);if(performance.now()-L.camT>200&&L.stats.frames%3===0)place(d)});draw()}
   catch(e){console.warn('живой остров выключен из-за ошибки',e);L.broken=true;stop();if(L.svg)L.svg.querySelectorAll('g.drg-art.lv').forEach(g=>g.classList.remove('lv'));if(L.cv)L.cv.remove()}}
 if(typeof document!=='undefined'){
   document.addEventListener('visibilitychange',wake);

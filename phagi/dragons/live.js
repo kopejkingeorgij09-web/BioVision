@@ -37,7 +37,7 @@ function mapOf(st,D,I){
     const c=toIsle(I,b.x+1,b.y+1),h=(I.HEIGHT[b.type]||70);
     /* вольер (4.1): загораживает только знак среды в глубине, двор перед ним открыт */
     if(I.YARD&&I.PAD&&I.PAD[b.type]&&D.TYPES[b.type]&&D.TYPES[b.type].kind==='hab'){yards[b.id]={x:b.x,y:b.y};
-      occ.push({x0:c[0]-40,x1:c[0]+40,y0:c[1]-h,y1:c[1]-4,base:c[1]-5,id:b.id});return}
+      occ.push({x0:c[0]-40,x1:c[0]+40,y0:c[1]-h,y1:c[1]-40,base:c[1]-40,id:b.id});return}
     occ.push({x0:c[0]-60,x1:c[0]+60,y0:c[1]-h,y1:c[1]+12,base:c[1]+16,id:b.id})});
   obs.forEach(o=>{cell[o.x*G+o.y]=0;const c=toIsle(I,o.x+.5,o.y+.5),k=OBH[o.kind]||OBH.rock;occ.push({x0:c[0]-k[0],x1:c[0]+k[0],y0:c[1]-k[1],y1:c[1]+k[2],base:c[1]+k[2]})});
   const free=(i,j)=>i>=0&&j>=0&&i<G&&j<G&&cell[Math.floor(i)*G+Math.floor(j)]===1;
@@ -46,8 +46,8 @@ function mapOf(st,D,I){
 function inYard(Y,u,v){return u>=Y.lo&&u<=Y.hi&&v>=Y.lo&&v<=Y.hi&&u+v>=Y.front}
 function yardOf(map,I,d){const y=d.hid&&map.yards&&map.yards[d.hid];return y&&I.YARD?y:null}
 function yardHas(map,I,d,p){const y=yardOf(map,I,d);if(!y)return false;const g=toGrid(I,p[0],p[1]);if(!inYard(I.YARD,g[0]-y.x,g[1]-y.y))return false;
-  const c=toIsle(I,y.x+1,y.y+1),w=(d.w||0)/2+2,h=(d.h||0)+2;
-  return [-w,w].every(dx=>[2,-h].every(dy=>Math.pow((p[0]+dx-c[0])/61,2)+Math.pow((p[1]+dy-c[1]+8)/40,2)<=1))}
+  const c=toIsle(I,y.x+1,y.y+1),w=(d.w||0)/2+2;
+  return [-w,w].every(dx=>[-2,2].every(dy=>Math.pow((p[0]+dx-c[0])/46,2)+Math.pow((p[1]+dy-c[1]+12)/14,2)<=1))}
 /* цель во дворе: видная, не на другом драконе; air — для полёта (направление любое) */
 function yardTarget(map,I,d,others,rnd,air){const y=yardOf(map,I,d),Y=I.YARD;
   for(let tries=0;tries<40;tries++){const u=Y.lo+rnd()*(Y.hi-Y.lo),v=Y.lo+rnd()*(Y.hi-Y.lo);if(!inYard(Y,u,v))continue;
@@ -95,7 +95,7 @@ function settle(map,I,d,others){
     for(const pass of [0,1]){let best=null,bd=1e9;
       for(let u=Y.lo;u<=Y.hi+1e-6;u+=0.12)for(let v=Y.lo;v<=Y.hi+1e-6;v+=0.12){if(!inYard(Y,u,v))continue;const p=toIsle(I,y.x+u,y.y+v);
         if(!yardHas(map,I,d,p))continue;
-        if(hidden(map,p,d.w,d.h))continue;
+        if(pass===0&&hidden(map,p,d.w,d.h))continue;
         if(pass===0&&others.some(o=>o!==d&&o.hid===d.hid&&Math.hypot(o.p[0]-p[0],(o.p[1]-p[1])*2)<d.w*0.55))continue;
         const q=Math.hypot(p[0]-d.home[0],p[1]-d.home[1]);if(q<bd){bd=q;best=p}}
       if(best){d.p=best;d.how='yard'+pass;return true}}
@@ -199,7 +199,7 @@ function sync(){
 function make(id,dr,ph,pk,home,mode,face){
   const M=root.MORPH.morph(ph,dr.lvl),G=root.SHAPE.build(M),seed=hrand(id),rnd=rng(seed);
   const A=new root.ANIM.Animator(M,G.rig,{seed:seed%9973,reduce:reduced()});
-  const k0=ISLK*G.scale*(mode==='hab'?HABK:1),k=mode==='hab'?Math.min(k0,46/G.box.w,30/-G.box.y):k0,d={id,ph,pk,lvl:dr.lvl,M,G,A,rnd,k,home:home.slice(),p:home.slice(),to:null,mode,face,turn:0,
+  const k0=ISLK*G.scale*(mode==='hab'?HABK:1),k=mode==='hab'?Math.min(k0,32/G.box.w,25/-G.box.y):k0,d={id,ph,pk,lvl:dr.lvl,M,G,A,rnd,k,home:home.slice(),p:home.slice(),to:null,mode,face,turn:0,
     w:G.box.w*k,h:-G.box.y*k,cx:G.box.x+G.box.w/2,state:'idle',wait:0.5+rnd()*3,X:null,Xn:null,px:0,ax:0};
   if(rnd()<0.3&&mode==='hab')A.t+=rnd()*3;
   return d}
@@ -279,7 +279,7 @@ function draw(){
     if(!d.X||d.cover||(d.g&&d.g.style.visibility==='hidden'))continue;
     ctx.save();
     const yard=yardOf(L.map,root.ISL,d);
-    if(yard){const c=toIsle(root.ISL,yard.x+1,yard.y+1);ctx.setTransform(1,0,0,1,0,0);ctx.beginPath();ctx.ellipse((V.ox+c[0]*V.s)*dpr,(V.oy+(c[1]-8)*V.s)*dpr,61*V.s*dpr,40*V.s*dpr,0,0,Math.PI*2);ctx.clip()}
+
     /* контактная тень на траве, как у деревьев и камней острова: чуть сжимается, когда дракон приподнимается */
     const lift=Math.max(0,-(d.A.pose.body[5]||0))/d.A.P.h;
     ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=0.2;ctx.fillStyle='#000';ctx.beginPath();

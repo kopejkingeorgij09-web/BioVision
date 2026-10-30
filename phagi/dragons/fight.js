@@ -260,7 +260,7 @@ function showPrep(id){
 
 /* ---------- бой ---------- */
 const RING=1.05,LEAD=0.5,WIN=0.12;   /* кольцо Точного удара: 1,05 с до выпуска, атака стартует через 0,5 с, окно ±0,12 с */
-const FORM={wide:[[0.74,0.08],[1.52,-0.2],[1.7,0.34]],tall:[[0.56,0],[0.8,0.7],[0.58,1.4]]};
+const FORM={rows:[[0.78,0],[0.78,0.88],[0.78,1.76]]};
 
 async function startFight(){
   const C=root.DRCAMP,B=root.DRBATTLE,bt=C.byId(F.bid),mine=myDragons();
@@ -297,9 +297,9 @@ function resize(){
   const cw=Math.round(w*dpr),ch=Math.round(h*dpr);if(F.cv.width!==cw)F.cv.width=cw;if(F.cv.height!==ch)F.cv.height=ch;F.cv.style.width=w+'px';F.cv.style.height=h+'px';
   const U=Math.max(...sc.ds.map(d=>d.G.box.w*d.s0));let best=null;
   for(const k of Object.keys(FORM)){
-    const P=sc.ds.map(d=>{const [dx,dy]=FORM[k][d.slot]||FORM[k][0],s=d.s0*(1+0.1*dy),x=(d.side==='A'?-1:1)*dx*U,y=dy*U,b=d.G.box;
-      return {d,s,x,y,x0:x-b.w*s/2,x1:x+b.w*s/2,y0:y+b.y*s,y1:y+(b.y+b.h)*s}});
-    const fb={x0:Math.min(...P.map(p=>p.x0))-U*.06,x1:Math.max(...P.map(p=>p.x1))+U*.06,y0:Math.min(...P.map(p=>p.y0)),y1:Math.max(...P.map(p=>p.y1))+U*0.06,pad:18,padTop:30};
+    const P=sc.ds.map(d=>{const [dx,dy]=FORM[k][d.slot]||FORM[k][0],s=Math.min(d.s0,U*0.82/d.G.box.w),x=(d.side==='A'?-1:1)*dx*U,y=dy*U,b=d.G.box;
+      return {d,s,x,y,x0:x-b.w*s*.62,x1:x+b.w*s*.62,y0:y+(b.y-b.h*.12)*s,y1:y+(b.y+b.h+b.h*.12)*s}});
+    const fb={x0:Math.min(...P.map(p=>p.x0))-U*.06,x1:Math.max(...P.map(p=>p.x1))+U*.06,y0:Math.min(...P.map(p=>p.y0)),y1:Math.max(...P.map(p=>p.y1))+U*0.06,pad:28,padTop:38};
     sc.frame(fb);const z=sc.zoomFb(w,h);if(!best||z>best.z)best={z,P,fb,k}}
   best.P.forEach(p=>{p.d.s=p.s;p.d.x=p.d.hx=p.x;p.d.y=p.y});sc.frame(best.fb);F.form=best.k;
   F.U=U;F.gy0=Math.min(...best.P.map(p=>p.y))-U*0.24;F.gy1=Math.max(...best.P.map(p=>p.y));

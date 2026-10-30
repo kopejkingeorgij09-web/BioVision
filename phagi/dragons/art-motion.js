@@ -36,7 +36,7 @@ function tri(ctx,im,s,d){const [p,q,r]=s,[a,b,c]=d,det=(q[0]-p[0])*(r[1]-p[1])-(
  for(let i=0;i<3;i++){const v=d[i],dx=v[0]-mx,dy=v[1]-my,l=Math.hypot(dx,dy)||1,x=v[0]+dx/l*.0005,y=v[1]+dy/l*.0005;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.closePath();ctx.clip();ctx.transform(A,B,C,D,a[0]-A*p[0]-C*p[1],a[1]-B*p[0]-D*p[1]);ctx.drawImage(im,0,0,1,1);ctx.restore();}
 const meshes=new WeakMap();
 function draw(ctx,im,box,pose,pixels){const m=pose.sprite;if(!m||m.reduce){ctx.drawImage(im,box.x,box.y,box.w,box.h);return}
- let levels=meshes.get(im);if(!levels){levels={};meshes.set(im,levels)}const n=pixels>220&&!(root.DRPERF&&(root.DRPERF.low||root.DRPERF.mode!=='high'&&root.DRPERF.busy&&pixels<320))?14:4,skin=levels[n]||(levels[n]=mesh(im,n)),dst=skin.verts.map(v=>point(v[0],v[1],m));
+ let levels=meshes.get(im);if(!levels){levels={};meshes.set(im,levels)}const n=pixels>220&&!(root.DRPERF&&(root.DRPERF.low||root.DRPERF.mode!=='high'&&root.DRPERF.busy))?14:4,skin=levels[n]||(levels[n]=mesh(im,n)),dst=skin.verts.map(v=>point(v[0],v[1],m));
  ctx.save();ctx.translate(box.x,box.y);ctx.scale(box.w,box.h);
  for(const t of skin.tri)tri(ctx,im,t.src,[dst[t.i[0]],dst[t.i[1]],dst[t.i[2]]]);ctx.restore();}
 const api={point,draw};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.DRARTMOTION=api;

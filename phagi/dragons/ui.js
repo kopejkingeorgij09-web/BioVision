@@ -918,7 +918,7 @@ function camFit(r,keepZ,kind){const c=cam(),M=svgMap(r),B=islBounds(kind||'whole
 function camClamp(c,r){c.z=Math.max(ZMIN,Math.min(ZMAX,c.z));const M=svgMap(r),B=islBounds('whole'),F=freeRect(r);
   const x0=c.x+c.z*M.x(B[0]),x1=c.x+c.z*M.x(B[0]+B[2]),y0=c.y+c.z*M.y(B[1]),y1=c.y+c.z*M.y(B[1]+B[3]),mx=(x1-x0)/4,my=(y1-y0)/4;
   if(x1<F.x0+mx)c.x+=F.x0+mx-x1;if(x0>F.x1-mx)c.x-=x0-(F.x1-mx);if(y1<F.y0+my)c.y+=F.y0+my-y1;if(y0>F.y1-my)c.y-=y0-(F.y1-my)}
-let camFrame=0;function camApply(){if(!camFrame)camFrame=requestAnimationFrame(()=>{camFrame=0;camApplyNow()})}
+let camFrame=0,camIdle=0,camMoving=false;function camApply(){if(!camFrame)camFrame=requestAnimationFrame(()=>{camFrame=0;camApplyNow()})}
 function camApplyNow(){const st=document.querySelector('.drg-world .drg-stage'),r=camBox();if(!st||!r)return;const c=cam();
   if(!c.z)camFit(r,false,fitKind(r));
   else if(c.W&&(Math.abs(c.W-r.width)>1||Math.abs(c.H-r.height)>1)){
@@ -926,12 +926,17 @@ function camApplyNow(){const st=document.querySelector('.drg-world .drg-stage'),
     if(c.auto)camFit(r,false,fitKind(r));else{const o=svgMap({width:c.W,height:c.H}),n=svgMap(r),u=((c.W/2-c.x)/c.z-o.x(0))/o.s0,v=((c.H/2-c.y)/c.z-o.y(0))/o.s0;
       c.x=r.width/2-c.z*n.x(u);c.y=r.height/2-c.z*n.y(v);c.W=r.width;c.H=r.height}}
   camClamp(c,r);
-  /* Rasterize the SVG at the actual zoom size; CSS scale would magnify a cached bitmap. */
-  const sw=+(r.width*c.z).toFixed(2)+'px',sh=+(r.height*c.z).toFixed(2)+'px';
+  /* During gestures move a bounded compositor layer; restore native detail after settling. */
+  const moving=camMoving;
+  if(!moving){camMoving=true;st.dataset.cameraRaster=String(Math.min(c.z,3072/Math.max(1,devicePixelRatio||1)/Math.max(r.width,r.height)));}
+  const rz=Number(st.dataset.cameraRaster)||c.z;
+  const sw=+(r.width*rz).toFixed(2)+'px',sh=+(r.height*rz).toFixed(2)+'px';
   const resized=st.style.width!==sw||st.style.height!==sh;
   if(resized){st.style.width=sw;st.style.height=sh}
-  const tr=`translate(${c.x.toFixed(1)}px,${c.y.toFixed(1)}px)`;
+  const tr=`translate(${c.x.toFixed(1)}px,${c.y.toFixed(1)}px) scale(${(c.z/rz).toFixed(6)})`;
   const moved=resized||st.style.transform!==tr;if(moved)st.style.transform=tr;
+  st.style.willChange='transform';
+  clearTimeout(camIdle);camIdle=setTimeout(()=>{if(!st.isConnected)return;camMoving=false;st.style.willChange='';st.style.width=(r.width*c.z).toFixed(2)+'px';st.style.height=(r.height*c.z).toFixed(2)+'px';st.style.transform=`translate(${c.x.toFixed(1)}px,${c.y.toFixed(1)}px)`;if(window.DRLIVE)DRLIVE.cam();},160);
   /* фон за островом движется медленнее камеры: далёкие острова и облака дают глубину */
   const bgs=st.parentElement.querySelector('.drg-bgs');
   if(bgs){if(!c.f)c.f=[c.x,c.y,c.z];const F0=c.f,k=0.32,zb=F0[2]*Math.pow(c.z/F0[2],k),Sx=r.width/2,Sy=r.height/2,
@@ -940,7 +945,7 @@ function camApplyNow(){const st=document.querySelector('.drg-world .drg-stage'),
   /* мелко: подписи построек прячутся, чтобы не слипались */
   const m=st.parentElement,px=svgMap(r).s0*c.z,lo=px<0.42;if(m.classList.contains('zlo')!==lo)m.classList.toggle('zlo',lo);
   /* подписи построек держат экранный размер около 11 px при любом масштабе */
-  st.style.setProperty('--lz',Math.max(0.45,Math.min(1.6,(r.width>=2400?16:11)/(12*px))).toFixed(3));
+  const labelScale=Math.max(0.45,Math.min(1.6,(r.width>=2400?16:11)/(12*px))).toFixed(3);if(st.style.getPropertyValue('--lz')!==labelScale)st.style.setProperty('--lz',labelScale);
   if(window.DRWORLD)DRWORLD.lod(px);
   if(window.DRLIVE){if(moved&&DRLIVE.cam)DRLIVE.cam();else DRLIVE.wake()}}   /* камера сдвинулась: драконы и эффекты в том же кадре, что и остров */
 /* выбранная постройка не прячется под панелью: если её не видно, остров сдвигается, масштаб тот же */

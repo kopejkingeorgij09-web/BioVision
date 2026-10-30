@@ -347,5 +347,11 @@ t('урожай сразу: новый, старый таймер, резерв;
  assert.ok(E.left({at:0,need:20,rt:true,startedAt:Date.now()},0)>19,'стройка продолжает ждать');
 });
 
+t('продажа: цена по уровню, разовая выплата, родословная и запрет занятых драконов',()=>{
+ const s=E.startState(founders());s.dragons.push({id:'sale',name:'Продажа',genome:G.make({sex:'F',E:'F/F'}),lvl:12,fed:0,home:'b1'});
+ assert.equal(E.sellPrice({lvl:1}),100);assert.equal(E.sellPrice({lvl:12}),1200);assert.equal(E.sellPrice({lvl:60}),6000);
+ const gold=s.bal.gold,r=ok(E.apply(s,ctx(0),{t:'sell',dragon:'sale'}));assert.equal(r.bal.gold,gold+1200);assert.equal(s.dragons.length,3);assert(!r.dragons.some(d=>d.id==='sale'));assert(r.gone.some(d=>d.id==='sale'));assert(E.apply(r,ctx(0),{t:'sell',dragon:'sale'}).err);assert(E.apply(r,ctx(0),{t:'sell',dragon:'d1'}).err);
+ s.dragons[2].training={at:0,need:10};assert(E.apply(s,ctx(0),{t:'sell',dragon:'sale'}).err);delete s.dragons[2].training;s.bld.find(b=>b.type==='nest').pair={m:'sale',f:'d2'};assert(E.apply(s,ctx(0),{t:'sell',dragon:'sale'}).err);
+});
 console.log(`\n${n-fails} из ${n} тестов прошли`);
 process.exit(fails?1:0);

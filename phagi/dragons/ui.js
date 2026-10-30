@@ -534,7 +534,7 @@ function dragonCard(st,d,own,L){
   ${own?`<p class="muted small drg-feedi">${d.lvl<cap?`Кормлений до ${d.lvl+1}-го уровня: ${d.fed||0} из ${E.FEEDS}, ещё ${E.FEEDS-(d.fed||0)} по ${cost} 🌾 корма.`:d.lvl>cap?`Уровень ${d.lvl} выше нынешнего предела острова (${cap}-й): уровень сохраняется, кормить дальше можно, когда предел его догонит.`:`Достигнут предел: ${cap}-й уровень.`} ${cap<E.DRAGON_MAX?`На острове ${L}-го уровня драконы растут до ${cap}-го${capAt(cap)?`, предел поднимется на ${capAt(cap)}-м уровне острова`:''}.`:'Это наибольший уровень драконов в игре.'}${fp.catchUp&&d.lvl<cap?` Догоняющий рост: этот дракон отстаёт от самого сильного на ${E.ECON.catchUp.gap}+ уровней, корм вдвое дешевле (${cost} вместо ${fp.full}).`:''}</p>`:''}
   ${own?`<div class="drg-da">${d.lvl<cap?`<button class="btn sm" data-act="drgdo" data-t="feed" data-dragon="${d.id}"${st.bal.food<cost?' disabled':''}>Покормить: ${cost} 🌾</button>${st.bal.food<cost?`<span class="drg-why">Корма ${fmt(st.bal.food)} из ${cost}. Корм растёт на ферме и приходит паёк за день с карточками.</span>`:''}`:`<span class="muted small">${cap<20?`Следующий уровень откроется, когда остров дорастёт до ${L+1}-го уровня`:'Дракон вырос до наибольшего уровня'}</span>`}
   ${homes.map(b=>`<button class="btn ghost sm" data-act="drgdo" data-t="place" data-dragon="${d.id}" data-home="${b.id}">Переселить: ${E.TYPES[b.type].name}</button>`).join('')}
-  <button class="btn ghost sm" data-act="drgrename" data-dragon="${d.id}">Имя</button><button class="btn ghost sm" data-act="drgrelease" data-dragon="${d.id}">Отпустить</button></div>`:''}</div></article>`}
+  <button class="btn ghost sm" data-act="drgrename" data-dragon="${d.id}">Имя</button><button class="btn ghost sm" data-act="drgsell" data-dragon="${d.id}"${st.dragons.length<=2||d.training||st.bld.some(b=>b.pair&&(b.pair.m===d.id||b.pair.f===d.id))?' disabled title="Нужно оставить двух драконов; дождитесь окончания скрещивания и обучения"':''}>Продать · ${fmt(E.sellPrice(d))} 🪙</button></div>`:''}</div></article>`}
 /* боевой ранг ✦ и сочетание стихий: ранг считает разные стихийные атаки, это не редкость и не звёзды боя ★ */
 function rankHTML(ph){const B=window.DSTATS&&DSTATS.badge(ph);if(!B)return '';
   return `<span class="drg-rank${B.rank?'':' none'}" title="${esc(B.title)}">${B.rank?`<b aria-hidden="true">${B.stars}</b>`:''}<span>${esc(B.name)}</span><span class="sr"> ${esc(B.title)}</span></span>`}
@@ -1252,13 +1252,13 @@ window.DRG_ACTIONS={
     const pred=t&&!isNaN(pp)?{trait:t,value:fv.drgPc||(document.getElementById('drgPc')||{}).value,p:pp/100}:null;
     const r=act({t:'breed',id:el.dataset.id,mother:el.dataset.m,father:el.dataset.f,pred});if(!r)return;
     S.fv.drgPp='';const g=r.s.got&&r.s.got.pred;toast(g?(g.ok?'Прогноз верный! Яйцо будет вдвое быстрее, +1 💎':'Прогноз пока неверный. В Гнездовье доступна подсказка и разбор.'):'Пара в Гнездовье. Яйцо будет через '+cardsAcc(Math.ceil(E.BREED_NEED/E.CARD_SPEED)))},
-  drgrelease:async el=>{const x=stateOf(meId()),d=x&&x.st.dragons.find(z=>z.id===el.dataset.dragon);if(!d)return;
+  drgsell:async el=>{const x=stateOf(meId()),d=x&&x.st.dragons.find(z=>z.id===el.dataset.dragon);if(!d)return;
     /* единственная самка или самец, особенно взрослые: без них скрещивание встанет */
     const sx=d.genome.sex,same=x.st.dragons.filter(z=>z.genome.sex===sx),adult=same.filter(z=>z.lvl>=E.BREED_LV);
     const warn=same.length===1?` Это ${sx==='F'?'единственная самка':'единственный самец'} на острове: без ${sx==='F'?'неё':'него'} скрещивать будет нельзя, пока не купите ${sx==='F'?'самку':'самца'} на рынке.`:
       d.lvl>=E.BREED_LV&&adult.length===1?` Это ${sx==='F'?'единственная взрослая самка':'единственный взрослый самец'} (${E.BREED_LV}-й уровень и выше): других придётся сначала вырастить.`:'';
-    if(!await askConfirm(`Отпустить дракона ${d.name}? Он улетит с острова насовсем, вернуть его нельзя.${warn} В журнале и родословной он останется, а его генотип сохранится в архиве острова, чтобы теория в журнале считалась по настоящим родителям. На прощание ${fmt(50*(1+G.gameRarity(phOf(d))))} золота.`,'Отпустить'))return;
-    const r=act({t:'release',dragon:d.id});if(r)toast(`${d.name} улетел. +${fmt(r.s.got.gold)} золота на прощание`)},
+    if(!await askConfirm(`Продать дракона ${d.name} за ${fmt(E.sellPrice(d))} золота (${d.lvl}-й уровень)? Продажа окончательна.${warn} В журнале и родословной он останется, а его генотип сохранится в архиве острова, чтобы теория в журнале считалась по настоящим родителям. Цена: 100 золота за каждый уровень.`,'Продать'))return;
+    const r=act({t:'sell',dragon:d.id});if(r)toast(`${d.name} продан. +${fmt(r.s.got.gold)} золота`)},
   drgrename:el=>{const x=stateOf(meId()),d=x&&x.st.dragons.find(z=>z.id===el.dataset.dragon);if(!d)return;
     const n=prompt('Имя дракона',d.name);if(n!=null&&n.trim())act({t:'rename',dragon:d.id,name:n})}
 };

@@ -246,7 +246,8 @@ const todoN=(st,c)=>{const t=todoInfo(st,c);return t.pz+t.wq+t.gift};
 /* ---------- задания недели и подарок за ДЗ (4.4) ---------- */
 const rwd=r=>[r.gold?`${fmt(r.gold)} 🪙`:'',r.gems?`${r.gems} 💎`:'',r.food?`${fmt(r.food)} 🌾`:''].filter(Boolean).join(' · ');
 function dailyHTML(st,c){return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>Ежедневные миссии</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div><p>Новые задания каждый день. Награда выдаётся один раз.</p>${Object.entries(E.DQ).map(([id,q])=>{const p=E.dailyProgress(st,c,id);return `<div class="drg-plot"><b>${esc(q.t)}</b><span>${p.v} / ${p.goal}</span><span>${q.r.gold||0} 🪙 · ${q.r.food||0} 🌾</span><button class="btn sm" data-act="drgdo" data-t="daily" data-id="${id}"${p.done&&!p.got?'':' disabled'}>${p.got?'Получено':'Забрать'}</button></div>`}).join('')}<button class="btn" data-act="drgcards">Повторять карточки</button></section>`}
-function academyHTML(st,c){return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>Академия драконов</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div><p>Каждый ранг обучения: +20 % к базовым здоровью, атаке и защите и +1 к скорости. Максимум 3 ранга (+60 % и +3). Внешность получает сияние обучения. Стихии и генотип не меняются.</p><p>Обучение занимает 2, 4 или 6 часов. Каждая повторённая карточка сокращает ожидание на час.</p>${st.dragons.map(d=>{const rank=d.academyRank||0,next=rank+1;return `<div class="drg-plot"><b>${esc(d.name)} · ранг ${rank}/${E.ACADEMY_MAX}</b>${powerHTML(d)}${d.training?`<span>Обучение: ${E.timeShort(d.training,c.K)} · или ${E.cardsLeft(d.training,c.K)} карточек</span><button class="btn sm" data-act="drgcards">Ускорить карточками</button>`:rank<E.ACADEMY_MAX?`<span>Следующий ранг: +20 % к трём параметрам и +1 скорость</span><button class="btn sm" data-act="drgdo" data-t="academy" data-dragon="${d.id}"${st.bal.gold<E.academyCost(next)?' disabled':''}>Обучать за ${fmt(E.academyCost(next))} 🪙 · ${2*next} ч</button>`:'<span>Обучение завершено</span>'}</div>`}).join('')}</section>`}
+function graphicsHTML(){const mode=window.DRPERF?DRPERF.mode:'auto';return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>Графика и плавность</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div><p>Настройка действует на этом устройстве.</p><div class="drg-graphics">${[['auto','Автоматически','Баланс детализации и плавности для вашего устройства.'],['high','Высокая детализация','Подробные движения и чёткие изображения.'],['low','Экономия ресурсов','Меньше эффектов и ниже нагрузка. Удобно для слабого телефона.']].map(([k,t,d])=>`<button data-act="drgquality" data-v="${k}" aria-pressed="${mode===k}"><b>${t}</b><small>${d}</small></button>`).join('')}</div></section>`}
+function academyHTML(st,c){return `<section class="sheet drg-pan"><div class="drg-pan-h"><h2>Академия драконов</h2><button class="btn ghost sm" data-act="drgpanel" data-v="">Закрыть</button></div><p>Каждый ранг обучения: +20 % к базовым здоровью, атаке и защите и +1 к скорости. Максимум 3 ранга (+60 % и +3). Внешность получает сияние обучения. Стихии и генотип не меняются.</p><p>Обучение занимает 2, 4 или 6 часов. Каждая повторённая карточка сокращает ожидание на час.</p>${st.dragons.map(d=>{const rank=d.academyRank||0,next=rank+1;return `<div class="drg-plot drg-academy-row"><span class="drg-academy-art">${W.svg(phOf(d),{key:'academy'+d.id,size:140,stage:W.stageOf(d.lvl)})}</span><b>${esc(d.name)} · ранг ${rank}/${E.ACADEMY_MAX}</b>${powerHTML(d)}${d.training?`<span>Обучение: ${E.timeShort(d.training,c.K)} · или ${E.cardsLeft(d.training,c.K)} карточек</span><button class="btn sm" data-act="drgcards">Ускорить карточками</button>`:rank<E.ACADEMY_MAX?`<span>Следующий ранг: +20 % к трём параметрам и +1 скорость</span><button class="btn sm" data-act="drgdo" data-t="academy" data-dragon="${d.id}"${st.bal.gold<E.academyCost(next)?' disabled':''}>Обучать за ${fmt(E.academyCost(next))} 🪙 · ${2*next} ч</button>`:'<span>Обучение завершено</span>'}</div>`}).join('')}</section>`}
 function weekHTML(st,c){const L=E.wqList(st,c.today),mon=E.weekOf(c.today);
   const rows=L.map(id=>{const q=E.WQ[id],p=E.wqProgress(st,c,id),pc=Math.round(p.v/p.goal*100);
     return `<div class="wq${p.got?' got':p.done?' done':''}"><div class="wq-h"><b>${esc(q.t)}</b><small>${rwd(q.r)}</small></div>
@@ -397,7 +398,7 @@ function islandView(){
       return `<button class="drg-rb${o.big?' big':''}" data-act="${act}" data-v="${v}"${o.lab?` aria-label="${o.lab}${o.n?`, ждут: ${o.n}`:''}${o.k?' (клавиша '+o.k+')':''}"`:''}${o.k?` title="Клавиша ${o.k}" aria-keyshortcuts="${o.k}"`:''}${on?' aria-current="true"':''}><i aria-hidden="true">${ic}</i><span>${t}</span>${o.n?`<b class="drg-bdg" aria-hidden="true">${o.n}</b>`:''}${o.k?`<kbd class="drg-kb" aria-hidden="true">${o.k}</kbd>`:''}</button>`};
     const dock=own?rb('drgcards','','📚','<b class="lg">Повторять карточки</b><b class="sm">Карточки</b>',{lab:'Повторять карточки'})+rb('drgpanel','dragons','📖','Драконы',{lab:'Драконы',k:'D'})
         +rb('drgpanel','breed','🥚','<b class="lg">Скрещивание</b><b class="sm">Яйца</b>',{lab:'Скрещивание и яйца',k:'E'})
-        +(st.dragons.length?rb('drgfight','','⚔️','Поход',{lab:'Поход: бои драконов',k:'P'}):'')+rb('drgpanel','shop','🔨','Строить',{big:1,lab:'Строить',k:'B'})+rb('drgpanel','market','🐉','Купить',{lab:'Купить дракона'})+rb('drgpanel','more','☰','Ещё',{lab:'Ещё: головоломки, задания недели, рейтинг, рынок, журнал',k:'M',n:todoN(st,c)})
+        +(st.dragons.length?rb('drgfight','','⚔️','Поход',{lab:'Поход: бои драконов',k:'P'}):'')+rb('drgpanel','shop','🔨','Строить',{big:1,lab:'Строить',k:'B'})+rb('drgpanel','market','🐉','Купить',{lab:'Купить дракона'})+rb('drgpanel','academy','🏛','Академия')+rb('drgpanel','more','☰','Ещё',{lab:'Ещё: головоломки, задания недели, рейтинг, рынок, журнал',k:'M',n:todoN(st,c)})
       :visit?rb('drgvisit','','🏠','Домой',{lab:'Домой, на свой остров'})+rb('drgpanel','dragons','📖','Драконы')+rb('drgpanel','blds','🏘','Постройки')+rb('drgpanel','top','🏆','Рейтинг')
       :rb('drgfull','0','🏠','Назад')+rb('drgpanel','dragons','📖','Драконы')+rb('drgpanel','journal','📓','Журнал')+rb('drgpanel','blds','🏘','Постройки');
     /* 5.0: мир (фон и остров) — отдельный узел с подписью data-sig: если рисунок не изменился, страница оставляет старый узел,
@@ -439,6 +440,7 @@ function panel0(st,c,own){
   if(p==='lvl')return lvlInfoHTML(st,c);
   if(own&&p==='pz')return pzHTML(st,c);
   if(own&&p==='academy')return academyHTML(st,c);
+  if(p==='graphics')return graphicsHTML();
   if(own&&p==='daily')return dailyHTML(st,c);
   if(own&&p==='week')return weekHTML(st,c);
   if(p==='top')return topHTML(st);
@@ -806,7 +808,7 @@ function moreHTML(st,own,c){const it=(act,v,ic,t,d)=>`<button class="drg-mi" dat
   ${own?(()=>{const t=todoInfo(st,c);return it('drgpanel','pz','🧩','Головоломки дня',t.pz?`осталось ${t.pz} из 3 сегодня · от лёгкой к сложной, 60–140 🪙`:'на сегодня всё решено, завтра новые')
     +it('drgpanel','week','📜','Задания недели',t.wq||t.gift?`можно забрать: ${t.wq+t.gift}`:'три задания с наградой')})():''}
   ${own?it('drgpanel','academy','🏛','Академия драконов','заметное усиление за золото')+it('drgpanel','daily','📋','Ежедневные миссии','семь заданий каждый день'):''}
-  ${it('drgpanel','top','🏆','Рейтинг островов','уровни, звёзды похода, в гости')}
+  ${it('drgpanel','graphics','◈','Графика','качество и плавность')}${it('drgpanel','top','🏆','Рейтинг островов','уровни, звёзды похода, в гости')}
   ${it('drgpanel','research','🔬','Цели исследования','разовые награды за открытия в разведении')}
   ${it('drgcards','','📚','Повторять карточки','карточка сокращает ожидание на час')}${it('drgpanel','help','?','Как это работает','золото, корм, самоцветы, уровни')}</div></section>`}
 /* цели исследования: что сделать в разведении и росте, разовая награда (economy.js RESEARCH) */
@@ -907,7 +909,7 @@ function freeRect(r){const q=s=>{const e=document.querySelector(s);return e&&e.g
 const ZMIN=0.5,ZMAX=5;
 /* вид «весь остров»: границы острова целиком в свободной части экрана, по центру */
 /* первый вид: на узком экране крупно постройки, на широком весь остров */
-const fitKind=r=>r.width<700?'key':'whole';
+const fitKind=r=>r.width<700?'key':'all';
 function camFit(r,keepZ,kind){const c=cam(),M=svgMap(r),B=islBounds(kind||'whole'),F=freeRect(r),fw=F.x1-F.x0,fh=F.y1-F.y0;
   if(!keepZ)c.z=Math.max(ZMIN,Math.min(ZMAX,fw/(B[2]*M.s0),fh/(B[3]*M.s0)));
   c.x=(F.x0+fw/2)-c.z*M.x(B[0]+B[2]/2);c.y=(F.y0+fh/2)-c.z*M.y(B[1]+B[3]/2);c.W=r.width;c.H=r.height;c.auto=!keepZ;
@@ -916,18 +918,19 @@ function camFit(r,keepZ,kind){const c=cam(),M=svgMap(r),B=islBounds(kind||'whole
 function camClamp(c,r){c.z=Math.max(ZMIN,Math.min(ZMAX,c.z));const M=svgMap(r),B=islBounds('whole'),F=freeRect(r);
   const x0=c.x+c.z*M.x(B[0]),x1=c.x+c.z*M.x(B[0]+B[2]),y0=c.y+c.z*M.y(B[1]),y1=c.y+c.z*M.y(B[1]+B[3]),mx=(x1-x0)/4,my=(y1-y0)/4;
   if(x1<F.x0+mx)c.x+=F.x0+mx-x1;if(x0>F.x1-mx)c.x-=x0-(F.x1-mx);if(y1<F.y0+my)c.y+=F.y0+my-y1;if(y0>F.y1-my)c.y-=y0-(F.y1-my)}
-function camApply(){const st=document.querySelector('.drg-world .drg-stage'),r=camBox();if(!st||!r)return;const c=cam();
+let camFrame=0;function camApply(){if(!camFrame)camFrame=requestAnimationFrame(()=>{camFrame=0;camApplyNow()})}
+function camApplyNow(){const st=document.querySelector('.drg-world .drg-stage'),r=camBox();if(!st||!r)return;const c=cam();
   if(!c.z)camFit(r,false,fitKind(r));
   else if(c.W&&(Math.abs(c.W-r.width)>1||Math.abs(c.H-r.height)>1)){
     /* поворот телефона или новое окно: нетронутый вид подгоняется заново, сдвинутый сохраняет точку в центре */
     if(c.auto)camFit(r,false,fitKind(r));else{const o=svgMap({width:c.W,height:c.H}),n=svgMap(r),u=((c.W/2-c.x)/c.z-o.x(0))/o.s0,v=((c.H/2-c.y)/c.z-o.y(0))/o.s0;
       c.x=r.width/2-c.z*n.x(u);c.y=r.height/2-c.z*n.y(v);c.W=r.width;c.H=r.height}}
   camClamp(c,r);
-  /* Масштабируем размер SVG, а не готовую текстуру слоя: вектор растрируется в реальном разрешении. */
-  const sw=+(r.width*c.z).toFixed(2)+'px',sh=+(r.height*c.z).toFixed(2)+'px';
+  /* Stable layout size; camera updates only its transform once per frame. */
+  const sw=+r.width.toFixed(2)+'px',sh=+r.height.toFixed(2)+'px';
   const resized=st.style.width!==sw||st.style.height!==sh;
   if(resized){st.style.width=sw;st.style.height=sh}
-  const tr=`translate(${c.x.toFixed(1)}px,${c.y.toFixed(1)}px)`;
+  const tr=`translate(${c.x.toFixed(1)}px,${c.y.toFixed(1)}px) scale(${c.z.toFixed(5)})`;
   const moved=resized||st.style.transform!==tr;if(moved)st.style.transform=tr;
   /* фон за островом движется медленнее камеры: далёкие острова и облака дают глубину */
   const bgs=st.parentElement.querySelector('.drg-bgs');
@@ -937,7 +940,8 @@ function camApply(){const st=document.querySelector('.drg-world .drg-stage'),r=c
   /* мелко: подписи построек прячутся, чтобы не слипались */
   const m=st.parentElement,px=svgMap(r).s0*c.z,lo=px<0.42;if(m.classList.contains('zlo')!==lo)m.classList.toggle('zlo',lo);
   /* подписи построек держат экранный размер около 11 px при любом масштабе */
-  st.style.setProperty('--lz',Math.max(0.45,Math.min(1.6,11/(12*px))).toFixed(3));
+  st.style.setProperty('--lz',Math.max(0.45,Math.min(1.6,(r.width>=2400?16:11)/(12*px))).toFixed(3));
+  if(window.DRWORLD)DRWORLD.lod(px);
   if(window.DRLIVE){if(moved&&DRLIVE.cam)DRLIVE.cam();else DRLIVE.wake()}}   /* камера сдвинулась: драконы и эффекты в том же кадре, что и остров */
 /* выбранная постройка не прячется под панелью: если её не видно, остров сдвигается, масштаб тот же */
 function camShow(id){const r=camBox(),x=stateOf(S.drgUid||meId());if(!r||!x)return;const b=x.st.bld.find(z=>z.id===id);if(!b||E.isleOf(b)!==curIsle(x.st))return;
@@ -1154,6 +1158,7 @@ const actGuard=fn=>function(){const err=e=>{console.error('драконы:',e);i
 window.DRGUI={on:guard(on,false),hero:guard(hero,''),switchHTML:guard(switchHTML,''),reviewBadge:guard(reviewBadge,''),dayDoneHTML:guard(dayDoneHTML,''),onSnap:guard(onSnap,undefined),
   islandView:guard(islandView,islandFail),stateOf,founders,setMode,saveHTML,storeOf,classesOf,battleHub:guard(battleHub,'')};
 window.DRG_ACTIONS={
+  drgquality:el=>{if(window.DRPERF)DRPERF.set(el.dataset.v)},
   drgmode:async el=>{const v=el.dataset.v;await setMode(v);toast(v==='dragons'?'Включены драконы. Чашка Петри никуда не делась, вернуться можно в любой момент.':'Включены бактерии. Драконы ждут на острове.')},
   drgopen:el=>{S.drgUid=el.dataset.uid||meId();S.view='island';S.drgSel=null;S.drgPanel=null;S.drgPlace=null;window.scrollTo(0,0);
     S.drgScroll=null;S.drgFull=!!el.dataset.full;S.drgCam=null},
@@ -1247,4 +1252,4 @@ window.DRG_ACTIONS={
 Object.keys(window.DRG_ACTIONS).forEach(k=>{window.DRG_ACTIONS[k]=actGuard(window.DRG_ACTIONS[k])});
 })();
 
-setInterval(()=>{if(!document.hidden&&S.mode==='student'&&(S.view==='island'||S.view==='cards')&&!document.querySelector('.drf,.dri'))render()},30000);
+setInterval(()=>{if(!document.hidden&&S.mode==='student'&&S.view==='island'&&!document.querySelector('.drf,.dri'))render()},30000);

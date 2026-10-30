@@ -20,14 +20,14 @@ function point(u,v,m){if(!m||m.reduce)return [u,v];
  y+=(eye[1]-v)*blink*.92;
  return [x,y];}
 function mesh(im,n){const w=im.width,h=im.height,out=[],verts=[];
- const xs=n===6?Array.from({length:7},(_,i)=>i/6):[0,.12,.24,.36,.48,.6,.7,.77,.82,.85,.88,.91,.94,1];
- const ys=n===6?Array.from({length:7},(_,i)=>i/6):[0,.1,.17,.2,.23,.26,.3,.4,.52,.64,.75,.86,1];
+ const xs=n===4?Array.from({length:5},(_,i)=>i/4):[0,.12,.24,.36,.48,.6,.7,.77,.82,.85,.88,.91,.94,1];
+ const ys=n===4?Array.from({length:5},(_,i)=>i/4):[0,.1,.17,.2,.23,.26,.3,.4,.52,.64,.75,.86,1];
  for(const v of ys)for(const u of xs)verts.push([u,v]);const cols=xs.length;
  const cx=im.getContext('2d',{willReadFrequently:true}),data=cx.getImageData(0,0,w,h).data;
  for(let j=0;j<ys.length-1;j++)for(let i=0;i<xs.length-1;i++){
   // Avoid spending draw calls on empty corners of the transparent source.
   let visible=false;for(let y=Math.floor(ys[j]*h);y<Math.ceil(ys[j+1]*h)&&!visible;y+=Math.max(1,Math.floor(h/160)))for(let x=Math.floor(xs[i]*w);x<Math.ceil(xs[i+1]*w);x+=Math.max(1,Math.floor(w/160)))if(data[(y*w+x)*4+3]>10){visible=true;break}
-  if(visible){const a=j*cols+i,b=a+1,c=a+cols,d=c+1;out.push([a,b,d],[a,d,c])}}
+  if(visible){const a=j*cols+i,b=a+1,c=a+cols,d=c+1;out.push({i:[a,b,d],src:[verts[a],verts[b],verts[d]]},{i:[a,d,c],src:[verts[a],verts[d],verts[c]]})}}
  return {verts,tri:out};}
 function tri(ctx,im,s,d){const [p,q,r]=s,[a,b,c]=d,det=(q[0]-p[0])*(r[1]-p[1])-(q[1]-p[1])*(r[0]-p[0]);if(Math.abs(det)<1e-9)return;
  const A=((b[0]-a[0])*(r[1]-p[1])-(c[0]-a[0])*(q[1]-p[1]))/det,B=((b[1]-a[1])*(r[1]-p[1])-(c[1]-a[1])*(q[1]-p[1]))/det;
@@ -36,8 +36,8 @@ function tri(ctx,im,s,d){const [p,q,r]=s,[a,b,c]=d,det=(q[0]-p[0])*(r[1]-p[1])-(
  for(let i=0;i<3;i++){const v=d[i],dx=v[0]-mx,dy=v[1]-my,l=Math.hypot(dx,dy)||1,x=v[0]+dx/l*.0005,y=v[1]+dy/l*.0005;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.closePath();ctx.clip();ctx.transform(A,B,C,D,a[0]-A*p[0]-C*p[1],a[1]-B*p[0]-D*p[1]);ctx.drawImage(im,0,0,1,1);ctx.restore();}
 const meshes=new WeakMap();
 function draw(ctx,im,box,pose,pixels){const m=pose.sprite;if(!m||m.reduce){ctx.drawImage(im,box.x,box.y,box.w,box.h);return}
- let levels=meshes.get(im);if(!levels){levels={};meshes.set(im,levels)}const n=pixels>180?14:6,skin=levels[n]||(levels[n]=mesh(im,n)),dst=skin.verts.map(v=>point(v[0],v[1],m));
+ let levels=meshes.get(im);if(!levels){levels={};meshes.set(im,levels)}const n=pixels>220&&!(root.DRPERF&&(root.DRPERF.low||root.DRPERF.mode!=='high'&&root.DRPERF.busy&&pixels<320))?14:4,skin=levels[n]||(levels[n]=mesh(im,n)),dst=skin.verts.map(v=>point(v[0],v[1],m));
  ctx.save();ctx.translate(box.x,box.y);ctx.scale(box.w,box.h);
- for(const indices of skin.tri)tri(ctx,im,indices.map(i=>skin.verts[i]),indices.map(i=>dst[i]));ctx.restore();}
+ for(const t of skin.tri)tri(ctx,im,t.src,[dst[t.i[0]],dst[t.i[1]],dst[t.i[2]]]);ctx.restore();}
 const api={point,draw};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.DRARTMOTION=api;
 })(typeof window!=='undefined'?window:globalThis);

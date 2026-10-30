@@ -8,7 +8,7 @@ const AN=()=>root.ANIM,RIG=()=>root.RIG,ATK=()=>root.DRATK;
 const clamp=(x,a,b)=>x<a?a:x>b?b:x;
 
 function Scene(cv,o){
-  o=o||{};this.cv=cv;this.o=o;this.ds=[];this.runs=[];this.t=0;this.reduce=!!o.reduce;this.dpr=o.dpr||Math.min(3,root.devicePixelRatio||1);   /* 4.1: бой на экранах 3× без размытия */
+  o=o||{};this.cv=cv;this.o=o;this.ds=[];this.runs=[];this.t=0;this.reduce=!!o.reduce;this.dpr=o.dpr||(root.DRPERF?root.DRPERF.dpr:Math.min(2,root.devicePixelRatio||1));   /* 4.1: бой на экранах 3× без размытия */
   this.w=o.width||200;this.top=o.top||90;this.px=1;this.stats={draw:[],frame:[],parts:0};this.raf=0;this.alive=true;this.seed=o.seed||11;this.paused=false}
 /* слот: ph — фенотип, lvl, x — место по оси сцены, face 1 вправо / −1 влево */
 Scene.prototype.add=async function(ph,lvl,x,face,extra){
@@ -58,7 +58,7 @@ Scene.prototype.update=function(dt){
 Scene.prototype.draw=function(){
   const c=this.cv.getContext('2d'),W=this.cv.width,H=this.cv.height,t0=(root.performance||Date).now();
   c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,W,H);
-  const V=this.view();
+  if(root.DRPERF)root.DRPERF.busy=false;const V=this.view();
   /* сначала тени и драконы, потом атаки поверх; under и over — слои того, кто ведёт сцену (тени, кольца, полоски здоровья) */
   if(this.under){c.setTransform(V[0],V[1],V[2],V[3],V[4],V[5]);this.under(c,V);c.setTransform(1,0,0,1,0,0)}
   this.ds.forEach(d=>{const v=mul(V,this.place(d));RIG().draw(c,d.X,d.A.pose,v,{alpha:d.alpha});

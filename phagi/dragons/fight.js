@@ -105,7 +105,7 @@ function finish(){
   if(f.focusBack&&f.focusBack.isConnected)try{f.focusBack.focus({preventScroll:true})}catch(e){}
   if(f.api.onClose)f.api.onClose()}
 function setScreen(name,html){
-  F.screen=name;F.el.dataset.s=name;F.el.innerHTML=html;fillPics(F.el);
+  F.screen=name;F.el.dataset.s=name;if(root.DRWORLD)F.el.style.setProperty('--region-art',`url("${root.DRWORLD.url(root.DRWORLD.theme(F.reg))}")`);F.el.innerHTML=html;fillPics(F.el);
   const b=F.el.querySelector('[data-first]')||F.el.querySelector('button:not([disabled])');if(b)b.focus({preventScroll:true})}
 
 /* ---------- карта похода ----------
@@ -162,13 +162,13 @@ function showMap(){
   const reg=C.region(F.reg),ns=C.nodesOf(reg.id),open=C.regionOpen(p,reg.id),main=ns.filter(n=>!n.side),pts=main.map(n=>[n.x,n.y]);
   if(C.byId(F.sel).region!==reg.id)F.sel=(ns.find(n=>mapState(p,n).goal)||ns.find(n=>C.unlocked(p,n.id)&&!p.best[n.id])||ns[0]).id;
   const tabs=C.REGIONS.map((r,i)=>{const o=C.regionOpen(p,r.id),cur=r.id===reg.id;
-    return `<button role="tab" class="drf-rt${cur?' on':''}${o?'':' lock'}" data-fk="reg" data-v="${r.id}" aria-selected="${cur}" style="--ra:${r.pal.acc}"><b>${o?'':'🔒 '}${esc(r.name)}</b><small>${o?`★ ${C.total(p,r.id)} из ${C.max(r.id)}`:'закрыт'}</small></button>`}).join('');
+    return `<button role="tab" class="drf-rt${cur?' on':''}${o?'':' lock'}" data-fk="reg" data-v="${r.id}" aria-selected="${cur}" style="--ra:${r.pal.acc};${root.DRWORLD?`--region-art:url('${root.DRWORLD.url('map-'+root.DRWORLD.theme(r.id))}')`:""}"><b>${o?'':'🔒 '}${esc(r.name)}</b><small>${o?`★ ${C.total(p,r.id)} из ${C.max(r.id)}`:'закрыт'}</small></button>`}).join('');
   /* путь: пройденная часть сплошная, дальше пунктир */
   const lastDone=main.reduce((a,n,i)=>p.best[n.id]?i:a,-1);
   /* боковые тропы: тонкий пунктир от узла главного пути, пройденная сплошная */
   const twig=ns.filter(n=>n.side).map(n=>{const par=C.byId(n.after[0]),w=!!p.best[n.id];return par?`<path d="M${par.x} ${par.y} L${n.x} ${n.y}" fill="none" stroke="${reg.pal.path}" stroke-width="${w?1.6:1}"${w?'':' stroke-dasharray="1.4 1.8"'} stroke-linecap="round" opacity="${w?.8:.45}"/>`:''}).join('');
   const done=lastDone>0?`<path d="${curve(pts.slice(0,lastDone+1))}" fill="none" stroke="${reg.pal.path}" stroke-width="2.2" stroke-linecap="round"/>`:'';
-  const svg=`<svg class="drf-msv" viewBox="0 0 100 150" preserveAspectRatio="none" aria-hidden="true">${terrain(reg,ns)}
+  const svg=`<svg class="drf-msv" viewBox="0 0 100 150" preserveAspectRatio="none" aria-hidden="true">${root.DRWORLD?'':terrain(reg,ns)}
     <path d="${curve(pts)}" fill="none" stroke="${reg.pal.path}" stroke-width="1.6" stroke-dasharray="2.4 2.2" stroke-linecap="round" opacity=".55"/>${twig}${done}</svg>`;
   const pins=ns.map(n=>{const m=mapState(p,n),sel=n.id===F.sel;
     return `<button class="drf-pin${m.st?' done':''}${m.op?'':' lock'}${m.goal?' goal':''}${n.boss?' boss':''}${n.side?' side':''}${n.mini?' mini':''}${sel?' sel':''}" data-fk="sel" data-id="${n.id}" style="left:${n.x}%;top:${(n.y/150*100).toFixed(2)}%"
@@ -183,7 +183,7 @@ function showMap(){
     <div class="drf-kinds" role="navigation" aria-label="Виды боёв"><span class="on" aria-current="page">🐉 Поход драконов <small>3 на 3, ходы, звёзды</small></span><button data-fk="arena">🦠 Турнир бактерий <small>коллекция из чашки, бои ночью</small></button></div>
     <div class="drf-rts" role="tablist" aria-label="Регионы">${tabs}</div>
     <div class="drf-scroll">${wantHTML()}<p class="drf-intro"><b>${esc(reg.name)}</b>: ${esc(reg.intro)}${open?'':' '+esc(C.lockText(p,ns[0].id))+'.'}</p>
-      <div class="drf-mapw"><div class="drf-map" style="--pa:${reg.pal.acc};--pp:${reg.pal.path};--pi:${reg.pal.ink}">${svg}${pins}</div><div class="drf-ncw">${nodeCard(p,C.byId(F.sel))}</div></div>
+      <div class="drf-mapw"><div class="drf-map" style="--pa:${reg.pal.acc};--pp:${reg.pal.path};--pi:${reg.pal.ink};${root.DRWORLD?`--region-art:url('${root.DRWORLD.url('map-'+root.DRWORLD.theme(reg.id))}')`:""}">${svg}${pins}</div><div class="drf-ncw">${nodeCard(p,C.byId(F.sel))}</div></div>
       <details class="drf-rules drf-ls" data-k="list"${LS('drfList')==='1'?' open':''}><summary>Все бои региона списком</summary><ol class="drf-path">${list}</ol></details>
       <p class="drf-note">${C.done(p)?'Все десять регионов пройдены! Бои можно переигрывать ради трёх звёзд. ':''}Награда похода — звёзды за каждый бой, лучший результат не уменьшается, поражение ничего не отнимает. Золото, корм и самоцветы за бои не начисляются, остров живёт по карточкам, как раньше. Сражений между игроками в походе нет.</p></div>`);
   const sl=F.$('.drf-pin.sel'),sc=F.$('.drf-scroll');
@@ -198,7 +198,7 @@ function wantHTML(){const d=F.want&&myDragons().find(x=>x.id===F.want);
   return d?`<p class="drf-want">🐉 <b>${esc(d.name)}</b> (${d.lvl}-й ур., ${elsText(d.els)}) встанет первым в команду. Выберите бой на карте.</p>`:''}
 function nodeCard(p,n){const C=root.DRCAMP,m=mapState(p,n),foes=foeSpecs(n),els=[...new Set(foes.flatMap(f=>f.els))],tr=[...new Set(foes.flatMap(f=>f.traits))];
   return `<section class="drf-nc${n.boss?' boss':''}" aria-live="polite"><div class="drf-nch"><span>${kindLabel(n)}${m.goal?' · <b>текущая цель</b>':''}</span><span class="drf-st">${m.op?'★'.repeat(m.st)+'☆'.repeat(3-m.st):''}</span></div>
-    <h3>${esc(n.name)}</h3><p>${esc(n.story)}</p>
+    <h3>${esc(n.name)}</h3>${root.DRWORLD?`<img class="drf-nc-art" src="${root.DRWORLD.url(root.DRWORLD.theme(n.region))}" alt="" loading="lazy" decoding="async">`:""}<p>${esc(n.story)}</p>
     <p class="drf-small">Уровень ${n.rec} · до ${n.team.max} ${n.team.max===1?'дракона':'драконов'} · ${foes.length} ${foes.length===1?'противник':'противника'} · ${els.length?els.map(e=>EL_IC[e]).join(' '):'без стихий'}${tr.length?' · '+tr.map(t=>TRAIT_IC(t)+' '+root.DRBATTLE.TRAITS[t].name.toLowerCase()).join(', '):''} · компьютер ${AI_RU[n.ai]}</p>
     ${n.rule?`<p class="drf-rule">⚑ ${esc(C.ruleText(n.rule))}</p>`:''}${giftHTML(n)}
     ${m.op?`<button class="btn${m.st&&F.api.gift&&(F.api.gift(n.id)||{}).can?' ghost':''}" data-fk="prep" data-id="${n.id}">${m.st?'Переиграть':'Выбрать команду'}</button>`:`<p class="drf-lock">🔒 ${esc(C.lockText(p,n.id))}</p>`}</section>`}
@@ -267,13 +267,13 @@ async function startFight(){
   const max=teamMax(bt),A=F.pick.slice(0,max).map(x=>mine.find(d=>d.id===x)).filter(Boolean),Bs=foeSpecs(bt);if(!A.length||!C.teamOk(bt,A.map(d=>d.els)).ok)return;
   LS(pickKey(max),JSON.stringify(F.pick));
   const tok=++F.tok,seed=(Date.now()^Math.floor(Math.random()*1e9))>>>0;
-  F.b=new B.Battle({A,B:Bs,seed,star3:bt.stars&&bt.stars.r3});F.lvl=bt.ai;F.nums=[];F.ring=null;F.tgtMode=null;F.waits=[];F.result=null;
+  F.journal=[];F.b=new B.Battle({A,B:Bs,seed,star3:bt.stars&&bt.stars.r3});F.lvl=bt.ai;F.nums=[];F.ring=null;F.tgtMode=null;F.waits=[];F.result=null;
   setScreen('fight',`<div class="drf-bar"><button class="drf-x sm" data-fk="quit">✕ Выйти</button><span class="drf-rd" aria-live="off">Раунд 1</span><span class="drf-bt">${esc(bt.name)}</span>
       <span class="drf-ctl"><button data-fk="speed" aria-pressed="${F.speed>1}" title="Скорость">×2</button><button data-fk="auto" aria-pressed="${F.auto}" title="Компьютер ходит за вас">Авто</button><button data-fk="snd" aria-pressed="${F.snd}" aria-label="Звук">${F.snd?'🔊':'🔇'}</button></span></div>
     <div class="drf-team b" role="group" aria-label="Противники"></div>
     <div class="drf-stage"><canvas class="drf-cv" aria-hidden="true"></canvas><p class="drf-load">Драконы выходят на поле…</p></div>
     <div class="drf-team a" role="group" aria-label="Ваша команда"></div>
-    <details class="drf-details"><summary>Характеристики и особенности всех драконов</summary><div class="drf-details-body"></div></details><div class="drf-cmd"><p class="drf-say" aria-live="polite"></p><div class="drf-sk"></div></div>`);
+    <details class="drf-details"><summary>Характеристики и особенности всех драконов</summary><div class="drf-details-body"></div></details><div class="drf-cmd"><p class="drf-say" aria-live="polite"></p><div class="drf-sk"></div><details class="drf-journal"${innerWidth>=1000?" open":""}><summary>Очередь и журнал боя</summary><ol class="drf-order"></ol><div class="drf-log" aria-live="off"></div></details></div>`);
   const cv=F.$('.drf-cv'),sc=new root.DRSCENE.Scene(cv,{reduce:reduced()});F.scene=sc;F.cv=cv;
   const st=F.$('.drf-stage');
   st.addEventListener('pointerdown',e=>stageTap(e));
@@ -294,12 +294,12 @@ function stopFight(f){if(f.raf)cancelAnimationFrame(f.raf);f.raf=0;if(f.ro)f.ro.
 function resize(){
   const sc=F&&F.scene;if(!sc||!F.cv)return;const st=F.$('.drf-stage');if(!st)return;
   const w=st.clientWidth,h=st.clientHeight,dpr=sc.dpr;if(w<10||h<10)return;
-  F.cv.width=Math.round(w*dpr);F.cv.height=Math.round(h*dpr);F.cv.style.width=w+'px';F.cv.style.height=h+'px';
+  const cw=Math.round(w*dpr),ch=Math.round(h*dpr);if(F.cv.width!==cw)F.cv.width=cw;if(F.cv.height!==ch)F.cv.height=ch;F.cv.style.width=w+'px';F.cv.style.height=h+'px';
   const U=Math.max(...sc.ds.map(d=>d.G.box.w*d.s0));let best=null;
   for(const k of Object.keys(FORM)){
     const P=sc.ds.map(d=>{const [dx,dy]=FORM[k][d.slot]||FORM[k][0],s=d.s0*(1+0.1*dy),x=(d.side==='A'?-1:1)*dx*U,y=dy*U,b=d.G.box;
       return {d,s,x,y,x0:x-b.w*s/2,x1:x+b.w*s/2,y0:y+b.y*s,y1:y+(b.y+b.h)*s}});
-    const fb={x0:Math.min(...P.map(p=>p.x0)),x1:Math.max(...P.map(p=>p.x1)),y0:Math.min(...P.map(p=>p.y0)),y1:Math.max(...P.map(p=>p.y1))+U*0.06,pad:10,padTop:30};
+    const fb={x0:Math.min(...P.map(p=>p.x0))-U*.06,x1:Math.max(...P.map(p=>p.x1))+U*.06,y0:Math.min(...P.map(p=>p.y0)),y1:Math.max(...P.map(p=>p.y1))+U*0.06,pad:18,padTop:30};
     sc.frame(fb);const z=sc.zoomFb(w,h);if(!best||z>best.z)best={z,P,fb,k}}
   best.P.forEach(p=>{p.d.s=p.s;p.d.x=p.d.hx=p.x;p.d.y=p.y});sc.frame(best.fb);F.form=best.k;
   F.U=U;F.gy0=Math.min(...best.P.map(p=>p.y))-U*0.24;F.gy1=Math.max(...best.P.map(p=>p.y));
@@ -310,6 +310,7 @@ function resize(){
 
 function frame(ts){
   if(!F||!F.scene){return}F.raf=requestAnimationFrame(frame);
+  const gap=1000/(root.DRPERF?root.DRPERF.fps:60);if(F.last&&ts-F.last<gap-1)return;
   if(document.hidden){F.last=ts;return}
   const dt=F.last?clamp((ts-F.last)/1000,0,0.1):1/60;if(F.last){const q=F.scene.stats.frame;q.push(ts-F.last);if(q.length>240)q.shift()}F.last=ts;
   const sc=F.scene,s=dt*F.speed;sc.update(s);
@@ -326,9 +327,9 @@ const dOf=id=>F.scene.ds.find(d=>d.id===id);
 function under(c,V){
   const b=F.b,W=F.cv.width,H=F.cv.height,x0=-V[4]/V[0],x1=(W-V[4])/V[0],yb=(H-V[5])/V[3];
   /* земля поля: от линии чуть дальше заднего ряда до низа холста, светлое пятно арены посередине */
-  isDark();const g=c.createLinearGradient(0,F.gy0,0,yb);g.addColorStop(0,F.col.g1);g.addColorStop(1,F.col.g2);
+  if(!root.DRWORLD){isDark();const g=c.createLinearGradient(0,F.gy0,0,yb);g.addColorStop(0,F.col.g1);g.addColorStop(1,F.col.g2);
   c.fillStyle=g;c.fillRect(x0,F.gy0,x1-x0,yb-F.gy0+1);
-  c.globalAlpha=0.18;c.fillStyle='#FFFFFF';c.beginPath();c.ellipse(0,(F.gy0+F.gy1)/2+F.U*0.12,F.U*2.1,(F.gy1-F.gy0)*0.62+F.U*0.1,0,0,Math.PI*2);c.fill();c.globalAlpha=1;
+  c.globalAlpha=0.18;c.fillStyle='#FFFFFF';c.beginPath();c.ellipse(0,(F.gy0+F.gy1)/2+F.U*0.12,F.U*2.1,(F.gy1-F.gy0)*0.62+F.U*0.1,0,0,Math.PI*2);c.fill();c.globalAlpha=1;}
   F.scene.ds.forEach(d=>{const w=d.G.box.w*d.s,f=b.get(d.id);
     c.globalAlpha=0.2*d.alpha;c.fillStyle='#14261A';c.beginPath();c.ellipse(d.x,d.y+w*0.02,w*0.36,w*0.07,0,0,Math.PI*2);c.fill();c.globalAlpha=1;
     const cur=b.cur===d.id||(F.acting===d.id),tg=F.tgtMode&&F.tgtMode.targets.includes(d.id);
@@ -396,7 +397,7 @@ async function loop(tok){
     await perform(f,c,tok)}
   await ending(tok)}
 
-function say(t){const e=F&&F.$('.drf-say');if(e)e.textContent=t}
+function say(t){const e=F&&F.$('.drf-say');if(e)e.textContent=t;if(F&&F.journal){if(F.journal[F.journal.length-1]!==t)F.journal.push(t);if(F.journal.length>12)F.journal.shift();const log=F.$('.drf-log');if(log){log.innerHTML=F.journal.map(x=>'<p>'+esc(x)+'</p>').join('');log.scrollTop=log.scrollHeight}}}
 async function showEvents(ev,tok){
   for(const e of ev){
     if(e.type==='round'){const r=F.$('.drf-rd');if(r)r.textContent='Раунд '+e.n;
@@ -522,6 +523,7 @@ function renderTeams(){
         <span class="drf-hp"><i style="width:${(hp/f.maxHp*100).toFixed(1)}%"></i></span><span class="drf-hpn">${hp}/${f.maxHp}</span>
         <span class="drf-rg${f.rage>=100&&!f.rageUsed?' full':''}"><i style="width:${f.rageUsed?0:f.rage}%"></i></span><span class="drf-fxs">${fx}</span>
         <span class="drf-mini-stats">⚔ ${b.atkOf(f)} · 🛡 ${b.defOf(f)} · 💨 ${f.spd}</span>${tg&&mul!==1?`<span class="drf-mul ${mul>1?'mup':'mdn'}">×${f1(mul)}</span>`:''}</button>`}).join('')});
+  const order=F.$('.drf-order');if(order)order.innerHTML=(b.queue||[]).map(id=>b.get(id)).filter(f=>f&&!f.ko).map(f=>`<li class="${f.id===cur?'active':''}"><span>${f.els.map(e=>EL_IC[e]).join('')}</span><b>${esc(f.name)}</b><small>${Math.max(0,f.hp)}/${f.maxHp}</small></li>`).join('');
   const info=F.$('.drf-details-body');if(info)info.innerHTML=b.f.map(f=>{const s=f.ref&&f.ref.stats,ph=f.ref&&f.ref.ph,els=f.els,B=root.DRBATTLE;
     const names=a=>a.map(e=>B.EL_NAME[e]).join(', ')||'нет';
     return `<article><h4>${f.side==='A'?'Союзник':'Враг'} · ${esc(f.name)} · ${f.lvl}-й уровень</h4><p>❤ ${Math.max(0,f.hp)}/${f.maxHp} · ⚔ ${b.atkOf(f)} (база ${f.atk}) · 🛡 ${b.defOf(f)} (база ${f.def}) · 💨 ${f.spd} · ярость ${Math.round(f.rage)} %</p><p>◆ Базовая сила: ${root.DSTATS.power({hp:f.maxHp,atk:f.atk,def:f.def,spd:f.spd})}. Активные стихии: ${elsText(f.load)}.</p>${s?`<p>${esc(s.role.keys.map(k=>root.DSTATS.ROLE[k].text).join('; '))}</p><ul>${['hp','atk','def','spd'].flatMap(k=>s.src[k].filter(([l])=>l.includes('ген')).map(([l,n])=>`<li>${esc(l)}: ${n>0?'+':''}${n} ${root.DSTATS.NAMES[k]} до роста с уровнем</li>`)).join('')}</ul>`:''}<p>Сильные атаки против: ${esc(names(Object.keys(B.EL_NAME).filter(e=>f.load.some(x=>B.mult(x,[e])>1.001))))}. Уязвим для: ${esc(names(Object.keys(B.EL_NAME).filter(e=>B.mult(e,els)>1.001)))}.</p><p>${esc(Object.entries(f.fx).map(([k,n])=>(FX_TXT[k]||k)+': '+n+' ход.').join('; ')||'Нет временных эффектов')}</p></article>`}).join('')}

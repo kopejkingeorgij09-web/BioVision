@@ -48,7 +48,7 @@ function of(ph,lvl,P){
   add('spd','Основа',10);add('spd','Роль: '+R.name+' (стихия)',R.spd);
   const sum=s=>src[s].reduce((a,[,v])=>a+v,0);
   const training=Math.max(0,Math.min(3,Math.floor(ph.academyRank||0)));if(training){for(const stat of ['hp','atk','def'])add(stat,'Академия, ранг '+training,Math.round(sum(stat)*.2*training));add('spd','Академия',training)}
-  return {hp:Math.round(sum('hp')*k),atk:Math.round(sum('atk')*k),def:Math.round(sum('def')*k),spd:sum('spd'),lvlK:k,src,note:NOTE,role:R}}
+  return {rarityRank:Math.min(3,Math.max(0,(ph.breath==='element'?ph.elements.length:0)-1)),hp:Math.round(sum('hp')*k),atk:Math.round(sum('atk')*k),def:Math.round(sum('def')*k),spd:sum('spd'),lvlK:k,src,note:NOTE,role:R}}
 
 /* подпись для карточек: боевой ранг ✦ по числу разных стихийных атак (не редкость и не звёзды боя ★), сочетание и роль */
 const ELN={F:'Огонь',W:'Вода',T:'Земля',A:'Воздух',P:'Флора',L:'Свет',D:'Тьма'};
@@ -58,8 +58,10 @@ function badge(ph){
     name:n>2?n+' стихии: '+ph.elements.map(e=>ELN[e]).join(', '):R.hyb?R.hyb+' ('+ph.elements.map(e=>ELN[e]).join(' + ')+')':n?ELN[ph.elements[0]]:ph.breath==='smoke'?'Дымный':'Дремлющий',
     role:R.name,hyb:R.hyb,k:R.k}}
 /* Сводный индекс: здоровье + четыре веса для остальных шкал. Матчап считается отдельно. */
-const power=s=>Math.round(s.hp+4*(s.atk+s.def+s.spd));
-const POWER_NOTE='Абсолютная сила = здоровье + 4 × (атака + защита + скорость). Сравнивай драконов одного уровня; исход боя также зависит от стихий, приёмов и команды.';
-const DSTATS={power,POWER_NOTE,of,NOTE,NAMES,lvlK,ROLE,HYB,hybKey,roleOf,badge};
+const RARITY_POWER=[1,1.15,1.30,1.50];
+function rarityRank(s){const els=s.els||s.elements||(s.role&&s.role.keys)||[];return Number.isFinite(s.rarityRank)?Math.max(0,Math.min(3,Math.floor(s.rarityRank))):Math.min(3,Math.max(0,els.filter(e=>ORD.includes(e)).length-1))}
+const power=s=>Math.round((s.hp+4*(s.atk+s.def+s.spd))*RARITY_POWER[rarityRank(s)]);
+const POWER_NOTE='Абсолютная сила = (здоровье + 4 × (атака + защита + скорость)) × множитель редкости. Обычный: ×1; редкий (2 стихии): ×1,15; эпический (3): ×1,30; мифический (4): ×1,50. Бонус редкости учитывается в оценке силы, боевые параметры показаны отдельно. Сравнивай драконов одного уровня; исход боя также зависит от стихий, приёмов и команды.';
+const DSTATS={RARITY_POWER,rarityRank,power,POWER_NOTE,of,NOTE,NAMES,lvlK,ROLE,HYB,hybKey,roleOf,badge};
 if(typeof module!=='undefined'&&module.exports)module.exports=DSTATS;else root.DSTATS=DSTATS;
 })(typeof window!=='undefined'?window:globalThis);

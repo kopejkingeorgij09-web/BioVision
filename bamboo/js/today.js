@@ -153,7 +153,7 @@ B.habitChip = (h, date) => {
   let sub = '';
   if (h.auto === 'read'){ const m = B.readMin(date); sub = `${m}/${h.min || 30} мин`; }
   else if (h.kind === 'weekly'){ const ws = B.weekStart(date); let k = 0; for (let i = 0; i < 7; i++) if (B.habitDone(h, B.add(ws, i))) k++; sub = `${k}/${h.target || 3} за неделю`; }
-  const act = h.auto === 'sport' || (h.auto === 'read' && done) ? `href="#/${h.auto === 'read' ? 'read' : 'sport'}"` : h.auto === 'read' ? 'data-act="readQuick"' : '';
+  const act = h.auto === 'read' ? 'data-act="readQuick"' : h.auto === 'sport' ? 'data-act="sportQuick"' : '';
   if (val === 0.5) sub = 'минимум' + (h.mini ? ': ' + esc(h.mini) : '');
   else if (!done && h.mini && !h.auto) sub = 'хотя бы: ' + esc(h.mini);
   return `<${act.startsWith('href') ? 'a' : 'button'} class="hchip ${done ? 'on' : ''} ${val === 0.5 ? 'half' : ''}" ${act || `data-act="habitToggle" data-id="${h.id}" data-d="${date}"`}>
@@ -161,24 +161,56 @@ B.habitChip = (h, date) => {
 };
 /* чтение одним нажатием: дописывает минуты до цели дня (по умолчанию 30) к книге, которую читаешь */
 B.acts.readQuick = () => {
-  const t = B.today(), h = B.get('h_read') || {}, goal = h.min || B.cfg().readGoal || 30, add = Math.max(1, goal - B.readMin(t));
-  const book = B.books().find(b => b.status === 'reading');
-  B.editDay(t, d => { d.read = (d.read || []).concat({book: book ? book.id : null, min: add, at: Date.now()}); });
+  const t = B.today(), h = B.get('h_read') || {}, goal = h.min || B.cfg().readGoal || 30;
+  if (B.readMin(t) >= goal){
+    // второе нажатие отменяет: сначала убираем минуты, добавленные этой кнопкой, иначе последнюю запись
+    let gone = 0;
+    B.editDay(t, d => { const r = d.read || [], q = r.filter(x => x.quick); const drop = q.length ? q : r.slice(-1); gone = drop.reduce((a, x) => a + (x.min || 0), 0); d.read = r.filter(x => !drop.includes(x)); });
+    B.toast(`Чтение отменено: −${gone} мин`);
+    return;
+  }
+  const add = Math.max(1, goal - B.readMin(t)), book = B.books().find(b => b.status === 'reading');
+  B.editDay(t, d => { d.read = (d.read || []).concat({book: book ? book.id : null, min: add, at: Date.now(), quick: true}); });
   B.toast(`<b class="pos">+${add} мин чтения</b>${book ? ' · ' + esc(book.title) : ''}`);
 };
-/* нажатие: нет → сделано → минимум (если задан) → нет */
-B.acts.habitToggle = el => {
-  const id = el.dataset.id, date = el.dataset.d, h = B.get('h_' + id) || {};
-  let gain = 0;
-  B.editDay(date, d => {
-    d.h = d.h || {}; const v = d.h[id];
-    if (!v){ d.h[id] = 1; gain = B.XP.habit; }
-    else if (v === 1 && h.mini){ d.h[id] = 0.5; gain = -B.XP.habit / 2; }
-    else delete d.h[id];
-  });
-  if (gain > 0) B.xpToast(gain, 'привычка');
-  else if (gain < 0) B.toast('Отмечена минимальная версия: серия держится, опыт вдвое меньше');
+/* тренировка одним нажатием: отметка «Дома» на сегодня; второе нажатие снимает её */
+B.acts.sportQuick = async () => {
+  const t = B.today(), today = B.workouts().filter(w => w.date === t);
+  if (!today.length){
+    const id = B.uid();
+    B.put('w_' + id, {id, date: t, type: 'home', min: 0, ex: [], feel: 0, at: Date.now(), quick: true});
+    B.toast(`<b class="pos">Тренировка отмечена</b> · <a href="#/sport">записать подходы</a>`, 4000);
+    return;
+  }
+  const quick = today.filter(w => w.quick && !(w.ex || []).length);
+  if (quick.length){ quick.forEach(w => B.put('w_' + w.id, null)); B.toast('Отметка тренировки снята'); return; }
+  if (!(await B.confirm(`Сегодня записана тренировка${today.length > 1 ? ' (' + today.length + ')' : ''} с подходами. Удалить её, чтобы снять отметку?`, 'Удалить', true))) return;
+  today.forEach(w => B.put('w_' + w.id, null));
+  B.toast('Тренировка удалена');
 };
+/* нажатие: нет ↔ сделано; долгое нажатие ставит минимальную версию (если она задана) */
+let lpT = 0, lpDone = false;
+document.addEventListener('pointerdown', e => {
+  const el = e.target.closest('.hchip[data-act=habitToggle]'); if (!el) return;
+  lpDone = false; clearTimeout(lpT);
+  lpT = setTimeout(() => {
+    const h = B.get('h_' + el.dataset.id) || {}; if (!h.mini) return;
+    lpDone = true;
+    B.editDay(el.dataset.d, d => { d.h = Object.assign({}, d.h, {[h.id]: 0.5}); });
+    try { navigator.vibrate && navigator.vibrate(30); } catch (er) {}
+    B.toast('Минимальная версия: серия держится, опыт вдвое меньше');
+  }, 550);
+});
+['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => document.addEventListener(ev, () => clearTimeout(lpT), true));
+document.addEventListener('contextmenu', e => { if (e.target.closest('.hchip')) e.preventDefault(); });
+B.acts.habitToggle = el => {
+  if (lpDone){ lpDone = false; return; }
+  const id = el.dataset.id, date = el.dataset.d;
+  let on = false;
+  B.editDay(date, d => { d.h = Object.assign({}, d.h); if (d.h[id]) delete d.h[id]; else { d.h[id] = 1; on = true; } });
+  if (on) B.xpToast(B.XP.habit, 'привычка'); else B.toast('Отметка снята');
+};
+
 function habitsCard(c){
   const hs = B.habits(); if (!hs.length) return '';
   return `<section class="card">

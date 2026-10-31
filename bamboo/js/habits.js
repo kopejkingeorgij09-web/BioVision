@@ -104,7 +104,7 @@ function habitForm(h){
     </div>
     <label class="field">Минимальная версия на плохой день<input id="hMini" value="${esc(h.mini || '')}" placeholder="${h.auto === 'read' ? 'Например: 10 минут' : 'Например: 5 отжиманий'}"></label>
     ${h.auto === 'read' ? `<label class="field">Сколько минут чтения считать минимумом<input id="hMiniMin" type="number" min="1" max="120" value="${h.miniMin || 10}"></label>` : ''}
-    <p class="hint">Минимум держит серию, но даёт половину опыта. Второе нажатие на отмеченную привычку переключает её на минимум. Для чтения минимум засчитывается сам по минутам.</p>
+    <p class="hint">Минимум держит серию, но даёт половину опыта. Отметить минимум: долгое нажатие на привычку. Обычное нажатие ставит и снимает отметку. Для чтения минимум засчитывается сам по минутам.</p>
     <div class="row between">${h.id ? `<button class="btn ghost danger" data-act="habitDel" data-id="${h.id}">${icon('trash')} В архив</button>` : '<span></span>'}
       <button class="btn primary" data-act="habitSave" data-id="${h.id || ''}">Сохранить</button></div>`;
 }

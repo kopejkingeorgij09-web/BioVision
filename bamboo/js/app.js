@@ -14,7 +14,7 @@ function applyTheme(){
   let t = 'auto'; try { t = localStorage.getItem(LS_THEME) || 'auto'; } catch (e) {}
   if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t);
   const dark = t === 'dark' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
-  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = dark ? '#151A14' : '#F4EFE4';
+  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = t === 'sakura' ? '#FBF1F1' : dark ? '#151A14' : '#F4EFE4';
 }
 applyTheme();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
@@ -112,7 +112,7 @@ B.views.settings = {
           </section>
           <section class="card">
             <h2>${icon('sun')}Тема</h2>
-            <div class="toggle wide">${[['auto', 'Как в системе'], ['light', 'Светлая'], ['dark', 'Тёмная']].map(([k, l]) => `<button class="${theme === k ? 'on' : ''}" data-act="theme" data-v="${k}">${l}</button>`).join('')}</div>
+            <div class="toggle wide">${[['auto', 'Как в системе'], ['light', 'Бумага'], ['sakura', 'Сакура'], ['dark', 'Тёмная']].map(([k, l]) => `<button class="${theme === k ? 'on' : ''}" data-act="theme" data-v="${k}">${l}</button>`).join('')}</div>
           </section>
           <section class="card">
             <h2>${icon('star')}Цели</h2>

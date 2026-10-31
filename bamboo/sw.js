@@ -1,7 +1,7 @@
 // Service worker: нужен, чтобы сайт можно было установить как приложение.
 // Стратегия «сначала сеть»: всегда свежая версия (no-cache мимо HTTP-кеша GitHub Pages на 10 минут), кеш только на случай отсутствия интернета.
 // Запросы к другим доменам (Supabase, шрифты) не трогаем.
-const CACHE = 'bamboo-v10';
+const CACHE = 'bamboo-v12';
 self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then(c => c.add('./')).catch(() => {})); });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('bamboo-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));

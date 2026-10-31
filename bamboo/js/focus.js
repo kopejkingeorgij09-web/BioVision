@@ -75,7 +75,7 @@ function tick(){
   const el = document.getElementById('tmClock');
   if (el && T){
     el.textContent = mmss(T.kind === 'sw' && T.mode === 'work' ? elapsed() : T.idle ? T.dur * 60000 : left());
-    el.classList.toggle('over', !!over());
+    el.classList.toggle('over', !!over()); el.classList.toggle('long', el.textContent.length > 6);
     const r = document.getElementById('tmRing');
     if (r){ const c = +r.dataset.c, v = T.kind === 'sw' && T.mode === 'work' ? (elapsed() % 3600000) / 3600000 : T.idle ? 1 : Math.max(0, left()) / (T.dur * 60000); r.style.strokeDashoffset = c * (T.kind === 'sw' && T.mode === 'work' ? 1 - v : v); }
   }
@@ -195,12 +195,13 @@ function weekView(ws){
   const days = Array.from({length: 7}, (_, i) => B.add(ws, i)), wt = tot(ws), passed = days.filter(d => d <= t).length || 1;
   const p = B.parse(q0);
   return `<div class="qhead"><button class="icon-btn sm" data-act="fsQ" data-k="-1">${icon('left')}</button><b>${p.getFullYear()} · ${Math.floor(p.getMonth() / 3) + 1} квартал</b><button class="icon-btn sm" data-act="fsQ" data-k="1">${icon('right')}</button></div>
+    <div class="fs-cols"><div class="fs-col">
     <div class="wgrid">${weeks.map((w, i) => `<button class="wcell ${heat(tots[i], max)} ${w === ws ? 'sel' : ''} ${w > t ? 'fut' : ''}" data-act="fsPick" data-d="${w}"><span>${B.parse(w).getDate()}.${B.pad(B.parse(w).getMonth() + 1)}</span><b>${tots[i] ? hm(tots[i]) : ''}</b></button>`).join('')}</div>
     <div class="fs-range">${B.fmtW(ws)} – ${B.fmtW(B.add(ws, 6))}</div>
     <div class="fs-tot"><div><span>Всего</span><b>${hm(wt)}</b></div><div><span>В среднем за день</span><b>${hm(wt / passed)}</b></div><div><span>Лучший день</span><b>${hm(Math.max(...days.map(dayMin)))}</b></div></div>
-    ${cumChart(ws)}
-    ${startEnd(days)}
-    ${byTask(days)}`;
+    ${byTask(days)}</div>
+    <div class="fs-col">${cumChart(ws)}
+    ${startEnd(days)}</div></div>`;
 }
 function monthView(m0){
   const p = B.parse(m0), first = B.ymd(new Date(p.getFullYear(), p.getMonth(), 1, 12)), n = new Date(p.getFullYear(), p.getMonth() + 1, 0).getDate();
@@ -208,9 +209,10 @@ function monthView(m0){
   const active = vals.filter(Boolean).length, t = B.today(), passed = days.filter(d => d <= t).length || 1;
   const pad0 = B.wd(first);
   return `<div class="qhead"><button class="icon-btn sm" data-act="fsM" data-k="-1">${icon('left')}</button><b>${B.MONF[p.getMonth()]} ${p.getFullYear()}</b><button class="icon-btn sm" data-act="fsM" data-k="1">${icon('right')}</button></div>
+    <div class="fs-cols"><div class="fs-col">
     <div class="mgrid">${B.WD.map(w => `<span class="wd">${w}</span>`).join('')}${'<span></span>'.repeat(pad0)}${days.map((d, i) => `<button class="mcell ${heat(vals[i], max)} ${d === t ? 'now' : ''}" data-act="fsDay" data-d="${d}" title="${B.fmtW(d)}: ${hm(vals[i])}"><span>${B.parse(d).getDate()}</span><b>${vals[i] ? hm(vals[i]) : ''}</b></button>`).join('')}</div>
-    <div class="fs-tot"><div><span>Всего</span><b>${hm(tot)}</b></div><div><span>В среднем за день</span><b>${hm(tot / passed)}</b></div><div><span>Дней с фокусом</span><b>${active}</b></div></div>
-    ${byTask(days)}`;
+    </div><div class="fs-col"><div class="fs-tot"><div><span>Всего</span><b>${hm(tot)}</b></div><div><span>В среднем за день</span><b>${hm(tot / passed)}</b></div><div><span>Дней с фокусом</span><b>${active}</b></div></div>
+    ${byTask(days)}</div></div>`;
 }
 B.focusStats = () => {
   const t = B.today();
@@ -230,6 +232,14 @@ B.acts.fsD = el => { fsSel = B.add(fsSel, +el.dataset.k); B.render(); };
 B.acts.fsQ = el => { const p = B.parse(B.weekStart(fsSel)); fsSel = B.weekStart(B.ymd(new Date(p.getFullYear(), Math.floor(p.getMonth() / 3) * 3 + 3 * +el.dataset.k, 1, 12))); B.render(); };
 B.acts.fsM = el => { const p = B.parse(fsSel); fsSel = B.ymd(new Date(p.getFullYear(), p.getMonth() + +el.dataset.k, 1, 12)); B.render(); };
 
+/* компактная неделя: часы фокуса за 7 дней */
+function weekMini(){
+  const t = B.today(), days = Array.from({length: 7}, (_, i) => B.add(t, i - 6)), vals = days.map(dayMin), max = Math.max(60, ...vals), sum = vals.reduce((a, v) => a + v, 0);
+  return `<div class="wmini"><div class="row between"><span class="muted">7 дней</span><b class="mono">${hm(sum)}</b></div>
+    <div class="bars sm">${days.map((d, i) => `<div class="bar-col ${d === t ? 'now' : ''}" title="${B.fmtW(d)}: ${hm(vals[i])}"><span class="bv">${vals[i] ? hm(vals[i]) : ''}</span><span class="bw"><i style="height:${(vals[i] / max * 100).toFixed(1)}%"></i></span><span class="bl">${B.WD[B.wd(d)]}</span></div>`).join('')}</div></div>`;
+}
+const clockCls = ms => mmss(ms).length > 6 ? 'long' : '';
+
 B.views.focus = {
   title: 'Фокус',
   render(){
@@ -240,48 +250,44 @@ B.views.focus = {
     const ring = sw ? (isIdle ? 0 : (elapsed() % 3600000) / 3600000) : isIdle ? 1 : Math.max(0, left()) / (st.dur * 60000);
     const tk = st.task && B.task(st.task), sub = tk && st.sub && (tk.subs || []).find(s => s.id === st.sub);
     const cand = B.candidates().slice(0, 40);
-    const byTask = {};
-    pomo.forEach(p => { const k = p.task || ''; byTask[k] = (byTask[k] || 0) + (p.min || 0); });
-    const status = !isIdle && st.running ? (st.mode !== 'work' ? 'встань, пройдись, попей воды' : over() ? 'сверх плана, останови, когда закончишь' : 'не отвлекайся') : isIdle ? (sw ? 'время пойдёт вверх' : `${st.dur} минут, потом сигнал`) : 'пауза';
+    const tot = pomo.reduce((a, p) => a + (p.min || 0), 0);
+    const status = !isIdle && st.running ? (st.mode !== 'work' ? 'встань, пройдись, попей воды' : over() ? 'сверх плана' : 'не отвлекайся') : isIdle ? (sw ? 'время пойдёт вверх' : `${st.dur} мин, потом сигнал`) : 'пауза';
     return `<div class="page focus-page">
-      <header class="page-h"><div><div class="eyebrow">Фокус</div><h1>${st.mode === 'work' ? (sw ? 'Секундомер' : 'Помодоро') : MODES[st.mode]}</h1></div></header>
-      <div class="cols">
+      <header class="page-h"><div><div class="eyebrow">Фокус</div><h1>${st.mode === 'work' ? (sw ? 'Секундомер' : 'Помодоро') : MODES[st.mode]}</h1></div>
+        <div class="toggle fm">${[['pomo', 'Помодоро'], ['sw', 'Секундомер']].map(([k, l]) => `<button class="${st.kind === k ? 'on' : ''}" data-act="fmode" data-m="${k}" ${isIdle ? '' : 'disabled'}>${l}</button>`).join('')}</div></header>
+      <div class="focus-grid">
+        <section class="card timer-card mode-${st.mode}">
+          <div class="timer">
+            <svg viewBox="0 0 280 280" class="tring"><circle cx="140" cy="140" r="${R}" class="ring-bg"/><circle id="tmRing" data-c="${C}" cx="140" cy="140" r="${R}" class="ring-fg" stroke-dasharray="${C}" style="stroke-dashoffset:${C * (sw ? 1 - ring : ring)}" transform="rotate(-90 140 140)"/></svg>
+            <div class="tface"><b id="tmClock" class="${over() ? 'over' : ''} ${clockCls(ms)}">${mmss(ms)}</b><span>${status}</span></div>
+          </div>
+          <div class="tc-side">
+            ${isIdle ? `<select id="tmTask" data-in="tmTask" aria-label="Над чем работаешь"><option value="">Без задачи</option>${cand.map(t => `<option value="${t.id}" ${st.task === t.id ? 'selected' : ''}>${esc(t.title)}</option>`).join('')}</select>`
+              : tk ? `<div class="tm-now"><span class="muted">Сейчас</span><b>${esc(tk.title)}</b>${sub ? `<span>шаг: ${esc(sub.t)}</span>` : ''}</div>` : ''}
+            <div class="row tm-btns">
+              ${isIdle ? `<button class="btn primary lg grow" data-act="tmStart">${icon('play')} ${sw ? 'Старт' : `Начать ${cfg.work} мин`}</button>${sw ? '' : `<button class="btn lg" data-act="five" title="Правило пяти минут: начни, а там посмотришь">5 мин</button>`}`
+                : st.mode !== 'work' ? `<button class="btn lg ghost grow" data-act="tmSkip">Пропустить перерыв</button>`
+                : st.running ? `<button class="btn lg grow" data-act="tmPause">${icon('pause')} Пауза</button><button class="btn lg primary grow" data-act="tmStop">${icon('stop')} Стоп</button>`
+                : `<button class="btn primary lg grow" data-act="tmResume">${icon('play')} Продолжить</button><button class="btn lg ghost" data-act="tmStop">${icon('stop')} Стоп</button>`}
+            </div>
+            ${tk && !tk.done && !isIdle && st.mode === 'work' ? `<button class="btn ghost" data-act="tmTaskDone">${icon('check')} ${sub ? 'Шаг сделан' : 'Задача сделана'}</button>` : ''}
+            <p class="hint">${sw ? 'Идёт, пока не нажмёшь «Стоп».' : `Через ${cfg.work} мин сигнал, дальше время идёт в плюс до «Стопа».`} Отвлекающие мысли пиши в <a href="#/journal">дневник</a>.</p>
+          </div>
+        </section>
         <div class="col">
-          <section class="card timer-card mode-${st.mode}">
-            <div class="toggle wide fm">${[['pomo', 'Помодоро'], ['sw', 'Секундомер']].map(([k, l]) => `<button class="${st.kind === k ? 'on' : ''}" data-act="fmode" data-m="${k}" ${isIdle ? '' : 'disabled'}>${l}</button>`).join('')}</div>
-            <div class="timer">
-              <svg viewBox="0 0 280 280" class="tring"><circle cx="140" cy="140" r="${R}" class="ring-bg"/><circle id="tmRing" data-c="${C}" cx="140" cy="140" r="${R}" class="ring-fg" stroke-dasharray="${C}" style="stroke-dashoffset:${C * (sw ? 1 - ring : ring)}" transform="rotate(-90 140 140)"/></svg>
-              <div class="tface"><b id="tmClock" class="${over() ? 'over' : ''}">${mmss(ms)}</b><span>${status}</span></div>
-            </div>
-            <div class="tm-task">
-              ${isIdle ? `<label class="field">Над чем работаешь<select id="tmTask" data-in="tmTask"><option value="">Без задачи</option>${cand.map(t => `<option value="${t.id}" ${st.task === t.id ? 'selected' : ''}>${esc(t.title)}</option>`).join('')}</select></label>`
-                : tk ? `<div class="tm-now"><span class="muted">Сейчас</span><b>${esc(tk.title)}</b>${sub ? `<span>шаг: ${esc(sub.t)}</span>` : ''}</div>` : ''}
-            </div>
-            <div class="row center tm-btns">
-              ${isIdle ? `<button class="btn primary lg" data-act="tmStart">${icon('play')} ${sw ? 'Старт' : `Начать ${cfg.work} минут`}</button>${sw ? '' : `<button class="btn lg" data-act="five" title="Правило пяти минут: начни, а там посмотришь">5 минут</button>`}`
-                : st.mode !== 'work' ? `<button class="btn lg ghost" data-act="tmSkip">Пропустить перерыв</button>`
-                : st.running ? `<button class="btn lg" data-act="tmPause">${icon('pause')} Пауза</button><button class="btn lg primary" data-act="tmStop">${icon('stop')} Стоп</button>`
-                : `<button class="btn primary lg" data-act="tmResume">${icon('play')} Продолжить</button><button class="btn lg ghost" data-act="tmStop">${icon('stop')} Стоп</button>`}
-              ${tk && !tk.done && !isIdle && st.mode === 'work' ? `<button class="btn lg ghost" data-act="tmTaskDone">${icon('check')} ${sub ? 'Шаг сделан' : 'Задача сделана'}</button>` : ''}
-            </div>
-            <p class="hint center">${sw ? 'Секундомер идёт, пока не нажмёшь «Стоп». Засчитывается всё отработанное время.' : `Через ${cfg.work} минут прозвучит сигнал, но таймер не остановится: время пойдёт в плюс, пока не нажмёшь «Стоп». После остановки начнётся перерыв.`} Отвлекающие мысли записывай в <a href="#/journal">дневник</a>.</p>
+          <section class="card today-focus">
+            <div class="row between"><h2>${icon('timer')}Сегодня</h2><b class="big-num">${hm(tot)}</b></div>
+            ${weekMini()}
           </section>
-        </div>
-        <div class="col">
-          <section class="card">
-            <h2>${icon('timer')}Сегодня</h2>
-            <div class="kpis"><div class="kpi"><b>${B.mins(pomo.reduce((a, p) => a + (p.min || 0), 0))}</b><span>фокуса</span></div><div class="kpi"><b>${pomo.length}</b><span>${B.plural(pomo.length, 'подход', 'подхода', 'подходов')}</span></div></div>
-            ${Object.keys(byTask).length ? `<ul class="plain">${Object.entries(byTask).sort((a, b) => b[1] - a[1]).map(([k, m]) => `<li><span class="grow">${k ? esc((B.task(k) || {title: 'удалённая задача'}).title) : 'Без задачи'}</span><span class="mono">${B.mins(m)}</span></li>`).join('')}</ul>` : ''}
-          </section>
-          <section class="card">
-            <h2>${icon('gear')}Помодоро</h2>
+          <details class="card fold">
+            <summary>${icon('gear')} Настройки помодоро <span class="muted">${cfg.work}/${cfg.short}/${cfg.long}</span></summary>
             <div class="ed-grid">
               <label>Фокус, мин<input type="number" min="1" max="180" value="${cfg.work}" data-in="pomoCfg" data-k="work"></label>
               <label>Перерыв, мин<input type="number" min="1" max="60" value="${cfg.short}" data-in="pomoCfg" data-k="short"></label>
               <label>Длинный, мин<input type="number" min="1" max="90" value="${cfg.long}" data-in="pomoCfg" data-k="long"></label>
               <label>Длинный каждые<input type="number" min="2" max="10" value="${cfg.every}" data-in="pomoCfg" data-k="every"></label>
             </div>
-          </section>
+          </details>
         </div>
       </div>
       ${B.focusStats()}

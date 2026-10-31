@@ -16,7 +16,7 @@
   --s-deep:#0B0F1E; --s-space:#121833; --s-strato:#2B4A86; --s-high:#6D9FD6; --s-sky:#AFD3EE; --s-low:#E3F0E6;
   --hill:#9BC08A; --soil:#7E6A4B; --cul-a:#4E9B5E; --cul-b:#5FAA6C; --node:#2F6E3F; --mile:#22314A; --mile-ok:#2F7A4B;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]):not([data-theme="sakura"]){
   --paper:#121611; --paper-2:#181D16; --sheet:#1B211A; --ink:#EAE6D9; --ink-2:#B4B3A6; --ink-3:#7F8277;
   --rule:#2B3329; --rule-2:#38412F;
   --accent:#7CC48F; --accent-2:#94D3A5; --accent-ink:#0F1A12; --accent-soft:#1E3324;
@@ -391,20 +391,39 @@ textarea{resize:vertical;line-height:1.45}
 .lgd.good{background:var(--accent)}.lgd.fail{background:var(--bad)}.lgd.frozen{background:var(--cold)}.lgd.open,.lgd.ready{background:var(--rule-2)}
 
 /* ---------- фокус ---------- */
-.timer-card{justify-items:center;padding:22px 16px}
-.timer{position:relative;width:min(280px,76vw);aspect-ratio:1}
+.focus-grid{display:grid;gap:14px}
+.timer-card{justify-items:center;padding:20px 16px;gap:16px}
+.timer{position:relative;width:min(240px,66vw);aspect-ratio:1;flex:none}
 .tring{width:100%;height:100%}
-.tring .ring-bg{stroke-width:10}
-.tring .ring-fg{stroke-width:10;transition:stroke-dashoffset .5s linear}
+.tring .ring-bg{stroke-width:9}
+.tring .ring-fg{stroke-width:9;transition:stroke-dashoffset .5s linear}
 .mode-short .ring-fg,.mode-long .ring-fg{stroke:var(--cold)}
-.tface{position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:4px}
-.tface b{font:500 clamp(46px,14vw,60px)/1 var(--f-mono);letter-spacing:-.02em}
-.tface span{font-size:13px;color:var(--ink-3)}
-.tm-task{width:100%;max-width:420px}
-.tm-now{display:grid;text-align:center;gap:2px}
+.tface{position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:4px;padding:0 22px}
+.tface b{font:500 50px/1 var(--f-mono);letter-spacing:-.03em;white-space:nowrap}
+.tface b.long{font-size:38px}
+.tface span{font-size:12.5px;color:var(--ink-3)}
+.tc-side{display:grid;gap:10px;width:100%;max-width:420px}
+.tm-now{display:grid;gap:2px}
 .tm-now b{font-size:16px}
 .tm-now span:last-child{font-size:13px;color:var(--ink-2)}
 .tm-btns{flex-wrap:wrap}
+.page-h .fm{width:auto}
+.today-focus{gap:10px}
+.big-num{font:600 26px var(--f-mono);color:var(--accent)}
+.wmini{display:grid;gap:6px}
+.bars.sm{height:96px;gap:5px}
+.bars.sm .bv{font-size:9.5px}
+.fold summary{cursor:pointer;display:flex;align-items:center;gap:8px;font-weight:600;list-style:none}
+.fold summary::-webkit-details-marker{display:none}
+.fold summary .muted{margin-left:auto;font:400 12px var(--f-mono)}
+.fold summary .ic{color:var(--accent)}
+.fold:not([open]){gap:0}
+@media (min-width:960px){
+  .focus-grid{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px;align-items:start}
+  .timer-card{grid-template-columns:auto 1fr;justify-items:stretch;align-items:center;padding:22px 26px;gap:26px}
+  .timer{width:210px}
+  .tface b{font-size:44px}.tface b.long{font-size:33px}
+}
 .bars{display:flex;gap:6px;height:130px;position:relative}
 .bar-col{flex:1;display:grid;grid-template-rows:14px 1fr 16px;justify-items:center;height:100%;min-width:0}
 .bw{position:relative;width:100%;max-width:32px;height:100%}
@@ -639,13 +658,12 @@ input[type=range]{accent-color:var(--accent)}
 .sport-today.on .sport-btn{border-style:solid;border-color:var(--accent);background:var(--accent-soft)}
 .sport-today.on .sport-btn i{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 
-.fm{width:100%;max-width:340px}
 .fm button:disabled{opacity:.55;cursor:default}
 #tmClock.over{color:var(--accent)}
 
 /* ---------- корона и важность ---------- */
 :root{--gold:#B8860B;--gold-soft:#F7EDCF}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--gold:#E8B84A;--gold-soft:#3A3016}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]):not([data-theme="sakura"]){--gold:#E8B84A;--gold-soft:#3A3016}}
 :root[data-theme="dark"]{--gold:#E8B84A;--gold-soft:#3A3016}
 .daylist{display:grid;gap:10px}
 .crown-meter{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:12px;background:var(--paper);font-size:13.5px;color:var(--ink-2)}
@@ -723,3 +741,22 @@ input[type=range]{accent-color:var(--accent)}
 .dayline .bg{fill:var(--paper-2)}.dayline .blk{fill:var(--accent)}
 .sess li{align-items:center}
 .h2 span,.h3 span{color:var(--ink-2)}
+
+/* ---------- тема «Сакура»: розовая бумага, вишнёвые акценты, зелень листьев ---------- */
+:root[data-theme="sakura"]{
+  --paper:#FBF1F1; --paper-2:#F5E3E4; --sheet:#FFFAFA; --ink:#3A2328; --ink-2:#6E5258; --ink-3:#A08A8F;
+  --rule:#F0DADC; --rule-2:#E5C6CA;
+  --accent:#C2456A; --accent-2:#D45C80; --accent-ink:#FFFFFF; --accent-soft:#FBE1E8;
+  --bad:#B0413E; --bad-soft:#F8DEDC; --warn:#C08A2E; --warn-soft:#F8EBD3; --cold:#6C8FC0; --cold-soft:#E3EAF6;
+  --p1:#C2413E; --p2:#D08A1E; --p3:#5B7FC0; --p4:#B9A7AB;
+  --gold:#C99A2E; --gold-soft:#FBEFD6;
+  --s-deep:#1C1430; --s-space:#2A1E45; --s-strato:#6A5AA8; --s-high:#C9A6D8; --s-sky:#F6CFDC; --s-low:#FDEFF2;
+  --hill:#9CC79B; --soil:#8C6B5E; --cul-a:#5FA36E; --cul-b:#72B67E; --node:#3F7A4E; --mile:#4A2E3A; --mile-ok:#C2456A;
+  --shadow:0 1px 2px rgba(120,40,60,.06),0 8px 26px rgba(160,60,90,.08);
+  color-scheme:light}
+:root[data-theme="sakura"] body{background-image:radial-gradient(circle at 1px 1px,rgba(194,69,106,.10) 1px,transparent 0)}
+:root[data-theme="sakura"] .lvl{background:linear-gradient(135deg,#FBE1E8,#FFFAFA 70%)}
+
+.fs-cols{display:grid;gap:16px}
+.fs-col{display:grid;gap:12px;align-content:start;min-width:0}
+@media (min-width:960px){.fs-cols{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px}.wgrid{grid-template-columns:repeat(5,1fr)}}

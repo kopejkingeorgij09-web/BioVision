@@ -235,10 +235,11 @@ B.setCfg = patch => B.put('cfg', Object.assign({}, docs.cfg || {}, patch));
 B.projects = () => B.list('p_').filter(p => !p.arch).sort((a, b) => (a.order || 0) - (b.order || 0));
 B.proj = id => docs['p_' + id];
 B.projName = id => { const p = B.proj(id); if (!p) return ''; const par = p.parent && B.proj(p.parent); return par ? par.name + ' · ' + p.name : p.name; };
-B.tasks = () => B.list('t_');
+B.tasks = () => B.list('t_').filter(t => !t.deleted);   // удалённые из планов прошлых дней остаются скрытыми, чтобы итоги дней не менялись
 B.task = id => docs['t_' + id];
 B.saveTask = (t, quiet) => B.put('t_' + t.id, t, quiet);
 B.day = date => docs['d_' + date] || {};
+B.datesWith = id => Object.keys(docs).filter(k => k.startsWith('d_') && (docs[k].top || []).includes(id)).map(k => k.slice(2));
 B.saveDay = (date, d, quiet) => B.put('d_' + date, d, quiet);
 B.editDay = (date, fn, quiet) => { const d = JSON.parse(JSON.stringify(B.day(date))); fn(d); B.saveDay(date, d, quiet); };
 B.habits = () => B.list('h_').filter(h => !h.arch).sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -299,8 +300,17 @@ let sportMemo = null, sportVer = -1;
 function sportSet(){ if (sportVer !== B.ver){ sportMemo = new Set(B.list('w_').map(w => w.date)); sportVer = B.ver; } return sportMemo; }
 B.hasReview = d => !!(d.review && ((d.review.done || '').trim() || (d.review.why || '').trim()));
 /* разбор засчитан, когда написан текст и выбраны главные дела на завтра */
-B.planned = date => (B.day(date).top || []).some(id => B.task(id));
-B.reviewDone = date => B.hasReview(B.day(date)) && B.planned(B.add(date, 1));
+B.planned = date => (B.day(date).top || []).some(id => { const t = B.task(id); return t && !t.deleted; });
+/* задним числом день не закрыть: разбор начат и план на завтра выбран до конца этого дня (до 4 утра) */
+B.reviewDone = date => {
+  const d = B.day(date), r = d.review;
+  if (!B.hasReview(d)) return false;
+  const first = r.first || r.at;
+  if (first && B.dayOf(first) > date) return false;
+  const next = B.add(date, 1), nd = B.day(next);
+  if (!B.planned(next)) return false;
+  return !(nd.planAt && B.dayOf(nd.planAt) > date);
+};
 
 let memo = null, memoKey = '';
 B.calc = () => {
@@ -325,7 +335,7 @@ B.calc = () => {
   for (let i = 0; i <= N; i++){
     const date = B.add(start, i), d = B.day(date), ws = B.weekStart(date);
     const p = {};
-    const top = (d.top || []).map(B.task).filter(Boolean);
+    const top = (d.top || []).map(B.task).filter(t => t && (!t.deleted || date < today));
     if (top.length) p.plan = B.XP.plan;
     const topDoneSameDay = top.filter(t => t.done && t.doneAt && B.dayOf(t.doneAt) === date).length;
     if (topDoneSameDay) p.top = topDoneSameDay * B.XP.top;

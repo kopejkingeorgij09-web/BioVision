@@ -91,30 +91,60 @@ B.views.habits = {
   }
 };
 
+/* форма показывает только поля, которые относятся к выбранному типу привычки */
+let HF = null;
 function habitForm(h){
-  h = h || {name: '', icon: 'habit', kind: 'daily', target: 3, auto: '', min: 30, mini: ''};
+  HF = Object.assign({name: '', icon: 'habit', kind: 'daily', target: 3, auto: '', min: B.cfg().readGoal || 30, mini: '', miniMin: 10}, h || {});
+  return formHtml();
+}
+function formHtml(){
+  const h = HF, read = h.auto === 'read', sport = h.auto === 'sport';
   return `<h2>${h.id ? 'Привычка' : 'Новая привычка'}</h2>
-    <label class="field">Название<input id="hName" value="${esc(h.name)}" placeholder="Например, Зарядка 10 минут" autofocus></label>
+    <label class="field">Название<input id="hName" value="${esc(h.name)}" placeholder="Например, Зарядка 10 минут" ${h.id ? '' : 'autofocus'}></label>
     <div class="field">Иконка<div class="icons">${ICONS.map(i => `<label class="ipick"><input type="radio" name="hIcon" value="${i}" ${h.icon === i ? 'checked' : ''}><i>${icon(i)}</i></label>`).join('')}</div></div>
     <div class="ed-grid">
-      <label>Как часто<select id="hKind"><option value="daily" ${h.kind !== 'weekly' ? 'selected' : ''}>Каждый день</option><option value="weekly" ${h.kind === 'weekly' ? 'selected' : ''}>N раз в неделю</option></select></label>
-      <label>Раз в неделю<input id="hTarget" type="number" min="1" max="7" value="${h.target || 3}"></label>
-      <label>Отмечать<select id="hAuto"><option value="">Вручную</option><option value="read" ${h.auto === 'read' ? 'selected' : ''}>По чтению</option><option value="sport" ${h.auto === 'sport' ? 'selected' : ''}>По тренировке</option></select></label>
-      <label>Минут чтения<input id="hMin" type="number" min="1" max="600" value="${h.min || 30}"></label>
+      <label>Отмечать<select id="hAuto" data-in="hfRedraw"><option value="">Вручную</option><option value="read" ${read ? 'selected' : ''}>По минутам чтения</option><option value="sport" ${sport ? 'selected' : ''}>По записи тренировки</option></select></label>
+      <label>Как часто<select id="hKind" data-in="hfRedraw"><option value="daily" ${h.kind !== 'weekly' ? 'selected' : ''}>Каждый день</option><option value="weekly" ${h.kind === 'weekly' ? 'selected' : ''}>Несколько раз в неделю</option></select></label>
+      ${h.kind === 'weekly' ? `<label>Сколько раз в неделю<input id="hTarget" type="number" min="1" max="7" value="${h.target || 3}"></label>` : ''}
+      ${read ? `<label>Цель, минут в день<input id="hMin" type="number" min="1" max="600" value="${h.min || 30}"></label>
+        <label>Минимум, минут<input id="hMiniMin" type="number" min="1" max="120" value="${h.miniMin || 10}"></label>` : ''}
     </div>
-    <label class="field">Минимальная версия на плохой день<input id="hMini" value="${esc(h.mini || '')}" placeholder="${h.auto === 'read' ? 'Например: 10 минут' : 'Например: 5 отжиманий'}"></label>
-    ${h.auto === 'read' ? `<label class="field">Сколько минут чтения считать минимумом<input id="hMiniMin" type="number" min="1" max="120" value="${h.miniMin || 10}"></label>` : ''}
-    <p class="hint">Минимум держит серию, но даёт половину опыта. Отметить минимум: долгое нажатие на привычку. Обычное нажатие ставит и снимает отметку. Для чтения минимум засчитывается сам по минутам.</p>
+    ${!read && !sport ? `<label class="field">Минимальная версия на плохой день<input id="hMini" value="${esc(h.mini || '')}" placeholder="Например: 5 отжиманий или лечь до 00:30"></label>` : ''}
+    <p class="hint">${read ? 'Отмечается сама, когда за день набралась цель. Если прочитал меньше цели, но не меньше минимума, засчитывается минимум: серия держится, опыт вдвое меньше.'
+      : sport ? 'Отмечается сама в день, когда записана тренировка. На главной её можно отметить и одним нажатием.'
+      : 'Нажатие на привычку ставит и снимает отметку. Если задан минимум, его ставит долгое нажатие: серия держится, опыт вдвое меньше.'}</p>
     <div class="row between">${h.id ? `<button class="btn ghost danger" data-act="habitDel" data-id="${h.id}">${icon('trash')} В архив</button>` : '<span></span>'}
       <button class="btn primary" data-act="habitSave" data-id="${h.id || ''}">Сохранить</button></div>`;
 }
+/* прочитать то, что уже введено, в черновик */
+function hfRead(){
+  const v = id => { const el = B.$('#' + id); return el ? el.value : null; };
+  if (v('hName') != null) HF.name = v('hName');
+  HF.icon = (B.$('input[name=hIcon]:checked') || {}).value || HF.icon;
+  HF.auto = v('hAuto') || ''; HF.kind = v('hKind') || 'daily';
+  if (v('hTarget') != null) HF.target = B.clamp(+v('hTarget') || 3, 1, 7);
+  if (v('hMin') != null) HF.min = B.clamp(+v('hMin') || 30, 1, 600);
+  if (v('hMiniMin') != null) HF.miniMin = B.clamp(+v('hMiniMin') || 10, 1, 120);
+  if (v('hMini') != null) HF.mini = v('hMini').trim();
+}
+B.inputs.hfRedraw = (el, e) => {
+  if (e.type !== 'change') return;
+  hfRead();
+  if (el.id === 'hAuto' && HF.auto === 'sport' && HF.kind === 'daily'){ HF.kind = 'weekly'; HF.target = B.cfg().sportGoal || 3; }
+  B.sheet(formHtml());
+};
 B.acts.habitNew = () => B.sheet(habitForm());
 B.acts.habitEdit = el => B.sheet(habitForm(B.get('h_' + el.dataset.id)));
 B.acts.habitSave = el => {
-  const name = B.$('#hName').value.trim(); if (!name) return;
+  hfRead();
+  const name = (HF.name || '').trim(); if (!name){ B.$('#hName').focus(); return; }
   const id = el.dataset.id || B.uid(), old = B.get('h_' + id) || {id, created: B.today(), order: B.habits().length};
-  const kind = B.$('#hKind').value, auto = B.$('#hAuto').value;
-  B.put('h_' + id, Object.assign({}, old, {name, icon: (B.$('input[name=hIcon]:checked') || {}).value || 'habit', kind, target: B.clamp(+B.$('#hTarget').value || 3, 1, 7), auto: auto || undefined, min: B.clamp(+B.$('#hMin').value || 30, 1, 600), mini: B.$('#hMini').value.trim() || undefined, miniMin: B.$('#hMiniMin') ? B.clamp(+B.$('#hMiniMin').value || 10, 1, 120) : (old.miniMin || 10)}));
+  const h = Object.assign({}, old, {name, icon: HF.icon, kind: HF.kind, target: HF.target, auto: HF.auto || undefined, min: HF.min, miniMin: HF.miniMin,
+    mini: !HF.auto && HF.mini ? HF.mini : undefined});
+  B.put('h_' + id, h);
+  // одна цель на всё приложение: чтение и тренировки в настройках совпадают с привычкой
+  if (h.auto === 'read') B.setCfg({readGoal: h.min});
+  if (h.auto === 'sport' && h.kind === 'weekly') B.setCfg({sportGoal: h.target});
   B.closeSheet();
 };
 B.acts.habitDel = async el => {

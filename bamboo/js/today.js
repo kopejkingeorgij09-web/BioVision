@@ -41,34 +41,45 @@ function steps(c, d){
     {ok: r.top > 0, label: 'План', sub: r.top ? `${r.top} ${B.plural(r.top, 'дело', 'дела', 'дел')}` : 'нет'},
     {ok: r.top > 0 && r.topDone >= r.needTop, label: 'Главное', sub: `${r.topDone}/${r.needTop || 2}`},
     {ok: daily.length > 0 && hd === daily.length, label: 'Привычки', sub: `${hd}/${daily.length}`, soft: true},
-    {ok: B.hasReview(d), label: 'Разбор', sub: B.hasReview(d) ? 'есть' : 'вечером'}
+    {ok: B.reviewDone(c.today), label: 'Разбор', sub: B.reviewDone(c.today) ? 'есть' : B.hasReview(d) ? 'нет плана' : 'вечером'}
   ];
   const must = st.filter(s => !s.soft), done = must.filter(s => s.ok).length;
   return `<section class="card day-steps">
     <div class="row between"><h2>День закрыт на ${Math.round(done / must.length * 100)}%</h2><span class="muted mono">${r.xp > 0 ? '+' : ''}${(c.days[c.today] || {}).xp || 0} XP сегодня</span></div>
     ${B.bar(done / must.length, 'day')}
     <ol class="steps">${st.map(s => `<li class="${s.ok ? 'ok' : ''}"><i>${s.ok ? icon('check') : ''}</i><b>${s.label}</b><span>${s.sub}</span></li>`).join('')}</ol>
-    <p class="hint">Для закрытия дня нужны план, два главных дела из трёх и вечерний разбор. Привычки дают опыт отдельно.</p>
+    <p class="hint">Для закрытия дня нужны план, два главных дела из трёх и вечерний разбор с планом на завтра. Привычки дают опыт отдельно.</p>
   </section>`;
 }
+
+/* редактор плана на любой день: до трёх главных дел и «если-то» к каждому (когда и где) */
+B.planPicker = (date, hint) => {
+  const d = B.day(date), when = d.when || {};
+  const top = (d.top || []).map(B.task).filter(Boolean);
+  const ids = new Set(d.top || []);
+  const cand = top.length < 3 ? B.candidates(date).filter(t => !ids.has(t.id)).slice(0, 6) : [];
+  return `<div class="planpick" data-d="${date}">
+    ${hint ? `<p class="hint">${hint}</p>` : ''}
+    ${top.map((t, i) => `<div class="pick on"><span class="n">${i + 1}</span><span class="grow"><b>${esc(t.title)}</b>
+      <input class="ifthen" value="${esc(when[t.id] || '')}" placeholder="Когда и где? Например: в 16:00 в библиотеке" data-in="ifthen" data-d="${date}" data-id="${t.id}"></span>
+      <button class="icon-btn sm" data-act="topDel" data-d="${date}" data-id="${t.id}" aria-label="Убрать">${icon('x')}</button></div>`).join('')}
+    ${top.length < 3 ? `<div class="add-line"><input class="top-new" placeholder="${top.length ? 'Ещё одно главное дело' : 'Главное дело'}" data-enter="topNew" data-d="${date}"><button class="btn sm" data-act="topNew" data-d="${date}">${icon('plus')}</button></div>
+    ${cand.length ? `<div class="pick-list">${cand.map(t => `<button class="pick" data-act="topAdd" data-d="${date}" data-id="${t.id}">${icon('plus')}<span class="grow">${esc(t.title)}</span>${t.due ? B.dueLabel(t) : ''}</button>`).join('')}</div>` : ''}` : ''}
+  </div>`;
+};
 
 function planCard(c, d){
   const top = (d.top || []).map(B.task).filter(Boolean);
   if (!top.length || B._editPlan){
-    const ids = new Set(d.top || []);
-    const cand = B.candidates().filter(t => !ids.has(t.id)).slice(0, 8);
     return `<section class="card plan">
-      <div class="row between"><h2>${icon('sun')}Утренний план</h2>${top.length ? `<button class="btn sm ghost" data-act="planDone">Готово</button>` : ''}</div>
-      <p class="hint">Выбери до трёх главных дел на сегодня. Первое пусть будет самым неприятным: его делаешь до обеда, пока есть силы.</p>
-      ${top.length ? `<div class="tasks">${top.map((t, i) => `<div class="pick on"><span class="n">${i + 1}</span><span class="grow">${esc(t.title)}</span><button class="icon-btn sm" data-act="topDel" data-id="${t.id}">${icon('x')}</button></div>`).join('')}</div>` : ''}
-      ${top.length < 3 ? `<div class="add-line"><input id="topNew" placeholder="Новое главное дело" data-enter="topNew"><button class="btn sm" data-act="topNew">${icon('plus')}</button></div>
-      ${cand.length ? `<div class="pick-list">${cand.map(t => `<button class="pick" data-act="topAdd" data-id="${t.id}">${icon('plus')}<span class="grow">${esc(t.title)}</span>${t.due ? B.dueLabel(t) : ''}</button>`).join('')}</div>` : ''}` : ''}
+      <div class="row between"><h2>${icon('sun')}План на сегодня</h2>${top.length ? `<button class="btn sm ghost" data-act="planDone">Готово</button>` : ''}</div>
+      ${B.planPicker(c.today, 'До трёх главных дел. Первое самое неприятное, его делаешь до обеда. Допиши, когда и где сядешь за каждое: так план превращается в решение.')}
     </section>`;
   }
-  const done = top.filter(t => t.done).length;
+  const done = top.filter(t => t.done).length, when = d.when || {};
   return `<section class="card plan">
     <div class="row between"><h2>${icon('star')}Главное сегодня <span class="muted">${done}/${top.length}</span></h2><button class="btn sm ghost" data-act="planEdit">Изменить</button></div>
-    <div class="tasks">${top.map((t, i) => B.taskRow(t, {frog: i === 0 && !t.done, cls: 'top'})).join('')}</div>
+    <div class="tasks">${top.map((t, i) => B.taskRow(t, {frog: i === 0 && !t.done, cls: 'top', when: when[t.id]})).join('')}</div>
   </section>`;
 }
 
@@ -110,6 +121,18 @@ function shadCard(c){
   </section>`;
 }
 
+function deadlineCard(c){
+  const list = B.tasks().filter(t => t.dl && !t.done && t.due).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 4);
+  if (!list.length) return '';
+  return `<section class="card dl-card"><h2>${icon('flame')}Дедлайны</h2>
+    ${list.map(t => { const k = B.diff(c.today, t.due), subs = t.subs || [], dn = subs.filter(x => x.done).length;
+      return `<button class="dl-row ${k < 0 ? 'late' : k <= 3 ? 'near' : ''}" data-act="openTask" data-id="${t.id}">
+        <span class="dl-n"><b>${k < 0 ? -k : k}</b><small>${k < 0 ? 'дн. назад' : k === 0 ? 'сегодня' : B.plural(k, 'день', 'дня', 'дней')}</small></span>
+        <span class="grow"><span class="task-title">${esc(t.title)}</span><span class="task-meta">${B.fmtW(t.due)}${subs.length ? ` · шагов ${dn}/${subs.length}` : ''}</span>${subs.length ? B.bar(dn / subs.length, 'thin') : ''}</span>
+      </button>`; }).join('')}
+  </section>`;
+}
+
 function bigCard(){
   const big = B.tasks().filter(t => t.big && !t.done);
   if (!big.length) return '';
@@ -135,20 +158,29 @@ B.acts.stepDone = el => {
 };
 
 B.habitChip = (h, date) => {
-  const done = B.habitDone(h, date);
+  const val = B.habitVal(h, date), done = val > 0;
   let sub = '';
   if (h.auto === 'read'){ const m = B.readMin(date); sub = `${m}/${h.min || 30} мин`; }
   else if (h.kind === 'weekly'){ const ws = B.weekStart(date); let k = 0; for (let i = 0; i < 7; i++) if (B.habitDone(h, B.add(ws, i))) k++; sub = `${k}/${h.target || 3} за неделю`; }
   const act = h.auto === 'read' ? 'href="#/read"' : h.auto === 'sport' ? 'href="#/sport"' : '';
   const tag = act ? 'a' : 'button';
-  return `<${tag} class="hchip ${done ? 'on' : ''}" ${act || `data-act="habitToggle" data-id="${h.id}" data-d="${date}"`}>
+  if (val === 0.5) sub = 'минимум' + (h.mini ? ': ' + esc(h.mini) : '');
+  else if (!done && h.mini && !h.auto) sub = 'хотя бы: ' + esc(h.mini);
+  return `<${tag} class="hchip ${done ? 'on' : ''} ${val === 0.5 ? 'half' : ''}" ${act || `data-act="habitToggle" data-id="${h.id}" data-d="${date}"`}>
     <i>${done ? icon('check') : icon(h.icon || 'habit')}</i><span><b>${esc(h.name)}</b>${sub ? `<small>${sub}</small>` : ''}</span></${tag}>`;
 };
+/* нажатие: нет → сделано → минимум (если задан) → нет */
 B.acts.habitToggle = el => {
-  const id = el.dataset.id, date = el.dataset.d;
-  let on = false;
-  B.editDay(date, d => { d.h = d.h || {}; if (d.h[id]) delete d.h[id]; else { d.h[id] = 1; on = true; } });
-  if (on) B.xpToast(B.XP.habit, 'привычка');
+  const id = el.dataset.id, date = el.dataset.d, h = B.get('h_' + id) || {};
+  let gain = 0;
+  B.editDay(date, d => {
+    d.h = d.h || {}; const v = d.h[id];
+    if (!v){ d.h[id] = 1; gain = B.XP.habit; }
+    else if (v === 1 && h.mini){ d.h[id] = 0.5; gain = -B.XP.habit / 2; }
+    else delete d.h[id];
+  });
+  if (gain > 0) B.xpToast(gain, 'привычка');
+  else if (gain < 0) B.toast('Отмечена минимальная версия: серия держится, опыт вдвое меньше');
 };
 function habitsCard(c){
   const hs = B.habits(); if (!hs.length) return '';
@@ -169,13 +201,21 @@ function focusCard(c, d){
 B.acts.five = () => B.startFocus(null, null, 5);
 
 function reviewCard(c, d){
-  const has = B.hasReview(d), h = new Date().getHours();
+  const has = B.reviewDone(c.today), h = new Date().getHours();
   if (has) return `<section class="card review done"><h2>${icon('pen')}Разбор дня написан</h2><p class="muted">${d.review.mood ? 'Настроение ' + '●'.repeat(d.review.mood) + ' · ' : ''}<a href="#/journal">открыть дневник</a></p></section>`;
   return `<section class="card review ${h >= 19 || h < 4 ? 'hot' : ''}">
     <h2>${icon('pen')}Вечерний разбор</h2>
-    <p class="hint">Пять минут перед сном: что сделал, что не вышло и почему, что главное завтра. Без разбора день не закрывается.</p>
+    <p class="hint">Пять минут перед сном: что сделал, что не вышло и почему, и три главных дела на завтра. Без этого день не закрывается.</p>
     <a class="btn ${h >= 19 || h < 4 ? 'primary' : ''}" href="#/journal">Написать разбор</a>
   </section>`;
+}
+
+function weekCard(c){
+  const ws = B.weekStart(c.today), prev = B.get('wk_' + B.add(ws, -7)), cur = B.get('wk_' + ws);
+  let html = '';
+  if (prev && (prev.change || '').trim()) html += `<section class="card week-note"><div class="eyebrow">На этой неделе меняю</div><p>${esc(prev.change)}</p></section>`;
+  if (B.wd(c.today) >= 5 && !(cur && (cur.change || '').trim())) html += `<a class="card week-cta" href="#/stats">${icon('chart')}<span class="grow"><b>Подведи итоги недели</b><small>5 минут: что мешало и что меняешь</small></span>${icon('right')}</a>`;
+  return html;
 }
 
 function insightsCard(){
@@ -197,10 +237,12 @@ B.views.today = {
       </header>
       ${B.levelCard(c)}
       ${yesterdayNote(c)}
+      ${weekCard(c)}
       <div class="cols">
         <div class="col">
           ${planCard(c, d)}
           ${todayTasks(c, d)}
+          ${deadlineCard(c)}
           ${shadCard(c)}
           ${bigCard()}
         </div>
@@ -217,21 +259,23 @@ B.views.today = {
 };
 
 /* план дня */
+const pdate = el => el.dataset.d || B.today();
 B.acts.topAdd = el => {
-  const t = B.today(); let n = 0;
+  const t = pdate(el); let n = 0;
   B.editDay(t, d => { d.top = (d.top || []).filter(id => B.task(id)); if (d.top.length < 3 && !d.top.includes(el.dataset.id)) d.top.push(el.dataset.id); d.planAt = d.planAt || Date.now(); n = d.top.length; });
   const tk = B.task(el.dataset.id);
-  if (tk && !tk.due) B.updTask(tk.id, {due: t});
-  if (n >= 3) B._editPlan = false;
+  if (tk && (!tk.due || tk.due < t)) B.updTask(tk.id, {due: t});
+  if (t === B.today()) B._editPlan = n < 3;
 };
-B.acts.topDel = el => B.editDay(B.today(), d => { d.top = (d.top || []).filter(id => id !== el.dataset.id); });
-B.acts.topNew = () => {
-  const inp = B.$('#topNew'), v = inp.value.trim(); if (!v) return;
-  const tk = B.addQuick(v, {due: B.today()}); if (!tk) return;
-  if (!tk.due) B.updTask(tk.id, {due: B.today()}, true);
-  B.acts.topAdd({dataset: {id: tk.id}});
-  setTimeout(() => { const i = B.$('#topNew'); if (i) i.focus(); }, 30);
+B.acts.topDel = el => B.editDay(pdate(el), d => { d.top = (d.top || []).filter(id => id !== el.dataset.id); });
+B.acts.topNew = el => {
+  const box = el.closest('.planpick'), inp = box && box.querySelector('.top-new'), t = pdate(el);
+  const v = inp ? inp.value.trim() : ''; if (!v) return;
+  const tk = B.addQuick(v, {due: t}); if (!tk) return;
+  B.acts.topAdd({dataset: {id: tk.id, d: t}});
+  setTimeout(() => { const i = B.$(`.planpick[data-d="${t}"] .top-new`); if (i) i.focus(); }, 30);
 };
+B.inputs.ifthen = el => B.editDay(el.dataset.d, d => { d.when = Object.assign({}, d.when, {[el.dataset.id]: el.value}); }, true);
 B.acts.planEdit = () => { B._editPlan = true; B.render(); };
 B.acts.planDone = () => { B._editPlan = false; B.render(); };
 B.acts.quickToday = () => {

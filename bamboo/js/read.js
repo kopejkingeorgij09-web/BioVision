@@ -30,6 +30,14 @@ function chart(){
   <p class="hint">Минуты чтения за 30 дней, линия: цель ${goal} мин</p>`;
 }
 
+/* прочитанное по годам: книги с оценкой и лучшей цитатой */
+function yearsView(list, ss){
+  const by = {};
+  list.forEach(b => { const y = (b.finished || '').slice(0, 4) || 'без даты'; (by[y] = by[y] || []).push(b); });
+  return Object.keys(by).sort().reverse().map(y => `<div class="year-h"><b>${y}</b><span class="muted">${by[y].length} ${B.plural(by[y].length, 'книга', 'книги', 'книг')} · ${B.mins(by[y].reduce((a, b) => a + bookMin(b.id, ss), 0))}</span></div>
+    ${by[y].map(b => { const q = (b.notes || []).find(n => n.k === 'q') || (b.notes || [])[0];
+      return bookCard(b, ss) + (q ? `<p class="year-q">«${esc(q.t)}»</p>` : ''); }).join('')}`).join('') || '';
+}
 function bookCard(b, ss){
   const m = bookMin(b.id, ss);
   return `<button class="book ${b.status}" data-act="bookOpen" data-id="${b.id}">
@@ -47,6 +55,7 @@ B.views.read = {
     const ss = sessions(), books = B.books();
     const reading = books.filter(b => b.status === 'reading');
     const year = String(B.parse(t).getFullYear());
+    const goalY = B.cfg().bookGoal || 12;
     const doneYear = books.filter(b => b.status === 'done' && (b.finished || '').startsWith(year)).length;
     let week = 0; for (let i = 0; i < 7; i++) week += B.readMin(B.add(t, -i));
     const month = ss.filter(r => B.dayOf(r.at).slice(0, 7) === t.slice(0, 7)).reduce((a, r) => a + r.min, 0);
@@ -74,13 +83,15 @@ B.views.read = {
           <section class="card"><div class="kpis">
             <div class="kpi"><b>${B.mins(week)}</b><span>за 7 дней</span></div>
             <div class="kpi"><b>${B.mins(month)}</b><span>в этом месяце</span></div>
-            <div class="kpi"><b>${doneYear}</b><span>прочитано в ${year}</span></div>
-          </div></section>
+          </div>
+          <div class="goal-y"><div class="row between"><span>Цель на ${year}: <b>${doneYear} из ${goalY}</b> ${B.plural(goalY, 'книги', 'книг', 'книг')}</span><button class="btn sm ghost" data-act="bookGoal">изменить</button></div>
+            ${B.bar(doneYear / goalY)}<p class="hint">${(() => { const d0 = B.parse(year + '-01-01'), n = Math.max(1, Math.round((B.parse(t) - d0) / 864e5)), pace = goalY * n / 365; return doneYear >= goalY ? 'Цель года выполнена.' : doneYear >= pace ? 'Идёшь с опережением графика.' : `По графику сейчас было бы ${Math.floor(pace)}.`; })()}</p></div>
+          </section>
         </div>
         <div class="col">
           <section class="card">
             <div class="toggle wide">${[['reading', 'Читаю'], ['want', 'Хочу'], ['done', 'Прочитано']].map(([k, l]) => `<button class="${shelf === k ? 'on' : ''}" data-act="shelf" data-k="${k}">${l} <span class="muted">${books.filter(b => b.status === k).length}</span></button>`).join('')}</div>
-            <div class="shelf">${list.map(b => bookCard(b, ss)).join('') || `<p class="empty">${shelf === 'want' ? 'Добавь книги, которые давно хотел прочитать.' : shelf === 'done' ? 'Здесь будут прочитанные книги.' : 'Сейчас ничего не читаешь. Добавь книгу.'}</p>`}</div>
+            <div class="shelf">${shelf === 'done' ? yearsView(list, ss) : list.map(b => bookCard(b, ss)).join('') || `<p class="empty">${shelf === 'want' ? 'Добавь книги, которые давно хотел прочитать.' : shelf === 'done' ? 'Здесь будут прочитанные книги.' : 'Сейчас ничего не читаешь. Добавь книгу.'}</p>`}</div>
           </section>
         </div>
       </div>
@@ -88,6 +99,12 @@ B.views.read = {
   }
 };
 setInterval(() => { const el = document.getElementById('rtClock'); if (el && RT) el.textContent = Math.floor((Date.now() - RT.startAt) / 60000) + ' мин'; }, 15000);
+B.acts.bookGoal = async () => {
+  const v = await B.dialog(`<h3>Сколько книг за год</h3><label class="field">Цель<input id="bgN" type="number" min="1" max="200" value="${B.cfg().bookGoal || 12}" autofocus></label>
+    <div class="row end"><button class="btn ghost" data-act="dlgNo">Отмена</button><button class="btn primary" data-act="bgOk">Сохранить</button></div>`);
+  if (v) B.setCfg({bookGoal: v});
+};
+B.acts.bgOk = () => { const v = +B.$('#bgN').value; if (v > 0) B.closeDialog(v); };
 B.acts.shelf = el => { shelf = el.dataset.k; B.render(); };
 B.acts.readLog = el => {
   const min = el.dataset.m ? +el.dataset.m : +B.$('#rMin').value;

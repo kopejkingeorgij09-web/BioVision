@@ -260,7 +260,8 @@ B.nextStep = t => (t.subs || []).find(s => !s.done);
    план утром +10, каждое из главных дел +15, любая задача +5 (важная +8), шаг большого дела +4,
    помидор от 20 минут +10 (короткий старт на 5 минут +3), привычка +10, чтение +1 за 3 минуты (до 40), тренировка +25, вечерний разбор +20,
    мысль в дневнике +5 (до трёх), стадия веба ШАДа +15, перенос задачи −3.
-   Прошедший день «закрыт», если был план, сделано не меньше двух главных дел (или все, если их меньше) и написан разбор.
+   Прошедший день «закрыт», если был план, сделано не меньше двух главных дел (или все, если их меньше) и написан разбор
+   с выбранными главными делами на завтра. Минимальная версия привычки даёт половину опыта.
    Закрытый день добавляет к серии и даёт бонус 5 × серия (до 50). Незакрытый день: −50 и серия с нуля.
    Раз в неделю провал прощается автоматически («заморозка»): серия стоит, штрафа нет. */
 B.XP = {plan: 10, top: 15, task: 5, taskP1: 8, sub: 4, pomo: 10, habit: 10, readPer: 3, readMax: 40, sport: 25, review: 20, note: 5, shad: 15, postpone: -3, fail: -50};
@@ -282,15 +283,24 @@ B.xpForHeight = h => {
   for (let k = 1; k < L; k++) xp += B.need(k);
   return xp + (lv - L) * B.need(L);
 };
-B.habitDone = (h, date) => {
-  if (h.auto === 'read') return B.readMin(date) >= (h.min || 30);
-  if (h.auto === 'sport') return sportSet().has(date);
-  const d = B.day(date);
-  return !!(d.h && d.h[h.id]);
+/* 1 — привычка выполнена, 0.5 — минимальная версия (держит серию, половина опыта), 0 — нет */
+B.habitVal = (h, date) => {
+  if (h.auto === 'read'){
+    const m = B.readMin(date);
+    if (m >= (h.min || 30)) return 1;
+    return h.mini && m >= (h.miniMin || 10) ? 0.5 : 0;
+  }
+  if (h.auto === 'sport') return sportSet().has(date) ? 1 : 0;
+  const d = B.day(date), v = d.h && d.h[h.id];
+  return v ? (v === 0.5 ? 0.5 : 1) : 0;
 };
+B.habitDone = (h, date) => B.habitVal(h, date) > 0;
 let sportMemo = null, sportVer = -1;
 function sportSet(){ if (sportVer !== B.ver){ sportMemo = new Set(B.list('w_').map(w => w.date)); sportVer = B.ver; } return sportMemo; }
 B.hasReview = d => !!(d.review && ((d.review.done || '').trim() || (d.review.why || '').trim()));
+/* разбор засчитан, когда написан текст и выбраны главные дела на завтра */
+B.planned = date => (B.day(date).top || []).some(id => B.task(id));
+B.reviewDone = date => B.hasReview(B.day(date)) && B.planned(B.add(date, 1));
 
 let memo = null, memoKey = '';
 B.calc = () => {
@@ -327,18 +337,20 @@ B.calc = () => {
     let hab = 0;
     habits.forEach(h => {
       if (h.created && date < h.created) return;
-      if (!B.habitDone(h, date)) return;
+      const hv = B.habitVal(h, date);
+      if (!hv) return;
       if (h.kind === 'weekly'){
         const k = h.id + ws; weekHab[k] = (weekHab[k] || 0) + 1;
         if (weekHab[k] > (h.target || 3)) return;
       }
-      hab++;
+      hab += hv;
     });
-    if (hab) p.habits = hab * B.XP.habit;
+    if (hab) p.habits = Math.round(hab * B.XP.habit);
     const rm = (d.read || []).reduce((a, r) => a + (r.min || 0), 0);
     if (rm) p.read = Math.min(B.XP.readMax, Math.floor(rm / B.XP.readPer));
     if (sportBy[date]) p.sport = Math.min(2, sportBy[date].length) * B.XP.sport;
-    if (B.hasReview(d)) p.review = B.XP.review;
+    const rvOk = B.reviewDone(date);
+    if (rvOk) p.review = B.XP.review;
     if (d.notes && d.notes.length) p.notes = Math.min(3, d.notes.length) * B.XP.note;
     if (shadBy[date]) p.shad = shadBy[date].reduce((a, s) => a + s, 0) * B.XP.shad;
     if (postBy[date]) p.postpone = postBy[date].length * B.XP.postpone;
@@ -347,7 +359,7 @@ B.calc = () => {
     let result = 'open', bonus = 0;
     const topDone = top.filter(t => t.done && t.doneAt && B.dayOf(t.doneAt) <= date).length;
     const needTop = Math.min(2, top.length);
-    const ok = top.length > 0 && topDone >= needTop && B.hasReview(d);
+    const ok = top.length > 0 && topDone >= needTop && rvOk;
     if (date < today){
       if (ok){ result = 'good'; streak++; goods++; bonus = Math.min(50, 5 * streak); }
       else if (!weekUsed[ws]){ result = 'frozen'; weekUsed[ws] = true; frozen++; }
@@ -358,7 +370,7 @@ B.calc = () => {
     xp += bonus;
     xpAll += Math.max(0, xp);
     total = Math.max(0, total + xp);
-    days[date] = {xp, p, result, total, top: top.length, topDone, needTop, review: B.hasReview(d)};
+    days[date] = {xp, p, result, total, top: top.length, topDone, needTop, review: rvOk, reviewText: B.hasReview(d)};
   }
   // уровень и высота
   const {L, rem, frac, height} = B.levelOf(total);

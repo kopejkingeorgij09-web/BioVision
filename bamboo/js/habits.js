@@ -35,7 +35,8 @@ function heat(h){
   let cells = '';
   for (let i = 0; i < 84; i++){
     const d = B.add(start, i);
-    const cls = d > t ? 'fut' : d < from ? 'pre' : B.habitDone(h, d) ? 'on' : 'off';
+    const v = d <= t && d >= from ? B.habitVal(h, d) : 0;
+    const cls = d > t ? 'fut' : d < from ? 'pre' : v === 1 ? 'on' : v ? 'half' : 'off';
     cells += `<i class="${cls}" title="${B.fmtW(d)}"></i>`;
   }
   return `<div class="heat">${cells}</div>`;
@@ -43,8 +44,8 @@ function heat(h){
 function last7(h){
   const t = B.today();
   return `<div class="week7">${Array.from({length: 7}, (_, i) => B.add(t, i - 6)).map(d => {
-    const on = B.habitDone(h, d), can = !h.auto && B.diff(d, t) <= 2 && d >= (h.created || '');
-    return `<button class="d7 ${on ? 'on' : ''} ${d === t ? 'now' : ''}" ${can ? `data-act="habitToggle" data-id="${h.id}" data-d="${d}"` : 'disabled'} title="${B.fmtW(d)}"><span>${B.WD[B.wd(d)]}</span><i>${on ? icon('check') : ''}</i></button>`;
+    const hv = B.habitVal(h, d), on = hv > 0, can = !h.auto && B.diff(d, t) <= 2 && d >= (h.created || '');
+    return `<button class="d7 ${on ? 'on' : ''} ${hv === 0.5 ? 'half' : ''} ${d === t ? 'now' : ''}" ${can ? `data-act="habitToggle" data-id="${h.id}" data-d="${d}"` : 'disabled'} title="${B.fmtW(d)}"><span>${B.WD[B.wd(d)]}</span><i>${on ? icon('check') : ''}</i></button>`;
   }).join('')}</div>`;
 }
 
@@ -81,7 +82,7 @@ B.views.habits = {
             <ul class="plain dots">
               <li>Отметить можно сегодня и два прошлых дня. Дальше история не правится, чтобы статистика была честной.</li>
               <li>Чтение отмечается само, когда за день набралось нужное число минут. Тренировка, когда она записана.</li>
-              <li>Каждая выполненная привычка даёт ${B.XP.habit} XP. Для недельной считаются только первые N раз.</li>
+              <li>Каждая выполненная привычка даёт ${B.XP.habit} XP, минимальная версия вдвое меньше. Для недельной считаются только первые N раз.</li>
             </ul>
           </section>
         </div>
@@ -91,7 +92,7 @@ B.views.habits = {
 };
 
 function habitForm(h){
-  h = h || {name: '', icon: 'habit', kind: 'daily', target: 3, auto: '', min: 30};
+  h = h || {name: '', icon: 'habit', kind: 'daily', target: 3, auto: '', min: 30, mini: ''};
   return `<h2>${h.id ? 'Привычка' : 'Новая привычка'}</h2>
     <label class="field">Название<input id="hName" value="${esc(h.name)}" placeholder="Например, Зарядка 10 минут" autofocus></label>
     <div class="field">Иконка<div class="icons">${ICONS.map(i => `<label class="ipick"><input type="radio" name="hIcon" value="${i}" ${h.icon === i ? 'checked' : ''}><i>${icon(i)}</i></label>`).join('')}</div></div>
@@ -101,6 +102,9 @@ function habitForm(h){
       <label>Отмечать<select id="hAuto"><option value="">Вручную</option><option value="read" ${h.auto === 'read' ? 'selected' : ''}>По чтению</option><option value="sport" ${h.auto === 'sport' ? 'selected' : ''}>По тренировке</option></select></label>
       <label>Минут чтения<input id="hMin" type="number" min="1" max="600" value="${h.min || 30}"></label>
     </div>
+    <label class="field">Минимальная версия на плохой день<input id="hMini" value="${esc(h.mini || '')}" placeholder="${h.auto === 'read' ? 'Например: 10 минут' : 'Например: 5 отжиманий'}"></label>
+    ${h.auto === 'read' ? `<label class="field">Сколько минут чтения считать минимумом<input id="hMiniMin" type="number" min="1" max="120" value="${h.miniMin || 10}"></label>` : ''}
+    <p class="hint">Минимум держит серию, но даёт половину опыта. Второе нажатие на отмеченную привычку переключает её на минимум. Для чтения минимум засчитывается сам по минутам.</p>
     <div class="row between">${h.id ? `<button class="btn ghost danger" data-act="habitDel" data-id="${h.id}">${icon('trash')} В архив</button>` : '<span></span>'}
       <button class="btn primary" data-act="habitSave" data-id="${h.id || ''}">Сохранить</button></div>`;
 }
@@ -110,7 +114,7 @@ B.acts.habitSave = el => {
   const name = B.$('#hName').value.trim(); if (!name) return;
   const id = el.dataset.id || B.uid(), old = B.get('h_' + id) || {id, created: B.today(), order: B.habits().length};
   const kind = B.$('#hKind').value, auto = B.$('#hAuto').value;
-  B.put('h_' + id, Object.assign({}, old, {name, icon: (B.$('input[name=hIcon]:checked') || {}).value || 'habit', kind, target: B.clamp(+B.$('#hTarget').value || 3, 1, 7), auto: auto || undefined, min: B.clamp(+B.$('#hMin').value || 30, 1, 600)}));
+  B.put('h_' + id, Object.assign({}, old, {name, icon: (B.$('input[name=hIcon]:checked') || {}).value || 'habit', kind, target: B.clamp(+B.$('#hTarget').value || 3, 1, 7), auto: auto || undefined, min: B.clamp(+B.$('#hMin').value || 30, 1, 600), mini: B.$('#hMini').value.trim() || undefined, miniMin: B.$('#hMiniMin') ? B.clamp(+B.$('#hMiniMin').value || 10, 1, 120) : (old.miniMin || 10)}));
   B.closeSheet();
 };
 B.acts.habitDel = async el => {

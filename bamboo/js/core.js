@@ -142,7 +142,7 @@ function seed(){
   mk('p_life', {id: 'life', name: 'Личное', color: 'amber', order: 5});
   mk('h_read', {id: 'read', name: 'Чтение', icon: 'book', kind: 'daily', auto: 'read', min: 30, order: 0, created: t});
   mk('h_sport', {id: 'sport', name: 'Тренировка', icon: 'run', kind: 'weekly', target: 3, auto: 'sport', order: 1, created: t});
-  mk('h_sleep', {id: 'sleep', name: 'Сон до 00:00', icon: 'moon', kind: 'daily', order: 2, created: t});
+  mk('h_sleep', {id: 'sleep', name: 'Сон до 00:00', icon: 'moon', kind: 'daily', auto: 'night', order: 2, created: t});
   lsSave(); changed();
   if (db) flushAll();
 }
@@ -261,7 +261,7 @@ B.nextStep = t => (t.subs || []).find(s => !s.done);
    план утром +10, каждое из главных дел +15, любая задача +5 (важная +8), шаг большого дела +4,
    помидор от 20 минут +10 (короткий старт на 5 минут +3), привычка +10, чтение +1 за 3 минуты (до 40), тренировка +25, вечерний разбор +20,
    мысль в дневнике +5 (до трёх), стадия веба ШАДа +15, перенос задачи −3.
-   Прошедший день «закрыт», если был план, сделано не меньше двух главных дел (или все, если их меньше) и написан разбор
+   Прошедший день «закрыт», если в плане было хотя бы два главных дела, два из них сделаны и написан разбор
    с выбранными главными делами на завтра. Минимальная версия привычки даёт половину опыта.
    Закрытый день добавляет к серии и даёт бонус 5 × серия (до 50). Незакрытый день: −50 и серия с нуля.
    Раз в неделю провал прощается автоматически («заморозка»): серия стоит, штрафа нет. */
@@ -292,6 +292,11 @@ B.habitVal = (h, date) => {
     return h.mini && m >= (h.miniMin || 10) ? 0.5 : 0;
   }
   if (h.auto === 'sport') return sportSet().has(date) ? 1 : 0;
+  if (h.auto === 'night'){
+    // разбор начат до полуночи того же календарного дня
+    const r = B.day(date).review, f = r && (r.first || r.at);
+    return f && B.hasReview(B.day(date)) && B.ymd(new Date(f)) === date ? 1 : 0;
+  }
   const d = B.day(date), v = d.h && d.h[h.id];
   return v ? (v === 0.5 ? 0.5 : 1) : 0;
 };
@@ -318,7 +323,7 @@ B.calc = () => {
   const key = B.ver + '|' + today;
   if (memo && memoKey === key) return memo;
   const cfg = B.cfg(), start = cfg.start || today;
-  const tasks = B.tasks(), habits = B.habits();
+  const tasks = B.tasks(), habits = B.list('h_');   // и архивные: опыт до дня архивации остаётся
   const doneBy = {}, subBy = {}, postBy = {}, sportBy = {}, shadBy = {};
   const push = (o, k, v) => (o[k] = o[k] || []).push(v);
   tasks.forEach(t => {
@@ -347,6 +352,7 @@ B.calc = () => {
     let hab = 0;
     habits.forEach(h => {
       if (h.created && date < h.created) return;
+      if (h.arch && h.archAt && date >= h.archAt) return;
       const hv = B.habitVal(h, date);
       if (!hv) return;
       if (h.kind === 'weekly'){
@@ -368,8 +374,8 @@ B.calc = () => {
     let xp = 0; for (const k in p) xp += p[k];
     let result = 'open', bonus = 0;
     const topDone = top.filter(t => t.done && t.doneAt && B.dayOf(t.doneAt) <= date).length;
-    const needTop = Math.min(2, top.length);
-    const ok = top.length > 0 && topDone >= needTop && rvOk;
+    const needTop = 2;                                  // в плане минимум два дела, сделать нужно два
+    const ok = top.length >= 2 && topDone >= needTop && rvOk;
     if (date < today){
       if (ok){ result = 'good'; streak++; goods++; bonus = Math.min(50, 5 * streak); }
       else if (!weekUsed[ws]){ result = 'frozen'; weekUsed[ws] = true; frozen++; }

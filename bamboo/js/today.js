@@ -29,17 +29,17 @@ function yesterdayNote(c){
   if (!r) return '';
   if (r.result === 'good') return `<div class="note good">${icon('leaf')}<div><b>Вчера день закрыт.</b> ${r.xp > 0 ? '+' + r.xp + ' XP, ' : ''}серия ${c.streak} ${B.plural(c.streak, 'день', 'дня', 'дней')}. Держи темп.</div></div>`;
   if (r.result === 'frozen') return `<div class="note frozen">${icon('moon')}<div><b>Вчера день не закрыт, сработала заморозка недели.</b> Серия сохранена, но следующий провал на этой неделе уже со штрафом. <a href="#/journal/${y}">Что помешало?</a></div></div>`;
-  if (r.result === 'fail') return `<div class="note bad">${icon('leaf')}<div><b>Вчера день не закрыт: ${B.XP.fail} XP, на бамбуке сухой лист.</b> ${!r.top ? 'Не было плана.' : r.topDone < r.needTop ? `Главных дел сделано ${r.topDone} из ${r.top}.` : ''} ${!r.review ? 'Не написан разбор.' : ''} <a href="#/journal/${y}">Разобрать вчера</a></div></div>`;
+  if (r.result === 'fail') return `<div class="note bad">${icon('leaf')}<div><b>Вчера день не закрыт: ${B.XP.fail} XP, на бамбуке сухой лист.</b> ${!r.top ? 'Не было плана.' : r.top < 2 ? 'В плане было меньше двух дел.' : r.topDone < 2 ? `Главных дел сделано ${r.topDone} из ${r.top}.` : ''} ${!r.review ? 'Не написан разбор.' : ''} <a href="#/journal/${y}">Разобрать вчера</a></div></div>`;
   return '';
 }
 
 function steps(c, d){
   const r = c.days[c.today] || {top: 0, topDone: 0, needTop: 0};
-  const daily = B.habits().filter(h => h.kind !== 'weekly');
+  const daily = B.habits().filter(h => h.kind !== 'weekly'), weekly = B.habits().filter(h => h.kind === 'weekly');
   const hd = daily.filter(h => B.habitDone(h, c.today)).length;
   const st = [
-    {ok: r.top > 0 && r.topDone >= r.needTop, label: 'Главное', sub: r.top ? `${r.topDone}/${r.needTop}` : 'нет плана'},
-    {ok: daily.length > 0 && hd === daily.length, label: 'Привычки', sub: `${hd}/${daily.length}`, soft: true},
+    {ok: r.top >= 2 && r.topDone >= 2, label: 'Главное', sub: !r.top ? 'нет плана' : r.top < 2 ? 'нужно 2 дела' : `${r.topDone}/2`},
+    {ok: daily.length > 0 && hd === daily.length, label: 'Ежедневные', sub: `${hd}/${daily.length}`, soft: true},
     {ok: B.reviewDone(c.today), label: 'Разбор', sub: B.reviewDone(c.today) ? 'есть' : B.hasReview(d) ? 'нет плана' : 'вечером'}
   ];
   const must = st.filter(s => !s.soft), done = must.filter(s => s.ok).length;
@@ -47,7 +47,9 @@ function steps(c, d){
     <div class="row between"><h2>День закрыт на ${Math.round(done / must.length * 100)}%</h2><span class="muted mono">${r.xp > 0 ? '+' : ''}${(c.days[c.today] || {}).xp || 0} XP сегодня</span></div>
     ${B.bar(done / must.length, 'day')}
     <ol class="steps s3">${st.map(s => `<li class="${s.ok ? 'ok' : ''}"><i>${s.ok ? icon('check') : ''}</i><b>${s.label}</b><span>${s.sub}</span></li>`).join('')}</ol>
-    <p class="hint">Для закрытия дня нужны план, два главных дела из трёх и вечерний разбор с планом на завтра. Привычки дают опыт отдельно.</p>
+    ${weekly.length ? `<div class="wk-line">${weekly.map(h => { let k = 0; const ws = B.weekStart(c.today); for (let i = 0; i < 7; i++) if (B.habitDone(h, B.add(ws, i))) k++;
+      return `<span class="${k >= (h.target || 3) ? 'ok' : ''}">${icon(h.icon || 'habit')}${esc(h.name)} на неделе <b>${k}/${h.target || 3}</b></span>`; }).join('')}</div>` : ''}
+    <p class="hint">День закрывают два сделанных главных дела (в плане хотя бы два) и вечерний разбор с планом на завтра. Привычки дают опыт отдельно.</p>
   </section>`;
 }
 
@@ -79,7 +81,7 @@ function dayCard(c, d){
   return `<section class="card plan">
     <div class="row between"><h2>${icon('star')}Главное сегодня ${top.length && !editing ? `<span class="muted">${done}/${top.length}</span>` : ''}</h2>
       ${top.length ? `<button class="btn sm ghost" data-act="${editing ? 'planDone' : 'planEdit'}">${editing ? 'Готово' : 'Изменить'}</button>` : ''}</div>
-    ${editing ? B.planPicker(t, top.length ? '' : 'До трёх главных дел. Первое самое неприятное, его делаешь до обеда. Допиши, когда и где сядешь за каждое.')
+    ${editing ? B.planPicker(t, top.length ? '' : 'Два-три главных дела. Первое самое неприятное, его делаешь до обеда. Допиши, когда и где сядешь за каждое.')
       : `<div class="tasks">${top.map((x, i) => B.taskRow(x, {frog: i === 0 && !x.done, cls: 'top', when: when[x.id]})).join('')}</div>`}
     <div class="sub-h row between"><span>Остальные дела</span>${late ? `<span class="tag late">${late} просрочено</span>` : ''}</div>
     <div class="add-line quick"><input id="quickToday" placeholder="Добавить дело на сегодня" data-enter="quickToday"><button class="btn sm" data-act="quickToday">${icon('plus')}</button></div>
@@ -153,14 +155,15 @@ B.habitChip = (h, date) => {
   let sub = '';
   if (h.auto === 'read'){ const m = B.readMin(date); sub = `${m}/${h.min || 30} мин`; }
   else if (h.kind === 'weekly'){ const ws = B.weekStart(date); let k = 0; for (let i = 0; i < 7; i++) if (B.habitDone(h, B.add(ws, i))) k++; sub = `${k}/${h.target || 3} за неделю`; }
-  const act = h.auto === 'read' ? 'data-act="readQuick"' : h.auto === 'sport' ? 'data-act="sportQuick"' : '';
+  const act = h.auto === 'read' ? 'data-act="readQuick"' : h.auto === 'sport' ? 'data-act="sportQuick"' : h.auto === 'night' ? 'href="#/journal"' : '';
+  if (h.auto === 'night' && !done) sub = new Date().getHours() < 4 || date < B.today() ? 'разбор не до полуночи' : 'разбор до 00:00';
   if (val === 0.5) sub = 'минимум' + (h.mini ? ': ' + esc(h.mini) : '');
   else if (!done && h.mini && !h.auto) sub = 'хотя бы: ' + esc(h.mini);
   return `<${act.startsWith('href') ? 'a' : 'button'} class="hchip ${done ? 'on' : ''} ${val === 0.5 ? 'half' : ''}" ${act || `data-act="habitToggle" data-id="${h.id}" data-d="${date}"`}>
     <i>${done ? icon('check') : icon(h.icon || 'habit')}</i><span><b>${esc(h.name)}</b>${sub ? `<small>${sub}</small>` : ''}</span></${act.startsWith('href') ? 'a' : 'button'}>`;
 };
 /* чтение одним нажатием: дописывает минуты до цели дня (по умолчанию 30) к книге, которую читаешь */
-B.acts.readQuick = () => {
+B.acts.readQuick = async () => {
   const t = B.today(), h = B.get('h_read') || {}, goal = h.min || B.cfg().readGoal || 30;
   if (B.readMin(t) >= goal){
     // второе нажатие отменяет: сначала убираем минуты, добавленные этой кнопкой, иначе последнюю запись
@@ -169,25 +172,21 @@ B.acts.readQuick = () => {
     B.toast(`Чтение отменено: −${gone} мин`);
     return;
   }
-  const add = Math.max(1, goal - B.readMin(t)), book = B.books().find(b => b.status === 'reading');
-  B.editDay(t, d => { d.read = (d.read || []).concat({book: book ? book.id : null, min: add, at: Date.now(), quick: true}); });
-  B.toast(`<b class="pos">+${add} мин чтения</b>${book ? ' · ' + esc(book.title) : ''}`);
+  const add = Math.max(1, goal - B.readMin(t)), reading = B.books().filter(b => b.status === 'reading');
+  const log = book => {
+    B.editDay(t, d => { d.read = (d.read || []).concat({book: book ? book.id : null, min: add, at: Date.now(), quick: true}); });
+    B.toast(`<b class="pos">+${add} мин чтения</b>${book ? ' · ' + esc(book.title) : ''}`);
+  };
+  if (reading.length <= 1) return log(reading[0]);
+  const pick = await B.dialog(`<h3>Что читал?</h3><div class="pick-list">${reading.map(b => `<button class="pick" data-act="readPick" data-id="${b.id}"><span class="grow">${esc(b.title)}</span><span class="muted">${esc(b.author || '')}</span></button>`).join('')}
+    <button class="pick" data-act="readPick" data-id="">Другое</button></div>
+    <div class="row end"><button class="btn ghost" data-act="dlgNo">Отмена</button></div>`);
+  if (pick === false || pick == null) return;
+  log(pick ? B.get('b_' + pick) : null);
 };
-/* тренировка одним нажатием: отметка «Дома» на сегодня; второе нажатие снимает её */
-B.acts.sportQuick = async () => {
-  const t = B.today(), today = B.workouts().filter(w => w.date === t);
-  if (!today.length){
-    const id = B.uid();
-    B.put('w_' + id, {id, date: t, type: 'home', min: 0, ex: [], feel: 0, at: Date.now(), quick: true});
-    B.toast(`<b class="pos">Тренировка отмечена</b> · <a href="#/sport">записать подходы</a>`, 4000);
-    return;
-  }
-  const quick = today.filter(w => w.quick && !(w.ex || []).length);
-  if (quick.length){ quick.forEach(w => B.put('w_' + w.id, null)); B.toast('Отметка тренировки снята'); return; }
-  if (!(await B.confirm(`Сегодня записана тренировка${today.length > 1 ? ' (' + today.length + ')' : ''} с подходами. Удалить её, чтобы снять отметку?`, 'Удалить', true))) return;
-  today.forEach(w => B.put('w_' + w.id, null));
-  B.toast('Тренировка удалена');
-};
+B.acts.readPick = el => B.closeDialog(el.dataset.id);
+/* тренировка одним нажатием, второе нажатие снимает */
+B.acts.sportQuick = () => B.toggleSport(B.today());
 /* нажатие: нет ↔ сделано; долгое нажатие ставит минимальную версию (если она задана) */
 let lpT = 0, lpDone = false;
 document.addEventListener('pointerdown', e => {
@@ -288,8 +287,15 @@ B.views.today = {
 
 /* план дня */
 const pdate = el => el.dataset.d || B.today();
-B.acts.topAdd = el => {
+B.acts.topAdd = async el => {
   const t = pdate(el); let n = 0;
+  const tk0 = B.task(el.dataset.id);
+  // просроченное дело в план на более поздний день — это перенос, нужна причина
+  if (tk0 && !tk0.done && tk0.due && tk0.due < B.today() && t > tk0.due){
+    const why = await B.askReason(tk0, t); if (!why) return;
+    B.updTask(tk0.id, {due: t, postpones: (tk0.postpones || []).concat({from: tk0.due, to: t, why, at: Date.now()})}, true);
+    B.xpToast(B.XP.postpone, 'за перенос');
+  }
   B.editDay(t, d => { d.top = (d.top || []).filter(id => B.task(id)); if (d.top.length < 3 && !d.top.includes(el.dataset.id)) d.top.push(el.dataset.id); d.planAt = d.planAt || Date.now(); n = d.top.length; });
   const tk = B.task(el.dataset.id);
   if (tk && (!tk.due || tk.due < t)) B.updTask(tk.id, {due: t});

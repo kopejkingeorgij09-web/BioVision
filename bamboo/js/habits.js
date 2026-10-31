@@ -81,7 +81,7 @@ B.views.habits = {
           <section class="card"><h2>${icon('leaf')}Как это работает</h2>
             <ul class="plain dots">
               <li>Отметить можно сегодня и два прошлых дня. Дальше история не правится, чтобы статистика была честной.</li>
-              <li>Чтение отмечается само, когда за день набралось нужное число минут. Тренировка, когда она записана.</li>
+              <li>Чтение отмечается само, когда за день набралось нужное число минут. Тренировка, когда она отмечена. Сон до 00:00, когда разбор в дневнике начат до полуночи.</li>
               <li>Каждая выполненная привычка даёт ${B.XP.habit} XP, минимальная версия вдвое меньше. Для недельной считаются только первые N раз.</li>
             </ul>
           </section>
@@ -103,15 +103,16 @@ function formHtml(){
     <label class="field">Название<input id="hName" value="${esc(h.name)}" placeholder="Например, Зарядка 10 минут" ${h.id ? '' : 'autofocus'}></label>
     <div class="field">Иконка<div class="icons">${ICONS.map(i => `<label class="ipick"><input type="radio" name="hIcon" value="${i}" ${h.icon === i ? 'checked' : ''}><i>${icon(i)}</i></label>`).join('')}</div></div>
     <div class="ed-grid">
-      <label>Отмечать<select id="hAuto" data-in="hfRedraw"><option value="">Вручную</option><option value="read" ${read ? 'selected' : ''}>По минутам чтения</option><option value="sport" ${sport ? 'selected' : ''}>По записи тренировки</option></select></label>
+      <label>Отмечать<select id="hAuto" data-in="hfRedraw"><option value="">Вручную</option><option value="read" ${read ? 'selected' : ''}>По минутам чтения</option><option value="sport" ${sport ? 'selected' : ''}>По отметке тренировки</option><option value="night" ${h.auto === 'night' ? 'selected' : ''}>По разбору до 00:00</option></select></label>
       <label>Как часто<select id="hKind" data-in="hfRedraw"><option value="daily" ${h.kind !== 'weekly' ? 'selected' : ''}>Каждый день</option><option value="weekly" ${h.kind === 'weekly' ? 'selected' : ''}>Несколько раз в неделю</option></select></label>
       ${h.kind === 'weekly' ? `<label>Сколько раз в неделю<input id="hTarget" type="number" min="1" max="7" value="${h.target || 3}"></label>` : ''}
       ${read ? `<label>Цель, минут в день<input id="hMin" type="number" min="1" max="600" value="${h.min || 30}"></label>
         <label>Минимум, минут<input id="hMiniMin" type="number" min="1" max="120" value="${h.miniMin || 10}"></label>` : ''}
     </div>
-    ${!read && !sport ? `<label class="field">Минимальная версия на плохой день<input id="hMini" value="${esc(h.mini || '')}" placeholder="Например: 5 отжиманий или лечь до 00:30"></label>` : ''}
+    ${!h.auto ? `<label class="field">Минимальная версия на плохой день<input id="hMini" value="${esc(h.mini || '')}" placeholder="Например: 5 отжиманий или лечь до 00:30"></label>` : ''}
     <p class="hint">${read ? 'Отмечается сама, когда за день набралась цель. Если прочитал меньше цели, но не меньше минимума, засчитывается минимум: серия держится, опыт вдвое меньше.'
-      : sport ? 'Отмечается сама в день, когда записана тренировка. На главной её можно отметить и одним нажатием.'
+      : sport ? 'Отмечается сама в день, когда отмечена тренировка: на главной или в разделе «Спорт».'
+      : h.auto === 'night' ? 'Засчитывается сама, если вечерний разбор в дневнике начат до полуночи.'
       : 'Нажатие на привычку ставит и снимает отметку. Если задан минимум, его ставит долгое нажатие: серия держится, опыт вдвое меньше.'}</p>
     <div class="row between">${h.id ? `<button class="btn ghost danger" data-act="habitDel" data-id="${h.id}">${icon('trash')} В архив</button>` : '<span></span>'}
       <button class="btn primary" data-act="habitSave" data-id="${h.id || ''}">Сохранить</button></div>`;
@@ -150,7 +151,7 @@ B.acts.habitSave = el => {
 B.acts.habitDel = async el => {
   const h = B.get('h_' + el.dataset.id);
   if (!(await B.confirm(`Убрать «${esc(h.name)}» в архив? История отметок останется.`, 'В архив', true))) return;
-  B.put('h_' + h.id, Object.assign({}, h, {arch: true})); B.closeSheet();
+  B.put('h_' + h.id, Object.assign({}, h, {arch: true, archAt: B.today()})); B.closeSheet();
 };
 
 /* ---------- подсказки по правилам ---------- */

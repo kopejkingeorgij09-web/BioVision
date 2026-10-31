@@ -81,30 +81,45 @@ const NAMES={F:['Уголёк','Пыл','Зной','Искра','Жар'],W:['К
 const nameFor=(g,seed)=>pick(rng(seed),NAMES[elementsOf(g)[0]]);
 
 /* ---------- уровень и Академия ---------- */
-const LVL_MAX=50,FEEDS=4;
-const lk=l=>1+0.06*((l||1)-1);                         /* рост характеристик с уровнем: ×3,94 на 50-м */
-const feedCost=l=>Math.round(5+3*(l-1)+0.15*(l-1)*(l-1)); /* корм за одно кормление на уровне l */
-/* бакалавриат: четыре общих курса по порядку; магистратура: три ступени по каждой стихии дракона */
+const LVL_MAX=40,FEEDS=4;
+/* Уровень дракона зависит только от корма. Корм дают карточки, фермы (за золото) и бои, поэтому рост измеряется
+   активностью, а не днями: при очень активной игре до 20-го уровня можно дойти за пару дней. */
+const lk=l=>1+0.08*((l||1)-1);                         /* рост характеристик с уровнем: ×4,12 на 40-м */
+const feedCost=l=>Math.round(30*Math.pow(1.15,(l||1)-1)); /* корм за одно кормление на уровне l: каждый уровень на 15 % дороже */
+const foodTo=(from,to)=>{let x=0;for(let l=from;l<to;l++)x+=FEEDS*feedCost(l);return x};
+/* Академия. Бакалавриат с 10-го уровня: четыре общих курса по порядку.
+   Магистратура с 15-го: три ступени по каждой стихии дракона.
+   Аспирантура с 25-го, после полной магистратуры хотя бы по одной стихии: одна диссертация на дракона. */
 const BACH=[
-  {id:'fly',  name:'Полёт',       text:'+10 % к скорости полёта', lvl:5, gold:400,  h:2},
-  {id:'fury', name:'Натиск',      text:'+10 % к атаке',           lvl:10,gold:1200, h:4},
-  {id:'armor',name:'Броня',       text:'−10 % получаемого урона', lvl:15,gold:3000, h:8},
-  {id:'stam', name:'Выносливость',text:'+10 % к здоровью',        lvl:20,gold:6000, h:12}];
-const MAG=[{lvl:25,gold:12000,h:16},{lvl:32,gold:25000,h:24},{lvl:40,gold:50000,h:36}];
+  {id:'fly',  name:'Полёт',       text:'+10 % к скорости полёта', lvl:10,gold:400,  h:2},
+  {id:'fury', name:'Натиск',      text:'+10 % к атаке',           lvl:11,gold:1200, h:4},
+  {id:'armor',name:'Броня',       text:'−10 % получаемого урона', lvl:12,gold:3000, h:8},
+  {id:'stam', name:'Выносливость',text:'+10 % к здоровью',        lvl:13,gold:6000, h:12}];
+const MAG=[{lvl:15,gold:10000,h:16},{lvl:20,gold:25000,h:24},{lvl:25,gold:50000,h:36}];
 const MAG_ATK=0.08;                                    /* ступень магистратуры: +8 % к урону этой стихией и способность на ступень сильнее */
+const ASP={lvl:25,gold:120000,h:48,text:'+10 % к здоровью и атаке, способности перезаряжаются на 20 % быстрее'};
 const bachDone=d=>(d.acad&&d.acad.b)||0;
 const magRank=(d,e)=>(d.acad&&d.acad.m&&d.acad.m[e])||0;
+const aspDone=d=>!!(d.acad&&d.acad.asp);
+/* суперудар: с 30-го уровня у редких, эпических и мифических. Смесь всех стихий дракона, раз в 15 секунд в бою.
+   Урон: атака × (2 + 0,5 за каждую стихию сверх первой), стихийный множитель — среднее по стихиям дракона против цели */
+const SUPER_LVL=30,SUPER_CD=15;
+const AB_CD=20;                                        /* перезарядка обычной способности стихии, секунды */
 
 /* ---------- характеристики и сила ----------
    Сила = база стихий × множитель редкости × рост по уровню × бонус Академии.
    База гибрида — среднее по его стихиям, поэтому стихии не складываются в «самую сильную»: силу даёт редкость. */
-function stats(d){const els=elementsOf(d.g),n=els.length,avg=k=>els.reduce((x,e)=>x+EL[e][k],0)/n,b=bachDone(d),k=RMULT[n-1]*lk(d.lvl);
-  return {els,rar:n-1,hp:avg('hp')*k*(b>=4?1.1:1),atk:avg('atk')*k*(b>=2?1.1:1),def:b>=3?0.1:0,spd:avg('spd')*(b>=1?1.1:1),
-    mag:Object.fromEntries(els.map(e=>[e,magRank(d,e)])),ab:els.map(e=>Object.assign({el:e,rank:1+magRank(d,e)},EL[e].ab))}}
+function stats(d){const els=elementsOf(d.g),n=els.length,avg=k=>els.reduce((x,e)=>x+EL[e][k],0)/n,b=bachDone(d),asp=aspDone(d)?1.1:1,k=RMULT[n-1]*lk(d.lvl);
+  const cdK=aspDone(d)?0.8:1,atk=avg('atk')*k*(b>=2?1.1:1)*asp;
+  return {els,rar:n-1,hp:avg('hp')*k*(b>=4?1.1:1)*asp,atk,def:b>=3?0.1:0,spd:avg('spd')*(b>=1?1.1:1),
+    mag:Object.fromEntries(els.map(e=>[e,magRank(d,e)])),ab:els.map(e=>Object.assign({el:e,rank:1+magRank(d,e),cd:AB_CD*cdK},EL[e].ab)),
+    sup:n>=2&&(d.lvl||1)>=SUPER_LVL?{els,cd:SUPER_CD*cdK,dmg:atk*(2+0.5*(n-1))}:null}}
+/* стихийный множитель суперудара против цели со стихиями defs */
+const superVs=(els,defs)=>els.reduce((x,e)=>x+vs(e,defs),0)/els.length;
 /* урон стихией e с учётом магистратуры */
 const atkWith=(d,st,e)=>st.atk*(1+MAG_ATK*magRank(d,e));
 function power(d){const s=stats(d),mag=s.els.reduce((x,e)=>Math.max(x,magRank(d,e)),0);
-  return Math.round(2*Math.sqrt(s.hp/(1-s.def)*s.atk*(1+MAG_ATK*mag))*(0.9+0.1*s.spd))}
+  return Math.round(2*Math.sqrt(s.hp/(1-s.def)*s.atk*(1+MAG_ATK*mag))*(0.9+0.1*s.spd)*(s.sup?1.1:1))}
 /* золото в час работы: среднее стихий × (1 + 0,25 за каждую стихию сверх первой) × рост по уровню */
 function gph(d){const els=elementsOf(d.g);return els.reduce((x,e)=>x+EL[e].gph,0)/els.length*(1+0.25*(els.length-1))*lk(d.lvl)}
 
@@ -118,6 +133,8 @@ const TYPES={
   granary: {name:'Амбар',  kind:'store',max:1,center:true,lv:STORE_UP.map(x=>x&&Object.assign({},x,{cost:Math.round(x.cost*0.8)}))},
   nest:    {name:'Гнездовье',kind:'nest',max:1,lv:[null,{cost:4000,h:6,L:6},{cost:20000,h:24,L:15}]},
   hatchery:{name:'Инкубатор',kind:'hatch',max:1,lv:[null,{cost:2500,h:4,L:4},{cost:9000,h:12,L:9},{cost:30000,h:24,L:16}]},
+  /* ферма: золото превращается в корм. Посадка стоит золото, урожай приходит по часам (ускоряется как всё) */
+  farm:    {name:'Ферма',kind:'farm',build:{cost:250,h:0.25,L:1},lv:[null,{cost:1500,h:2,L:3},{cost:6000,h:8,L:8},{cost:20000,h:16,L:14}]},
   academy: {name:'Академия',kind:'academy',max:1,lv:[null,{cost:8000,h:12,L:8},{cost:40000,h:36,L:18}]},
   /* жилища стихий: дракон живёт в жилище любой своей стихии и только оттуда приносит золото */
   hF:{name:'Кальдера',kind:'hab',el:'F',build:{cost:300,h:0.5,L:1}},
@@ -130,6 +147,14 @@ const TYPES={
 };
 ['hF','hW','hT','hA','hP','hL','hD'].forEach(k=>{const b=TYPES[k].build;TYPES[k].lv=[null,{cost:b.cost*3,h:b.h*4,L:b.L+4},{cost:b.cost*10,h:b.h*12,L:b.L+10},{cost:b.cost*30,h:b.h*24,L:b.L+16}]});
 const HAB_CAP=[2,3,4,5];
+const FARM_PLOTS=[2,3,4,5];
+const farmsMax=L=>1+(L>=5)+(L>=10)+(L>=15);
+/* культуры: золото → корм. Чем дольше растёт, тем выгоднее (корм за золото) */
+const CROPS={
+  wheat: {name:'Пшеница',      gold:60,   food:70,   h:0.5,L:1},
+  pump:  {name:'Драконья тыква',gold:400, food:520,  h:3,  L:3},
+  ember: {name:'Огнеплод',     gold:2000, food:2900, h:8,  L:7},
+  star:  {name:'Звёздный злак',gold:8000, food:12800,h:16, L:12}};
 const HATCH_SLOTS=[1,2,3,4];
 const ACAD_SEATS=[1,2,3];
 const habsMax=L=>Math.min(12,2+Math.floor(L/3));      /* сколько жилищ можно поставить на уровне острова */
@@ -141,7 +166,6 @@ const CENTER={treasury:{x:10,y:11},granary:{x:12,y:11}};
 const ISLE_MAX=30;
 const xpFor=L=>L<=1?0:Math.round(60*Math.pow(L-1,1.75));
 function levelOf(xp){let L=1;while(L<ISLE_MAX&&xp>=xpFor(L+1))L++;return L}
-const dragonCap=L=>Math.min(LVL_MAX,3+2*L);           /* дракон растёт до этого уровня */
 
 /* ---------- доход ----------
    Карточка = 15 минут работы драконов: каждый дракон в своём жилище, который не учится, приносит gph/4 золота.
@@ -203,7 +227,7 @@ function startState(uid,today,now,oldL){const r=rng(uid+':founders6'),a=pick(r,B
   const put=(type,x,y,lvl)=>{const id='b'+s.bseq++;s.bld.push({id,type,x,y,lvl:lvl||1,job:null});return id};
   put('treasury',CENTER.treasury.x,CENTER.treasury.y);put('granary',CENTER.granary.x,CENTER.granary.y);
   const homeOf=e=>{const t='h'+e,p=freeSpot(s);return put(t,p.x,p.y)};
-  const ha=homeOf(a),hb=homeOf(b);
+  const ha=homeOf(a),hb=homeOf(b);{const p=freeSpot(s);put('farm',p.x,p.y)}
   const mk=(e,sex,home)=>{const g=genomeOf([e],sex),id='d'+s.seq++;s.dragons.push({id,name:nameFor(g,uid+':n:'+id),g,lvl:1,fed:0,home,born:today,acad:{b:0,m:{}},job:null});return id};
   mk(a,'F',ha);mk(b,'M',hb);
   const gift=giftFor(oldL);s.bal.gold=gift.gold;s.bal.food=gift.food;s.bal.gems=gift.gems;
@@ -235,10 +259,13 @@ function finishJobs(s,now,uid){
         if(j.pred){const p=share(j.m.g,j.f.g,j.pred.q),ok=Math.abs(p-j.pred.p)<=PRED_TOL;s.preds=(s.preds||[]).concat({q:j.pred.q,p:j.pred.p,truth:p,ok}).slice(-30);
           if(ok){s.bal.gems+=PRED_GEMS;xp(s,30);news(s,`Прогноз верен: +${PRED_GEMS} самоцвета`)}}
         news(s,'В Гнездовье появилось яйцо');xp(s,15)}}
-    (b.slots||[]).forEach((j,i)=>{if(j&&jobLeft(j,now)===0){b.slots[i]=null;hatch(s,j.egg,uid)}});
+    (b.slots||[]).forEach((j,i)=>{if(!j||jobLeft(j,now)>0)return;
+      if(j.kind==='crop'){if(capFood(s)-s.bal.food<j.food){j.ready=true;return}s.bal.food+=j.food;b.slots[i]=null;xp(s,j.food/100)}
+      else{b.slots[i]=null;hatch(s,j.egg,uid)}});
     if(b.slots)b.slots=b.slots.filter(Boolean)});
   s.dragons.forEach(d=>{if(d.job&&jobLeft(d.job,now)===0){const j=d.job;d.job=null;
     if(j.kind==='bach'){d.acad.b=j.to;news(s,`${d.name} окончил курс «${BACH[j.to-1].name}»`)}
+    else if(j.kind==='asp'){d.acad.asp=1;news(s,`${d.name} защитил диссертацию`)}
     else if(j.kind==='mag'){d.acad.m=Object.assign({},d.acad.m,{[j.el]:j.to});news(s,`${d.name}: магистратура «${EL[j.el].name}», ${j.to}-я ступень`)}
     xp(s,25)}})}
 const PRED_GEMS=2;
@@ -259,13 +286,14 @@ const A={
   build(s,c,{type,x,y}){const t=TYPES[type];if(!t)return 'Нет такой постройки';if(t.center)return 'Эта постройка одна и уже стоит';
     if(t.max&&ofType(s,type).length>=t.max)return `${t.name} уже есть`;
     const first=t.build||t.lv[1];if(level(s)<first.L)return `Откроется на ${first.L}-м уровне острова`;
+    if(t.kind==='farm'&&ofType(s,'farm').length>=farmsMax(level(s)))return 'Ещё одна ферма откроется с ростом острова';
     if(t.kind==='hab'&&s.bld.filter(b=>TYPES[b.type].kind==='hab').length>=habsMax(level(s)))return 'Мест под жилища пока нет, они прибавятся с ростом острова';
     if(!(x>=0&&y>=0&&x+SIZE<=GRID&&y+SIZE<=GRID)||overlap(s,x,y))return 'Здесь нельзя строить';
     const e=pay(s,first.cost);if(e)return e;s.bld.push({id:'b'+s.bseq++,type,x,y,lvl:1,job:job('build',c.now,first.h)});s.last='b'+(s.bseq-1)},
   upgrade(s,c,{id}){const b=B(s,id);if(!b)return 'Нет такой постройки';if(b.job)return 'Постройка занята';const t=TYPES[b.type],u=t.lv[lvlOf(b)];
     if(!u)return 'Это последний уровень';if(level(s)<u.L)return `Нужен ${u.L}-й уровень острова`;const e=pay(s,u.cost);if(e)return e;b.job=job('up',c.now,u.h,{to:lvlOf(b)+1})},
   move(s,c,{id,x,y}){const b=B(s,id);if(!b)return 'Нет такой постройки';if(!(x>=0&&y>=0&&x+SIZE<=GRID&&y+SIZE<=GRID)||overlap(s,x,y,id))return 'Здесь нельзя поставить';b.x=x;b.y=y},
-  feed(s,c,{dragon}){const d=s.dragons.find(x=>x.id===dragon);if(!d)return 'Нет дракона';if(d.lvl>=dragonCap(level(s)))return d.lvl>=LVL_MAX?'Дракон вырос до предела':'Следующий уровень откроется с ростом острова';
+  feed(s,c,{dragon}){const d=s.dragons.find(x=>x.id===dragon);if(!d)return 'Нет дракона';if(d.lvl>=LVL_MAX)return 'Дракон вырос до предела';
     const e=pay(s,0,feedCost(d.lvl));if(e)return e;d.fed=(d.fed||0)+1;if(d.fed>=FEEDS){d.fed=0;d.lvl++;xp(s,5+d.lvl)}},
   home(s,c,{dragon,id}){const d=s.dragons.find(x=>x.id===dragon),b=B(s,id);if(!d||!b||TYPES[b.type].kind!=='hab')return 'Нет такого жилища';
     if(!elementsOf(d.g).includes(TYPES[b.type].el))return `${TYPES[b.type].name} не подходит этой стихии`;if(residents(s,b).length>=habCap(b))return 'Жилище заполнено';d.home=b.id},
@@ -276,6 +304,9 @@ const A={
     if(pred&&!(pred.q&&typeof pred.p==='number'&&pred.p>=0&&pred.p<=1))return 'Прогноз не понят';
     const e=pay(s,breedCost(rarityOf(M.g),rarityOf(F.g)));if(e)return e;s.bseq2=(s.bseq2||0)+1;
     n.job=job('breed',c.now,BREED_H,{m:{id:M.id,g:M.g},f:{id:F.id,g:F.g},n:s.bseq2,pred:pred||null})},
+  plant(s,c,{farm,crop}){const b=B(s,farm),k=CROPS[crop];if(!b||b.type!=='farm'||!built(b))return 'Нет такой фермы';if(!k)return 'Нет такой культуры';
+    if(level(s)<k.L)return `${k.name}: с ${k.L}-го уровня острова`;b.slots=b.slots||[];if(b.slots.length>=FARM_PLOTS[lvlOf(b)-1])return 'Все грядки заняты';
+    const e=pay(s,k.gold);if(e)return e;b.slots.push(job('crop',c.now,k.h,{crop,food:k.food}))},
   incubate(s,c,{egg}){const h=ofType(s,'hatchery')[0];if(!h||!built(h))return 'Сначала постройте Инкубатор';const i=s.eggs.findIndex(x=>x.id===egg);if(i<0)return 'Нет такого яйца';
     h.slots=h.slots||[];if(h.slots.length>=HATCH_SLOTS[lvlOf(h)-1])return 'В Инкубаторе нет места';const eg=s.eggs.splice(i,1)[0];h.slots.push(job('hatch',c.now,HATCH_H[eg.rar],{egg:eg}))},
   /* Академия: бакалавриат по порядку, потом магистратура по стихиям дракона */
@@ -284,6 +315,9 @@ const A={
     const b=bachDone(d);
     if(!el){if(b>=BACH.length)return 'Бакалавриат окончен, дальше магистратура';const k=BACH[b];if(d.lvl<k.lvl)return `Курс «${k.name}» с ${k.lvl}-го уровня дракона`;
       const e=pay(s,k.gold);if(e)return e;d.job=job('bach',c.now,k.h,{to:b+1});return}
+    if(el==='asp'){if(aspDone(d))return 'Аспирантура уже окончена';if(d.lvl<ASP.lvl)return `Аспирантура с ${ASP.lvl}-го уровня дракона`;
+      if(!elementsOf(d.g).some(e=>magRank(d,e)>=MAG.length))return 'Сначала полная магистратура хотя бы по одной стихии';
+      const e=pay(s,ASP.gold);if(e)return e;d.job=job('asp',c.now,ASP.h);return}
     if(b<BACH.length)return 'Сначала окончите бакалавриат';if(!elementsOf(d.g).includes(el))return 'Магистратура только по стихиям этого дракона';
     const r=magRank(d,el);if(r>=MAG.length)return 'По этой стихии магистратура окончена';const k=MAG[r];if(d.lvl<k.lvl)return `Ступень с ${k.lvl}-го уровня дракона`;
     const e=pay(s,k.gold);if(e)return e;d.job=job('mag',c.now,k.h,{el,to:r+1})},
@@ -307,7 +341,10 @@ const RULES=[
   ['Домашние задания','ДЗ приносят самоцветы. За ДЗ от 85 % может прийти яйцо редкого, эпического или мифического дракона, и чем выше балл, тем больше шанс.'],
   ['Казна и Амбар','Золото и корм хранятся в Казне и Амбаре в центре острова. Сверх вместимости ничего не помещается, поэтому их стоит улучшать.'],
   ['Время','Стройки, яйца и учёба идут по часам. Минуты из карточек и самоцветы (1 самоцвет = 30 минут) ускоряют любую работу.'],
-  ['Драконы','Стихия решает всё: облик, способность и доход. Чем больше стихий, тем дракон реже и сильнее. Уровень растёт от кормления, Академия даёт бакалавриат из четырёх курсов и магистратуру по стихиям.'],
+  ['Корм и фермы','Корм дают карточки, фермы и бои. На ферме золото превращается в корм: посадите культуру и дождитесь урожая. Чем дольше растёт культура, тем выгоднее.'],
+  ['Драконы','Стихия решает всё: облик, способность и доход. Чем больше стихий, тем дракон реже и сильнее. Уровень (до 40-го) растёт только от кормления, так что всё зависит от того, как активно вы играете.'],
+  ['Академия','С 10-го уровня бакалавриат из четырёх курсов, с 15-го магистратура по стихиям дракона, с 25-го аспирантура. Пока дракон учится, он не летает в налёты и не приносит золото.'],
+  ['Суперудар','С 30-го уровня у редких, эпических и мифических драконов открывается суперудар: смесь всех их стихий, раз в 15 секунд в бою.'],
   ['Стихии','Каждая стихия сильна против двух и слаба против двух. Самой сильной нет, побеждает тот, кто подобрал отряд.'],
   ['Скрещивание','Стихии наследуются по Менделю. Предскажите долю потомков с нужной стихией: точный прогноз приносит самоцветы.'],
   ['Налёты','Заряды налётов дают карточки. Выпускайте драконов над чужим островом и вовремя включайте способности. Удачный налёт на остров ученицы забирает до 10 % её Казны и Амбара, после этого у неё щит на сутки.']
@@ -315,9 +352,9 @@ const RULES=[
 
 const DR6={rng,ELS,BASIC,LEGEND,EL,elValue,RING,beats,mult,vs,strongVs,weakVs,STRONG,WEAK,
   elementsOf,rarityOf,RARITY,RMULT,validGenome,breed,dist,share,PRED_TOL,PRED_GEMS,genomeOf,eggGenome,nameFor,
-  LVL_MAX,FEEDS,lk,feedCost,BACH,MAG,MAG_ATK,stats,atkWith,power,gph,
+  LVL_MAX,FEEDS,lk,feedCost,foodTo,BACH,MAG,MAG_ATK,ASP,SUPER_LVL,SUPER_CD,AB_CD,superVs,stats,atkWith,power,gph,CROPS,FARM_PLOTS,farmsMax,
   TYPES,CAP_GOLD,CAP_FOOD,HAB_CAP,HATCH_SLOTS,ACAD_SEATS,habsMax,GRID,CENTER,capGold,capFood,
-  ISLE_MAX,xpFor,levelOf,level,dragonCap,CARD_MIN,GEM_MIN,LADDER,ladder,CARD_GOLD,cardFood,CHARGE_CARDS,CHARGE_MAX,goldPerCard,
+  ISLE_MAX,xpFor,levelOf,level,CARD_MIN,GEM_MIN,LADDER,ladder,CARD_GOLD,cardFood,CHARGE_CARDS,CHARGE_MAX,goldPerCard,
   HW_GEMS,hwGems,eggOdds,hwEgg,HATCH_H,BREED_H,breedCost,LOOT_MAX,SHIELD_H,lootOf,raided,shielded,
   giftFor,startState,tick,apply,jobLeft,jobsOf,RULES,HOUR,MIN,DAY};
 if(typeof module!=='undefined'&&module.exports)module.exports=DR6;else root.DR6=DR6;

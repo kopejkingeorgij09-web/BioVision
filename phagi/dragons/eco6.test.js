@@ -89,18 +89,48 @@ t('самоцветов на ускорение не берётся больше
   const id=s.bld.find(x=>x.type==='hatchery').id,g0=s.bal.gems;s=ok(D.apply(s,ctx(),{t:'speed',target:{b:id},gems:50}));assert.strictEqual(g0-s.bal.gems,8)});
 
 console.log('кормление и Академия');
-t('кормление: 4 раза на уровень, потолок от уровня острова',()=>{let s=fresh();s.bal.food=1e5;s.bld.find(b=>b.type==='granary').lvl=8;const id=s.dragons[0].id;
+t('кормление: 4 раза на уровень, уровень зависит только от корма, предел 40',()=>{let s=fresh();s.bld.find(b=>b.type==='granary').lvl=8;s.bal.food=D.foodTo(1,40);const id=s.dragons[0].id;
   for(let i=0;i<4;i++)s=ok(D.apply(s,ctx(),{t:'feed',dragon:id}));assert.strictEqual(s.dragons[0].lvl,2);
-  for(let i=0;i<40;i++){const r=D.apply(s,ctx(),{t:'feed',dragon:id});if(r.err)break;s=r.s}assert.strictEqual(s.dragons[0].lvl,D.dragonCap(1))});
+  for(let i=0;i<400;i++){const r=D.apply(s,ctx(),{t:'feed',dragon:id});if(r.err)break;s=r.s}assert.strictEqual(s.dragons[0].lvl,40);assert.strictEqual(s.bal.food,0);
+  assert.ok(D.apply(s,ctx(),{t:'feed',dragon:id}).err)});
 const withAcad=()=>{const s=fresh();s.bal.gold=D.CAP_GOLD[0];s.bal.xp=D.xpFor(8);s.bld.push({id:'bA',type:'academy',x:1,y:1,lvl:1,job:null});return s};
 t('бакалавриат по порядку, уровень дракона и золото проверяются',()=>{let s=withAcad();const d=s.dragons[0];
-  assert.ok(D.apply(s,ctx(),{t:'study',dragon:d.id}).err);d.lvl=5;s=ok(D.apply(s,ctx(),{t:'study',dragon:d.id}));
+  d.lvl=9;assert.ok(D.apply(s,ctx(),{t:'study',dragon:d.id}).err,'бакалавриат с 10-го');d.lvl=10;s=ok(D.apply(s,ctx(),{t:'study',dragon:d.id}));
   assert.strictEqual(s.dragons[0].job.kind,'bach');assert.ok(D.apply(s,ctx(),{t:'study',dragon:s.dragons[1].id}).err,'одно место в Академии 1-го уровня');
   s=D.tick(s,ctx({now:T0+2*H})).s;assert.strictEqual(s.dragons[0].acad.b,1)});
-t('магистратура только после бакалавриата и по своей стихии',()=>{let s=withAcad();const d=s.dragons[0];d.lvl=30;s.bld.find(b=>b.type==='treasury').lvl=4;s.bal.gold=D.CAP_GOLD[3];
+t('магистратура только после бакалавриата и по своей стихии',()=>{let s=withAcad();const d=s.dragons[0];d.lvl=15;s.bld.find(b=>b.type==='treasury').lvl=4;s.bal.gold=D.CAP_GOLD[3];
   const el=D.elementsOf(d.g)[0],other=D.ELS.find(e=>e!==el);assert.ok(D.apply(s,ctx(),{t:'study',dragon:d.id,el}).err);
   d.acad.b=4;assert.ok(D.apply(s,ctx(),{t:'study',dragon:d.id,el:other}).err);s=ok(D.apply(s,ctx(),{t:'study',dragon:d.id,el}));
   s=D.tick(s,ctx({now:T0+16*H})).s;assert.strictEqual(s.dragons[0].acad.m[el],1)});
+
+t('магистратура с 15-го уровня',()=>{const s=withAcad();const d=s.dragons[0];d.lvl=14;d.acad.b=4;s.bld.find(b=>b.type==='treasury').lvl=4;s.bal.gold=D.CAP_GOLD[3];
+  assert.ok(/15/.test(D.apply(s,ctx(),{t:'study',dragon:d.id,el:D.elementsOf(d.g)[0]}).err))});
+t('аспирантура с 25-го уровня после полной магистратуры, усиливает и ускоряет способности',()=>{let s=withAcad();const d=s.dragons[0],el=D.elementsOf(d.g)[0];d.lvl=25;d.acad.b=4;
+  s.bld.find(b=>b.type==='treasury').lvl=6;s.bal.gold=D.CAP_GOLD[5];assert.ok(D.apply(s,ctx(),{t:'study',dragon:d.id,el:'asp'}).err);
+  d.acad.m={[el]:3};const p0=D.power(d),cd0=D.stats(d).ab[0].cd;s=ok(D.apply(s,ctx(),{t:'study',dragon:d.id,el:'asp'}));s=D.tick(s,ctx({now:T0+48*H})).s;
+  const d2=s.dragons[0];assert.ok(d2.acad.asp);assert.ok(D.power(d2)>p0);assert.ok(D.stats(d2).ab[0].cd<cd0)});
+
+console.log('суперудар');
+t('с 30-го уровня у редких и выше, у обычных нет',()=>{const mk=(els,l)=>({g:D.genomeOf(els,'F'),lvl:l,acad:{b:0,m:{}}});
+  assert.strictEqual(D.stats(mk(['F','W'],29)).sup,null);assert.ok(D.stats(mk(['F','W'],30)).sup);assert.strictEqual(D.stats(mk(['F'],40)).sup,null);
+  assert.strictEqual(D.stats(mk(['F','W'],30)).sup.cd,D.SUPER_CD);assert.strictEqual(D.SUPER_CD,15)});
+t('суперудар смешивает все стихии дракона и сильнее у мифических',()=>{const mk=els=>D.stats({g:D.genomeOf(els,'F'),lvl:30,acad:{b:0,m:{}}}).sup;
+  assert.deepStrictEqual(mk(['F','W','T']).els,['F','W','T']);assert.ok(mk(['F','W','T','A']).dmg>mk(['F','W']).dmg);
+  const v=D.superVs(['F','W'],['P']);assert.ok(Math.abs(v-(D.mult('F','P')+D.mult('W','P'))/2)<1e-9)});
+
+console.log('фермы');
+t('на старте есть ферма; посадка стоит золото, урожай корм через время',()=>{let s=fresh();const f=s.bld.find(b=>b.type==='farm');assert.ok(f);s.bal.gold=1000;s.bal.food=0;
+  s=ok(D.apply(s,ctx(),{t:'plant',farm:f.id,crop:'wheat'}));assert.strictEqual(s.bal.gold,1000-D.CROPS.wheat.gold);
+  s=D.tick(s,ctx({now:T0+H})).s;assert.strictEqual(s.bal.food,D.CROPS.wheat.food)});
+t('грядок по уровню фермы, культуры по уровню острова',()=>{let s=fresh();const f=s.bld.find(b=>b.type==='farm');s.bal.gold=2000;
+  s=ok(D.apply(s,ctx(),{t:'plant',farm:f.id,crop:'wheat'}));s=ok(D.apply(s,ctx(),{t:'plant',farm:f.id,crop:'wheat'}));assert.ok(D.apply(s,ctx(),{t:'plant',farm:f.id,crop:'wheat'}).err);
+  assert.ok(D.apply(fresh(),ctx(),{t:'plant',farm:f.id,crop:'star'}).err)});
+t('урожай ждёт на грядке, если Амбар полон',()=>{let s=fresh();const f=s.bld.find(b=>b.type==='farm');s.bal.gold=1000;s.bal.food=D.CAP_FOOD[0]-10;
+  s=ok(D.apply(s,ctx(),{t:'plant',farm:f.id,crop:'wheat'}));s=D.tick(s,ctx({now:T0+H})).s;assert.strictEqual(s.bal.food,D.CAP_FOOD[0]-10);
+  s.bal.food=0;s=D.tick(s,ctx({now:T0+2*H})).s;assert.strictEqual(s.bal.food,D.CROPS.wheat.food)});
+t('урожай ускоряется минутами карточек',()=>{let s=fresh();const f=s.bld.find(b=>b.type==='farm');s.bal.gold=1000;
+  s.bal.food=0;s=ok(D.apply(s,ctx(),{t:'plant',farm:f.id,crop:'wheat'}));const c2=ctx({days:{'2026-11-01':2}}),food0=D.tick(s,c2).s.bal.food;
+  s=ok(D.apply(s,c2,{t:'speed',target:{b:f.id,slot:0}}));assert.strictEqual(s.bal.food-food0,D.CROPS.wheat.food);assert.strictEqual(s.bld.find(b=>b.id===f.id).slots.length,0)});
 
 console.log('скрещивание и яйца');
 const withNest=()=>{const s=fresh();s.bal.gold=D.CAP_GOLD[0];s.bal.xp=D.xpFor(9);s.bld.push({id:'bN',type:'nest',x:1,y:1,lvl:1,job:null},{id:'bH',type:'hatchery',x:4,y:1,lvl:1,job:null});s.dragons.forEach(d=>d.lvl=5);return s};

@@ -1,0 +1,18 @@
+{
+  "id": "/BioVision/bamboo/",
+  "name": "Режим бамбука",
+  "short_name": "Бамбук",
+  "description": "Задачи, календарь, фокус, привычки, чтение, тренировки и дневник. Бамбук растёт вместе с дисциплиной.",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F4EFE4",
+  "theme_color": "#F4EFE4",
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+    {"src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}
+  ]
+}

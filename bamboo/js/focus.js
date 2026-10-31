@@ -129,14 +129,106 @@ B.inputs.pomoCfg = (el, e) => {
   B.setCfg({pomo: p});
 };
 
-function weekChart(){
-  const t = B.today(), days = Array.from({length: 7}, (_, i) => B.add(t, i - 6));
-  const vals = days.map(d => (B.day(d).pomo || []).reduce((a, p) => a + (p.min || 0), 0));
-  const max = Math.max(60, ...vals);
-  return `<div class="bars">${days.map((d, i) => `<div class="bar-col ${d === t ? 'now' : ''}" title="${B.fmtW(d)}: ${B.mins(vals[i])}">
-    <span class="bv">${vals[i] ? Math.round(vals[i] / 6) / 10 : ''}</span><span class="bw"><i style="height:${(vals[i] / max * 100).toFixed(1)}%"></i></span><span class="bl">${B.WD[B.wd(d)]}</span></div>`).join('')}</div>
-    <p class="hint">Часы фокуса за 7 дней</p>`;
+/* ---------- статистика фокуса, как в YPT ----------
+   Сессия: d.pomo[] = {min, at (конец), task}. Начало = at − min. */
+let fsMode = 'week', fsSel = null;
+const hm = m => { m = Math.round(m); return `${Math.floor(m / 60)}:${B.pad(m % 60)}`; };
+const dayMin = d => (B.day(d).pomo || []).reduce((a, p) => a + (p.min || 0), 0);
+const sessions = d => (B.day(d).pomo || []).map(p => ({min: p.min || 0, end: p.at, start: p.at - (p.min || 0) * 60000, task: p.task}));
+const clockMin = ts => { const x = new Date(ts); let m = x.getHours() * 60 + x.getMinutes(); if (m < 240) m += 1440; return m; };   // день до 4 утра
+const fmtClock = m => `${B.pad(Math.floor(m / 60) % 24)}:${B.pad(m % 60)}`;
+function heat(v, max){ if (!v) return 'h0'; const r = v / Math.max(60, max); return r > .75 ? 'h4' : r > .5 ? 'h3' : r > .25 ? 'h2' : 'h1'; }
+
+function byTask(days){
+  const by = {}; let tot = 0;
+  days.forEach(d => sessions(d).forEach(s => { const t = s.task && B.task(s.task), k = t ? (B.projName(t.proj) || 'Входящие') : 'Без задачи'; by[k] = (by[k] || 0) + s.min; tot += s.min; }));
+  const rows = Object.entries(by).sort((a, b) => b[1] - a[1]);
+  if (!rows.length) return '';
+  return `<div class="sub-h">По проектам</div><div class="hrates">${rows.map(([k, m]) => `<div class="hrate"><span>${esc(k)}</span>${B.bar(m / tot)}<b class="mono">${hm(m)}</b></div>`).join('')}</div>`;
 }
+/* накопленное время по дням недели: эта неделя ступеньками, прошлая серой заливкой */
+function cumChart(ws){
+  const t = B.today(), cur = [], prev = []; let a = 0, b = 0;
+  for (let i = 0; i < 7; i++){ const d = B.add(ws, i); b += dayMin(B.add(d, -7)); prev.push(b); if (d <= t){ a += dayMin(d); cur.push(a); } }
+  const max = Math.max(60, ...prev, ...cur), W = 320, H = 110, x = i => 6 + i * (W - 12) / 7, y = v => H - 18 - v / max * (H - 30);
+  const step = arr => arr.map((v, i) => `${i ? 'L' : 'M'}${x(i)} ${y(v)} H${x(i + 1)}`).join(' ');
+  const k = cur.length - 1, diff = k >= 0 ? cur[k] - prev[k] : 0;
+  return `<div class="cum-head"><span class="muted">${k >= 0 ? `К ${['понедельнику', 'вторнику', 'среде', 'четвергу', 'пятнице', 'субботе', 'воскресенью'][k]} против прошлой недели` : 'Неделя ещё не началась'}</span><b class="${diff >= 0 ? 'pos' : 'neg'}">${diff >= 0 ? '+' : '−'}${hm(Math.abs(diff))}</b></div>
+  <svg class="cum" viewBox="0 0 ${W} ${H}" role="img" aria-label="Накопленное время фокуса за неделю">
+    <path d="${step(prev)} V${H - 18} H${x(0)} Z" class="prev"/>
+    ${cur.length ? `<path d="${step(cur)}" class="cur"/><circle cx="${x(k + 1)}" cy="${y(cur[k])}" r="4" class="dot"/>` : ''}
+    ${B.WD.map((w, i) => `<text x="${x(i) + (W - 12) / 14}" y="${H - 4}" class="ax" text-anchor="middle">${w}</text>`).join('')}
+  </svg>
+  <div class="legend"><span><i class="lgd cur"></i>эта неделя</span><span><i class="lgd prev"></i>прошлая</span></div>`;
+}
+/* начало и конец занятий по дням */
+function startEnd(days){
+  const rows = days.map(d => { const ss = sessions(d); return ss.length ? {d, s: Math.min(...ss.map(x => clockMin(x.start))), e: Math.max(...ss.map(x => clockMin(x.end)))} : {d}; });
+  const has = rows.filter(r => r.s != null); if (!has.length) return '';
+  const lo = Math.floor(Math.min(...has.map(r => r.s)) / 60) * 60, hi = Math.ceil(Math.max(...has.map(r => r.e)) / 60) * 60, span = Math.max(60, hi - lo);
+  const W = 320, H = 22 * rows.length + 22, x = m => 34 + (m - lo) / span * (W - 44);
+  const ticks = []; for (let m = lo; m <= hi; m += span > 600 ? 180 : span > 300 ? 120 : 60) ticks.push(m);
+  return `<div class="sub-h">Начало и конец</div><svg class="se" viewBox="0 0 ${W} ${H}" role="img" aria-label="Время начала и конца занятий">
+    ${ticks.map(m => `<line x1="${x(m)}" x2="${x(m)}" y1="4" y2="${H - 16}" class="grid"/><text x="${x(m)}" y="${H - 4}" class="ax" text-anchor="middle">${fmtClock(m)}</text>`).join('')}
+    ${rows.map((r, i) => { const yy = 14 + i * 22; return `<text x="2" y="${yy + 4}" class="ax">${B.WD[B.wd(r.d)]}</text>` + (r.s != null ? `<line x1="${x(r.s)}" x2="${x(r.e)}" y1="${yy}" y2="${yy}" class="rng"/><circle cx="${x(r.s)}" cy="${yy}" r="4" class="st"><title>${fmtClock(r.s)}</title></circle><circle cx="${x(r.e)}" cy="${yy}" r="4" class="en"><title>${fmtClock(r.e)}</title></circle>` : ''); }).join('')}
+  </svg><div class="legend"><span><i class="lgd st"></i>начало</span><span><i class="lgd en"></i>конец</span></div>`;
+}
+/* день: шкала суток с блоками сессий */
+function dayView(d){
+  const ss = sessions(d), tot = dayMin(d);
+  const lo = 6 * 60, hi = 28 * 60, W = 320, x = m => 4 + (Math.min(hi, Math.max(lo, m)) - lo) / (hi - lo) * (W - 8);
+  return `<div class="fs-tot"><div><span>Всего</span><b>${hm(tot)}</b></div><div><span>Сессий</span><b>${ss.length}</b></div><div><span>Самая длинная</span><b>${ss.length ? hm(Math.max(...ss.map(s => s.min))) : '0:00'}</b></div></div>
+    <svg class="dayline" viewBox="0 0 ${W} 46" role="img" aria-label="Сессии за день">
+      <rect x="4" y="6" width="${W - 8}" height="18" rx="5" class="bg"/>
+      ${ss.map(s => `<rect x="${x(clockMin(s.start))}" y="6" width="${Math.max(2, x(clockMin(s.end)) - x(clockMin(s.start)))}" height="18" rx="3" class="blk"><title>${fmtClock(clockMin(s.start))}–${fmtClock(clockMin(s.end))}, ${hm(s.min)}</title></rect>`).join('')}
+      ${[6, 9, 12, 15, 18, 21, 24, 27].map(h => `<text x="${x(h * 60)}" y="40" class="ax" text-anchor="middle">${B.pad(h % 24)}</text>`).join('')}
+    </svg>
+    ${ss.length ? `<ul class="plain sess">${ss.slice().reverse().map(s => `<li><span class="mono muted">${fmtClock(clockMin(s.start))}–${fmtClock(clockMin(s.end))}</span><span class="grow">${s.task && B.task(s.task) ? esc(B.task(s.task).title) : 'Без задачи'}</span><b class="mono">${hm(s.min)}</b></li>`).join('')}</ul>` : '<p class="muted">В этот день фокуса не было.</p>'}
+    ${byTask([d])}`;
+}
+function weekView(ws){
+  const t = B.today(), q0 = (() => { const p = B.parse(ws); return B.ymd(new Date(p.getFullYear(), Math.floor(p.getMonth() / 3) * 3, 1, 12)); })();
+  const qp = B.parse(q0), q1 = B.ymd(new Date(qp.getFullYear(), qp.getMonth() + 3, 1, 12));
+  const weeks = []; for (let w = B.weekStart(q0); w < q1; w = B.add(w, 7)) weeks.push(w);
+  const tot = w => { let m = 0; for (let i = 0; i < 7; i++) m += dayMin(B.add(w, i)); return m; };
+  const tots = weeks.map(tot), max = Math.max(...tots);
+  const days = Array.from({length: 7}, (_, i) => B.add(ws, i)), wt = tot(ws), passed = days.filter(d => d <= t).length || 1;
+  const p = B.parse(q0);
+  return `<div class="qhead"><button class="icon-btn sm" data-act="fsQ" data-k="-1">${icon('left')}</button><b>${p.getFullYear()} · ${Math.floor(p.getMonth() / 3) + 1} квартал</b><button class="icon-btn sm" data-act="fsQ" data-k="1">${icon('right')}</button></div>
+    <div class="wgrid">${weeks.map((w, i) => `<button class="wcell ${heat(tots[i], max)} ${w === ws ? 'sel' : ''} ${w > t ? 'fut' : ''}" data-act="fsPick" data-d="${w}"><span>${B.parse(w).getDate()}.${B.pad(B.parse(w).getMonth() + 1)}</span><b>${tots[i] ? hm(tots[i]) : ''}</b></button>`).join('')}</div>
+    <div class="fs-range">${B.fmtW(ws)} – ${B.fmtW(B.add(ws, 6))}</div>
+    <div class="fs-tot"><div><span>Всего</span><b>${hm(wt)}</b></div><div><span>В среднем за день</span><b>${hm(wt / passed)}</b></div><div><span>Лучший день</span><b>${hm(Math.max(...days.map(dayMin)))}</b></div></div>
+    ${cumChart(ws)}
+    ${startEnd(days)}
+    ${byTask(days)}`;
+}
+function monthView(m0){
+  const p = B.parse(m0), first = B.ymd(new Date(p.getFullYear(), p.getMonth(), 1, 12)), n = new Date(p.getFullYear(), p.getMonth() + 1, 0).getDate();
+  const days = Array.from({length: n}, (_, i) => B.add(first, i)), vals = days.map(dayMin), max = Math.max(...vals), tot = vals.reduce((a, v) => a + v, 0);
+  const active = vals.filter(Boolean).length, t = B.today(), passed = days.filter(d => d <= t).length || 1;
+  const pad0 = B.wd(first);
+  return `<div class="qhead"><button class="icon-btn sm" data-act="fsM" data-k="-1">${icon('left')}</button><b>${B.MONF[p.getMonth()]} ${p.getFullYear()}</b><button class="icon-btn sm" data-act="fsM" data-k="1">${icon('right')}</button></div>
+    <div class="mgrid">${B.WD.map(w => `<span class="wd">${w}</span>`).join('')}${'<span></span>'.repeat(pad0)}${days.map((d, i) => `<button class="mcell ${heat(vals[i], max)} ${d === t ? 'now' : ''}" data-act="fsDay" data-d="${d}" title="${B.fmtW(d)}: ${hm(vals[i])}"><span>${B.parse(d).getDate()}</span><b>${vals[i] ? hm(vals[i]) : ''}</b></button>`).join('')}</div>
+    <div class="fs-tot"><div><span>Всего</span><b>${hm(tot)}</b></div><div><span>В среднем за день</span><b>${hm(tot / passed)}</b></div><div><span>Дней с фокусом</span><b>${active}</b></div></div>
+    ${byTask(days)}`;
+}
+B.focusStats = () => {
+  const t = B.today();
+  if (!fsSel) fsSel = fsMode === 'week' ? B.weekStart(t) : t;
+  const body = fsMode === 'day' ? dayView(fsSel) : fsMode === 'week' ? weekView(B.weekStart(fsSel)) : monthView(fsSel);
+  return `<section class="card fstats">
+    <div class="row between wrap"><h2>${icon('chart')}Статистика фокуса</h2>
+      <div class="toggle">${[['day', 'День'], ['week', 'Неделя'], ['month', 'Месяц']].map(([k, l]) => `<button class="${fsMode === k ? 'on' : ''}" data-act="fsMode" data-k="${k}">${l}</button>`).join('')}</div></div>
+    ${fsMode === 'day' ? `<div class="qhead"><button class="icon-btn sm" data-act="fsD" data-k="-1">${icon('left')}</button><b>${B.fmtW(fsSel)}</b><button class="icon-btn sm" data-act="fsD" data-k="1" ${fsSel >= t ? 'disabled' : ''}>${icon('right')}</button></div>` : ''}
+    ${body}
+  </section>`;
+};
+B.acts.fsMode = el => { fsMode = el.dataset.k; fsSel = fsMode === 'week' ? B.weekStart(B.today()) : B.today(); B.render(); };
+B.acts.fsPick = el => { fsSel = el.dataset.d; B.render(); };
+B.acts.fsDay = el => { fsMode = 'day'; fsSel = el.dataset.d; B.render(); };
+B.acts.fsD = el => { fsSel = B.add(fsSel, +el.dataset.k); B.render(); };
+B.acts.fsQ = el => { const p = B.parse(B.weekStart(fsSel)); fsSel = B.weekStart(B.ymd(new Date(p.getFullYear(), Math.floor(p.getMonth() / 3) * 3 + 3 * +el.dataset.k, 1, 12))); B.render(); };
+B.acts.fsM = el => { const p = B.parse(fsSel); fsSel = B.ymd(new Date(p.getFullYear(), p.getMonth() + +el.dataset.k, 1, 12)); B.render(); };
 
 B.views.focus = {
   title: 'Фокус',
@@ -181,7 +273,6 @@ B.views.focus = {
             <div class="kpis"><div class="kpi"><b>${B.mins(pomo.reduce((a, p) => a + (p.min || 0), 0))}</b><span>фокуса</span></div><div class="kpi"><b>${pomo.length}</b><span>${B.plural(pomo.length, 'подход', 'подхода', 'подходов')}</span></div></div>
             ${Object.keys(byTask).length ? `<ul class="plain">${Object.entries(byTask).sort((a, b) => b[1] - a[1]).map(([k, m]) => `<li><span class="grow">${k ? esc((B.task(k) || {title: 'удалённая задача'}).title) : 'Без задачи'}</span><span class="mono">${B.mins(m)}</span></li>`).join('')}</ul>` : ''}
           </section>
-          <section class="card">${weekChart()}</section>
           <section class="card">
             <h2>${icon('gear')}Помодоро</h2>
             <div class="ed-grid">
@@ -193,6 +284,7 @@ B.views.focus = {
           </section>
         </div>
       </div>
+      ${B.focusStats()}
     </div>`;
   },
   mount(){ tick(); }

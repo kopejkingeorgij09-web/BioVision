@@ -50,7 +50,7 @@ B.views.journal = {
             <h2>${icon('pen')}Разбор</h2>
             <label class="field">Что сделал и чем доволен<textarea rows="3" data-in="rv" data-k="done" data-d="${date}" placeholder="Коротко, своими словами">${esc(rv.done || '')}</textarea></label>
             <label class="field">Что не вышло и почему<textarea rows="3" data-in="rv" data-k="why" data-d="${date}" placeholder="Честно: где отвлёкся, что отложил, что помешало">${esc(rv.why || '')}</textarea></label>
-            <div class="field">Главное на ${date === t ? 'завтра' : B.fmtS(B.add(date, 1))} <span class="req">${B.planned(B.add(date, 1)) ? 'выбрано' : 'обязательно'}</span>
+            <div class="field">Дела на ${date === t ? 'завтра' : B.fmtS(B.add(date, 1))} <span class="req">${(B.day(B.add(date, 1)).top || []).length >= 2 ? 'главные выбраны' : 'отметь короной два главных'}</span>
               ${B.planPicker(B.add(date, 1), '')}</div>
             <div class="field">Настроение<div class="chips">${[1, 2, 3, 4, 5].map(i => `<button class="chip ${rv.mood === i ? 'on' : ''}" data-act="rvSet" data-k="mood" data-v="${i}" data-d="${date}">${MOOD[i]}</button>`).join('')}</div></div>
             <div class="field">Энергия<div class="chips">${[1, 2, 3, 4, 5].map(i => `<button class="chip ${rv.energy === i ? 'on' : ''}" data-act="rvSet" data-k="energy" data-v="${i}" data-d="${date}">${'●'.repeat(i)}</button>`).join('')}</div></div>

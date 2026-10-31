@@ -8,8 +8,10 @@ async function loadPlan(){
   const d = await r.json();
   COURSES = d.courses; HOURS = d.hours || HOURS; BREAK = d.break || BREAK; LMS = d.lms || "";
   // внутренний короткий формат: c — курс, t — название, w и h — [дата, начало, конец]
-  PLAN = d.webs.map(x => ({n:x.n, c:x.course, code:x.code, t:x.title, w:[x.web.date,x.web.from,x.web.to], h:[x.hw.date,x.hw.from,x.hw.to]}));
+  PLAN = d.webs.map(x => ({n:x.n, c:x.course, code:x.code, t:x.title, w:[x.web.date,x.web.from||"",x.web.to||"23:59"], h:[x.hw.date,x.hw.from||"",x.hw.to||"23:59"]}));
 }
+// время у веба и ДЗ необязательно: без него показываем только день
+function tm(a){ return a[1] ? `${a[1]}–${a[2]}` : ""; }
 const STAGES = [
   {s:0, label:"Не начат", desc:"Веб ещё впереди"},
   {s:1, label:"Смотрю", desc:"Начал веб, досмотрю позже"},
@@ -146,7 +148,7 @@ function renderSummary(){
   const s = st(nextP.n);
   const what = s < 2 ? "Смотреть веб" : s < 3 ? "Решить ДЗ" : "Разобрать ошибки";
   const slot = s < 2 ? nextP.w : nextP.h, rel = relLabel(daysFrom(todayStr, slot[0]));
-  const when = `${rel ? rel + ", " : ""}${fmtDay(slot[0])} · ${slot[1]}–${slot[2]}`;
+  const when = `${rel ? rel + ", " : ""}${s >= 2 && s < 3 && !slot[1] ? "до " : ""}${fmtDay(slot[0])}${tm(slot) ? " · " + tm(slot) : ""}`;
   nx.style.setProperty("--cc", `var(--${nextP.c})`);
   nx.dataset.n = nextP.n;
   nx.innerHTML = `<span class="lbl">${late1 ? "Догнать" : "Дальше"}</span>
@@ -194,7 +196,7 @@ function rowHTML(p, now, todayStr){
     <span class="body">
       <span class="tagline"><span class="num">${pad(p.n)}</span><span class="course">${COURSES[p.c].name}</span><span class="code">${p.code}</span>${rel ? `<span class="rel${k===0?" now":""}">${rel}</span>` : ""}</span>
       <span class="title">${esc(p.t)}</span>
-      <span class="slots"><span class="slot web"><i>веб</i>${p.w[1]}–${p.w[2]}</span><span class="slot hw"><i>ДЗ</i>${hwSame ? "" : `${WD[hd.wd]} ${hd.dd}${hd.m === d.m ? "" : " " + MONTHS[hd.m-1]}, `}${p.h[1]}–${p.h[2]}</span>${note}</span>
+      <span class="slots"><span class="slot web"><i>веб</i>${tm(p.w) || "в этот день"}</span><span class="slot hw"><i>ДЗ</i>${p.h[1] ? "" : "до "}${hwSame ? "" : `${WD[hd.wd]} ${hd.dd}${hd.m === d.m ? "" : " " + MONTHS[hd.m-1]}`}${tm(p.h) ? (hwSame ? "" : ", ") + tm(p.h) : ""}</span>${note}</span>
     </span>
     <span class="stat"><span class="meter" aria-hidden="true">${meter}</span>${l ? `<span class="late-tag">отстаю: ${l}</span>` : `<span class="slabel">${STAGES[s].label}</span>`}</span>
   </button>`;
@@ -276,8 +278,8 @@ function renderSheet(n, keepNote){
       <span class="sh-nav"><button class="icon-btn" id="shPrev" aria-label="Предыдущий веб" ${n===1?"disabled":""}>‹</button><button class="icon-btn" id="shNext" aria-label="Следующий веб" ${n===PLAN.length?"disabled":""}>›</button><button class="icon-btn" id="shClose" aria-label="Закрыть">✕</button></span></div>
     <h2 id="shTitle">${esc(p.t)}</h2>
     <dl class="when">
-      <div><dt>Веб</dt><dd>${fmtDay(p.w[0])} · ${p.w[1]}–${p.w[2]}${l==="веб"?'<span class="late-tag">отстаю</span>':""}</dd></div>
-      <div><dt>ДЗ</dt><dd>${fmtDay(p.h[0])} · ${p.h[1]}–${p.h[2]}${l==="ДЗ"?'<span class="late-tag">отстаю</span>':""}</dd></div>
+      <div><dt>Веб</dt><dd>${fmtDay(p.w[0])}${tm(p.w) ? " · " + tm(p.w) : ""}${l==="веб"?'<span class="late-tag">отстаю</span>':""}</dd></div>
+      <div><dt>ДЗ</dt><dd>${p.h[1] ? "" : "до "}${fmtDay(p.h[0])}${tm(p.h) ? " · " + tm(p.h) : ""}${l==="ДЗ"?'<span class="late-tag">отстаю</span>':""}</dd></div>
     </dl>
     <p class="sec-l">Насколько закрыт</p>
     <div class="opts" role="radiogroup" aria-label="Насколько закрыт веб">

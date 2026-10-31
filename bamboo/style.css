@@ -279,7 +279,7 @@ textarea{resize:vertical;line-height:1.45}
 .done-fold[open] summary::before{content:"▾ "}
 
 /* ШАД */
-.cchip{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:99px;background:color-mix(in srgb,currentColor 13%,transparent)}
+.cchip{white-space:nowrap;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:99px;background:color-mix(in srgb,currentColor 13%,transparent)}
 .c-m1{color:var(--m1)}.c-gr{color:var(--gr)}.c-in{color:var(--in)}.c-m2{color:var(--m2)}
 .shad-row{display:grid;gap:6px;padding:10px 0;border-bottom:1px solid var(--rule)}
 .shad-row:last-child{border-bottom:0}

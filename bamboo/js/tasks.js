@@ -45,7 +45,7 @@ function listView(key, tasks){
       const shad = B.shadOn(d);
       if (!l.length && !shad.length && key === 'upcoming' && d !== t) return;
       body += `<div class="group"><div class="group-h">${d === t ? 'Сегодня' : B.rel(d)} <span class="muted">${B.fmtW(d)}</span></div>
-        <div class="tasks">${l.map(x => B.taskRow(x)).join('')}${shad.map(it => `<a class="shad-mini" href="#/cal/${d}"><span class="cchip c-${it.p.c}">${it.kind === 'web' ? 'Веб' : 'ДЗ'} ${esc(it.p.code)}</span>${esc(it.p.t)}<span class="mono muted">${it.from}</span></a>`).join('')}
+        <div class="tasks">${l.map(x => B.taskRow(x)).join('')}${shad.map(it => `<a class="shad-mini" href="#/cal/${d}"><span class="cchip c-${it.p.c}">${it.kind === 'web' ? '' : 'ДЗ · '}${esc(it.p.code)}</span>${esc(it.p.t)}<span class="mono muted">${it.from || (it.kind === 'hw' ? 'дедлайн' : '')}</span></a>`).join('')}
         ${!l.length && !shad.length ? '<p class="empty sm">Пусто</p>' : ''}</div></div>`;
     });
   } else {

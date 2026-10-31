@@ -187,8 +187,8 @@ B.setShadStage = async (n, s) => {
 B.shadOn = date => {
   const out = [];
   B.shad.plan.forEach(p => {
-    if (p.w && p.w.date === date) out.push({p, kind: 'web', from: p.w.from, to: p.w.to, need: 2});
-    if (p.h && p.h.date === date) out.push({p, kind: 'hw', from: p.h.from, to: p.h.to, need: 3});
+    if (p.w && p.w.date === date) out.push({p, kind: 'web', from: p.w.from || '', to: p.w.to || '', need: 2});
+    if (p.h && p.h.date === date) out.push({p, kind: 'hw', from: p.h.from || '', to: p.h.to || '', need: 3});
   });
   return out.sort((a, b) => a.from.localeCompare(b.from));
 };

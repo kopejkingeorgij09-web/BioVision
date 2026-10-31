@@ -91,7 +91,7 @@ B.shadRow = (it, date) => {
   const p = it.p, s = B.shadStage(p.n), course = B.shad.courses[p.c] || {};
   const ok = s >= it.need, late = !ok && date < B.today();
   return `<div class="shad-row ${ok ? 'ok' : ''} ${late ? 'late' : ''}">
-    <div class="shad-top"><span class="cchip c-${p.c}">${esc(course.name || p.c)}</span><span class="mono">${it.kind === 'web' ? 'Веб' : 'ДЗ'} ${esc(p.code)}</span>${it.from ? `<span class="mono muted">${it.from}–${it.to}</span>` : `<span class="muted">${B.fmtS(it.kind === 'web' ? p.w.date : p.h.date)}</span>`}</div>
+    <div class="shad-top"><span class="cchip c-${p.c}">${esc(course.name || p.c)}</span><span class="mono">${it.kind === 'web' ? '' : 'ДЗ · '}${esc(p.code)}</span>${it.from ? `<span class="mono muted">${it.from}–${it.to}</span>` : `<span class="muted">${it.kind === 'hw' ? 'до ' : ''}${B.fmtS(it.kind === 'web' ? p.w.date : p.h.date)}</span>`}</div>
     <div class="shad-title">${esc(p.t)}</div>
     <div class="seg" role="group" aria-label="Стадия">${B.SHAD_STAGES.map((l, i) => `<button class="${s === i ? 'on' : ''} ${i <= s ? 'fill' : ''}" data-act="shadSet" data-n="${p.n}" data-s="${i}" title="${l}">${SHORT[i]}</button>`).join('')}</div>
   </div>`;

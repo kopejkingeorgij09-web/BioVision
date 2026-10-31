@@ -2,11 +2,11 @@
 (function(){
 const {esc, icon} = B;
 const NAV = [
-  ['today', 'Сегодня', 'today'], ['tasks', 'Задачи', 'list'], ['cal', 'Календарь', 'cal'], ['focus', 'Фокус', 'timer'],
-  ['habits', 'Привычки', 'habit'], ['read', 'Чтение', 'book'], ['sport', 'Спорт', 'dumbbell'], ['journal', 'Дневник', 'pen'],
+  ['today', 'Сегодня', 'today'], ['journal', 'Дневник', 'pen'], ['tasks', 'Задачи', 'list'], ['cal', 'Календарь', 'cal'], ['focus', 'Фокус', 'timer'],
+  ['habits', 'Привычки', 'habit'], ['read', 'Чтение', 'book'], ['sport', 'Спорт', 'dumbbell'],
   ['bamboo', 'Бамбук', 'bamboo'], ['stats', 'Итоги', 'chart'], ['settings', 'Настройки', 'gear']
 ];
-const BOTTOM = ['today', 'tasks', 'cal', 'focus'];
+const BOTTOM = ['today', 'journal', 'tasks', 'cal'];
 
 /* ---------- тема ---------- */
 const LS_THEME = 'bamboo-theme';

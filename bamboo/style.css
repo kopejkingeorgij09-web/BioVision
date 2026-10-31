@@ -621,3 +621,6 @@ input[type=range]{accent-color:var(--accent)}
 .week-cta .ic{color:var(--accent)}
 .week-cta span{display:grid}
 .week-cta small{color:var(--ink-3);font-size:12.5px}
+
+.steps.s3{grid-template-columns:repeat(3,1fr)}
+.plan .sub-h{margin-top:6px;padding-top:12px;border-top:1px solid var(--rule)}

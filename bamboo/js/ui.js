@@ -251,7 +251,7 @@ B.openTask = id => {
       <div class="add-line"><input id="subNew" placeholder="Новый шаг: «прочитать § 4.1», «решить задачи 1–5»" data-enter="subAdd" data-id="${t.id}"><button class="btn sm" data-act="subAdd" data-id="${t.id}">${icon('plus')}</button></div>
     </div>
     <label class="ed-notes">Заметки<textarea rows="3" data-in="edField" data-k="notes" data-id="${t.id}" placeholder="Ссылки, условия, что уже пробовал">${esc(t.notes || '')}</textarea></label>
-    ${pp.length ? `<div class="ed-sec"><div class="sec-h">${icon('later')} Переносы</div><ul class="pp-list">${pp.map(p => `<li><span class="mono">${B.fmtS(p.from || '')} → ${B.fmtS(p.to || '')}</span> ${esc(p.why)}</li>`).join('')}</ul></div>` : ''}
+    ${pp.length ? `<div class="ed-sec"><div class="sec-h">${icon('later')} Переносы</div><ul class="pp-list">${pp.map(p => `<li><span class="mono">${p.from ? B.fmtS(p.from) : '—'} → ${p.to ? B.fmtS(p.to) : 'без срока'}</span> ${esc(p.why)}</li>`).join('')}</ul></div>` : ''}
     <div class="row between ed-foot">
       <button class="btn ghost danger" data-act="taskDel" data-id="${t.id}">${icon('trash')} Удалить</button>
       <button class="btn primary" data-act="focusTask" data-id="${t.id}">${icon('play')} Начать 25 минут</button>
@@ -277,7 +277,7 @@ B.inputs.edDl = el => upd(el.dataset.id, {dl: el.checked}, true);
 B.inputs.edDue = async (el, e) => {
   if (e.type !== 'change') return;
   const t = B.task(el.dataset.id); const v = el.value;
-  if (t.due && v && v > t.due && !t.done){
+  if (t.due && !t.done && ((v && v > t.due) || (!v && t.due < B.today()))){
     const why = await B.askReason(t, v);
     if (!why){ el.value = t.due; return; }
     upd(t.id, {due: v, postpones: (t.postpones || []).concat({from: t.due, to: v, why, at: Date.now()})}, true);
@@ -313,7 +313,7 @@ B.acts.focusTask = el => { if (B.sheetOpen()) B.closeSheet(); B.startFocus(el.da
 
 /* ---------- перенос с причиной ---------- */
 const REASONS = ['Не рассчитал время', 'Страшно или лень начинать', 'Непонятно, с чего начать', 'Появилось срочное', 'Плохо себя чувствовал', 'Задача оказалась больше'];
-B.askReason = (t, to) => B.dialog(`<h3>Перенос на ${B.fmt(to)}</h3>
+B.askReason = (t, to) => B.dialog(`<h3>${to ? 'Перенос на ' + B.fmt(to) : 'Убрать срок у просроченного дела'}</h3>
   <p class="dlg-text">«${esc(t.title)}». Напиши честно, почему не сделал. Через неделю это поможет найти, что мешает.</p>
   <div class="chips">${REASONS.map(r => `<button class="chip" data-act="reasonChip">${r}</button>`).join('')}</div>
   <textarea id="reason" rows="2" placeholder="Причина" autofocus></textarea>

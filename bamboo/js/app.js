@@ -179,7 +179,14 @@ B.inputs.import = async (el, e) => {
 
 /* ---------- старт ---------- */
 B.render();
-B.connect().then(() => { B.render(); if (!special()) shared(); });
+B.connect().then(() => {
+  // один раз: «Сон до 00:00» теперь засчитывается по разбору до полуночи
+  setTimeout(() => {
+    const h = B.get('h_sleep'), cfg = B.get('cfg') || {};
+    if (h && !h.auto && !cfg.migNight){ B.put('h_sleep', Object.assign({}, h, {auto: 'night', mini: undefined})); B.setCfg({migNight: 1}); }
+  }, B.cloud ? 2500 : 0);
+  B.render(); if (!special()) shared();
+});
 if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 /* новый день наступает в 4 утра: перерисовать, если вкладка висела открытой */
 let lastDay = B.today();

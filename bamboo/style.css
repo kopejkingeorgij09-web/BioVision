@@ -624,3 +624,17 @@ input[type=range]{accent-color:var(--accent)}
 
 .steps.s3{grid-template-columns:repeat(3,1fr)}
 .plan .sub-h{margin-top:6px;padding-top:12px;border-top:1px solid var(--rule)}
+
+.wk-line{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--ink-2);padding-top:10px;border-top:1px dashed var(--rule)}
+.wk-line span{display:inline-flex;align-items:center;gap:6px}
+.wk-line .ic{width:15px;height:15px;color:var(--ink-3)}
+.wk-line .ok .ic,.wk-line .ok b{color:var(--accent)}
+.sport-today{gap:14px}
+.sport-btn{display:flex;align-items:center;gap:14px;width:100%;padding:14px;border-radius:14px;border:1.5px dashed var(--rule-2);background:var(--paper);text-align:left}
+.sport-btn i{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--sheet);border:1px solid var(--rule);color:var(--ink-2);flex:none}
+.sport-btn i .ic{width:22px;height:22px}
+.sport-btn span{display:grid}
+.sport-btn b{font-size:16px}
+.sport-btn small{color:var(--ink-3);font-size:12.5px}
+.sport-today.on .sport-btn{border-style:solid;border-color:var(--accent);background:var(--accent-soft)}
+.sport-today.on .sport-btn i{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}

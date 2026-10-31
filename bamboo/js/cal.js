@@ -56,7 +56,7 @@ function dayPanel(date, c){
     ${doneThat.length ? `<div class="sub-h">Ещё сделано в этот день</div><div class="tasks">${doneThat.map(t => B.taskRow(t)).join('')}</div>` : ''}
     ${date <= today ? `<div class="sub-h">Итоги</div>
       <div class="facts">
-        <span>${icon('timer')}${pomo.length} ${B.plural(pomo.length, 'помидор', 'помидора', 'помидоров')}</span>
+        <span>${icon('timer')}${B.mins(pomo.reduce((a, q) => a + (q.min || 0), 0))} фокуса</span>
         <span>${icon('book')}${B.mins(rm)} чтения</span>
         <span>${icon('dumbbell')}${ws.length ? ws.map(w => esc(B.SPORT_TYPES[w.type] || w.type)).join(', ') : 'без тренировки'}</span>
         <span>${icon('habit')}${B.habits().filter(h => B.habitDone(h, date)).length}/${B.habits().length} привычек</span>

@@ -109,7 +109,7 @@ B.views.bamboo = {
               <li><span>Каждое главное дело</span><b>+${B.XP.top}</b></li>
               <li><span>Задача (важная +${B.XP.taskP1})</span><b>+${B.XP.task}</b></li>
               <li><span>Шаг большого дела</span><b>+${B.XP.sub}</b></li>
-              <li><span>Помидор от 20 минут</span><b>+${B.XP.pomo}</b></li>
+              <li><span>Фокус, за каждые 25 минут</span><b>+${B.XP.pomo}</b></li>
               <li><span>Привычка (минимум вдвое меньше)</span><b>+${B.XP.habit}</b></li>
               <li><span>Чтение, за 3 минуты (до ${B.XP.readMax})</span><b>+1</b></li>
               <li><span>Тренировка</span><b>+${B.XP.sport}</b></li>

@@ -21,7 +21,7 @@ function summaryHtml(date){
   s.done.forEach(t => li.push(`${icon('check')}${esc(t.title)}`));
   s.subs.forEach(({t, s: x}) => li.push(`${icon('steps')}${esc(x.t)} <span class="muted">(${esc(t.title)})</span>`));
   s.shad.forEach(x => li.push(`${icon('chart')}ШАД ${esc(x)}`));
-  if (s.pomo.length) li.push(`${icon('timer')}${s.pomo.length} ${B.plural(s.pomo.length, 'помидор', 'помидора', 'помидоров')}, ${B.mins(s.pm)} фокуса`);
+  if (s.pomo.length) li.push(`${icon('timer')}${B.mins(s.pm)} фокуса`);
   if (s.rm) li.push(`${icon('book')}${B.mins(s.rm)} чтения`);
   s.ws.forEach(w => li.push(`${icon('dumbbell')}${esc(B.SPORT_TYPES[w.type] || w.type)}${w.min ? ', ' + B.mins(+w.min) : ''}`));
   if (s.hs.length) li.push(`${icon('habit')}Привычки: ${s.hs.map(esc).join(', ')}`);

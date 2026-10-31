@@ -50,11 +50,11 @@ B.views.journal = {
             <h2>${icon('pen')}Разбор</h2>
             <label class="field">Что сделал и чем доволен<textarea rows="3" data-in="rv" data-k="done" data-d="${date}" placeholder="Коротко, своими словами">${esc(rv.done || '')}</textarea></label>
             <label class="field">Что не вышло и почему<textarea rows="3" data-in="rv" data-k="why" data-d="${date}" placeholder="Честно: где отвлёкся, что отложил, что помешало">${esc(rv.why || '')}</textarea></label>
-            <label class="field">Главное на завтра<textarea rows="2" data-in="rv" data-k="tomorrow" data-d="${date}" placeholder="Одно дело, которое сделаешь первым">${esc(rv.tomorrow || '')}</textarea></label>
+            <div class="field">Главное на ${date === t ? 'завтра' : B.fmtS(B.add(date, 1))} <span class="req">${B.planned(B.add(date, 1)) ? 'выбрано' : 'обязательно'}</span>
+              ${B.planPicker(B.add(date, 1), '')}</div>
             <div class="field">Настроение<div class="chips">${[1, 2, 3, 4, 5].map(i => `<button class="chip ${rv.mood === i ? 'on' : ''}" data-act="rvSet" data-k="mood" data-v="${i}" data-d="${date}">${MOOD[i]}</button>`).join('')}</div></div>
             <div class="field">Энергия<div class="chips">${[1, 2, 3, 4, 5].map(i => `<button class="chip ${rv.energy === i ? 'on' : ''}" data-act="rvSet" data-k="energy" data-v="${i}" data-d="${date}">${'●'.repeat(i)}</button>`).join('')}</div></div>
-            <p class="hint" id="rvSaved">${B.hasReview(d) ? 'Разбор сохранён. ' + (date < t ? '' : 'День засчитается, если сделано два главных дела.') : 'Сохраняется само, пока пишешь.'}</p>
-            ${date === t && (rv.tomorrow || '').trim() ? `<button class="btn sm" data-act="tomorrowTask" data-d="${date}">${icon('plus')} Сделать задачей на завтра</button>` : ''}
+            <p class="hint" id="rvSaved">${B.reviewDone(date) ? 'Разбор засчитан.' + (date < t ? '' : ' День закроется, если сделано два главных дела.') : B.hasReview(d) ? 'Текст есть. Чтобы разбор засчитался, выбери главные дела на завтра.' : 'Сохраняется само, пока пишешь. Разбор засчитывается вместе с планом на завтра.'}</p>
           </section>
         </div>
         <div class="col">
@@ -63,11 +63,6 @@ B.views.journal = {
             <div class="add-line"><textarea id="thNew" rows="2" placeholder="Что крутится в голове. Идея, тревога, вывод, что угодно"></textarea></div>
             <div class="row end"><button class="btn sm primary" data-act="thAdd" data-d="${date}">Записать</button></div>
             <div class="notes">${(d.notes || []).slice().reverse().map(n => `<div class="bnote t"><p>${esc(n.t)}</p><span class="muted mono">${B.hm(n.at)}</span><button class="icon-btn sm" data-act="thDel" data-d="${date}" data-at="${n.at}">${icon('x')}</button></div>`).join('') || '<p class="muted">Мыслей за этот день нет.</p>'}</div>
-          </section>
-          <section class="card">
-            <h2>${icon('sparkle')}Неделя</h2>
-            <p class="hint">Claude прочитает итоги семи дней, причины переносов и твои разборы, найдёт, где и почему ты откладываешь, и предложит план на следующую неделю. Откроется claude.ai в твоём аккаунте.</p>
-            <div class="row"><button class="btn primary" data-act="aiWeek">${icon('sparkle')} Разобрать неделю в Claude</button><button class="btn ghost" data-act="aiCopy">${icon('copy')} Скопировать запрос</button></div>
           </section>
           <section class="card">
             <h2>${icon('cal')}Архив</h2>
@@ -93,11 +88,7 @@ B.acts.thDel = async el => {
   if (!(await B.confirm('Удалить запись?', 'Удалить', true))) return;
   B.editDay(el.dataset.d, d => { d.notes = (d.notes || []).filter(n => String(n.at) !== el.dataset.at); });
 };
-B.acts.tomorrowTask = el => {
-  const v = (B.day(el.dataset.d).review || {}).tomorrow; if (!v) return;
-  const tk = B.addQuick(v.split('\n')[0], {due: B.add(el.dataset.d, 1), pri: 1});
-  if (tk) B.toast('Задача на завтра: ' + esc(tk.title));
-};
+
 
 /* ---------- запрос для Claude ---------- */
 function weekPrompt(){

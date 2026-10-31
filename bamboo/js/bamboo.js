@@ -68,6 +68,10 @@ function scene(c){
   </svg>`;
 }
 
+/* для «Итогов»: та же сцена на любой прошлый день */
+B.bambooScene = scene;
+B.bambooTopY = (h, svg) => yOf(h) * svg.getBoundingClientRect().height / H;
+
 B.views.bamboo = {
   title: 'Бамбук',
   render(){
@@ -97,6 +101,7 @@ B.views.bamboo = {
             <div class="kpi"><b>${c.best}</b><span>лучшая серия</span></div>
             <div class="kpi"><b>${B.num(c.xpAll)}</b><span>XP заработано</span></div>
           </div>
+          <a class="btn sm ghost" href="#/stats">${icon('chart')} Как рос бамбук и итоги</a>
           <p class="hint">Заморозка этой недели ${c.freezeLeft ? 'ещё есть: один провал простится' : 'уже потрачена: следующий провал со штрафом'}.</p></section>
           <section class="card rules"><h2>${icon('leaf')}Как растёт бамбук</h2>
             <ul class="plain xp">
@@ -105,11 +110,11 @@ B.views.bamboo = {
               <li><span>Задача (важная +${B.XP.taskP1})</span><b>+${B.XP.task}</b></li>
               <li><span>Шаг большого дела</span><b>+${B.XP.sub}</b></li>
               <li><span>Помидор от 20 минут</span><b>+${B.XP.pomo}</b></li>
-              <li><span>Привычка</span><b>+${B.XP.habit}</b></li>
+              <li><span>Привычка (минимум вдвое меньше)</span><b>+${B.XP.habit}</b></li>
               <li><span>Чтение, за 3 минуты (до ${B.XP.readMax})</span><b>+1</b></li>
               <li><span>Тренировка</span><b>+${B.XP.sport}</b></li>
               <li><span>Стадия веба ШАДа</span><b>+${B.XP.shad}</b></li>
-              <li><span>Вечерний разбор</span><b>+${B.XP.review}</b></li>
+              <li><span>Вечерний разбор с планом на завтра</span><b>+${B.XP.review}</b></li>
               <li><span>Мысль в дневнике (до трёх)</span><b>+${B.XP.note}</b></li>
               <li><span>Закрытый день: 5 × серия</span><b>до +50</b></li>
               <li class="neg"><span>Перенос задачи</span><b>${B.XP.postpone}</b></li>

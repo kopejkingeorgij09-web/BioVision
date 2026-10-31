@@ -4,7 +4,7 @@ const {esc, icon} = B;
 const NAV = [
   ['today', 'Сегодня', 'today'], ['tasks', 'Задачи', 'list'], ['cal', 'Календарь', 'cal'], ['focus', 'Фокус', 'timer'],
   ['habits', 'Привычки', 'habit'], ['read', 'Чтение', 'book'], ['sport', 'Спорт', 'dumbbell'], ['journal', 'Дневник', 'pen'],
-  ['bamboo', 'Бамбук', 'bamboo'], ['settings', 'Настройки', 'gear']
+  ['bamboo', 'Бамбук', 'bamboo'], ['stats', 'Итоги', 'chart'], ['settings', 'Настройки', 'gear']
 ];
 const BOTTOM = ['today', 'tasks', 'cal', 'focus'];
 
@@ -21,6 +21,30 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme
 B.acts.theme = el => { try { localStorage.setItem(LS_THEME, el.dataset.v); } catch (e) {} applyTheme(); B.render(); };
 
 /* ---------- маршрут ---------- */
+/* ярлыки Android (долгое нажатие на иконку) и «Поделиться»: открывают быстрый ввод поверх «Сегодня» */
+function capture(text, kind){
+  B.sheet(`<h2>${kind === 'think' ? 'Мысль' : 'Быстрый ввод'}</h2>
+    <textarea id="capText" rows="4" placeholder="${kind === 'think' ? 'Что в голове' : 'Задача: «сдать лабу пт #физика !1» или мысль'}" autofocus>${esc(text || '')}</textarea>
+    <p class="hint">${B.quickHint}</p>
+    <div class="row end"><button class="btn ${kind === 'think' ? 'primary' : ''}" data-act="capThink">${icon('quote')} В мысли</button><button class="btn ${kind === 'think' ? '' : 'primary'}" data-act="capTask">${icon('plus')} Задача</button></div>`);
+  setTimeout(() => { const t = B.$('#capText'); if (t){ t.focus(); t.setSelectionRange(t.value.length, t.value.length); } }, 120);
+}
+B.acts.capTask = () => { const v = B.$('#capText').value.trim(); if (!v) return; const tk = B.addQuick(v.split('\n')[0], {}); B.closeSheet(); if (tk) B.toast('Задача: ' + esc(tk.title)); };
+B.acts.capThink = () => { const v = B.$('#capText').value.trim(); if (!v) return; B.editDay(B.today(), d => { d.notes = (d.notes || []).concat({t: v, at: Date.now()}); }); B.closeSheet(); B.toast('Мысль записана в дневник'); };
+function special(){
+  const h = location.hash;
+  if (h === '#/new' || h === '#/think'){ history.replaceState(null, '', '#/today'); B.render(true); capture('', h === '#/think' ? 'think' : 'task'); return true; }
+  if (h === '#/focus/start'){ history.replaceState(null, '', '#/focus'); B.startFocus(null, null); return true; }
+  return false;
+}
+function shared(){
+  const q = new URLSearchParams(location.search);
+  if (!q.has('text') && !q.has('title') && !q.has('url')) return;
+  const text = [q.get('title'), q.get('text'), q.get('url')].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join('\n');
+  history.replaceState(null, '', location.pathname + '#/today');
+  B.render(true); capture(text, 'task');
+}
+
 function route(){
   const h = (location.hash || '#/today').replace(/^#\/?/, '').split('/');
   const v = B.views[h[0]] ? h[0] : 'today';
@@ -46,7 +70,7 @@ document.getElementById('main').addEventListener('focusout', () => setTimeout(()
   const a = document.activeElement, main = document.getElementById('main');
   if (pending && !(a && main.contains(a) && a.matches('input,textarea,select'))) B.render();
 }, 0));
-addEventListener('hashchange', () => { if (B.sheetOpen()) B.closeSheet(); B.render(true); });
+addEventListener('hashchange', () => { if (special()) return; if (B.sheetOpen()) B.closeSheet(); B.render(true); });
 B.on('change', () => B.render());
 B.on('sync', () => shell(route()));
 
@@ -155,7 +179,7 @@ B.inputs.import = async (el, e) => {
 
 /* ---------- старт ---------- */
 B.render();
-B.connect().then(() => B.render());
+B.connect().then(() => { B.render(); if (!special()) shared(); });
 if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 /* новый день наступает в 4 утра: перерисовать, если вкладка висела открытой */
 let lastDay = B.today();

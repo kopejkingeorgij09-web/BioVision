@@ -124,7 +124,8 @@ document.addEventListener('change', onField);
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape'){ if (!$('#dlgScrim').hidden) B.closeDialog(false); else if (B.sheetOpen()) B.closeSheet(); }
   if (e.key === 'Enter' && !e.shiftKey && e.target.matches('[data-enter]')){
-    e.preventDefault(); const f = B.acts[e.target.dataset.enter]; if (f) f(e.target, e);
+    e.preventDefault(); const f = B.acts[e.target.dataset.enter];
+    if (f){ const el = e.target; f(el, e); if (el.isConnected && !el.closest('.sheet,.dlg')){ el.blur(); B.render(); } }
   }
 });
 $('#scrim').addEventListener('click', e => { if (e.target.id === 'scrim') B.closeSheet(); });
@@ -140,9 +141,10 @@ B.findProj = name => {
 };
 B.parseQuick = (text, defaults = {}) => {
   let s = ' ' + text.trim() + ' ';
-  const r = Object.assign({proj: null, pri: 4, due: '', time: '', est: 0}, defaults);
+  const r = Object.assign({proj: null, pri: 4, due: '', time: '', est: 0, dl: false}, defaults);
   const today = B.today();
   s = s.replace(/\s#([\p{L}\d_\-]+)/gu, (m, n) => { const p = B.findProj(n); if (p){ r.proj = p.id; return ' '; } return m; });
+  s = s.replace(/\s!!(?=\s)/g, () => { r.dl = true; return ' '; });
   s = s.replace(/\s!([1-4])(?=\s)/g, (m, n) => { r.pri = +n; return ' '; });
   s = s.replace(/\s~(\d{1,2})(?=\s)/g, (m, n) => { r.est = +n; return ' '; });
   s = s.replace(/\s(?:в\s)?([01]?\d|2[0-3]):([0-5]\d)(?=\s)/g, (m, h, mi) => { r.time = B.pad(+h) + ':' + mi; return ' '; });
@@ -165,11 +167,11 @@ B.parseQuick = (text, defaults = {}) => {
   if (r.time && !r.due) r.due = today;
   return r;
 };
-B.quickHint = 'Пример: <code>решить 3 задачи пт 18:00 #физика !1 ~2</code> · <code>!1</code> важность, <code>~2</code> помидора, <code>#проект</code>';
+B.quickHint = 'Пример: <code>решить 3 задачи пт 18:00 #физика !1 ~2</code> · <code>!1</code> важность, <code>~2</code> помидора, <code>#проект</code>, <code>!!</code> дедлайн';
 B.addQuick = (text, defaults) => {
   const r = B.parseQuick(text, defaults);
   if (!r.title) return null;
-  const t = B.newTask({title: r.title, proj: r.proj || defaults.proj || 'inbox', pri: r.pri, due: r.due, time: r.time, est: r.est});
+  const t = B.newTask({title: r.title, proj: r.proj || defaults.proj || 'inbox', pri: r.pri, due: r.due, time: r.time, est: r.est, dl: r.dl || undefined});
   B.saveTask(t);
   return t;
 };
@@ -187,7 +189,9 @@ B.taskRow = (t, o = {}) => {
   const subs = t.subs || [], sd = subs.filter(s => s.done).length;
   const meta = [];
   if (o.proj !== false && t.proj && t.proj !== 'inbox') meta.push(`<span class="pchip c-${(B.proj(t.proj) || {}).color || 'ink'}">${esc(B.projName(t.proj))}</span>`);
-  if (t.due) meta.push(B.dueLabel(t));
+  if (o.when) meta.push(`<span class="when">${icon('timer')}${esc(o.when)}</span>`);
+  if (t.due && !o.when) meta.push(B.dueLabel(t));
+  if (t.dl && !t.done && t.due) meta.push(`<span class="tag dl">дедлайн</span>`);
   if (t.big) meta.push(`<span class="tag big">большое</span>`);
   if (subs.length) meta.push(`<span class="subs">${icon('steps')}${sd}/${subs.length}</span>`);
   if (t.est) meta.push(`<span class="est" title="Оценка в помидорах">${'●'.repeat(Math.min(t.est, 6))}${t.est > 6 ? '+' : ''}</span>`);
@@ -236,6 +240,7 @@ B.openTask = id => {
       <label>Статус<select data-in="edField" data-k="status" data-id="${t.id}">${[['todo', 'Надо'], ['doing', 'В работе'], ['done', 'Готово']].map(([v, l]) => `<option value="${v}" ${t.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
     </div>
     <label class="switch"><input type="checkbox" ${t.big ? 'checked' : ''} data-in="edBig" data-id="${t.id}"><span></span>Большое дело: разбить на шаги и делать по одному каждый день</label>
+    <label class="switch"><input type="checkbox" ${t.dl ? 'checked' : ''} data-in="edDl" data-id="${t.id}"><span></span>Дедлайн: показывать обратный отсчёт на главном экране</label>
     <div class="ed-sec">
       <div class="sec-h">${icon('steps')} Шаги <span class="muted">${(t.subs || []).filter(s => s.done).length}/${(t.subs || []).length}</span></div>
       <div class="subs-list">${(t.subs || []).map(s => `<div class="sub ${s.done ? 'is-done' : ''}">
@@ -268,6 +273,7 @@ B.inputs.edField = (el, e) => {
   upd(el.dataset.id, patch, true);
 };
 B.inputs.edBig = el => upd(el.dataset.id, {big: el.checked}, true);
+B.inputs.edDl = el => upd(el.dataset.id, {dl: el.checked}, true);
 B.inputs.edDue = async (el, e) => {
   if (e.type !== 'change') return;
   const t = B.task(el.dataset.id); const v = el.value;
@@ -334,8 +340,8 @@ B.acts.ppPick = el => B.closeDialog(el.dataset.d);
 B.acts.ppDate = () => { const v = $('#ppDate').value; if (v) B.closeDialog(v); };
 
 /* ---------- выбор задачи из списка (для плана дня и фокуса) ---------- */
-B.candidates = () => {
-  const t = B.today();
+B.candidates = (date) => {
+  const t = date || B.today();
   return B.tasks().filter(x => !x.done).sort((a, b) => {
     const da = a.due || '9999', db = b.due || '9999';
     const ua = da <= t ? 0 : 1, ub = db <= t ? 0 : 1;

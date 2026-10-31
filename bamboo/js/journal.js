@@ -54,7 +54,7 @@ B.views.journal = {
               ${B.planPicker(B.add(date, 1), '')}</div>
             <div class="field">Настроение<div class="chips">${[1, 2, 3, 4, 5].map(i => `<button class="chip ${rv.mood === i ? 'on' : ''}" data-act="rvSet" data-k="mood" data-v="${i}" data-d="${date}">${MOOD[i]}</button>`).join('')}</div></div>
             <div class="field">Энергия<div class="chips">${[1, 2, 3, 4, 5].map(i => `<button class="chip ${rv.energy === i ? 'on' : ''}" data-act="rvSet" data-k="energy" data-v="${i}" data-d="${date}">${'●'.repeat(i)}</button>`).join('')}</div></div>
-            <p class="hint" id="rvSaved">${B.reviewDone(date) ? 'Разбор засчитан.' + (date < t ? '' : ' День закроется, если сделано два главных дела.') : B.hasReview(d) ? 'Текст есть. Чтобы разбор засчитался, выбери главные дела на завтра.' : 'Сохраняется само, пока пишешь. Разбор засчитывается вместе с планом на завтра.'}</p>
+            <p class="hint" id="rvSaved">${date < t && !B.reviewDone(date) ? 'День уже закончился: разбор останется в дневнике, но день задним числом не закрывается.' : B.reviewDone(date) ? 'Разбор засчитан.' + (date < t ? '' : ' День закроется, если сделано два главных дела.') : B.hasReview(d) ? 'Текст есть. Чтобы разбор засчитался, выбери главные дела на завтра.' : 'Сохраняется само, пока пишешь. Разбор засчитывается вместе с планом на завтра.'}</p>
           </section>
         </div>
         <div class="col">
@@ -75,7 +75,7 @@ B.views.journal = {
 };
 B.inputs.rv = el => {
   const date = el.dataset.d;
-  B.editDay(date, d => { d.review = Object.assign({}, d.review, {[el.dataset.k]: el.value, at: Date.now()}); }, true);
+  B.editDay(date, d => { const r = d.review || {}; d.review = Object.assign({}, r, {[el.dataset.k]: el.value, at: Date.now(), first: r.first || Date.now()}); }, true);
   const s = B.$('#rvSaved'); if (s) s.textContent = 'Сохранено';
 };
 B.acts.rvSet = el => B.editDay(el.dataset.d, d => { d.review = Object.assign({}, d.review, {[el.dataset.k]: +el.dataset.v}); });

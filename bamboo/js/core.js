@@ -305,7 +305,7 @@ let sportMemo = null, sportVer = -1;
 function sportSet(){ if (sportVer !== B.ver){ sportMemo = new Set(B.list('w_').map(w => w.date)); sportVer = B.ver; } return sportMemo; }
 B.hasReview = d => !!(d.review && ((d.review.done || '').trim() || (d.review.why || '').trim()));
 /* разбор засчитан, когда написан текст и выбраны главные дела на завтра */
-B.planned = date => (B.day(date).top || []).some(id => { const t = B.task(id); return t && !t.deleted; });
+B.planned = date => (B.day(date).top || []).filter(id => { const t = B.task(id); return t && !t.deleted; }).length >= 2;
 /* задним числом день не закрыть: разбор начат и план на завтра выбран до конца этого дня (до 4 утра) */
 B.reviewDone = date => {
   const d = B.day(date), r = d.review;

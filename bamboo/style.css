@@ -642,3 +642,44 @@ input[type=range]{accent-color:var(--accent)}
 .fm{width:100%;max-width:340px}
 .fm button:disabled{opacity:.55;cursor:default}
 #tmClock.over{color:var(--accent)}
+
+/* ---------- корона и важность ---------- */
+:root{--gold:#B8860B;--gold-soft:#F7EDCF}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--gold:#E8B84A;--gold-soft:#3A3016}}
+:root[data-theme="dark"]{--gold:#E8B84A;--gold-soft:#3A3016}
+.daylist{display:grid;gap:10px}
+.crown-meter{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:12px;background:var(--paper);font-size:13.5px;color:var(--ink-2)}
+.crown-meter>.ic{color:var(--ink-3)}
+.crown-meter span{flex:1}
+.crown-meter i{display:flex;gap:4px}
+.crown-meter i b{width:22px;height:6px;border-radius:9px;background:var(--rule-2)}
+.crown-meter i b.on{background:color-mix(in srgb,var(--gold) 45%,var(--rule-2))}
+.crown-meter i b.done{background:var(--gold)}
+.crown-meter.set>.ic,.crown-meter.ok>.ic{color:var(--gold)}
+.crown-meter.ok{background:var(--gold-soft);color:var(--ink)}
+.icon-btn.crown{color:var(--rule-2);transition:transform .15s,color .15s}
+.icon-btn.crown:hover{color:var(--gold)}
+.icon-btn.crown.on{color:var(--gold)}
+.icon-btn.crown.on .ic{fill:color-mix(in srgb,var(--gold) 30%,transparent)}
+.icon-btn.crown:active{transform:scale(.85)}
+.icon-btn.flag{color:var(--rule-2)}
+.icon-btn.flag.p1{color:var(--p1)}.icon-btn.flag.p2{color:var(--p2)}.icon-btn.flag.p3{color:var(--p3)}
+.icon-btn.flag.p1 .ic,.icon-btn.flag.p2 .ic,.icon-btn.flag.p3 .ic{fill:color-mix(in srgb,currentColor 25%,transparent)}
+.icon-btn.flag:hover{background:var(--paper)}
+.task.crowned{background:linear-gradient(90deg,var(--gold-soft),transparent 85%);border-radius:12px;border-bottom-color:transparent;margin-bottom:4px;padding-left:4px}
+.task.crowned .task-title{font-weight:600}
+.task.crowned.is-done{background:none}
+.when{cursor:pointer;border-radius:6px}
+.when.add{color:var(--ink-3);font-weight:400;border:1px dashed var(--rule-2);padding:0 6px}
+.when.add:hover{color:var(--accent);border-color:var(--accent)}
+.qcrown{color:var(--rule-2)}.qcrown.on{color:var(--gold);background:var(--gold-soft)}
+.qflag{color:var(--rule-2)}.qflag.p1{color:var(--p1)}.qflag.p2{color:var(--p2)}.qflag.p3{color:var(--p3)}
+.ed-pri{grid-column:1/-1;display:grid;gap:5px;font-size:12.5px;color:var(--ink-3)}
+.pri-seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.pri-seg button{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 6px;border-radius:10px;border:1.5px solid var(--rule-2);background:var(--paper);font-size:13px;color:var(--ink-2)}
+.pri-seg button .ic{width:16px;height:16px}
+.pri-seg .p1{color:var(--p1)}.pri-seg .p2{color:var(--p2)}.pri-seg .p3{color:var(--p3)}
+.pri-seg button.on{border-color:currentColor;background:color-mix(in srgb,currentColor 12%,var(--sheet));font-weight:600}
+.pri-seg button.on .ic{fill:color-mix(in srgb,currentColor 30%,transparent)}
+.pri-seg .p4.on{color:var(--ink)}
+@media (max-width:420px){.pri-seg span{font-size:11.5px}}

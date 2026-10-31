@@ -10,6 +10,8 @@ B.$ = $; B.$$ = $$;
 const P = {
   today: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  crown: '<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/><path d="M5 19h14"/>',
+  flag: '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>',
   list: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/>',
   cal: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/>',
@@ -167,7 +169,7 @@ B.parseQuick = (text, defaults = {}) => {
   if (r.time && !r.due) r.due = today;
   return r;
 };
-B.quickHint = 'Пример: <code>решить 3 задачи пт 18:00 #физика !1 ~2</code> · <code>!1</code> важность, <code>~2</code> помидора, <code>#проект</code>, <code>!!</code> дедлайн';
+B.quickHint = 'Можно писать сразу со сроком и проектом: <code>решить 3 задачи пт 18:00 #физика</code>. Флажок слева от поля задаёт важность.';
 B.addQuick = (text, defaults) => {
   const r = B.parseQuick(text, defaults);
   if (!r.title) return null;
@@ -177,7 +179,7 @@ B.addQuick = (text, defaults) => {
 };
 
 /* ---------- строка задачи ---------- */
-const PRI = {1: 'Срочно и важно', 2: 'Важно', 3: 'Обычно', 4: 'Когда-нибудь'};
+const PRI = {1: 'Срочно', 2: 'Важно', 3: 'Обычно', 4: 'Без флага'};
 B.PRI = PRI;
 B.dueLabel = t => {
   if (!t.due) return '';
@@ -189,8 +191,11 @@ B.taskRow = (t, o = {}) => {
   const subs = t.subs || [], sd = subs.filter(s => s.done).length;
   const meta = [];
   if (o.proj !== false && t.proj && t.proj !== 'inbox') meta.push(`<span class="pchip c-${(B.proj(t.proj) || {}).color || 'ink'}">${esc(B.projName(t.proj))}</span>`);
-  if (o.when) meta.push(`<span class="when">${icon('timer')}${esc(o.when)}</span>`);
-  if (t.due && !o.when) meta.push(B.dueLabel(t));
+  const crowned = o.crownDate && (B.day(o.crownDate).top || []).includes(t.id);
+  if (crowned && !t.done) meta.push(o.when ? `<span class="when" data-act="whenEdit" data-d="${o.crownDate}" data-id="${t.id}">${icon('timer')}${esc(o.when)}</span>`
+    : `<span class="when add" data-act="whenEdit" data-d="${o.crownDate}" data-id="${t.id}">${icon('timer')}когда и где?</span>`);
+  if (t.due && !(o.crownDate && t.due === o.crownDate)) meta.push(B.dueLabel(t));
+  else if (t.time) meta.push(`<span class="due">${icon('cal')}${t.time}</span>`);
   if (t.dl && !t.done && t.due) meta.push(`<span class="tag dl">дедлайн</span>`);
   if (t.big) meta.push(`<span class="tag big">большое</span>`);
   if (subs.length) meta.push(`<span class="subs">${icon('steps')}${sd}/${subs.length}</span>`);
@@ -201,13 +206,22 @@ B.taskRow = (t, o = {}) => {
   return `<div class="task p${t.pri || 4} ${t.done ? 'is-done' : ''} ${o.cls || ''}" data-tid="${t.id}" ${o.drag ? 'draggable="true"' : ''}>
     <button class="chk" data-act="toggleTask" data-id="${t.id}" aria-label="${t.done ? 'Вернуть' : 'Готово'}">${icon('check')}</button>
     <button class="task-main" data-act="openTask" data-id="${t.id}">
-      <span class="task-title">${o.frog ? `<span class="frog" title="Самое неприятное делай первым">${icon('frog')}</span>` : ''}${esc(t.title)}</span>
+      <span class="task-title">${esc(t.title)}</span>
       ${meta.length ? `<span class="task-meta">${meta.join('')}</span>` : ''}
       ${subs.length && o.bar !== false ? B.bar(sd / subs.length, 'thin') : ''}
     </button>
+    ${!t.done && o.flag !== false ? `<button class="icon-btn sm flag p${t.pri || 4}" data-act="prio" data-id="${t.id}" title="Важность: ${PRI[t.pri || 4]}. Нажми, чтобы поменять" aria-label="Важность">${icon('flag')}</button>` : ''}
+    ${o.crownDate && (!t.done || crowned) ? `<button class="icon-btn sm crown ${crowned ? 'on' : ''}" data-act="crown" data-d="${o.crownDate}" data-id="${t.id}" title="${crowned ? 'Снять корону' : 'Сделать главным делом дня'}" aria-label="Главное">${icon('crown')}</button>` : ''}
     ${late && o.postpone !== false ? `<button class="icon-btn" data-act="postpone" data-id="${t.id}" title="Перенести с причиной">${icon('later')}</button>` : ''}
     ${!t.done && o.play !== false ? `<button class="icon-btn play" data-act="focusTask" data-id="${t.id}" title="Фокус на задаче">${icon('play')}</button>` : ''}
   </div>`;
+};
+/* важность по кругу: без флага → обычно → важно → срочно → без флага */
+B.acts.prio = el => {
+  const t = B.task(el.dataset.id); if (!t) return;
+  const p = (t.pri || 4) === 1 ? 4 : (t.pri || 4) - 1;
+  B.updTask(t.id, {pri: p});
+  B.toast(`${icon('flag')} ${PRI[p]}`, 1400);
 };
 B.acts.toggleTask = el => {
   const t = B.task(el.dataset.id); if (!t) return;
@@ -233,7 +247,7 @@ B.openTask = id => {
     ${pp.length >= 3 && !t.done ? `<div class="warn-box">${icon('later')}<div><b>Переносилась ${pp.length} ${B.plural(pp.length, 'раз', 'раза', 'раз')}.</b> Так бывает, когда задача слишком большая или непонятно, с чего начать. Разбей её на шаги по 25 минут и сделай первый прямо сейчас.</div></div>` : ''}
     <div class="ed-grid">
       <label>Проект<select data-in="edField" data-k="proj" data-id="${t.id}">${projOpts}</select></label>
-      <label>Важность<select data-in="edField" data-k="pri" data-id="${t.id}">${[1, 2, 3, 4].map(p => `<option value="${p}" ${+t.pri === p ? 'selected' : ''}>${p} · ${PRI[p]}</option>`).join('')}</select></label>
+      <div class="ed-pri">Важность<div class="pri-seg">${[1, 2, 3, 4].map(p => `<button class="p${p} ${+(t.pri || 4) === p ? 'on' : ''}" data-act="edPri" data-id="${t.id}" data-p="${p}">${icon('flag')}<span>${PRI[p]}</span></button>`).join('')}</div></div>
       <label>Срок<input type="date" value="${t.due || ''}" data-in="edDue" data-id="${t.id}"></label>
       <label>Время<input type="time" value="${t.time || ''}" data-in="edField" data-k="time" data-id="${t.id}"></label>
       <label>Помидоров<input type="number" min="0" max="99" inputmode="numeric" value="${t.est || ''}" placeholder="0" data-in="edField" data-k="est" data-id="${t.id}"></label>
@@ -272,6 +286,7 @@ B.inputs.edField = (el, e) => {
   if (k === 'status'){ patch.done = v === 'done'; patch.doneAt = v === 'done' ? (B.task(el.dataset.id).doneAt || Date.now()) : null; }
   upd(el.dataset.id, patch, true);
 };
+B.acts.edPri = el => { B.updTask(el.dataset.id, {pri: +el.dataset.p}, true); B.openTask(el.dataset.id); };
 B.inputs.edBig = el => upd(el.dataset.id, {big: el.checked}, true);
 B.inputs.edDl = el => upd(el.dataset.id, {dl: el.checked}, true);
 B.inputs.edDue = async (el, e) => {

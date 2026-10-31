@@ -54,39 +54,38 @@ function steps(c, d){
 }
 
 /* редактор плана на любой день: до трёх главных дел и «если-то» к каждому (когда и где) */
-B.planPicker = (date, hint) => {
-  const d = B.day(date), when = d.when || {};
-  const top = (d.top || []).map(B.task).filter(Boolean);
-  const ids = new Set(d.top || []);
-  const cand = top.length < 3 ? B.candidates(date).filter(t => !ids.has(t.id)).slice(0, 6) : [];
-  return `<div class="planpick" data-d="${date}">
-    ${hint ? `<p class="hint">${hint}</p>` : ''}
-    ${top.map((t, i) => `<div class="pick on"><span class="n">${i + 1}</span><span class="grow"><b>${esc(t.title)}</b>
-      <input class="ifthen" value="${esc(when[t.id] || '')}" placeholder="Когда и где? Например: в 16:00 в библиотеке" data-in="ifthen" data-d="${date}" data-id="${t.id}"></span>
-      <button class="icon-btn sm" data-act="topDel" data-d="${date}" data-id="${t.id}" aria-label="Убрать">${icon('x')}</button></div>`).join('')}
-    ${top.length < 3 ? `<div class="add-line"><input class="top-new" placeholder="${top.length ? 'Ещё одно главное дело' : 'Главное дело'}" data-enter="topNew" data-d="${date}"><button class="btn sm" data-act="topNew" data-d="${date}">${icon('plus')}</button></div>
-    ${cand.length ? `<div class="pick-list">${cand.map(t => `<button class="pick" data-act="topAdd" data-d="${date}" data-id="${t.id}">${icon('plus')}<span class="grow">${esc(t.title)}</span>${t.due ? B.dueLabel(t) : ''}</button>`).join('')}</div>` : ''}` : ''}
+/* список дел на день с коронами: коронованные (главные, до трёх) наверху, остальные ниже, по важности.
+   Используется на «Сегодня» и в вечернем разборе для завтрашнего дня. */
+let qCrown = false, qPri = 4;
+B.dayList = (date, opts = {}) => {
+  const d = B.day(date), ids = d.top || [], t = B.today();
+  const crowned = ids.map(B.task).filter(x => x && !x.deleted);
+  const cset = new Set(crowned.map(x => x.id));
+  const rest = B.tasks().filter(x => !cset.has(x.id) && !x.done && x.due && x.due <= date)
+    .sort((a, b) => (a.pri || 4) - (b.pri || 4) || a.due.localeCompare(b.due) || (a.time || '99').localeCompare(b.time || '99'));
+  const doneDay = date === t ? B.tasks().filter(x => x.done && x.doneAt && B.dayOf(x.doneAt) === t && !cset.has(x.id)) : [];
+  const n = crowned.length, nd = crowned.filter(x => x.done).length;
+  const row = x => B.taskRow(x, {crownDate: date, when: (d.when || {})[x.id], cls: cset.has(x.id) ? 'crowned' : ''});
+  return `<div class="daylist" data-d="${date}">
+    <div class="crown-meter ${n >= 2 ? (nd >= 2 ? 'ok' : 'set') : ''}">${icon('crown')}<span>${n < 2 ? `Отметь короной ${n ? 'ещё одно главное дело' : 'два-три главных дела'}` : `Главных сделано ${nd} из ${n}`}</span>
+      <i>${[0, 1, 2].map(i => `<b class="${i < nd ? 'done' : i < n ? 'on' : ''}"></b>`).join('')}</i></div>
+    <div class="add-line quick">
+      <button class="icon-btn qcrown ${qCrown ? 'on' : ''}" data-act="qCrown" title="Сразу главным">${icon('crown')}</button>
+      <button class="icon-btn qflag p${qPri}" data-act="qPri" title="Важность: ${B.PRI[qPri]}">${icon('flag')}</button>
+      <input class="day-new" placeholder="${opts.ph || 'Новое дело'}" data-enter="dayNew" data-d="${date}" autocomplete="off">
+      <button class="btn sm" data-act="dayNew" data-d="${date}">${icon('plus')}</button></div>
+    <div class="tasks">${crowned.map(row).join('')}${rest.map(row).join('')}</div>
+    ${!crowned.length && !rest.length ? `<p class="empty sm">${opts.empty || 'Дел на этот день пока нет.'}</p>` : ''}
+    ${doneDay.length ? `<details class="done-fold"><summary>Ещё сделано сегодня: ${doneDay.length}</summary><div class="tasks">${doneDay.map(x => B.taskRow(x)).join('')}</div></details>` : ''}
   </div>`;
 };
+B.planPicker = date => B.dayList(date, {ph: 'Дело на завтра', empty: 'На завтра пока ничего. Добавь дела и отметь главные короной.'});
 
-/* одна карточка дня: сверху три главных (или выбор плана), ниже остальные дела на сегодня */
 function dayCard(c, d){
-  const t = c.today, top = (d.top || []).map(B.task).filter(Boolean), ids = new Set(d.top || []);
-  const editing = !top.length || B._editPlan;
-  const done = top.filter(x => x.done).length, when = d.when || {};
-  const list = B.tasks().filter(x => !ids.has(x.id) && !x.done && x.due && x.due <= t)
-    .sort((a, b) => a.due.localeCompare(b.due) || (a.pri || 4) - (b.pri || 4) || (a.time || '99').localeCompare(b.time || '99'));
-  const doneToday = B.tasks().filter(x => x.done && x.doneAt && B.dayOf(x.doneAt) === t && !ids.has(x.id));
-  const late = list.filter(x => x.due < t).length;
+  const late = B.tasks().filter(x => !x.done && x.due && x.due < c.today).length;
   return `<section class="card plan">
-    <div class="row between"><h2>${icon('star')}Главное сегодня ${top.length && !editing ? `<span class="muted">${done}/${top.length}</span>` : ''}</h2>
-      ${top.length ? `<button class="btn sm ghost" data-act="${editing ? 'planDone' : 'planEdit'}">${editing ? 'Готово' : 'Изменить'}</button>` : ''}</div>
-    ${editing ? B.planPicker(t, top.length ? '' : 'Два-три главных дела. Первое самое неприятное, его делаешь до обеда. Допиши, когда и где сядешь за каждое.')
-      : `<div class="tasks">${top.map((x, i) => B.taskRow(x, {frog: i === 0 && !x.done, cls: 'top', when: when[x.id]})).join('')}</div>`}
-    <div class="sub-h row between"><span>Остальные дела</span>${late ? `<span class="tag late">${late} просрочено</span>` : ''}</div>
-    <div class="add-line quick"><input id="quickToday" placeholder="Добавить дело на сегодня" data-enter="quickToday"><button class="btn sm" data-act="quickToday">${icon('plus')}</button></div>
-    ${list.length ? `<div class="tasks">${list.map(x => B.taskRow(x)).join('')}</div>` : ''}
-    ${doneToday.length ? `<details class="done-fold"><summary>Сделано сегодня: ${doneToday.length}</summary><div class="tasks">${doneToday.map(x => B.taskRow(x)).join('')}</div></details>` : ''}
+    <div class="row between"><h2>${icon('list')}Дела на сегодня</h2>${late ? `<span class="tag late">${late} просрочено</span>` : ''}</div>
+    ${B.dayList(c.today)}
   </section>`;
 }
 
@@ -287,35 +286,45 @@ B.views.today = {
 
 /* план дня */
 const pdate = el => el.dataset.d || B.today();
-B.acts.topAdd = async el => {
-  const t = pdate(el); let n = 0;
-  const tk0 = B.task(el.dataset.id);
-  // просроченное дело в план на более поздний день — это перенос, нужна причина
-  if (tk0 && !tk0.done && tk0.due && tk0.due < B.today() && t > tk0.due){
-    const why = await B.askReason(tk0, t); if (!why) return;
-    B.updTask(tk0.id, {due: t, postpones: (tk0.postpones || []).concat({from: tk0.due, to: t, why, at: Date.now()})}, true);
+/* корона: сделать дело главным на день (не больше трёх) или снять */
+B.acts.crown = async el => {
+  const t = pdate(el), id = el.dataset.id, d = B.day(t);
+  if ((d.top || []).includes(id)){ B.editDay(t, x => { x.top = (x.top || []).filter(i => i !== id); }); return; }
+  const live = (d.top || []).filter(i => { const k = B.task(i); return k && !k.deleted; });
+  if (live.length >= 3){ B.toast('Главных уже три. Сними корону с одного, чтобы поставить на другое'); return; }
+  const tk = B.task(id); if (!tk) return;
+  // просроченное дело главным на более поздний день — это перенос, нужна причина
+  if (!tk.done && tk.due && tk.due < B.today() && t > tk.due){
+    const why = await B.askReason(tk, t); if (!why) return;
+    B.updTask(tk.id, {due: t, postpones: (tk.postpones || []).concat({from: tk.due, to: t, why, at: Date.now()})}, true);
     B.xpToast(B.XP.postpone, 'за перенос');
   }
-  B.editDay(t, d => { d.top = (d.top || []).filter(id => B.task(id)); if (d.top.length < 3 && !d.top.includes(el.dataset.id)) d.top.push(el.dataset.id); d.planAt = d.planAt || Date.now(); n = d.top.length; });
-  const tk = B.task(el.dataset.id);
-  if (tk && (!tk.due || tk.due < t)) B.updTask(tk.id, {due: t});
-  if (t === B.today()) B._editPlan = n < 3;
+  B.editDay(t, x => { x.top = (x.top || []).filter(i => { const k = B.task(i); return k && !k.deleted; }).concat(id); x.planAt = x.planAt || Date.now(); });
+  const k = B.task(id); if (k && (!k.due || k.due > t)) B.updTask(id, {due: t});
+  if (live.length === 0) B.toast(`${B.icon('crown')} Главное дело. Нажми «когда и где», чтобы назначить время`);
 };
-B.acts.topDel = el => B.editDay(pdate(el), d => { d.top = (d.top || []).filter(id => id !== el.dataset.id); });
-B.acts.topNew = el => {
-  const box = el.closest('.planpick'), inp = box && box.querySelector('.top-new'), t = pdate(el);
+B.acts.topAdd = el => B.acts.crown(el);
+B.acts.qCrown = () => { qCrown = !qCrown; B.render(true); };
+B.acts.qPri = () => { qPri = qPri === 1 ? 4 : qPri - 1; B.render(true); };
+B.acts.dayNew = el => {
+  const box = el.closest('.daylist'), inp = box && box.querySelector('.day-new'), t = pdate(el);
   const v = inp ? inp.value.trim() : ''; if (!v) return;
-  const tk = B.addQuick(v, {due: t}); if (!tk) return;
-  B.acts.topAdd({dataset: {id: tk.id, d: t}});
-  setTimeout(() => { const i = B.$(`.planpick[data-d="${t}"] .top-new`); if (i) i.focus(); }, 30);
+  const tk = B.addQuick(v, {due: t, pri: qPri}); if (!tk) return;
+  if (tk.pri === 4 && qPri !== 4) B.updTask(tk.id, {pri: qPri}, true);
+  if (qCrown) B.acts.crown({dataset: {id: tk.id, d: t}});
+  qCrown = false; qPri = 4;
+  setTimeout(() => { const i = B.$(`.daylist[data-d="${t}"] .day-new`); if (i) i.focus(); }, 30);
 };
-B.inputs.ifthen = el => B.editDay(el.dataset.d, d => { d.when = Object.assign({}, d.when, {[el.dataset.id]: el.value}); }, true);
-B.acts.planEdit = () => { B._editPlan = true; B.render(); };
-B.acts.planDone = () => { B._editPlan = false; B.render(); };
-B.acts.quickToday = () => {
-  const inp = B.$('#quickToday'), v = inp.value.trim(); if (!v) return;
-  const tk = B.addQuick(v, {due: B.today()});
-  if (tk) B.toast(`Добавлено: ${esc(tk.title)}${tk.due !== B.today() ? ' · ' + B.rel(tk.due) : ''}`);
-  setTimeout(() => { const i = B.$('#quickToday'); if (i) i.focus(); }, 30);
+B.acts.whenEdit = async el => {
+  const t = pdate(el), id = el.dataset.id, cur = (B.day(t).when || {})[id] || '';
+  const v = await B.dialog(`<h3>Когда и где</h3><p class="dlg-text">Конкретное время и место превращают «надо бы» в решение.</p>
+    <input id="whenIn" value="${esc(cur)}" placeholder="Например: в 16:00 в библиотеке" autofocus data-enter="whenOk">
+    <div class="chips">${['утром, сразу после завтрака', 'в 16:00 в библиотеке', 'после пар, дома за столом', 'вечером, до 21:00'].map(x => `<button class="chip" data-act="whenChip">${x}</button>`).join('')}</div>
+    <div class="row end"><button class="btn ghost" data-act="dlgNo">Отмена</button><button class="btn primary" data-act="whenOk">Сохранить</button></div>`);
+  if (v === false || v == null) return;
+  B.editDay(t, d => { d.when = Object.assign({}, d.when, {[id]: v}); });
 };
+B.acts.whenChip = el => { const i = B.$('#whenIn'); i.value = el.textContent; i.focus(); };
+B.acts.whenOk = () => B.closeDialog(B.$('#whenIn').value.trim());
+
 })();

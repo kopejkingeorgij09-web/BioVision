@@ -222,8 +222,8 @@ function focusCard(c, d){
   const pomo = d.pomo || [], min = pomo.reduce((a, p) => a + (p.min || 0), 0);
   const tm = B.timerState && B.timerState();
   return `<section class="card focus-mini">
-    <div class="grow"><h2>${icon('timer')}Фокус</h2><p class="muted">${pomo.length ? `${pomo.length} ${B.plural(pomo.length, 'помидор', 'помидора', 'помидоров')} · ${B.mins(min)}` : 'Сегодня ещё ни одного помидора'}</p></div>
-    ${tm && tm.running ? `<a class="btn primary" href="#/focus">${icon('timer')} Идёт таймер</a>` : `<button class="btn" data-act="five">5 минут</button><a class="btn primary" href="#/focus">${icon('play')} 25 минут</a>`}
+    <div class="grow"><h2>${icon('timer')}Фокус</h2><p class="muted">${min ? `Сегодня ${B.mins(min)} фокуса` : 'Сегодня фокуса ещё не было'}</p></div>
+    ${tm && tm.running ? `<a class="btn primary" href="#/focus">${icon('timer')} Идёт таймер</a>` : `<button class="btn" data-act="five">5 минут</button><a class="btn primary" href="#/focus">${icon('play')} Начать</a>`}
   </section>`;
 }
 B.acts.five = () => B.startFocus(null, null, 5);

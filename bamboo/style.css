@@ -638,3 +638,7 @@ input[type=range]{accent-color:var(--accent)}
 .sport-btn small{color:var(--ink-3);font-size:12.5px}
 .sport-today.on .sport-btn{border-style:solid;border-color:var(--accent);background:var(--accent-soft)}
 .sport-today.on .sport-btn i{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+
+.fm{width:100%;max-width:340px}
+.fm button:disabled{opacity:.55;cursor:default}
+#tmClock.over{color:var(--accent)}

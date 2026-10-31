@@ -293,9 +293,11 @@ B.habitVal = (h, date) => {
   }
   if (h.auto === 'sport') return sportSet().has(date) ? 1 : 0;
   if (h.auto === 'night'){
-    // разбор начат до полуночи того же календарного дня
+    // разбор начат до часу ночи: в тот же календарный день или после полуночи, но раньше 01:00
     const r = B.day(date).review, f = r && (r.first || r.at);
-    return f && B.hasReview(B.day(date)) && B.ymd(new Date(f)) === date ? 1 : 0;
+    if (!f || !B.hasReview(B.day(date))) return 0;
+    const x = new Date(f), day = B.ymd(x);
+    return day === date || (day === B.add(date, 1) && x.getHours() < 1) ? 1 : 0;
   }
   const d = B.day(date), v = d.h && d.h[h.id];
   return v ? (v === 0.5 ? 0.5 : 1) : 0;

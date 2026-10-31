@@ -155,7 +155,7 @@ B.habitChip = (h, date) => {
   if (h.auto === 'read'){ const m = B.readMin(date); sub = `${m}/${h.min || 30} мин`; }
   else if (h.kind === 'weekly'){ const ws = B.weekStart(date); let k = 0; for (let i = 0; i < 7; i++) if (B.habitDone(h, B.add(ws, i))) k++; sub = `${k}/${h.target || 3} за неделю`; }
   const act = h.auto === 'read' ? 'data-act="readQuick"' : h.auto === 'sport' ? 'data-act="sportQuick"' : h.auto === 'night' ? 'href="#/journal"' : '';
-  if (h.auto === 'night' && !done) sub = new Date().getHours() < 4 || date < B.today() ? 'разбор не до полуночи' : 'разбор до 00:00';
+  if (h.auto === 'night' && !done) sub = (new Date().getHours() >= 1 && new Date().getHours() < 4) || date < B.today() ? 'разбор не до 01:00' : 'разбор до 01:00';
   if (val === 0.5) sub = 'минимум' + (h.mini ? ': ' + esc(h.mini) : '');
   else if (!done && h.mini && !h.auto) sub = 'хотя бы: ' + esc(h.mini);
   return `<${act.startsWith('href') ? 'a' : 'button'} class="hchip ${done ? 'on' : ''} ${val === 0.5 ? 'half' : ''}" ${act || `data-act="habitToggle" data-id="${h.id}" data-d="${date}"`}>

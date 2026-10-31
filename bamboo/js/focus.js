@@ -134,7 +134,7 @@ B.inputs.pomoCfg = (el, e) => {
 let fsMode = 'week', fsSel = null;
 const hm = m => { m = Math.round(m); return `${Math.floor(m / 60)}:${B.pad(m % 60)}`; };
 const dayMin = d => (B.day(d).pomo || []).reduce((a, p) => a + (p.min || 0), 0);
-const sessions = d => (B.day(d).pomo || []).map(p => ({min: p.min || 0, end: p.at, start: p.at - (p.min || 0) * 60000, task: p.task}));
+const sessions = d => (B.day(d).pomo || []).map(p => ({min: p.min || 0, end: p.at, start: p.at - (p.min || 0) * 60000, task: p.task, manual: p.manual}));
 const clockMin = ts => { const x = new Date(ts); let m = x.getHours() * 60 + x.getMinutes(); if (m < 240) m += 1440; return m; };   // день до 4 утра
 const fmtClock = m => `${B.pad(Math.floor(m / 60) % 24)}:${B.pad(m % 60)}`;
 function heat(v, max){ if (!v) return 'h0'; const r = v / Math.max(60, max); return r > .75 ? 'h4' : r > .5 ? 'h3' : r > .25 ? 'h2' : 'h1'; }
@@ -183,7 +183,8 @@ function dayView(d){
       ${ss.map(s => `<rect x="${x(clockMin(s.start))}" y="6" width="${Math.max(2, x(clockMin(s.end)) - x(clockMin(s.start)))}" height="18" rx="3" class="blk"><title>${fmtClock(clockMin(s.start))}–${fmtClock(clockMin(s.end))}, ${hm(s.min)}</title></rect>`).join('')}
       ${[6, 9, 12, 15, 18, 21, 24, 27].map(h => `<text x="${x(h * 60)}" y="40" class="ax" text-anchor="middle">${B.pad(h % 24)}</text>`).join('')}
     </svg>
-    ${ss.length ? `<ul class="plain sess">${ss.slice().reverse().map(s => `<li><span class="mono muted">${fmtClock(clockMin(s.start))}–${fmtClock(clockMin(s.end))}</span><span class="grow">${s.task && B.task(s.task) ? esc(B.task(s.task).title) : 'Без задачи'}</span><b class="mono">${hm(s.min)}</b></li>`).join('')}</ul>` : '<p class="muted">В этот день фокуса не было.</p>'}
+    ${ss.length ? `<ul class="plain sess">${ss.slice().reverse().map(s => `<li><span class="mono muted">${fmtClock(clockMin(s.start))}–${fmtClock(clockMin(s.end))}</span><span class="grow">${s.task && B.task(s.task) ? esc(B.task(s.task).title) : 'Без задачи'}</span><b class="mono">${hm(s.min)}</b>${s.manual ? '<span class="tag">вручную</span>' : ''}<button class="icon-btn sm" data-act="sessDel" data-d="${d}" data-at="${s.end}" aria-label="Удалить запись">${icon('x')}</button></li>`).join('')}</ul>` : '<p class="muted">В этот день фокуса не было.</p>'}
+    <button class="btn sm ghost" data-act="sessAdd" data-d="${d}">${icon('plus')} Добавить запись</button>
     ${byTask([d])}`;
 }
 function weekView(ws){
@@ -224,6 +225,33 @@ B.focusStats = () => {
     ${fsMode === 'day' ? `<div class="qhead"><button class="icon-btn sm" data-act="fsD" data-k="-1">${icon('left')}</button><b>${B.fmtW(fsSel)}</b><button class="icon-btn sm" data-act="fsD" data-k="1" ${fsSel >= t ? 'disabled' : ''}>${icon('right')}</button></div>` : ''}
     ${body}
   </section>`;
+};
+/* ручная запись: забыл включить таймер — добавь время сам */
+B.acts.sessAdd = async el => {
+  const d = el.dataset.d, cand = B.candidates().slice(0, 40);
+  const now = new Date(), nowHM = `${B.pad(now.getHours())}:${B.pad(now.getMinutes())}`;
+  const r = await B.dialog(`<h3>Запись фокуса · ${B.fmtW(d)}</h3>
+    <div class="ed-grid"><label>Начало<input type="time" id="saFrom" value="18:00"></label><label>Конец<input type="time" id="saTo" value="${d === B.today() ? nowHM : '19:00'}"></label></div>
+    <label class="field">Над чем работал<select id="saTask"><option value="">Без задачи</option>${cand.map(t => `<option value="${t.id}">${esc(t.title)}</option>`).join('')}</select></label>
+    <p class="hint" id="saHint">Если конец раньше начала, значит закончил после полуночи.</p>
+    <div class="row end"><button class="btn ghost" data-act="dlgNo">Отмена</button><button class="btn primary" data-act="saOk">Добавить</button></div>`);
+  if (!r) return;
+  // день заканчивается в 4 утра: начало между 00:00 и 04:00 — это уже следующая календарная дата
+  const p = B.parse(d), start = new Date(p.getFullYear(), p.getMonth(), p.getDate() + (r.fromMin < 240 ? 1 : 0), Math.floor(r.fromMin / 60), r.fromMin % 60).getTime();
+  const end = start + r.min * 60000;
+  B.editDay(d, x => { x.pomo = (x.pomo || []).concat({task: r.task || null, min: r.min, at: end, kind: 'manual', manual: true}); });
+  B.toast(`<b class="pos">+${hm(r.min)} фокуса</b> записано`);
+};
+B.acts.saOk = () => {
+  const f = B.$('#saFrom').value, t = B.$('#saTo').value; if (!f || !t) return;
+  const [fh, fm] = f.split(':').map(Number), [th, tm] = t.split(':').map(Number);
+  let min = th * 60 + tm - (fh * 60 + fm); if (min <= 0) min += 1440;
+  if (min > 16 * 60){ B.$('#saHint').textContent = 'Больше 16 часов подряд, проверь время.'; return; }
+  B.closeDialog({min, fromMin: fh * 60 + fm, task: B.$('#saTask').value});
+};
+B.acts.sessDel = async el => {
+  if (!(await B.confirm('Удалить эту запись фокуса?', 'Удалить', true))) return;
+  B.editDay(el.dataset.d, x => { x.pomo = (x.pomo || []).filter(p => String(p.at) !== el.dataset.at); });
 };
 B.acts.fsMode = el => { fsMode = el.dataset.k; fsSel = fsMode === 'week' ? B.weekStart(B.today()) : B.today(); B.render(); };
 B.acts.fsPick = el => { fsSel = el.dataset.d; B.render(); };

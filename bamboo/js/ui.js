@@ -12,6 +12,7 @@ const P = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   crown: '<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/><path d="M5 19h14"/>',
   flag: '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>',
+  grip: '<circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/>',
   list: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/>',
   cal: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/>',
@@ -204,6 +205,7 @@ B.taskRow = (t, o = {}) => {
   if (pp) meta.push(`<span class="pp ${pp >= 3 ? 'hot' : ''}" title="Сколько раз переносилась">${icon('later')}${pp}</span>`);
   const late = !t.done && t.due && t.due < B.today();
   return `<div class="task p${t.pri || 4} ${t.done ? 'is-done' : ''} ${o.cls || ''}" data-tid="${t.id}" ${o.drag ? 'draggable="true"' : ''}>
+    ${o.grip ? `<span class="grip" title="Перетащи, чтобы поменять порядок" aria-hidden="true">${icon('grip')}</span>` : ''}
     <button class="chk" data-act="toggleTask" data-id="${t.id}" aria-label="${t.done ? 'Вернуть' : 'Готово'}">${icon('check')}</button>
     <button class="task-main" data-act="openTask" data-id="${t.id}">
       <span class="task-title">${esc(t.title)}</span>

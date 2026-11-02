@@ -165,10 +165,10 @@ const ADVICE = {
 B.insights = () => {
   const c = B.calc(), t = c.today, out = [];
   // серия
-  if (c.live >= 3) out.push(`Серия <b>${c.live} ${B.plural(c.live, 'день', 'дня', 'дней')}</b>${c.best > c.live ? `, до рекорда ${c.best - c.live}` : ', это твой рекорд'}. Не рвать цепочку проще, чем начинать заново.`);
+  if (c.live >= 3) out.push(`Разборов подряд: <b>${c.live}</b>${c.best > c.live ? `, до рекорда ${c.best - c.live}` : ', это твой рекорд'}. Не рвать цепочку проще, чем начинать заново.`);
   // вчерашний разбор
   const y = B.add(t, -1);
-  if (y >= c.start && !B.hasReview(B.day(y))) out.push(`Вчера не было разбора. Допиши его в <a href="#/journal/${y}">дневнике</a>: опыт за него уже не вернуть, но причины провала станут видны.`);
+  if (y >= c.start && !B.hasReview(B.day(y))) out.push(`Вчера не было разбора. Допиши его в <a href="#/journal/${y}">дневнике</a>: в серию он уже не попадёт, но причины станут видны.`);
   // заброшенные привычки
   B.habits().forEach(h => {
     if (h.kind === 'weekly'){
@@ -182,12 +182,12 @@ B.insights = () => {
   });
   // слабый день недели за 8 недель
   const by = Array.from({length: 7}, () => ({n: 0, g: 0}));
-  for (let i = 1; i <= 56; i++){ const d = B.add(t, -i), r = c.days[d]; if (!r || r.result === 'open') continue; by[B.wd(d)].n++; if (r.result === 'good') by[B.wd(d)].g++; }
+  for (let i = 1; i <= 56; i++){ const d = B.add(t, -i), r = c.days[d]; if (!r || r.result === 'open') continue; by[B.wd(d)].n++; if (r.result !== 'empty') by[B.wd(d)].g++; }
   const all = by.reduce((a, x) => ({n: a.n + x.n, g: a.g + x.g}), {n: 0, g: 0});
   if (all.n >= 14){
     const avg = all.g / all.n; let worst = -1, wr = 1;
     by.forEach((x, i) => { if (x.n >= 3 && x.g / x.n < wr){ wr = x.g / x.n; worst = i; } });
-    if (worst >= 0 && avg - wr >= 0.25) out.push(`Слабее всего у тебя ${['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'][worst]}: закрыто ${by[worst].g} из ${by[worst].n}. Планируй этот день с вечера накануне и бери в него меньше дел.`);
+    if (worst >= 0 && avg - wr >= 0.25) out.push(`Чаще всего пустые дни у тебя — ${['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'][worst]}: активных ${by[worst].g} из ${by[worst].n}. Планируй этот день с вечера накануне и бери в него меньше дел.`);
   }
   // причины переносов за 14 дней
   const reasons = {}; let pc = 0;

@@ -239,6 +239,7 @@ B.tasks = () => B.list('t_').filter(t => !t.deleted);   // удалённые и
 B.task = id => docs['t_' + id];
 B.saveTask = (t, quiet) => B.put('t_' + t.id, t, quiet);
 B.day = date => docs['d_' + date] || {};
+B.dayDates = () => Object.keys(docs).filter(k => k.startsWith('d_')).map(k => k.slice(2)).sort();
 B.datesWith = id => Object.keys(docs).filter(k => k.startsWith('d_') && (docs[k].top || []).includes(id)).map(k => k.slice(2));
 B.saveDay = (date, d, quiet) => B.put('d_' + date, d, quiet);
 B.editDay = (date, fn, quiet) => { const d = JSON.parse(JSON.stringify(B.day(date))); fn(d); B.saveDay(date, d, quiet); };
@@ -257,15 +258,13 @@ B.setDone = (t, v) => {
 B.nextStep = t => (t.subs || []).find(s => !s.done);
 
 /* ---------- опыт, уровни, серии ----------
-   Опыт за день:
-   план утром +10, каждое из главных дел +15, любая задача +5 (важная +8), шаг большого дела +4,
-   фокус +10 за каждые полные 25 минут (от 20 минут засчитывается первый, 5–19 минут +3), привычка +10, чтение +1 за 3 минуты (до 40), тренировка +25, вечерний разбор +20,
-   мысль в дневнике +5 (до трёх), стадия веба ШАДа +15, перенос задачи −3.
-   Прошедший день «закрыт», если в плане было хотя бы два главных дела, два из них сделаны и написан разбор
-   с выбранными главными делами на завтра. Минимальная версия привычки даёт половину опыта.
-   Закрытый день добавляет к серии и даёт бонус 5 × серия (до 50). Незакрытый день: −50 и серия с нуля.
-   Раз в неделю провал прощается автоматически («заморозка»): серия стоит, штрафа нет. */
-B.XP = {plan: 10, top: 15, task: 5, taskP1: 8, sub: 4, pomo: 10, habit: 10, readPer: 3, readMax: 40, sport: 25, review: 20, note: 5, shad: 15, postpone: -3, fail: -50};
+   Опыт за день: задача +5 (важная или с короной +8), шаг большого дела +4,
+   фокус +10 за каждые полные 25 минут (от 20 минут засчитывается первый, 5–19 минут +3), привычка +10 (минимум +5),
+   чтение +1 за 3 минуты (до 40), тренировка +25, вечерний разбор +20, мысль в дневнике +5 (до трёх),
+   стадия веба ШАДа +15, перенос задачи −3.
+   Понятия «закрытого дня» нет: штрафов за день и заморозок тоже. Вместо одной серии считаются отдельные:
+   разборы в дневнике подряд, дни с хотя бы одним сделанным делом, серии привычек. */
+B.XP = {task: 5, taskP1: 8, sub: 4, pomo: 10, habit: 10, readPer: 3, readMax: 40, sport: 25, review: 20, note: 5, shad: 15, postpone: -3};
 B.need = L => 100 + 25 * L;           // опыта от уровня L до L+1
 B.GROW = 1.42;                         // каждый уровень бамбук выше в 1,42 раза
 B.BASE = 0.3;                          // росток, метры
@@ -306,19 +305,22 @@ B.habitDone = (h, date) => B.habitVal(h, date) > 0;
 let sportMemo = null, sportVer = -1;
 function sportSet(){ if (sportVer !== B.ver){ sportMemo = new Set(B.list('w_').map(w => w.date)); sportVer = B.ver; } return sportMemo; }
 B.hasReview = d => !!(d.review && ((d.review.done || '').trim() || (d.review.why || '').trim()));
-/* разбор засчитан, когда написан текст и выбраны главные дела на завтра */
-B.planned = date => (B.day(date).top || []).filter(id => { const t = B.task(id); return t && !t.deleted; }).length >= 2;
-/* задним числом день не закрыть: разбор начат и план на завтра выбран до конца этого дня (до 4 утра) */
+/* разбор засчитан, если начат до конца дня (до 4 утра); задним числом не считается */
 B.reviewDone = date => {
   const d = B.day(date), r = d.review;
   if (!B.hasReview(d)) return false;
   const first = r.first || r.at;
-  if (first && B.dayOf(first) > date) return false;
-  const next = B.add(date, 1), nd = B.day(next);
-  if (!B.planned(next)) return false;
-  return !(nd.planAt && B.dayOf(nd.planAt) > date);
+  return !(first && B.dayOf(first) > date);
 };
-
+/* серия дней подряд, где test(date) верно; сегодняшний пропуск серию пока не рвёт */
+B.streakOf = (test, from) => {
+  const t = B.today(); from = from || B.cfg().start;
+  let cur = 0, d = test(t) ? t : B.add(t, -1);
+  while (d >= from && test(d)){ cur++; d = B.add(d, -1); }
+  let best = 0, run = 0;
+  for (let x = from; x <= t; x = B.add(x, 1)){ if (test(x)){ run++; best = Math.max(best, run); } else if (x < t) run = 0; }
+  return {cur, best};
+};
 let memo = null, memoKey = '';
 B.calc = () => {
   const today = B.today();
@@ -336,18 +338,16 @@ B.calc = () => {
   B.workouts().forEach(w => push(sportBy, w.date, w));
   for (const n in B.shad.marks){ const m = B.shad.marks[n]; if (m.at && m.s) push(shadBy, B.dayOf(m.at), m.s); }
 
-  const days = {}, weekUsed = {}, weekHab = {};
-  let total = 0, streak = 0, best = 0, fails = 0, goods = 0, frozen = 0, xpAll = 0;
+  const days = {}, weekHab = {};
+  let total = 0, xpAll = 0;
   const N = Math.max(0, B.diff(start, today));
   for (let i = 0; i <= N; i++){
     const date = B.add(start, i), d = B.day(date), ws = B.weekStart(date);
     const p = {};
     const top = (d.top || []).map(B.task).filter(t => t && (!t.deleted || date < today));
-    if (top.length) p.plan = B.XP.plan;
-    const topDoneSameDay = top.filter(t => t.done && t.doneAt && B.dayOf(t.doneAt) === date).length;
-    if (topDoneSameDay) p.top = topDoneSameDay * B.XP.top;
+    const crownSet = new Set(top.map(t => t.id));
     const dn = doneBy[date] || [];
-    if (dn.length) p.tasks = dn.reduce((a, t) => a + (t.pri === 1 ? B.XP.taskP1 : B.XP.task), 0);
+    if (dn.length) p.tasks = dn.reduce((a, t) => a + (t.pri === 1 || crownSet.has(t.id) ? B.XP.taskP1 : B.XP.task), 0);
     if (subBy[date]) p.subs = subBy[date].length * B.XP.sub;
     const pomo = (d.pomo || []).reduce((a, q) => { const m = q.min || 0; return a + (m >= 20 ? Math.max(1, Math.floor(m / 25)) * B.XP.pomo : m >= 5 ? 3 : 0); }, 0);
     if (pomo) p.pomo = pomo;
@@ -374,28 +374,21 @@ B.calc = () => {
     if (postBy[date]) p.postpone = postBy[date].length * B.XP.postpone;
 
     let xp = 0; for (const k in p) xp += p[k];
-    let result = 'open', bonus = 0;
-    const topDone = top.filter(t => t.done && t.doneAt && B.dayOf(t.doneAt) <= date).length;
-    const needTop = 2;                                  // в плане минимум два дела, сделать нужно два
-    const ok = top.length >= 2 && topDone >= needTop && rvOk;
-    if (date < today){
-      if (ok){ result = 'good'; streak++; goods++; bonus = Math.min(50, 5 * streak); }
-      else if (!weekUsed[ws]){ result = 'frozen'; weekUsed[ws] = true; frozen++; }
-      else { result = 'fail'; fails++; streak = 0; bonus = B.XP.fail; }
-    } else if (ok) { result = 'ready'; }
-    best = Math.max(best, streak);
-    if (bonus) p.bonus = bonus;
-    xp += bonus;
+    // день: разбор есть — зелёный лист; что-то сделано без разбора — светлый; пусто — сухой
+    const active = dn.length || (d.pomo || []).length || hab || rm || sportBy[date] || subBy[date];
+    const result = date >= today ? 'open' : rvOk ? 'good' : active ? 'some' : 'empty';
     xpAll += Math.max(0, xp);
     total = Math.max(0, total + xp);
-    days[date] = {xp, p, result, total, top: top.length, topDone, needTop, review: rvOk, reviewText: B.hasReview(d)};
+    days[date] = {xp, p, result, total, done: dn.length, review: rvOk, reviewText: B.hasReview(d)};
   }
   // уровень и высота
   const {L, rem, frac, height} = B.levelOf(total);
-  // серия «с учётом сегодня», если сегодня уже закрыт
-  const live = streak + (days[today] && days[today].result === 'ready' ? 1 : 0);
-  memo = {days, total, level: L, into: rem, need: B.need(L), frac, height, streak, live, best, fails, goods, frozen, xpAll, start, today,
-    freezeLeft: !weekUsed[B.weekStart(today)]};
+  const doneDay = date => !!(days[date] && days[date].done);
+  const rv = B.streakOf(date => !!(days[date] && days[date].review), start);
+  const tk = B.streakOf(doneDay, start);
+  const reviews = Object.values(days).filter(x => x.review).length, empty = Object.values(days).filter(x => x.result === 'empty').length;
+  memo = {days, total, level: L, into: rem, need: B.need(L), frac, height, xpAll, start, today,
+    live: rv.cur, best: rv.best, review: rv, tasks: tk, reviews, empty};
   memoKey = key;
   return memo;
 };

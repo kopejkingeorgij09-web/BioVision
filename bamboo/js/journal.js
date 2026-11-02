@@ -35,7 +35,7 @@ B.views.journal = {
     const d = B.day(date), rv = d.review || {}, c = B.calc(), r = c.days[date];
     const top = (d.top || []).map(B.task).filter(Boolean);
     const dates = Object.keys(c.days).filter(k => k <= t).sort().reverse().slice(0, 60);
-    const res = r ? {good: 'закрыт', fail: 'не закрыт', frozen: 'заморозка', open: 'идёт', ready: 'можно закрывать'}[r.result] : '';
+    const res = r ? {good: 'разбор', some: 'без разбора', empty: 'пустой', open: 'идёт'}[r.result] : '';
     return `<div class="page journal-page">
       <header class="page-h"><div><div class="eyebrow">Дневник</div><h1>${date === t ? 'Сегодня' : B.WDF[B.wd(date)] + ', ' + B.fmt(date)}</h1></div>
         <div class="row"><a class="icon-btn" href="#/journal/${B.add(date, -1)}" aria-label="Предыдущий день">${icon('left')}</a>${date < t ? `<a class="icon-btn" href="#/journal/${B.add(date, 1)}" aria-label="Следующий день">${icon('right')}</a>` : ''}</div></header>
@@ -43,18 +43,18 @@ B.views.journal = {
         <div class="col">
           <section class="card">
             <div class="row between"><h2>${icon('list')}Итоги дня</h2>${res ? `<span class="tag r-${r.result}">${res}${r.xp ? ` · ${r.xp > 0 ? '+' : ''}${r.xp} XP` : ''}</span>` : ''}</div>
-            ${top.length ? `<div class="sub-h">Главные дела: ${top.filter(x => x.done).length}/${top.length}</div><ul class="plain sum">${top.map(x => `<li class="${x.done ? '' : date < t ? 'miss' : 'wait'}">${icon(x.done ? 'check' : date < t ? 'x' : 'later')}${esc(x.title)}</li>`).join('')}</ul>` : '<p class="muted">Плана на этот день не было.</p>'}
+            ${top.length ? `<div class="sub-h">С короной: ${top.filter(x => x.done).length}/${top.length}</div><ul class="plain sum">${top.map(x => `<li class="${x.done ? '' : date < t ? 'miss' : 'wait'}">${icon(x.done ? 'check' : date < t ? 'x' : 'later')}${esc(x.title)}</li>`).join('')}</ul>` : '<p class="muted">Плана на этот день не было.</p>'}
             <div class="sub-h">Сделано</div>${summaryHtml(date)}
           </section>
           <section class="card review-form">
             <h2>${icon('pen')}Разбор</h2>
             <label class="field">Что сделал и чем доволен<textarea rows="3" data-in="rv" data-k="done" data-d="${date}" placeholder="Коротко, своими словами">${esc(rv.done || '')}</textarea></label>
             <label class="field">Что не вышло и почему<textarea rows="3" data-in="rv" data-k="why" data-d="${date}" placeholder="Честно: где отвлёкся, что отложил, что помешало">${esc(rv.why || '')}</textarea></label>
-            <div class="field">Дела на ${date === t ? 'завтра' : B.fmtS(B.add(date, 1))} <span class="req">${(B.day(B.add(date, 1)).top || []).length >= 2 ? 'главные выбраны' : 'отметь короной два главных'}</span>
+            <div class="field">Дела на ${date === t ? 'завтра' : B.fmtS(B.add(date, 1))} <span class="muted">необязательно, корона — важное</span>
               ${B.planPicker(B.add(date, 1), '')}</div>
             <div class="field">Настроение<div class="chips">${[1, 2, 3, 4, 5].map(i => `<button class="chip ${rv.mood === i ? 'on' : ''}" data-act="rvSet" data-k="mood" data-v="${i}" data-d="${date}">${MOOD[i]}</button>`).join('')}</div></div>
             <div class="field">Энергия<div class="chips">${[1, 2, 3, 4, 5].map(i => `<button class="chip ${rv.energy === i ? 'on' : ''}" data-act="rvSet" data-k="energy" data-v="${i}" data-d="${date}">${'●'.repeat(i)}</button>`).join('')}</div></div>
-            <p class="hint" id="rvSaved">${date < t && !B.reviewDone(date) ? 'День уже закончился: разбор останется в дневнике, но день задним числом не закрывается.' : B.reviewDone(date) ? 'Разбор засчитан.' + (date < t ? '' : ' День закроется, если сделано два главных дела.') : B.hasReview(d) ? 'Текст есть. Чтобы разбор засчитался, выбери главные дела на завтра.' : 'Сохраняется само, пока пишешь. Разбор засчитывается вместе с планом на завтра.'}</p>
+            <p class="hint" id="rvSaved">${date < t && !B.reviewDone(date) && B.hasReview(d) ? 'Разбор написан после окончания дня: он останется в дневнике, но в серию не попадёт.' : B.reviewDone(date) ? 'Разбор засчитан, серия дневника продолжается.' : 'Сохраняется само, пока пишешь.'}</p>
           </section>
         </div>
         <div class="col">
@@ -64,6 +64,7 @@ B.views.journal = {
             <div class="row end"><button class="btn sm primary" data-act="thAdd" data-d="${date}">Записать</button></div>
             <div class="notes">${(d.notes || []).slice().reverse().map(n => `<div class="bnote t"><p>${esc(n.t)}</p><span class="muted mono">${B.hm(n.at)}</span><button class="icon-btn sm" data-act="thDel" data-d="${date}" data-at="${n.at}">${icon('x')}</button></div>`).join('') || '<p class="muted">Мыслей за этот день нет.</p>'}</div>
           </section>
+          ${pastCard(date)}
           <section class="card">
             <h2>${icon('cal')}Архив</h2>
             <div class="jlist">${dates.map(k => { const x = c.days[k], dd = B.day(k); return `<a class="jrow ${k === date ? 'on' : ''}" href="#/journal/${k}"><i class="lgd ${x.result}"></i><span class="grow">${B.fmtW(k)}</span><span class="muted">${dd.review && dd.review.mood ? MOOD[dd.review.mood] : ''}</span>${(dd.notes || []).length ? `<span class="muted">${icon('quote')}${dd.notes.length}</span>` : ''}</a>`; }).join('')}</div>
@@ -73,6 +74,23 @@ B.views.journal = {
     </div>`;
   }
 };
+/* «Месяц назад» и «Год назад»: что было в этот же день */
+function sameDay(date, months){
+  const p = B.parse(date), d = new Date(p.getFullYear(), p.getMonth() - months, 1, 12);
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(p.getDate(), last));
+  return B.ymd(d);
+}
+function pastCard(date){
+  const items = [['Неделю назад', B.add(date, -7)], ['Месяц назад', sameDay(date, 1)], ['Полгода назад', sameDay(date, 6)], ['Год назад', sameDay(date, 12)]].map(([l, k]) => {
+    const d = B.day(k), rv = d.review || {}, notes = d.notes || [];
+    const text = (rv.done || rv.why || (notes[0] && notes[0].t) || '').trim();
+    if (!text) return '';
+    return `<a class="past" href="#/journal/${k}"><span class="eyebrow">${l} · ${B.fmtW(k)}${rv.mood ? ' · ' + MOOD[rv.mood] : ''}</span><p>${esc(text.length > 220 ? text.slice(0, 220) + '…' : text)}</p>${notes.length ? `<span class="muted">${icon('quote')} мыслей: ${notes.length}</span>` : ''}</a>`;
+  }).filter(Boolean);
+  if (!items.length) return '';
+  return `<section class="card"><h2>${icon('later')}В этот день раньше</h2>${items.join('')}</section>`;
+}
 B.inputs.rv = el => {
   const date = el.dataset.d;
   B.editDay(date, d => { const r = d.review || {}; d.review = Object.assign({}, r, {[el.dataset.k]: el.value, at: Date.now(), first: r.first || Date.now()}); }, true);
@@ -96,13 +114,13 @@ function weekPrompt(){
   lines.push('Я веду дневник продуктивности «Режим бамбука»: учусь в вузе и готовлюсь к ШАД, борюсь с прокрастинацией. Ниже мои записи за последние 7 дней.');
   lines.push('Проанализируй их как строгий, но доброжелательный тренер: 1) где и почему я откладываю (по причинам переносов и разборам), 2) какие привычки проседают и в какие дни, 3) что получилось хорошо, 4) конкретный план на следующую неделю: три главных цели, что убрать, как построить дни. Без общих советов, только по моим данным. Отвечай по-русски.');
   lines.push('');
-  lines.push(`Уровень ${c.level}, серия закрытых дней ${c.live}, рекорд ${c.best}.`);
+  lines.push(`Уровень ${c.level}, разборов подряд ${c.live} (рекорд ${c.best}), дней с делами подряд ${c.tasks.cur}.`);
   for (let i = 7; i >= 1; i--){
     const date = B.add(t, -i); if (date < c.start) continue;
     const d = B.day(date), r = c.days[date] || {}, s = summary(date), rv = d.review || {};
     const top = (d.top || []).map(B.task).filter(Boolean);
-    lines.push(`## ${B.WDF[B.wd(date)]}, ${B.fmt(date)}: ${({good: 'день закрыт', fail: 'день не закрыт', frozen: 'не закрыт (заморозка)'})[r.result] || ''}`);
-    lines.push(`Главные дела: ${top.length ? top.map(x => (x.done ? '[x] ' : '[ ] ') + x.title).join('; ') : 'плана не было'}`);
+    lines.push(`## ${B.WDF[B.wd(date)]}, ${B.fmt(date)}: ${({good: 'разбор есть', some: 'без разбора', empty: 'пустой день'})[r.result] || ''}`);
+    if (top.length) lines.push(`Важные (с короной): ${top.map(x => (x.done ? '[x] ' : '[ ] ') + x.title).join('; ')}`);
     if (s.done.length) lines.push(`Сделано: ${s.done.map(x => x.title).join('; ')}`);
     lines.push(`Помидоров ${s.pomo.length} (${s.pm} мин), чтение ${s.rm} мин, тренировка: ${s.ws.length ? s.ws.map(w => B.SPORT_TYPES[w.type]).join(', ') : 'нет'}, привычки: ${s.hs.join(', ') || 'нет'}`);
     if (rv.done) lines.push(`Что сделал: ${rv.done}`);

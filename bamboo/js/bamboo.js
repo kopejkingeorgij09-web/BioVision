@@ -1,6 +1,6 @@
 /* Режим бамбука: сам бамбук.
    Высота растёт с уровнем без ограничений: каждый уровень делает стебель в 1,42 раза выше, поэтому шкала логарифмическая.
-   Одно коленце стебля = один уровень. Листья = прожитые дни: зелёный закрыт, сухой провал, голубой заморозка. */
+   Одно коленце стебля = один уровень. Листья = прожитые дни: зелёный — разбор написан, светлый — что-то сделано без разбора, сухой — пустой день. */
 (function(){
 const {esc, icon} = B;
 const PX = 120, LO = -1, PAD = 70;                        // пикселей на порядок, нижний порядок (0,1 м), отступ под землю
@@ -35,14 +35,14 @@ function scene(c){
   let leaves = '';
   const per = {};
   Object.keys(c.days).sort().forEach(d => {
-    const x = c.days[d]; if (!['good', 'fail', 'frozen'].includes(x.result)) return;
+    const x = c.days[d]; if (!['good', 'some', 'empty'].includes(x.result)) return;
     const lv = B.levelOf(x.total);
     const y = Math.max(top + 6, yOf(lv.height));
     const k = Math.round(y / 7);
     const n = per[k] = (per[k] || 0) + 1; if (n > 6) return;
     const side = n % 2 ? 1 : -1, len = 18 + (n % 3) * 5, yy = y + (n > 2 ? 3 : 0);
     const ang = 28 + n * 6;
-    leaves += `<path class="leaf ${x.result}" d="M0 0 C ${len * .35} -6 ${len * .75} -5 ${len} 0 C ${len * .75} 5 ${len * .35} 6 0 0Z" transform="translate(${X + side * 5} ${yy}) rotate(${side > 0 ? -ang : 180 + ang})"><title>${B.fmtW(d)}: ${({good: 'день закрыт', fail: 'провал', frozen: 'заморозка'})[x.result]}</title></path>`;
+    leaves += `<path class="leaf ${x.result}" d="M0 0 C ${len * .35} -6 ${len * .75} -5 ${len} 0 C ${len * .75} 5 ${len * .35} 6 0 0Z" transform="translate(${X + side * 5} ${yy}) rotate(${side > 0 ? -ang : 180 + ang})"><title>${B.fmtW(d)}: ${({good: 'разбор написан', some: 'что-то сделано, без разбора', empty: 'пустой день'})[x.result]}</title></path>`;
   });
   // вехи
   let miles = '', lastT = 1e9;
@@ -93,34 +93,30 @@ B.views.bamboo = {
             <h2>${esc(next[1])}</h2><p class="muted">${esc(next[2])}</p>
             ${B.bar(lp, 'xp')}
             <div class="row between"><span class="muted">${prev ? '✓ ' + esc(prev[1]) : ''}</span><span class="mono">ещё ${B.fmtH(next[0] - c.height)}</span></div>
-            <p class="hint">${eta != null ? `При темпе последней недели (${Math.round(avg)} XP в день) дорастёшь примерно за ${eta} ${B.plural(eta, 'день', 'дня', 'дней')}.` : 'Темп появится после первых закрытых дней.'}</p>
+            <p class="hint">${eta != null ? `При темпе последней недели (${Math.round(avg)} XP в день) дорастёшь примерно за ${eta} ${B.plural(eta, 'день', 'дня', 'дней')}.` : 'Темп появится через несколько дней.'}</p>
           </section>` : `<section class="card"><h2>Дальше карты нет</h2><p class="muted">Бамбук выше наблюдаемой Вселенной. Дальше только ты.</p></section>`}
           <section class="card"><div class="kpis">
-            <div class="kpi"><b>${c.goods}</b><span>дней закрыто</span></div>
-            <div class="kpi"><b>${c.fails}</b><span>сухих листьев</span></div>
-            <div class="kpi"><b>${c.best}</b><span>лучшая серия</span></div>
+            <div class="kpi"><b>${c.reviews}</b><span>разборов</span></div>
+            <div class="kpi"><b>${c.empty}</b><span>сухих листьев</span></div>
+            <div class="kpi"><b>${c.best}</b><span>лучшая серия разборов</span></div>
             <div class="kpi"><b>${B.num(c.xpAll)}</b><span>XP заработано</span></div>
           </div>
           <a class="btn sm ghost" href="#/stats">${icon('chart')} Как рос бамбук и итоги</a>
-          <p class="hint">Заморозка этой недели ${c.freezeLeft ? 'ещё есть: один провал простится' : 'уже потрачена: следующий провал со штрафом'}.</p></section>
+          <p class="hint">Листья: зелёный — день с разбором, светлый — что-то сделано без разбора, сухой — пустой день.</p></section>
           <section class="card rules"><h2>${icon('leaf')}Как растёт бамбук</h2>
             <ul class="plain xp">
-              <li><span>Утренний план</span><b>+${B.XP.plan}</b></li>
-              <li><span>Каждое главное дело</span><b>+${B.XP.top}</b></li>
-              <li><span>Задача (важная +${B.XP.taskP1})</span><b>+${B.XP.task}</b></li>
+              <li><span>Задача (важная или с короной +${B.XP.taskP1})</span><b>+${B.XP.task}</b></li>
               <li><span>Шаг большого дела</span><b>+${B.XP.sub}</b></li>
               <li><span>Фокус, за каждые 25 минут</span><b>+${B.XP.pomo}</b></li>
               <li><span>Привычка (минимум вдвое меньше)</span><b>+${B.XP.habit}</b></li>
               <li><span>Чтение, за 3 минуты (до ${B.XP.readMax})</span><b>+1</b></li>
               <li><span>Тренировка</span><b>+${B.XP.sport}</b></li>
               <li><span>Стадия веба ШАДа</span><b>+${B.XP.shad}</b></li>
-              <li><span>Вечерний разбор с планом на завтра</span><b>+${B.XP.review}</b></li>
+              <li><span>Вечерний разбор</span><b>+${B.XP.review}</b></li>
               <li><span>Мысль в дневнике (до трёх)</span><b>+${B.XP.note}</b></li>
-              <li><span>Закрытый день: 5 × серия</span><b>до +50</b></li>
               <li class="neg"><span>Перенос задачи</span><b>${B.XP.postpone}</b></li>
-              <li class="neg"><span>Незакрытый день, серия с нуля</span><b>${B.XP.fail}</b></li>
             </ul>
-            <p class="hint">Каждый уровень делает бамбук в ${B.num(B.GROW, 2)} раза выше. Уровень может и упасть, если дни проваливаются подряд.</p>
+            <p class="hint">Каждый уровень делает бамбук в ${B.num(B.GROW, 2)} раза выше. Штрафа за пропущенный день нет, но и роста в такой день тоже.</p>
           </section>
         </div>
       </div>

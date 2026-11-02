@@ -15,7 +15,10 @@ def load(e, p):
 WING_ROOT = {'fire': (1366, 700), 'water': (1250, 551), 'earth': (1475, 589), 'air': (1429, 625),
              'flora': (1472, 635), 'light': (1482, 585), 'dark': (1481, 614)}
 WING_MIRROR = {'fire'}
-SHOULDER = {'fire': (1060, 360), 'water': (1170, 540), 'light': (1150, 455), 'earth': (1080, 330), 'air': (1150, 470)}
+SHOULDER = {'fire': (1060, 360), 'water': (1170, 540), 'light': (1150, 455), 'earth': (1080, 330), 'air': (1150, 470),
+            'flora': (1180, 470), 'dark': (1080, 330)}
+# наклон ближнего и дальнего крыла по стихии крыла
+WING_ROT = {'fire': (-22, -10), 'earth': (-22, -10), 'air': (-2, -8), 'water': (2, -8), 'light': (-8, -18), 'dark': (-8, -18), 'flora': (-10, -16)}
 WING_K = {'fire': .6, 'water': .62, 'earth': .55, 'air': .62, 'flora': .6, 'light': .6, 'dark': .62}
 COL = {'fire': (255, 110, 30), 'water': (40, 170, 240), 'earth': (240, 160, 40), 'air': (200, 230, 255),
        'flora': (120, 210, 70), 'light': (255, 225, 120), 'dark': (160, 80, 255)}
@@ -123,6 +126,9 @@ def aura(size, box, cols, kinds, seed, n=90):
             L = r.uniform(60, 140); d.arc((x - L, y - 18, x + L, y + 18), 200, 330, fill=col + (110,), width=2)
         elif kind == 'spark':
             s = r.uniform(5, 13); d.line((x - s, y, x + s, y), fill=col + (255,), width=2); d.line((x, y - s, x, y + s), fill=col + (255,), width=2)
+        elif kind == 'leaf':
+            s = r.uniform(7, 14); ang = r.uniform(0, 6.28); pts = [(x + math.cos(ang + t) * s * (1 if t in (0, 3.14) else .4), y + math.sin(ang + t) * s * (1 if t in (0, 3.14) else .4)) for t in (0, 1.57, 3.14, 4.71)]
+            d.polygon(pts, fill=col + (230,))
         elif kind == 'smoke':
             s = r.uniform(30, 70); sd.ellipse((x - s, y - s * .6, x + s, y + s * .6), fill=col + (60,))
     glow = lay.filter(ImageFilter.GaussianBlur(6))
@@ -192,6 +198,40 @@ def sheet(rows):
     for parents, hyb, title in rows:
         p = [Image.open(os.path.join(OUT, f)).convert('RGB') if f.endswith('.webp') and os.path.exists(os.path.join(OUT, f)) else None for f in []]
     return
+
+EL = ['fire', 'water', 'earth', 'air', 'flora', 'light', 'dark']
+RU = {'fire': 'Огонь', 'water': 'Вода', 'earth': 'Земля', 'air': 'Воздух', 'flora': 'Флора', 'light': 'Свет', 'dark': 'Тьма'}
+KIND = {'fire': 'ember', 'water': 'drop', 'earth': 'rock', 'air': 'wind', 'flora': 'leaf', 'light': 'spark', 'dark': 'smoke'}
+# сила перекраски в общую палитру: близкие по цвету стихии сильно, противоположные слабо (контраст и есть их красота)
+UNI = {('fire', 'water'): .15, ('fire', 'earth'): .45, ('fire', 'air'): .25, ('fire', 'flora'): .3, ('fire', 'light'): .45, ('fire', 'dark'): .15,
+       ('water', 'earth'): .2, ('water', 'air'): .45, ('water', 'flora'): .35, ('water', 'light'): .2, ('water', 'dark'): .3,
+       ('earth', 'air'): .2, ('earth', 'flora'): .45, ('earth', 'light'): .4, ('earth', 'dark'): .2,
+       ('air', 'flora'): .25, ('air', 'light'): .3, ('air', 'dark'): .3, ('flora', 'light'): .35, ('flora', 'dark'): .15, ('light', 'dark'): .1}
+
+def any_details(b):
+    if b == 'earth': return lava_details
+    if b == 'dark': return twilight_details
+    return None
+
+def all_pairs():
+    from PIL import ImageFont
+    f = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 26)
+    tiles = []
+    for i, a in enumerate(EL):
+        for b in EL[i + 1:]:
+            nm = f'{a}-{b}'; rn, rf = WING_ROT[b]
+            grade_ = (1.3, 1.18, 1) if a == 'water' else (1, 1, 1)
+            hybrid(nm, a, b, 1.1, rn, rf, any_details(b), (KIND[a], KIND[b], KIND[a]), (COL[a], COL[b]), grade_, uni=UNI[(a, b)])
+            im = Image.open(os.path.join(OUT, f'hybrid-{nm}.webp')).convert('RGB'); im.thumbnail((620, 470))
+            t = Image.new('RGB', (640, 520), BG[:3]); t.paste(im, ((640 - im.width) // 2, 40))
+            ImageDraw.Draw(t).text((16, 8), f'{RU[a]} + {RU[b]}  (перекраска {int(UNI[(a, b)] * 100)} %)', fill=(235, 235, 235), font=f)
+            tiles.append(t); print(nm, flush=True)
+    cols = 3; rows = (len(tiles) + cols - 1) // cols; sh = Image.new('RGB', (640 * cols, 520 * rows), BG[:3])
+    for k, t in enumerate(tiles): sh.paste(t, ((k % cols) * 640, (k // cols) * 520))
+    sh.save(os.path.join(OUT, 'hybrids-all.webp'), quality=82)
+
+if __name__ == '__main__' and len(sys.argv) > 2 and sys.argv[2] == 'all':
+    os.makedirs(OUT, exist_ok=True); all_pairs(); sys.exit(0)
 
 if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)

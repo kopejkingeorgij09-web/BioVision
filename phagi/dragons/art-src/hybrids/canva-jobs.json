@@ -1,0 +1,744 @@
+[
+ {
+  "id": "fire-water",
+  "els": [
+   "fire",
+   "water"
+  ],
+  "refs": [
+   "MAHZwkIMkFE",
+   "MAHZwqWjSPI"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FIRE and WATER. Body: the heavy stocky muscular build of the fire dragon, mixed throughout with the water dragon. Head, back and tail must clearly show BOTH elements: from fire: ember-red scales with glowing orange cracks, curved black horns, flames; from water: translucent teal finned crest, gill frills on the cheeks, deep blue and teal scales, wet glossy highlights. Scales blend between both palettes over the whole body (back in one, belly and legs in the other). The tail ends in a burning flame merged with a wide paddle fin. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "fire-earth",
+  "els": [
+   "fire",
+   "earth"
+  ],
+  "refs": [
+   "MAHZwkIMkFE",
+   "MAHZw1t4OY0"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FIRE and EARTH. Body: the heavy stocky muscular build of the fire dragon, mixed throughout with the earth dragon. Head, back and tail must clearly show BOTH elements: from fire: ember-red scales with glowing orange cracks, curved black horns, flames; from earth: slate-grey and ochre stone armor plates, glowing amber crystals growing from the back. Scales blend between both palettes over the whole body (back in one, belly and legs in the other). The tail ends in a burning flame merged with a heavy rocky club. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "fire-air",
+  "els": [
+   "fire",
+   "air"
+  ],
+  "refs": [
+   "MAHZwkIMkFE",
+   "MAHZw1NzWEo"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FIRE and AIR. Body: the heavy stocky muscular build of the fire dragon, mixed throughout with the air dragon. Head, back and tail must clearly show BOTH elements: from fire: ember-red scales with glowing orange cracks, curved black horns, flames; from air: white and sky-blue feathers on the neck and shoulders, a swept-back feather crest. Scales blend between both palettes over the whole body (back in one, belly and legs in the other). The tail ends in a burning flame merged with a fan of long feathers. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "fire-flora",
+  "els": [
+   "fire",
+   "flora"
+  ],
+  "refs": [
+   "MAHZwkIMkFE",
+   "MAHZwyD6zTE"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FIRE and FLORA (plant). Body: the heavy stocky muscular build of the fire dragon, mixed throughout with the flora (plant) dragon. Head, back and tail must clearly show BOTH elements: from fire: ember-red scales with glowing orange cracks, curved black horns, flames; from flora (plant): bark-like brown scales with moss, wooden branching antlers with small leaves, vines and small white flowers. Scales blend between both palettes over the whole body (back in one, belly and legs in the other). The tail ends in a burning flame merged with a leafy frond. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "fire-light",
+  "els": [
+   "fire",
+   "light"
+  ],
+  "refs": [
+   "MAHZwkIMkFE",
+   "MAHZw2v-KFI"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FIRE and LIGHT. Body: the heavy stocky muscular build of the fire dragon, mixed throughout with the light dragon. Head, back and tail must clearly show BOTH elements: from fire: ember-red scales with glowing orange cracks, curved black horns, flames; from light: ivory and gold scales, a golden ray-like mane, crystal horns, a thin glowing halo ring behind the head. Scales blend between both palettes over the whole body (back in one, belly and legs in the other). The tail ends in a burning flame merged with a radiant golden crystal. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "fire-dark",
+  "els": [
+   "fire",
+   "dark"
+  ],
+  "refs": [
+   "MAHZwkIMkFE",
+   "MAHZwzL0i0g"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FIRE and DARK (shadow). Body: the heavy stocky muscular build of the fire dragon, mixed throughout with the dark (shadow) dragon. Head, back and tail must clearly show BOTH elements: from fire: ember-red scales with glowing orange cracks, curved black horns, flames; from dark (shadow): black and deep violet scales, many sharp thin spines, glowing violet eyes, thin shadow wisps rising from the back. Scales blend between both palettes over the whole body (back in one, belly and legs in the other). The tail ends in a burning flame merged with a barbed shadow blade. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "water-earth",
+  "els": [
+   "water",
+   "earth"
+  ],
+  "refs": [
+   "MAHZwqWjSPI",
+   "MAHZw1t4OY0"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of WATER and EARTH. Body: the long sleek serpentine build of the water dragon, mixed throughout with the earth dragon. Head, back and tail must clearly show BOTH elements: from water: translucent teal finned crest, gill frills on the cheeks, deep blue and teal scales, wet glossy highlights; from earth: slate-grey and ochre stone armor plates, glowing amber crystals growing from the back. Scales blend between both palettes over the whole body (back in one, belly and legs in the other). The tail ends in a wide paddle fin merged with a heavy rocky club. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "water-air",
+  "els": [
+   "water",
+   "air"
+  ],
+  "refs": [
+   "MAHZwqWjSPI",
+   "MAHZw1NzWEo"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of WATER and AIR. Body: the long sleek serpentine build of the water dragon, mixed throughout with the air dragon. Head, back and tail must clearly show BOTH elements: from water: translucent teal finned crest, gill frills on the cheeks, deep blue and teal scales, wet glossy highlights; from air: white and sky-blue feathers on the neck and shoulders, a swept-back feather crest. Scales blend between both palettes over the whole body (back in one, belly and legs in the other). The tail ends in a wide paddle fin merged with a fan of long feathers. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "water-flora",
+  "els": [
+   "water",
+   "flora"
+  ],
+  "refs": [
+   "MAHZwqWjSPI",
+   "MAHZwyD6zTE"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of WATER and FLORA (plant). Body: the long sleek serpentine build of the water dragon, mixed throughout with the flora (plant) dragon. Head, back and tail must clearly show BOTH elements: from water: translucent teal finned crest, gill frills on the cheeks, deep blue and teal scales, wet glossy highlights; from flora (plant): bark-like brown scales with moss, wooden branching antlers with small leaves, vines and small white flowers. Scales blend between both palettes over the whole body (back in one, belly and legs in the other). The tail ends in a wide paddle fin merged with a leafy frond. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "water-light",
+  "els": [
+   "water",
+   "light"
+  ],
+  "refs": [
+   "MAHZwqWjSPI",
+   "MAHZw2v-KFI"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of WATER and LIGHT. Body: the long sleek serpentine build of the water dragon, mixed throughout with the light dragon. Head, back and tail must clearly show BOTH elements: from water: translucent teal finned crest, gill frills on the cheeks, deep blue and teal scales, wet glossy highlights; from light: ivory and gold scales, a golden ray-like mane, crystal horns, a thin glowing halo ring behind the head. Scales blend between both palettes over the whole body (back in one, belly and legs in the other). The tail ends in a wide paddle fin merged with a radiant golden crystal. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "water-dark",
+  "els": [
+   "water",
+   "dark"
+  ],
+  "refs": [
+   "MAHZwqWjSPI",
+   "MAHZwzL0i0g"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of WATER and DARK (shadow). Body: the long sleek serpentine build of the water dragon, mixed throughout with the dark (shadow) dragon. Head, back and tail must clearly show BOTH elements: from water: translucent teal finned crest, gill frills on the cheeks, deep blue and teal scales, wet glossy highlights; from dark (shadow): black and deep violet scales, many sharp thin spines, glowing violet eyes, thin shadow wisps rising from the back. Scales blend between both palettes over the whole body (back in one, belly and legs in the other). The tail ends in a wide paddle fin merged with a barbed shadow blade. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "earth-air",
+  "els": [
+   "earth",
+   "air"
+  ],
+  "refs": [
+   "MAHZw1t4OY0",
+   "MAHZw1NzWEo"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of EARTH and AIR. Body: the low wide boulder-like build of the earth dragon, mixed throughout with the air dragon. Head, back and tail must clearly show BOTH elements: from earth: slate-grey and ochre stone armor plates, glowing amber crystals growing from the back; from air: white and sky-blue feathers on the neck and shoulders, a swept-back feather crest. Scales blend between both palettes over the whole body (back in one, belly and legs in the other). The tail ends in a heavy rocky club merged with a fan of long feathers. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "earth-flora",
+  "els": [
+   "earth",
+   "flora"
+  ],
+  "refs": [
+   "MAHZw1t4OY0",
+   "MAHZwyD6zTE"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of EARTH and FLORA (plant). Body: the low wide boulder-like build of the earth dragon, mixed throughout with the flora (plant) dragon. Head, back and tail must clearly show BOTH elements: from earth: slate-grey and ochre stone armor plates, glowing amber crystals growing from the back; from flora (plant): bark-like brown scales with moss, wooden branching antlers with small leaves, vines and small white flowers. Scales blend between both palettes over the whole body (back in one, belly and legs in the other). The tail ends in a heavy rocky club merged with a leafy frond. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "earth-light",
+  "els": [
+   "earth",
+   "light"
+  ],
+  "refs": [
+   "MAHZw1t4OY0",
+   "MAHZw2v-KFI"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of EARTH and LIGHT. Body: the low wide boulder-like build of the earth dragon, mixed throughout with the light dragon. Head, back and tail must clearly show BOTH elements: from earth: slate-grey and ochre stone armor plates, glowing amber crystals growing from the back; from light: ivory and gold scales, a golden ray-like mane, crystal horns, a thin glowing halo ring behind the head. Scales blend between both palettes over the whole body (back in one, belly and legs in the other). The tail ends in a heavy rocky club merged with a radiant golden crystal. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "earth-dark",
+  "els": [
+   "earth",
+   "dark"
+  ],
+  "refs": [
+   "MAHZw1t4OY0",
+   "MAHZwzL0i0g"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of EARTH and DARK (shadow). Body: the low wide boulder-like build of the earth dragon, mixed throughout with the dark (shadow) dragon. Head, back and tail must clearly show BOTH elements: from earth: slate-grey and ochre stone armor plates, glowing amber crystals growing from the back; from dark (shadow): black and deep violet scales, many sharp thin spines, glowing violet eyes, thin shadow wisps rising from the back. Scales blend between both palettes over the whole body (back in one, belly and legs in the other). The tail ends in a heavy rocky club merged with a barbed shadow blade. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "air-flora",
+  "els": [
+   "air",
+   "flora"
+  ],
+  "refs": [
+   "MAHZw1NzWEo",
+   "MAHZwyD6zTE"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of AIR and FLORA (plant). Body: the lean tall heron-like build on long legs of the air dragon, mixed throughout with the flora (plant) dragon. Head, back and tail must clearly show BOTH elements: from air: white and sky-blue feathers on the neck and shoulders, a swept-back feather crest; from flora (plant): bark-like brown scales with moss, wooden branching antlers with small leaves, vines and small white flowers. Scales blend between both palettes over the whole body (back in one, belly and legs in the other). The tail ends in a fan of long feathers merged with a leafy frond. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "air-light",
+  "els": [
+   "air",
+   "light"
+  ],
+  "refs": [
+   "MAHZw1NzWEo",
+   "MAHZw2v-KFI"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of AIR and LIGHT. Body: the lean tall heron-like build on long legs of the air dragon, mixed throughout with the light dragon. Head, back and tail must clearly show BOTH elements: from air: white and sky-blue feathers on the neck and shoulders, a swept-back feather crest; from light: ivory and gold scales, a golden ray-like mane, crystal horns, a thin glowing halo ring behind the head. Scales blend between both palettes over the whole body (back in one, belly and legs in the other). The tail ends in a fan of long feathers merged with a radiant golden crystal. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "air-dark",
+  "els": [
+   "air",
+   "dark"
+  ],
+  "refs": [
+   "MAHZw1NzWEo",
+   "MAHZwzL0i0g"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of AIR and DARK (shadow). Body: the lean tall heron-like build on long legs of the air dragon, mixed throughout with the dark (shadow) dragon. Head, back and tail must clearly show BOTH elements: from air: white and sky-blue feathers on the neck and shoulders, a swept-back feather crest; from dark (shadow): black and deep violet scales, many sharp thin spines, glowing violet eyes, thin shadow wisps rising from the back. Scales blend between both palettes over the whole body (back in one, belly and legs in the other). The tail ends in a fan of long feathers merged with a barbed shadow blade. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "flora-light",
+  "els": [
+   "flora",
+   "light"
+  ],
+  "refs": [
+   "MAHZwyD6zTE",
+   "MAHZw2v-KFI"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FLORA (plant) and LIGHT. Body: the graceful stag-like build of the flora dragon, mixed throughout with the light dragon. Head, back and tail must clearly show BOTH elements: from flora (plant): bark-like brown scales with moss, wooden branching antlers with small leaves, vines and small white flowers; from light: ivory and gold scales, a golden ray-like mane, crystal horns, a thin glowing halo ring behind the head. Scales blend between both palettes over the whole body (back in one, belly and legs in the other). The tail ends in a leafy frond merged with a radiant golden crystal. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "flora-dark",
+  "els": [
+   "flora",
+   "dark"
+  ],
+  "refs": [
+   "MAHZwyD6zTE",
+   "MAHZwzL0i0g"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FLORA (plant) and DARK (shadow). Body: the graceful stag-like build of the flora dragon, mixed throughout with the dark (shadow) dragon. Head, back and tail must clearly show BOTH elements: from flora (plant): bark-like brown scales with moss, wooden branching antlers with small leaves, vines and small white flowers; from dark (shadow): black and deep violet scales, many sharp thin spines, glowing violet eyes, thin shadow wisps rising from the back. Scales blend between both palettes over the whole body (back in one, belly and legs in the other). The tail ends in a leafy frond merged with a barbed shadow blade. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "light-dark",
+  "els": [
+   "light",
+   "dark"
+  ],
+  "refs": [
+   "MAHZw2v-KFI",
+   "MAHZwzL0i0g"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of LIGHT and DARK (shadow). Body: the slender regal build of the light dragon, mixed throughout with the dark (shadow) dragon. Head, back and tail must clearly show BOTH elements: from light: ivory and gold scales, a golden ray-like mane, crystal horns, a thin glowing halo ring behind the head; from dark (shadow): black and deep violet scales, many sharp thin spines, glowing violet eyes, thin shadow wisps rising from the back. Scales blend between both palettes over the whole body (back in one, belly and legs in the other). The tail ends in a radiant golden crystal merged with a barbed shadow blade. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "fire-water-earth",
+  "els": [
+   "fire",
+   "water",
+   "earth"
+  ],
+  "refs": [
+   "MAHZwkIMkFE",
+   "MAHZwqWjSPI",
+   "MAHZw1t4OY0"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FIRE and WATER and EARTH. Body: the heavy stocky muscular build of the fire dragon, mixed throughout with the water and earth dragons, an epic rare creature. Head and horns combine fire and water; the back and crest combine water and earth. Features: ember-red scales with glowing orange cracks, curved black horns, flames; translucent teal finned crest, gill frills on the cheeks, deep blue and teal scales, wet glossy highlights; slate-grey and ochre stone armor plates, glowing amber crystals growing from the back. Scales blend between all three palettes in bands over the whole body. The tail ends in a heavy rocky club merged with a burning flame. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "fire-water-air",
+  "els": [
+   "fire",
+   "water",
+   "air"
+  ],
+  "refs": [
+   "MAHZwkIMkFE",
+   "MAHZwqWjSPI",
+   "MAHZw1NzWEo"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FIRE and WATER and AIR. Body: the heavy stocky muscular build of the fire dragon, mixed throughout with the water and air dragons, an epic rare creature. Head and horns combine fire and water; the back and crest combine water and air. Features: ember-red scales with glowing orange cracks, curved black horns, flames; translucent teal finned crest, gill frills on the cheeks, deep blue and teal scales, wet glossy highlights; white and sky-blue feathers on the neck and shoulders, a swept-back feather crest. Scales blend between all three palettes in bands over the whole body. The tail ends in a fan of long feathers merged with a burning flame. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "fire-water-flora",
+  "els": [
+   "fire",
+   "water",
+   "flora"
+  ],
+  "refs": [
+   "MAHZwkIMkFE",
+   "MAHZwqWjSPI",
+   "MAHZwyD6zTE"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FIRE and WATER and FLORA (plant). Body: the heavy stocky muscular build of the fire dragon, mixed throughout with the water and flora (plant) dragons, an epic rare creature. Head and horns combine fire and water; the back and crest combine water and flora (plant). Features: ember-red scales with glowing orange cracks, curved black horns, flames; translucent teal finned crest, gill frills on the cheeks, deep blue and teal scales, wet glossy highlights; bark-like brown scales with moss, wooden branching antlers with small leaves, vines and small white flowers. Scales blend between all three palettes in bands over the whole body. The tail ends in a leafy frond merged with a burning flame. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "fire-water-light",
+  "els": [
+   "fire",
+   "water",
+   "light"
+  ],
+  "refs": [
+   "MAHZwkIMkFE",
+   "MAHZwqWjSPI",
+   "MAHZw2v-KFI"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FIRE and WATER and LIGHT. Body: the heavy stocky muscular build of the fire dragon, mixed throughout with the water and light dragons, an epic rare creature. Head and horns combine fire and water; the back and crest combine water and light. Features: ember-red scales with glowing orange cracks, curved black horns, flames; translucent teal finned crest, gill frills on the cheeks, deep blue and teal scales, wet glossy highlights; ivory and gold scales, a golden ray-like mane, crystal horns, a thin glowing halo ring behind the head. Scales blend between all three palettes in bands over the whole body. The tail ends in a radiant golden crystal merged with a burning flame. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "fire-water-dark",
+  "els": [
+   "fire",
+   "water",
+   "dark"
+  ],
+  "refs": [
+   "MAHZwkIMkFE",
+   "MAHZwqWjSPI",
+   "MAHZwzL0i0g"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FIRE and WATER and DARK (shadow). Body: the heavy stocky muscular build of the fire dragon, mixed throughout with the water and dark (shadow) dragons, an epic rare creature. Head and horns combine fire and water; the back and crest combine water and dark (shadow). Features: ember-red scales with glowing orange cracks, curved black horns, flames; translucent teal finned crest, gill frills on the cheeks, deep blue and teal scales, wet glossy highlights; black and deep violet scales, many sharp thin spines, glowing violet eyes, thin shadow wisps rising from the back. Scales blend between all three palettes in bands over the whole body. The tail ends in a barbed shadow blade merged with a burning flame. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "fire-earth-air",
+  "els": [
+   "fire",
+   "earth",
+   "air"
+  ],
+  "refs": [
+   "MAHZwkIMkFE",
+   "MAHZw1t4OY0",
+   "MAHZw1NzWEo"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FIRE and EARTH and AIR. Body: the heavy stocky muscular build of the fire dragon, mixed throughout with the earth and air dragons, an epic rare creature. Head and horns combine fire and earth; the back and crest combine earth and air. Features: ember-red scales with glowing orange cracks, curved black horns, flames; slate-grey and ochre stone armor plates, glowing amber crystals growing from the back; white and sky-blue feathers on the neck and shoulders, a swept-back feather crest. Scales blend between all three palettes in bands over the whole body. The tail ends in a fan of long feathers merged with a burning flame. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "fire-earth-flora",
+  "els": [
+   "fire",
+   "earth",
+   "flora"
+  ],
+  "refs": [
+   "MAHZwkIMkFE",
+   "MAHZw1t4OY0",
+   "MAHZwyD6zTE"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FIRE and EARTH and FLORA (plant). Body: the heavy stocky muscular build of the fire dragon, mixed throughout with the earth and flora (plant) dragons, an epic rare creature. Head and horns combine fire and earth; the back and crest combine earth and flora (plant). Features: ember-red scales with glowing orange cracks, curved black horns, flames; slate-grey and ochre stone armor plates, glowing amber crystals growing from the back; bark-like brown scales with moss, wooden branching antlers with small leaves, vines and small white flowers. Scales blend between all three palettes in bands over the whole body. The tail ends in a leafy frond merged with a burning flame. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "fire-earth-light",
+  "els": [
+   "fire",
+   "earth",
+   "light"
+  ],
+  "refs": [
+   "MAHZwkIMkFE",
+   "MAHZw1t4OY0",
+   "MAHZw2v-KFI"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FIRE and EARTH and LIGHT. Body: the heavy stocky muscular build of the fire dragon, mixed throughout with the earth and light dragons, an epic rare creature. Head and horns combine fire and earth; the back and crest combine earth and light. Features: ember-red scales with glowing orange cracks, curved black horns, flames; slate-grey and ochre stone armor plates, glowing amber crystals growing from the back; ivory and gold scales, a golden ray-like mane, crystal horns, a thin glowing halo ring behind the head. Scales blend between all three palettes in bands over the whole body. The tail ends in a radiant golden crystal merged with a burning flame. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "fire-earth-dark",
+  "els": [
+   "fire",
+   "earth",
+   "dark"
+  ],
+  "refs": [
+   "MAHZwkIMkFE",
+   "MAHZw1t4OY0",
+   "MAHZwzL0i0g"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FIRE and EARTH and DARK (shadow). Body: the heavy stocky muscular build of the fire dragon, mixed throughout with the earth and dark (shadow) dragons, an epic rare creature. Head and horns combine fire and earth; the back and crest combine earth and dark (shadow). Features: ember-red scales with glowing orange cracks, curved black horns, flames; slate-grey and ochre stone armor plates, glowing amber crystals growing from the back; black and deep violet scales, many sharp thin spines, glowing violet eyes, thin shadow wisps rising from the back. Scales blend between all three palettes in bands over the whole body. The tail ends in a barbed shadow blade merged with a burning flame. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "fire-air-flora",
+  "els": [
+   "fire",
+   "air",
+   "flora"
+  ],
+  "refs": [
+   "MAHZwkIMkFE",
+   "MAHZw1NzWEo",
+   "MAHZwyD6zTE"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FIRE and AIR and FLORA (plant). Body: the heavy stocky muscular build of the fire dragon, mixed throughout with the air and flora (plant) dragons, an epic rare creature. Head and horns combine fire and air; the back and crest combine air and flora (plant). Features: ember-red scales with glowing orange cracks, curved black horns, flames; white and sky-blue feathers on the neck and shoulders, a swept-back feather crest; bark-like brown scales with moss, wooden branching antlers with small leaves, vines and small white flowers. Scales blend between all three palettes in bands over the whole body. The tail ends in a leafy frond merged with a burning flame. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "fire-air-light",
+  "els": [
+   "fire",
+   "air",
+   "light"
+  ],
+  "refs": [
+   "MAHZwkIMkFE",
+   "MAHZw1NzWEo",
+   "MAHZw2v-KFI"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FIRE and AIR and LIGHT. Body: the heavy stocky muscular build of the fire dragon, mixed throughout with the air and light dragons, an epic rare creature. Head and horns combine fire and air; the back and crest combine air and light. Features: ember-red scales with glowing orange cracks, curved black horns, flames; white and sky-blue feathers on the neck and shoulders, a swept-back feather crest; ivory and gold scales, a golden ray-like mane, crystal horns, a thin glowing halo ring behind the head. Scales blend between all three palettes in bands over the whole body. The tail ends in a radiant golden crystal merged with a burning flame. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "fire-air-dark",
+  "els": [
+   "fire",
+   "air",
+   "dark"
+  ],
+  "refs": [
+   "MAHZwkIMkFE",
+   "MAHZw1NzWEo",
+   "MAHZwzL0i0g"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FIRE and AIR and DARK (shadow). Body: the heavy stocky muscular build of the fire dragon, mixed throughout with the air and dark (shadow) dragons, an epic rare creature. Head and horns combine fire and air; the back and crest combine air and dark (shadow). Features: ember-red scales with glowing orange cracks, curved black horns, flames; white and sky-blue feathers on the neck and shoulders, a swept-back feather crest; black and deep violet scales, many sharp thin spines, glowing violet eyes, thin shadow wisps rising from the back. Scales blend between all three palettes in bands over the whole body. The tail ends in a barbed shadow blade merged with a burning flame. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "fire-flora-light",
+  "els": [
+   "fire",
+   "flora",
+   "light"
+  ],
+  "refs": [
+   "MAHZwkIMkFE",
+   "MAHZwyD6zTE",
+   "MAHZw2v-KFI"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FIRE and FLORA (plant) and LIGHT. Body: the heavy stocky muscular build of the fire dragon, mixed throughout with the flora (plant) and light dragons, an epic rare creature. Head and horns combine fire and flora (plant); the back and crest combine flora (plant) and light. Features: ember-red scales with glowing orange cracks, curved black horns, flames; bark-like brown scales with moss, wooden branching antlers with small leaves, vines and small white flowers; ivory and gold scales, a golden ray-like mane, crystal horns, a thin glowing halo ring behind the head. Scales blend between all three palettes in bands over the whole body. The tail ends in a radiant golden crystal merged with a burning flame. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "fire-flora-dark",
+  "els": [
+   "fire",
+   "flora",
+   "dark"
+  ],
+  "refs": [
+   "MAHZwkIMkFE",
+   "MAHZwyD6zTE",
+   "MAHZwzL0i0g"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FIRE and FLORA (plant) and DARK (shadow). Body: the heavy stocky muscular build of the fire dragon, mixed throughout with the flora (plant) and dark (shadow) dragons, an epic rare creature. Head and horns combine fire and flora (plant); the back and crest combine flora (plant) and dark (shadow). Features: ember-red scales with glowing orange cracks, curved black horns, flames; bark-like brown scales with moss, wooden branching antlers with small leaves, vines and small white flowers; black and deep violet scales, many sharp thin spines, glowing violet eyes, thin shadow wisps rising from the back. Scales blend between all three palettes in bands over the whole body. The tail ends in a barbed shadow blade merged with a burning flame. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "fire-light-dark",
+  "els": [
+   "fire",
+   "light",
+   "dark"
+  ],
+  "refs": [
+   "MAHZwkIMkFE",
+   "MAHZw2v-KFI",
+   "MAHZwzL0i0g"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FIRE and LIGHT and DARK (shadow). Body: the heavy stocky muscular build of the fire dragon, mixed throughout with the light and dark (shadow) dragons, an epic rare creature. Head and horns combine fire and light; the back and crest combine light and dark (shadow). Features: ember-red scales with glowing orange cracks, curved black horns, flames; ivory and gold scales, a golden ray-like mane, crystal horns, a thin glowing halo ring behind the head; black and deep violet scales, many sharp thin spines, glowing violet eyes, thin shadow wisps rising from the back. Scales blend between all three palettes in bands over the whole body. The tail ends in a barbed shadow blade merged with a burning flame. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "water-earth-air",
+  "els": [
+   "water",
+   "earth",
+   "air"
+  ],
+  "refs": [
+   "MAHZwqWjSPI",
+   "MAHZw1t4OY0",
+   "MAHZw1NzWEo"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of WATER and EARTH and AIR. Body: the long sleek serpentine build of the water dragon, mixed throughout with the earth and air dragons, an epic rare creature. Head and horns combine water and earth; the back and crest combine earth and air. Features: translucent teal finned crest, gill frills on the cheeks, deep blue and teal scales, wet glossy highlights; slate-grey and ochre stone armor plates, glowing amber crystals growing from the back; white and sky-blue feathers on the neck and shoulders, a swept-back feather crest. Scales blend between all three palettes in bands over the whole body. The tail ends in a fan of long feathers merged with a wide paddle fin. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "water-earth-flora",
+  "els": [
+   "water",
+   "earth",
+   "flora"
+  ],
+  "refs": [
+   "MAHZwqWjSPI",
+   "MAHZw1t4OY0",
+   "MAHZwyD6zTE"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of WATER and EARTH and FLORA (plant). Body: the long sleek serpentine build of the water dragon, mixed throughout with the earth and flora (plant) dragons, an epic rare creature. Head and horns combine water and earth; the back and crest combine earth and flora (plant). Features: translucent teal finned crest, gill frills on the cheeks, deep blue and teal scales, wet glossy highlights; slate-grey and ochre stone armor plates, glowing amber crystals growing from the back; bark-like brown scales with moss, wooden branching antlers with small leaves, vines and small white flowers. Scales blend between all three palettes in bands over the whole body. The tail ends in a leafy frond merged with a wide paddle fin. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "water-earth-light",
+  "els": [
+   "water",
+   "earth",
+   "light"
+  ],
+  "refs": [
+   "MAHZwqWjSPI",
+   "MAHZw1t4OY0",
+   "MAHZw2v-KFI"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of WATER and EARTH and LIGHT. Body: the long sleek serpentine build of the water dragon, mixed throughout with the earth and light dragons, an epic rare creature. Head and horns combine water and earth; the back and crest combine earth and light. Features: translucent teal finned crest, gill frills on the cheeks, deep blue and teal scales, wet glossy highlights; slate-grey and ochre stone armor plates, glowing amber crystals growing from the back; ivory and gold scales, a golden ray-like mane, crystal horns, a thin glowing halo ring behind the head. Scales blend between all three palettes in bands over the whole body. The tail ends in a radiant golden crystal merged with a wide paddle fin. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "water-earth-dark",
+  "els": [
+   "water",
+   "earth",
+   "dark"
+  ],
+  "refs": [
+   "MAHZwqWjSPI",
+   "MAHZw1t4OY0",
+   "MAHZwzL0i0g"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of WATER and EARTH and DARK (shadow). Body: the long sleek serpentine build of the water dragon, mixed throughout with the earth and dark (shadow) dragons, an epic rare creature. Head and horns combine water and earth; the back and crest combine earth and dark (shadow). Features: translucent teal finned crest, gill frills on the cheeks, deep blue and teal scales, wet glossy highlights; slate-grey and ochre stone armor plates, glowing amber crystals growing from the back; black and deep violet scales, many sharp thin spines, glowing violet eyes, thin shadow wisps rising from the back. Scales blend between all three palettes in bands over the whole body. The tail ends in a barbed shadow blade merged with a wide paddle fin. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "water-air-flora",
+  "els": [
+   "water",
+   "air",
+   "flora"
+  ],
+  "refs": [
+   "MAHZwqWjSPI",
+   "MAHZw1NzWEo",
+   "MAHZwyD6zTE"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of WATER and AIR and FLORA (plant). Body: the long sleek serpentine build of the water dragon, mixed throughout with the air and flora (plant) dragons, an epic rare creature. Head and horns combine water and air; the back and crest combine air and flora (plant). Features: translucent teal finned crest, gill frills on the cheeks, deep blue and teal scales, wet glossy highlights; white and sky-blue feathers on the neck and shoulders, a swept-back feather crest; bark-like brown scales with moss, wooden branching antlers with small leaves, vines and small white flowers. Scales blend between all three palettes in bands over the whole body. The tail ends in a leafy frond merged with a wide paddle fin. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "water-air-light",
+  "els": [
+   "water",
+   "air",
+   "light"
+  ],
+  "refs": [
+   "MAHZwqWjSPI",
+   "MAHZw1NzWEo",
+   "MAHZw2v-KFI"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of WATER and AIR and LIGHT. Body: the long sleek serpentine build of the water dragon, mixed throughout with the air and light dragons, an epic rare creature. Head and horns combine water and air; the back and crest combine air and light. Features: translucent teal finned crest, gill frills on the cheeks, deep blue and teal scales, wet glossy highlights; white and sky-blue feathers on the neck and shoulders, a swept-back feather crest; ivory and gold scales, a golden ray-like mane, crystal horns, a thin glowing halo ring behind the head. Scales blend between all three palettes in bands over the whole body. The tail ends in a radiant golden crystal merged with a wide paddle fin. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "water-air-dark",
+  "els": [
+   "water",
+   "air",
+   "dark"
+  ],
+  "refs": [
+   "MAHZwqWjSPI",
+   "MAHZw1NzWEo",
+   "MAHZwzL0i0g"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of WATER and AIR and DARK (shadow). Body: the long sleek serpentine build of the water dragon, mixed throughout with the air and dark (shadow) dragons, an epic rare creature. Head and horns combine water and air; the back and crest combine air and dark (shadow). Features: translucent teal finned crest, gill frills on the cheeks, deep blue and teal scales, wet glossy highlights; white and sky-blue feathers on the neck and shoulders, a swept-back feather crest; black and deep violet scales, many sharp thin spines, glowing violet eyes, thin shadow wisps rising from the back. Scales blend between all three palettes in bands over the whole body. The tail ends in a barbed shadow blade merged with a wide paddle fin. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "water-flora-light",
+  "els": [
+   "water",
+   "flora",
+   "light"
+  ],
+  "refs": [
+   "MAHZwqWjSPI",
+   "MAHZwyD6zTE",
+   "MAHZw2v-KFI"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of WATER and FLORA (plant) and LIGHT. Body: the long sleek serpentine build of the water dragon, mixed throughout with the flora (plant) and light dragons, an epic rare creature. Head and horns combine water and flora (plant); the back and crest combine flora (plant) and light. Features: translucent teal finned crest, gill frills on the cheeks, deep blue and teal scales, wet glossy highlights; bark-like brown scales with moss, wooden branching antlers with small leaves, vines and small white flowers; ivory and gold scales, a golden ray-like mane, crystal horns, a thin glowing halo ring behind the head. Scales blend between all three palettes in bands over the whole body. The tail ends in a radiant golden crystal merged with a wide paddle fin. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "water-flora-dark",
+  "els": [
+   "water",
+   "flora",
+   "dark"
+  ],
+  "refs": [
+   "MAHZwqWjSPI",
+   "MAHZwyD6zTE",
+   "MAHZwzL0i0g"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of WATER and FLORA (plant) and DARK (shadow). Body: the long sleek serpentine build of the water dragon, mixed throughout with the flora (plant) and dark (shadow) dragons, an epic rare creature. Head and horns combine water and flora (plant); the back and crest combine flora (plant) and dark (shadow). Features: translucent teal finned crest, gill frills on the cheeks, deep blue and teal scales, wet glossy highlights; bark-like brown scales with moss, wooden branching antlers with small leaves, vines and small white flowers; black and deep violet scales, many sharp thin spines, glowing violet eyes, thin shadow wisps rising from the back. Scales blend between all three palettes in bands over the whole body. The tail ends in a barbed shadow blade merged with a wide paddle fin. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "water-light-dark",
+  "els": [
+   "water",
+   "light",
+   "dark"
+  ],
+  "refs": [
+   "MAHZwqWjSPI",
+   "MAHZw2v-KFI",
+   "MAHZwzL0i0g"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of WATER and LIGHT and DARK (shadow). Body: the long sleek serpentine build of the water dragon, mixed throughout with the light and dark (shadow) dragons, an epic rare creature. Head and horns combine water and light; the back and crest combine light and dark (shadow). Features: translucent teal finned crest, gill frills on the cheeks, deep blue and teal scales, wet glossy highlights; ivory and gold scales, a golden ray-like mane, crystal horns, a thin glowing halo ring behind the head; black and deep violet scales, many sharp thin spines, glowing violet eyes, thin shadow wisps rising from the back. Scales blend between all three palettes in bands over the whole body. The tail ends in a barbed shadow blade merged with a wide paddle fin. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "earth-air-flora",
+  "els": [
+   "earth",
+   "air",
+   "flora"
+  ],
+  "refs": [
+   "MAHZw1t4OY0",
+   "MAHZw1NzWEo",
+   "MAHZwyD6zTE"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of EARTH and AIR and FLORA (plant). Body: the low wide boulder-like build of the earth dragon, mixed throughout with the air and flora (plant) dragons, an epic rare creature. Head and horns combine earth and air; the back and crest combine air and flora (plant). Features: slate-grey and ochre stone armor plates, glowing amber crystals growing from the back; white and sky-blue feathers on the neck and shoulders, a swept-back feather crest; bark-like brown scales with moss, wooden branching antlers with small leaves, vines and small white flowers. Scales blend between all three palettes in bands over the whole body. The tail ends in a leafy frond merged with a heavy rocky club. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "earth-air-light",
+  "els": [
+   "earth",
+   "air",
+   "light"
+  ],
+  "refs": [
+   "MAHZw1t4OY0",
+   "MAHZw1NzWEo",
+   "MAHZw2v-KFI"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of EARTH and AIR and LIGHT. Body: the low wide boulder-like build of the earth dragon, mixed throughout with the air and light dragons, an epic rare creature. Head and horns combine earth and air; the back and crest combine air and light. Features: slate-grey and ochre stone armor plates, glowing amber crystals growing from the back; white and sky-blue feathers on the neck and shoulders, a swept-back feather crest; ivory and gold scales, a golden ray-like mane, crystal horns, a thin glowing halo ring behind the head. Scales blend between all three palettes in bands over the whole body. The tail ends in a radiant golden crystal merged with a heavy rocky club. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "earth-air-dark",
+  "els": [
+   "earth",
+   "air",
+   "dark"
+  ],
+  "refs": [
+   "MAHZw1t4OY0",
+   "MAHZw1NzWEo",
+   "MAHZwzL0i0g"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of EARTH and AIR and DARK (shadow). Body: the low wide boulder-like build of the earth dragon, mixed throughout with the air and dark (shadow) dragons, an epic rare creature. Head and horns combine earth and air; the back and crest combine air and dark (shadow). Features: slate-grey and ochre stone armor plates, glowing amber crystals growing from the back; white and sky-blue feathers on the neck and shoulders, a swept-back feather crest; black and deep violet scales, many sharp thin spines, glowing violet eyes, thin shadow wisps rising from the back. Scales blend between all three palettes in bands over the whole body. The tail ends in a barbed shadow blade merged with a heavy rocky club. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "earth-flora-light",
+  "els": [
+   "earth",
+   "flora",
+   "light"
+  ],
+  "refs": [
+   "MAHZw1t4OY0",
+   "MAHZwyD6zTE",
+   "MAHZw2v-KFI"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of EARTH and FLORA (plant) and LIGHT. Body: the low wide boulder-like build of the earth dragon, mixed throughout with the flora (plant) and light dragons, an epic rare creature. Head and horns combine earth and flora (plant); the back and crest combine flora (plant) and light. Features: slate-grey and ochre stone armor plates, glowing amber crystals growing from the back; bark-like brown scales with moss, wooden branching antlers with small leaves, vines and small white flowers; ivory and gold scales, a golden ray-like mane, crystal horns, a thin glowing halo ring behind the head. Scales blend between all three palettes in bands over the whole body. The tail ends in a radiant golden crystal merged with a heavy rocky club. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "earth-flora-dark",
+  "els": [
+   "earth",
+   "flora",
+   "dark"
+  ],
+  "refs": [
+   "MAHZw1t4OY0",
+   "MAHZwyD6zTE",
+   "MAHZwzL0i0g"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of EARTH and FLORA (plant) and DARK (shadow). Body: the low wide boulder-like build of the earth dragon, mixed throughout with the flora (plant) and dark (shadow) dragons, an epic rare creature. Head and horns combine earth and flora (plant); the back and crest combine flora (plant) and dark (shadow). Features: slate-grey and ochre stone armor plates, glowing amber crystals growing from the back; bark-like brown scales with moss, wooden branching antlers with small leaves, vines and small white flowers; black and deep violet scales, many sharp thin spines, glowing violet eyes, thin shadow wisps rising from the back. Scales blend between all three palettes in bands over the whole body. The tail ends in a barbed shadow blade merged with a heavy rocky club. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "earth-light-dark",
+  "els": [
+   "earth",
+   "light",
+   "dark"
+  ],
+  "refs": [
+   "MAHZw1t4OY0",
+   "MAHZw2v-KFI",
+   "MAHZwzL0i0g"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of EARTH and LIGHT and DARK (shadow). Body: the low wide boulder-like build of the earth dragon, mixed throughout with the light and dark (shadow) dragons, an epic rare creature. Head and horns combine earth and light; the back and crest combine light and dark (shadow). Features: slate-grey and ochre stone armor plates, glowing amber crystals growing from the back; ivory and gold scales, a golden ray-like mane, crystal horns, a thin glowing halo ring behind the head; black and deep violet scales, many sharp thin spines, glowing violet eyes, thin shadow wisps rising from the back. Scales blend between all three palettes in bands over the whole body. The tail ends in a barbed shadow blade merged with a heavy rocky club. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "air-flora-light",
+  "els": [
+   "air",
+   "flora",
+   "light"
+  ],
+  "refs": [
+   "MAHZw1NzWEo",
+   "MAHZwyD6zTE",
+   "MAHZw2v-KFI"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of AIR and FLORA (plant) and LIGHT. Body: the lean tall heron-like build on long legs of the air dragon, mixed throughout with the flora (plant) and light dragons, an epic rare creature. Head and horns combine air and flora (plant); the back and crest combine flora (plant) and light. Features: white and sky-blue feathers on the neck and shoulders, a swept-back feather crest; bark-like brown scales with moss, wooden branching antlers with small leaves, vines and small white flowers; ivory and gold scales, a golden ray-like mane, crystal horns, a thin glowing halo ring behind the head. Scales blend between all three palettes in bands over the whole body. The tail ends in a radiant golden crystal merged with a fan of long feathers. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "air-flora-dark",
+  "els": [
+   "air",
+   "flora",
+   "dark"
+  ],
+  "refs": [
+   "MAHZw1NzWEo",
+   "MAHZwyD6zTE",
+   "MAHZwzL0i0g"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of AIR and FLORA (plant) and DARK (shadow). Body: the lean tall heron-like build on long legs of the air dragon, mixed throughout with the flora (plant) and dark (shadow) dragons, an epic rare creature. Head and horns combine air and flora (plant); the back and crest combine flora (plant) and dark (shadow). Features: white and sky-blue feathers on the neck and shoulders, a swept-back feather crest; bark-like brown scales with moss, wooden branching antlers with small leaves, vines and small white flowers; black and deep violet scales, many sharp thin spines, glowing violet eyes, thin shadow wisps rising from the back. Scales blend between all three palettes in bands over the whole body. The tail ends in a barbed shadow blade merged with a fan of long feathers. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "air-light-dark",
+  "els": [
+   "air",
+   "light",
+   "dark"
+  ],
+  "refs": [
+   "MAHZw1NzWEo",
+   "MAHZw2v-KFI",
+   "MAHZwzL0i0g"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of AIR and LIGHT and DARK (shadow). Body: the lean tall heron-like build on long legs of the air dragon, mixed throughout with the light and dark (shadow) dragons, an epic rare creature. Head and horns combine air and light; the back and crest combine light and dark (shadow). Features: white and sky-blue feathers on the neck and shoulders, a swept-back feather crest; ivory and gold scales, a golden ray-like mane, crystal horns, a thin glowing halo ring behind the head; black and deep violet scales, many sharp thin spines, glowing violet eyes, thin shadow wisps rising from the back. Scales blend between all three palettes in bands over the whole body. The tail ends in a barbed shadow blade merged with a fan of long feathers. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ },
+ {
+  "id": "flora-light-dark",
+  "els": [
+   "flora",
+   "light",
+   "dark"
+  ],
+  "refs": [
+   "MAHZwyD6zTE",
+   "MAHZw2v-KFI",
+   "MAHZwzL0i0g"
+  ],
+  "prompt": "Fuse the reference dragons into ONE new hybrid dragon of FLORA (plant) and LIGHT and DARK (shadow). Body: the graceful stag-like build of the flora dragon, mixed throughout with the light and dark (shadow) dragons, an epic rare creature. Head and horns combine flora (plant) and light; the back and crest combine light and dark (shadow). Features: bark-like brown scales with moss, wooden branching antlers with small leaves, vines and small white flowers; ivory and gold scales, a golden ray-like mane, crystal horns, a thin glowing halo ring behind the head; black and deep violet scales, many sharp thin spines, glowing violet eyes, thin shadow wisps rising from the back. Scales blend between all three palettes in bands over the whole body. The tail ends in a barbed shadow blade merged with a leafy frond. More ornate and majestic than a two-element hybrid. Same painterly glossy premium mobile game art style as the references. No wings. Strict side profile facing right, standing on four legs, all four legs visible, mouth closed. Isolated on a plain white background, no ground, no shadow, no text."
+ }
+]

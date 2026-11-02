@@ -20,6 +20,36 @@ WING_K = {'fire': .6, 'water': .62, 'earth': .55, 'air': .62, 'flora': .6, 'ligh
 COL = {'fire': (255, 110, 30), 'water': (40, 170, 240), 'earth': (240, 160, 40), 'air': (200, 230, 255),
        'flora': (120, 210, 70), 'light': (255, 225, 120), 'dark': (160, 80, 255)}
 
+# опорные цвета стихий для общей палитры гибрида: тень, середина, свет
+PAL = {'fire': [(60, 10, 5), (215, 60, 20), (255, 205, 100)], 'earth': [(40, 30, 20), (145, 100, 55), (245, 180, 70)],
+       'water': [(5, 30, 70), (30, 130, 200), (200, 240, 255)], 'air': [(40, 70, 140), (95, 160, 240), (250, 252, 255)],
+       'flora': [(25, 40, 10), (95, 140, 50), (225, 240, 160)], 'light': [(110, 80, 20), (230, 180, 60), (255, 250, 225)],
+       'dark': [(15, 5, 30), (105, 45, 185), (215, 170, 255)]}
+
+def unify(im, a, b, k):
+    """«усреднённый цвет»: карта градиента из средней палитры двух стихий, смешанная с исходником.
+    Светотень и фактура остаются, а тело и крылья окрашиваются в одну общую гамму"""
+    if not k: return im
+    stops = [tuple((x + y) // 2 for x, y in zip(pa, pb)) for pa, pb in zip(PAL[a], PAL[b])]
+    lut = []
+    for ch in range(3):
+        for v in range(256):
+            t = v / 255
+            if t < .5: c0, c1, u = stops[0][ch], stops[1][ch], t / .5
+            else: c0, c1, u = stops[1][ch], stops[2][ch], (t - .5) / .5
+            lut.append(int(c0 + (c1 - c0) * u))
+    lum = ImageOps.grayscale(im)
+    mapped = Image.merge('RGB', (lum, lum, lum)).point(lut)
+    # режим «цвет»: от карты берётся только оттенок, яркость остаётся исходной, поэтому краски не тускнеют
+    ml = ImageOps.grayscale(mapped); ratio = ImageChops.divide if False else None
+    import numpy as np
+    o = np.asarray(im.convert('RGB')).astype('f4'); m = np.asarray(mapped).astype('f4')
+    lo = o @ np.array([.299, .587, .114], 'f4'); lm = m @ np.array([.299, .587, .114], 'f4')
+    m = np.clip(m * (lo / np.maximum(lm, 1))[..., None], 0, 255)
+    rgb = Image.blend(im.convert('RGB'), Image.fromarray(m.astype('uint8')), k)
+    rgb = ImageEnhance.Color(rgb).enhance(1 + .5 * k)
+    out = rgb.convert('RGBA'); out.putalpha(im.getchannel('A')); return out
+
 def grade(im, sat=1.0, con=1.0, bri=1.0):
     r, g, b, a = im.split(); rgb = Image.merge('RGB', (r, g, b))
     rgb = ImageEnhance.Color(rgb).enhance(sat); rgb = ImageEnhance.Contrast(rgb).enhance(con); rgb = ImageEnhance.Brightness(rgb).enhance(bri)
@@ -109,7 +139,7 @@ def crystals_from(e):
     m = m.filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.GaussianBlur(1.5))
     out = im.copy(); out.putalpha(ImageChops.multiply(m, im.getchannel('A'))); return out.crop(out.getbbox())
 
-def hybrid(name, a, b, scale, rot_near, rot_far, details=None, kinds=(), cols=(), body_grade=(1, 1, 1), hot=.8, wing_grade=(1,1,1)):
+def hybrid(name, a, b, scale, rot_near, rot_far, details=None, kinds=(), cols=(), body_grade=(1, 1, 1), hot=.8, wing_grade=(1,1,1), uni=0, tag=''):
     W, H = 2000, 1600; c = Image.new('RGBA', (W, H), BG)
     body = grade(load(a, 'body'), *body_grade)
     body = body.resize((int(1536 * scale), int(1024 * scale)), Image.LANCZOS)
@@ -119,17 +149,18 @@ def hybrid(name, a, b, scale, rot_near, rot_far, details=None, kinds=(), cols=()
     # 2. прорастание второй стихии по гребню и хребту
     body = tint_mask(body, top_mask(alpha, int(60 * scale)), COL[b], .75)
     if details: body = details(body, scale)
+    body = unify(body, a, b, uni)
     full_a = Image.new('L', (W, H), 0); full_a.paste(body.getchannel('A'), (ox, oy))
     # 3. контур: снаружи вторая стихия, ближе к телу первая
     c.alpha_composite(glow_outline(full_a, COL[b], 25, 26, .9)); c.alpha_composite(glow_outline(full_a, COL[a], 9, 8, .8))
     wk = WING_K[b] * scale * 1.12
-    wf, rf = wing(b, wk, .5, (COL[a], hot)); place_rot(c, wf, rf, (sh[0] + 45 * scale, sh[1] - 25 * scale), rot_far)
+    wf, rf = wing(b, wk, 1, (COL[a], hot)); wf = grade(unify(wf, a, b, uni), 1, 1, .5); place_rot(c, wf, rf, (sh[0] + 45 * scale, sh[1] - 25 * scale), rot_far)
     c.alpha_composite(body, (ox, oy))
-    wn, rn = wing(b, wk, 1, (COL[a], hot)); wa = Image.new('RGBA', (W, H)); place_rot(wa, wn, rn, sh, rot_near)
+    wn, rn = wing(b, wk, 1, (COL[a], hot)); wn = unify(wn, a, b, uni); wa = Image.new('RGBA', (W, H)); place_rot(wa, wn, rn, sh, rot_near)
     c.alpha_composite(glow_outline(wa.getchannel('A'), COL[b], 9, 10, .7)); c.alpha_composite(wa)
     c.alpha_composite(aura((W, H), (ox - 40, oy - 120, ox + body.width + 40, oy + body.height + 20), cols, kinds, name))
     c = c.crop((80, 60, W - 80, H - 60))
-    c.convert('RGB').resize((c.width * 3 // 5, c.height * 3 // 5), Image.LANCZOS).save(os.path.join(OUT, f'hybrid-{name}.webp'), quality=90)
+    c.convert('RGB').resize((c.width * 3 // 5, c.height * 3 // 5), Image.LANCZOS).save(os.path.join(OUT, f'hybrid-{name}{tag}.webp'), quality=90)
     return c
 
 def lava_details(body, scale):
@@ -167,4 +198,8 @@ if __name__ == '__main__':
     hybrid('lava', 'fire', 'earth', 1.1, -22, -10, lava_details, ('ember', 'rock', 'ember'), (COL['fire'], COL['earth'], (255, 200, 80)))
     hybrid('storm', 'water', 'air', 1.1, 2, -8, storm_details, ('drop', 'wind', 'drop', 'wind'), (COL['water'], COL['air']), (1.3, 1.18, 1))
     hybrid('twilight', 'light', 'dark', 1.1, -8, -18, twilight_details, ('spark', 'smoke', 'spark'), (COL['light'], COL['dark'], (255, 240, 200)))
+    U = .45
+    hybrid('lava', 'fire', 'earth', 1.1, -22, -10, lava_details, ('ember', 'rock', 'ember'), (COL['fire'], COL['earth'], (255, 200, 80)), uni=U, tag='-uni')
+    hybrid('storm', 'water', 'air', 1.1, 2, -8, storm_details, ('drop', 'wind', 'drop', 'wind'), (COL['water'], COL['air']), (1.3, 1.18, 1), uni=U, tag='-uni')
+    hybrid('twilight', 'light', 'dark', 1.1, -8, -18, twilight_details, ('spark', 'smoke', 'spark'), (COL['light'], COL['dark'], (255, 240, 200)), uni=U, tag='-uni')
     print('ok')

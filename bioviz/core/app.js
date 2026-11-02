@@ -483,13 +483,13 @@ function scrollToId(scope,id){const el=$('#k-'+id,scope)||$('#'+id,scope);if(!el
 function show(r){
   if(r.kind==='redirect'){history.replaceState(null,'',r.to);return show(parse(r.to))}
   const target=r.kind==='lecture'?pages['l'+r.L.n]:r.kind==='x'?r.x.page:r.kind==='me'?me:home;
-  if(curLecture&&(r.kind!=='lecture'||r.L!==curLecture)){BV.K.hide(curLecture.id);curLecture=null}
+  if(curLecture&&(r.kind!=='lecture'||r.L!==curLecture)){BV.K.hide(curLecture.id);curLecture=null;BV.split&&BV.split.off()}
   Object.values(pages).concat(EXT.map(x=>x.page)).forEach(p=>{p.hidden=p!==target});
   const same=cur&&cur.kind===r.kind&&(cur.L===r.L)&&(cur.key===r.key);
   cur=r;
   if(r.kind==='home')renderHome();
   if(r.kind==='me')renderMe();
-  if(r.kind==='lecture'){curLecture=r.L;BV.K.show(r.L.id);fillAfter(r.L);folds(target);requestAnimationFrame(()=>tocLine(target));
+  if(r.kind==='lecture'){curLecture=r.L;BV.K.show(r.L.id);fillAfter(r.L);folds(target);BV.split&&BV.split.on(target);requestAnimationFrame(()=>tocLine(target));
     if(r.sec)requestAnimationFrame(()=>{if(!scrollToId(target,r.sec))window.scrollTo({top:0})});else if(!same)window.scrollTo({top:0});
     document.title=`Лекция ${r.L.n}. ${r.L.title} · БиоВиз`}
   else if(r.kind==='x'){if(!same)window.scrollTo({top:0});let t='';try{t=r.x.show(r.m)}catch(e){console.error(r.x.key,e)}document.title=(t?t+' · ':'')+'БиоВиз'}
@@ -501,6 +501,7 @@ function show(r){
 function route(){show(parse(location.hash))}
 addEventListener('hashchange',route);
 BV.app={go:h=>{if(location.hash===h)route();else location.hash=h},get route(){return cur},refresh:route,
+  tocLine:()=>{if(cur&&cur.kind==='lecture')tocLine(pages['l'+cur.L.n])},
   add(x){x.page=page('pg-'+x.key);EXT.push(x);return x.page},
   site,isAdmin,db,lectureRows,visibleLectures};
 
@@ -512,12 +513,14 @@ function fillAfter(L){const box=$('.after',pages['l'+L.n]);
 
 /* линия прогресса вдоль содержания: заполняется до текущего раздела, пройденные пункты темнее */
 function tocLine(page){const toc=$('.k-toc',page);if(!toc||!toc.offsetParent)return;
-  const links=$$('a',toc);if(!links.length)return;
+  const all=$$('a',toc),links=all.filter(a=>a.offsetParent);if(!links.length)return;
   let line=$('.toc-line',toc);if(!line){line=document.createElement('i');line.className='toc-line';line.setAttribute('aria-hidden','true');line.innerHTML='<b></b>';toc.appendChild(line)}
-  const a0=links[0],aN=links[links.length-1],on=$('a.on',toc)||a0,top=a0.offsetTop+6,bot=aN.offsetTop+aN.offsetHeight-6;
+  /* активный пункт может быть скрыт (в узком содержании видны только разделы): берём ближайший видимый выше */
+  const on0=$('a.on',toc)||links[0];let on=on0;for(let i=all.indexOf(on0);i>=0;i--){if(all[i].offsetParent){on=all[i];break}}
+  const a0=links[0],aN=links[links.length-1],top=a0.offsetTop+6,bot=aN.offsetTop+aN.offsetHeight-6;
   line.style.top=top+'px';line.style.height=Math.max(0,bot-top)+'px';
   line.firstChild.style.height=Math.max(0,on.offsetTop+on.offsetHeight/2-top)+'px';
-  let past=true;links.forEach(a=>{if(a===on)past=false;a.classList.toggle('past',past)})}
+  let past=true;all.forEach(a=>{if(a===on0)past=false;a.classList.toggle('past',past);a.classList.toggle('cur',a===on)})}
 let tlRaf=0;
 addEventListener('scroll',()=>{if(tlRaf||!cur||cur.kind!=='lecture')return;tlRaf=requestAnimationFrame(()=>{tlRaf=0;tocLine(pages['l'+cur.L.n])})},{passive:true});
 addEventListener('resize',()=>{if(cur&&cur.kind==='lecture')tocLine(pages['l'+cur.L.n])});

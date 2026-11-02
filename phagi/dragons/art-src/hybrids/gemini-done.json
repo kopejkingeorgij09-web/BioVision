@@ -28,5 +28,25 @@
   "file": "water-dark/body.webp",
   "tries": 1,
   "note": ""
+ },
+ "earth-air": {
+  "file": "earth-air/body.webp",
+  "tries": 1,
+  "note": ""
+ },
+ "earth-flora": {
+  "file": "earth-flora/body.webp",
+  "tries": 1,
+  "note": ""
+ },
+ "earth-light": {
+  "file": "earth-light/body.webp",
+  "tries": 1,
+  "note": ""
+ },
+ "earth-dark": {
+  "file": "earth-dark/body.webp",
+  "tries": 1,
+  "note": ""
  }
 }

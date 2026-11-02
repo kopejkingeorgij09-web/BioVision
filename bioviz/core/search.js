@@ -120,7 +120,7 @@ function buildLectures(){ensureRendered();
       /* словарь: пары dt/dd */
       $$('dt',sec).forEach(dt=>{const dd=dt.nextElementSibling;if(!dd||dd.tagName!=='DD')return;terms.push({t:clean(dt.textContent),d:clean(dd.textContent),el:dt,lec:L,path:[lp,secP]})})});
     /* рисунки: подпись, номер и раздел, к которому рисунок относится */
-    $$('.kf',page).forEach(f=>{const id=f.dataset.fig,ph=$(`.kf-ph[data-ph="${id}"]`,sheet),home=(ph&&ph.isConnected?ph:f).closest('.k-sec');if(!home)return;
+    $$('.kf',page).forEach(f=>{const id=f.dataset.fig||f.dataset.mol,ph=$(`.kf-ph[data-ph="${id}"]`,sheet),home=(ph&&ph.isConnected?ph:f).closest('.k-sec');if(!home)return;
       const cap=$('figcaption',f);if(!cap)return;const t=clean(cap.textContent),m=t.match(/^Рис\.\s*([\d.]+\d)/);
       const sid=home.id.replace(/^k-/,''),h2=$('h2',home),no=$('.k-no',h2),sno=no?no.textContent.trim():'',stt=clean((h2?h2.textContent:'').slice(sno.length));
       const secP=sno?`${sno}. ${stt}`:stt;

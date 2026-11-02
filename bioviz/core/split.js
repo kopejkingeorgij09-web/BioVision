@@ -119,7 +119,7 @@ function parseHl(v){return String(v||'').split(';').map(s=>s.trim()).filter(Bool
   i=a.indexOf('#');if(i>0)return{t:'pick',fig:a.slice(0,i).trim(),key:a.slice(i+1).trim()};
   i=a.indexOf('=');if(i>0)return{t:'set',id:a.slice(0,i).trim(),val:a.slice(i+1).trim()};
   return{t:'show',fig:a}})}
-function figOfAct(a){if(a.fig)return S.figs.get(a.fig)||null;const c=S.root.querySelector('#'+CSS.escape(a.id));const f=c&&c.closest('.kf');return f?S.figs.get(f.dataset.fig)||null:null}
+function figOfAct(a){if(a.fig)return S.figs.get(a.fig)||null;const c=S.root.querySelector('#'+CSS.escape(a.id));const f=c&&c.closest('.kf');return f?S.figs.get(f.dataset.fig||f.dataset.mol)||null:null}
 function run(F,acts){const f=F.el;
   try{
     if(!acts.some(a=>a.t==='pick')&&f._pick)f._pick(null);
@@ -135,7 +135,7 @@ function run(F,acts){const f=F.el;
 function build(page){
   const wrap=$('.k-wrap',page),sheet=wrap&&$('.k-sheet',wrap);if(!sheet)return null;
   const st={page,wrap,sheet,root:page,figs:new Map(),order:[],mode:'',active:null,actEl:null,pre:false,pop:null};
-  $$('.kf',sheet).forEach(f=>{const id=f.dataset.fig;if(!id||st.figs.has(id))return;
+  $$('.kf',sheet).forEach(f=>{const id=f.dataset.fig||f.dataset.mol;if(!id||st.figs.has(id))return;
     const m=meta(f),ph=document.createElement('button');ph.type='button';ph.className='kf-ph';ph.dataset.ph=id;
     ph.innerHTML=`${ICO.fig}<span>Рис. ${esc(m.n)}</span><b>${esc(m.t)}</b><em>справа ${ICO.side}</em>`;
     ph.setAttribute('aria-label',`Рисунок ${m.n}, ${m.t}: показан справа от текста`);
@@ -170,7 +170,7 @@ function railToc(){const toc=$('.k-toc',S.wrap);if(!toc)return;
 function anchors(){const out=[];
   $$('[data-hl], .kf-ph, .kf',S.sheet).forEach(el=>{
     if(el.classList.contains('kf-ph')){const F=S.figs.get(el.dataset.ph);if(F)out.push({el,F,acts:null});return}
-    if(el.classList.contains('kf')){if(el.closest('.kd-pop'))return;const F=S.figs.get(el.dataset.fig);if(F)out.push({el,F,acts:null});return}
+    if(el.classList.contains('kf')){if(el.closest('.kd-pop'))return;const F=S.figs.get(el.dataset.fig||el.dataset.mol);if(F)out.push({el,F,acts:null});return}
     if(el.closest('.kf'))return;
     const acts=parseHl(el.getAttribute('data-hl'));if(!acts.length)return;
     const F=figOfAct(acts[0]);if(F)out.push({el,F,acts})});
@@ -211,8 +211,8 @@ function showDock(F,pre,sec){const d=S.dock;
   const all=$('.kd-all',d);all.hidden=!!F;$('.kd-nav',d).hidden=!F;
   if(!F)$('p',all).textContent=sec?'В этом разделе своих рисунков нет. Нажми на любой, чтобы перейти к нему.':'Рисунок появится здесь, когда дойдёшь до него в тексте. Можно перейти и сразу.';
   if(F!==S.active){
-    if(S.active)S.active.el.classList.add('kd-off');
-    if(F){F.el.classList.remove('kd-off');F.el.classList.remove('kd-in');void F.el.offsetWidth;F.el.classList.add('kd-in');d.scrollTop=0}
+    if(S.active){S.active.el.classList.add('kd-off');BV.mol&&BV.mol.sleep(S.active.el)}
+    if(F){F.el.classList.remove('kd-off');F.el.classList.remove('kd-in');void F.el.offsetWidth;F.el.classList.add('kd-in');d.scrollTop=0;BV.mol&&BV.mol.wake(F.el)}
     S.active=F;
     const i=S.order.indexOf(F);$('[data-go="-1"]',d).disabled=i<=0;$('[data-go="1"]',d).disabled=i<0||i>=S.order.length-1}
   $('.kd-n',d).textContent=F?'Рис. '+F.n:'';
@@ -231,7 +231,7 @@ function openPop(F){closePop();const f=F.el,hold=document.createElement('div');h
   w.innerHTML=`<div class="kd-scrim"></div><div class="kd-pop" role="dialog" aria-modal="true" aria-label="Рисунок ${esc(F.n)}"><div class="kd-h"><span class="kd-n">Рис. ${esc(F.n)}</span><b>${esc(F.t)}</b><button type="button" class="kd-x" aria-label="Закрыть рисунок">${ICO.x}</button></div><div class="kd-pb"></div></div>`;
   $('.kd-pb',w).appendChild(f);S.page.appendChild(w);S.pop={w,F,hold};chip(null);
   $('.kd-scrim',w).addEventListener('click',closePop);$('.kd-x',w).addEventListener('click',closePop);$('.kd-x',w).focus({preventScroll:true,focusVisible:false})}
-function closePop(){if(!S||!S.pop)return;const {w,F,hold}=S.pop;S.pop=null;if(F.el.classList.contains('full'))$('.kf-zoom',F.el).click();hold.replaceWith(F.el);w.remove();S.chipFig=undefined;tick()}
+function closePop(){if(!S||!S.pop)return;const {w,F,hold}=S.pop;S.pop=null;if(F.el.classList.contains('full')){const z=$('.kf-zoom,.km-full',F.el);if(z)z.click()}hold.replaceWith(F.el);w.remove();S.chipFig=undefined;tick()}
 R.addEventListener('keydown',e=>{if(e.key==='Escape'&&S&&S.pop&&!S.pop.F.el.classList.contains('full'))closePop()});
 
 let raf=0;const sched=()=>{if(raf||!S)return;raf=requestAnimationFrame(()=>{raf=0;if(S)tick()})};

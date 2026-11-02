@@ -2,7 +2,7 @@
    при наведении, фокусе или касании показывается карточка с определением.
    Определения берутся из словаря самой лекции (список dt/dd в разделе «Словарь»), поэтому на сайте
    нет ничего, чего нет в словаре. Если у термина в словаре есть английский оригинал или источник,
-   лекция может передать их через BV.terms.extra(idЛекции, {'Термин': {en, src}}). */
+   лекция может передать их через BV.termX[idЛекции] или BV.terms.extra(idЛекции, {'Термин': {en, src}}). */
 (function(){
 const {$,$$,esc}=BV,R=BVHOST.root;
 
@@ -23,7 +23,8 @@ const STYLE=`
 `;
 {const st=document.createElement('style');st.textContent=STYLE;R.appendChild(st)}
 
-const EXTRA={};
+/* лекция может записать данные заранее в BV.termX[idЛекции], ещё до загрузки этого файла */
+const EXTRA=BV.termX=BV.termX||{};
 const norm=s=>String(s).toLowerCase().replace(/ё/g,'е');
 const L='а-яёa-z0-9';
 /* слово → основа: у длинных слов отрезаем окончание, чтобы находились падежные формы */
@@ -56,7 +57,7 @@ const card=document.createElement('div');card.className='tm-card';card.setAttrib
 let curEl=null,hideT=0,showT=0,shownAt=0;
 function show(el){clearTimeout(hideT);const sheet=el.closest('.k-sheet');const T=sheet&&sheet._tm;if(!T)return;const g=T.G[+el.dataset.g];if(!g)return;
   const x=(EXTRA[T.lid]||{})[g.t]||{};
-  card.innerHTML=`<b>${esc(g.t)}</b>${x.en?`<div class="en">${esc(x.en)}</div>`:''}<p>${g.d}</p>${x.src?`<div class="src">${esc(x.src)}</div>`:''}<button type="button">В словарь лекции →</button>`;
+  card.innerHTML=`<b>${esc(g.t)}</b>${x.en?`<div class="en">${esc(x.en)}</div>`:''}<p>${g.d}</p>${x.src?`<div class="src">Источник: ${esc(x.src)}</div>`:''}<button type="button">В словарь лекции →</button>`;
   $('button',card).onclick=()=>{hide(true);const dl=T.dl;if(!dl)return;const y=dl.getBoundingClientRect().top+scrollY-(parseFloat(getComputedStyle(BVHOST.host).getPropertyValue('--barh'))||60)-80;window.scrollTo({top:y,behavior:'smooth'})};
   if(curEl!==el)shownAt=Date.now();if(curEl&&curEl!==el)curEl.classList.remove('on');curEl=el;el.classList.add('on');el.setAttribute('aria-describedby','tmCard');
   const r=el.getBoundingClientRect(),w=card.offsetWidth||340;card.classList.add('on');

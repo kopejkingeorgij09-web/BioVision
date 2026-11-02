@@ -18,21 +18,38 @@ main.kd-wide{max-width:1680px}
 .k-wrap.split{gap:22px}
 .k-wrap.split{grid-template-columns:56px minmax(580px,1fr) minmax(340px,46%);grid-template-areas:"toc sheet dock"}
 .k-wrap.split .k-sheet{grid-area:sheet;padding:36px 38px 52px}
-/* содержание сворачивается в узкую полосу с номерами разделов; при наведении раскрывается поверх текста */
-.k-wrap.split .k-toc{grid-area:toc;position:sticky;z-index:6;width:56px;padding:12px 0;overflow:hidden;transition:width .22s cubic-bezier(.3,.7,.2,1),box-shadow .22s}
-.k-wrap.split .k-toc:not(.open)>b,.k-wrap.split .k-toc:not(.open) a.sub{display:none}
-.k-wrap.split .k-toc:not(.open) a{font-size:0;line-height:0;padding:4px 0;display:flex;justify-content:center;background:none;z-index:1}
-.k-wrap.split .k-toc:not(.open) a:before{content:attr(data-no);display:grid;place-items:center;width:28px;height:28px;border-radius:50%;box-sizing:border-box;
-  border:1px solid var(--line);background:var(--card);color:var(--muted);font:600 12px/1 var(--font-mono);transition:background .2s,color .2s,border-color .2s}
-.k-wrap.split .k-toc:not(.open) a.past:before{color:var(--ink);border-color:color-mix(in oklab,var(--cut) 45%,var(--line))}
-.k-wrap.split .k-toc:not(.open) a.cur:before{background:var(--cut);border-color:var(--cut);color:var(--on-accent)}
-.k-wrap.split .k-toc:not(.open) a:hover:before{border-color:var(--ink);color:var(--ink)}
-.k-wrap.split .k-toc:not(.open) .toc-line{left:27px}
-.k-wrap.split .k-toc:not(.open) .toc-line b:after{display:none}
-.k-wrap.split .k-toc.open{width:268px;padding:14px 10px 12px;overflow:auto;box-shadow:0 18px 44px -18px rgba(10,30,20,.38)}
-.k-wrap.split .k-toc.open a{white-space:normal}
+/* содержание сворачивается в узкую полосу с номерами разделов; при наведении плавно раскрывается поверх текста.
+   Кружки с номерами стоят на месте в обоих состояниях: ширина растёт, подписи проявляются, подразделы разворачиваются по высоте */
+.k-wrap.split .k-toc{grid-area:toc;position:sticky;z-index:6;width:56px;padding:12px 0;overflow:hidden;
+  transition:width .46s cubic-bezier(.22,.8,.24,1),box-shadow .46s cubic-bezier(.22,.8,.24,1);contain:layout paint}
+.k-wrap.split .k-toc.open{width:296px;overflow-y:auto;overflow-x:hidden;box-shadow:0 22px 50px -20px rgba(10,30,20,.42)}
+.k-wrap.split .k-toc>b{display:block;white-space:nowrap;overflow:hidden;max-height:0;opacity:0;padding:0 0 0 18px;
+  transition:max-height .42s cubic-bezier(.22,.8,.24,1),padding .42s cubic-bezier(.22,.8,.24,1),opacity .18s}
+.k-wrap.split .k-toc.open>b{max-height:30px;opacity:1;padding:2px 0 8px 18px;transition-delay:0s,0s,.12s}
+.k-wrap.split .k-toc a{position:relative;display:block;min-height:36px;padding:4px 0 4px 14px;box-sizing:border-box;background:none;box-shadow:none;border-radius:0;z-index:1;font-size:13px;line-height:1.25;white-space:normal}
+.k-wrap.split .k-toc a:not(.sub):before{content:attr(data-no);display:grid;place-items:center;width:28px;height:28px;border-radius:50%;box-sizing:border-box;
+  border:1px solid var(--line);background:var(--card);color:var(--muted);font:600 12px/1 var(--font-mono);transition:background .25s,color .25s,border-color .25s,transform .25s}
+.k-wrap.split .k-toc a.past:before{color:var(--ink);border-color:color-mix(in oklab,var(--cut) 45%,var(--line))}
+.k-wrap.split .k-toc a.cur:before{background:var(--cut);border-color:var(--cut);color:var(--on-accent)}
+.k-wrap.split .k-toc a:not(.sub):hover:before{border-color:var(--ink);color:var(--ink);transform:scale(1.06)}
+.k-wrap.split .k-toc a.cur:hover:before{color:var(--on-accent);border-color:var(--cut)}
+.k-wrap.split .k-toc .tn{display:none}
+.k-wrap.split .k-toc a:not(.sub) .tl{position:absolute;left:54px;top:50%;width:222px;transform:translate(-10px,-50%);opacity:0;color:var(--muted);
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;transition:opacity .2s,transform .38s cubic-bezier(.22,.8,.24,1),color .2s}
+.k-wrap.split .k-toc.open a:not(.sub) .tl{opacity:1;transform:translate(0,-50%);transition-delay:.1s,.06s,0s}
+.k-wrap.split .k-toc a.past .tl{color:var(--ink)}
+.k-wrap.split .k-toc a.cur .tl,.k-wrap.split .k-toc a.on .tl{color:var(--ink);font-weight:600}
+.k-wrap.split .k-toc a:hover .tl{color:var(--ink)}
+/* подразделы: в узкой полосе свёрнуты до нулевой высоты, при раскрытии плавно разворачиваются */
+.k-wrap.split .k-toc a.sub{display:grid;grid-template-rows:0fr;min-height:0;padding:0 0 0 54px;opacity:0;font-size:12.5px;
+  transition:grid-template-rows .42s cubic-bezier(.22,.8,.24,1),padding .42s cubic-bezier(.22,.8,.24,1),opacity .16s}
+.k-wrap.split .k-toc a.sub .tl{display:block;min-height:0;overflow:hidden;width:222px;color:var(--muted)}
+.k-wrap.split .k-toc.open a.sub{grid-template-rows:1fr;padding:3px 0 3px 54px;opacity:1;transition-delay:0s,0s,.14s}
+.k-wrap.split .k-toc .toc-line{left:27px}
+.k-wrap.split .k-toc .toc-line b:after{display:none}
+@media (prefers-reduced-motion:reduce){.k-wrap.split .k-toc,.k-wrap.split .k-toc *{transition-duration:0s!important;transition-delay:0s!important}}
 :host(.full) .k-wrap.split{max-width:none}
-.k-dock{grid-area:dock;position:sticky;top:calc(var(--barh) + 16px);max-height:calc(100dvh - var(--barh) - 32px);overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;min-width:0;display:flex;flex-direction:column;gap:10px}
+.k-dock{grid-area:dock;position:sticky;top:calc(var(--barh) + 16px);max-height:calc(100dvh - var(--barh) - 32px);overflow:auto;scrollbar-width:thin;min-width:0;display:flex;flex-direction:column;gap:10px}
 .k-dock[hidden]{display:none}
 /* рисунок «Крупнее» должен перекрыть шапку и содержание */
 .k-dock:has(.kf.full){z-index:80;overflow:visible}
@@ -158,9 +175,12 @@ function build(page){
 /* узкое содержание: номер раздела у каждой верхней ссылки, раскрытие по наведению и с клавиатуры */
 function railToc(){const toc=$('.k-toc',S.wrap);if(!toc)return;
   if(!toc.dataset.rail){toc.dataset.rail='1';
-    $$('a:not(.sub)',toc).forEach(a=>{const m=a.textContent.trim().match(/^(\d+)\./);a.dataset.no=m?m[1]:'·';if(!a.title)a.title=a.textContent.trim()});
+    $$('a',toc).forEach(a=>{const tx=a.textContent.trim(),m=tx.match(/^(\d+)\.\s*/);if(!a.classList.contains('sub'))a.dataset.no=m?m[1]:'·';if(!a.title)a.title=tx;
+      a.innerHTML=`<span class="tl">${m?`<span class="tn">${esc(m[0])}</span>`:''}${esc(m?tx.slice(m[0].length):tx)}</span>`});
+    /* пока подразделы разворачиваются, линия прогресса следует за кружками */
+    let lr=0;const follow=()=>{cancelAnimationFrame(lr);const t0=performance.now();const f=()=>{BV.app.tocLine&&BV.app.tocLine();if(performance.now()-t0<520)lr=requestAnimationFrame(f)};f()};
     let t=0;const set=o=>{clearTimeout(t);t=setTimeout(()=>{if(!S||S.mode!=='split'){toc.classList.remove('open');return}
-      if(toc.classList.contains('open')===o)return;toc.classList.toggle('open',o);BV.app.tocLine&&BV.app.tocLine()},o?60:160)};
+      if(toc.classList.contains('open')===o)return;toc.classList.toggle('open',o);if(!o)toc.scrollTop=0;follow()},o?90:220)};
     toc.addEventListener('mouseenter',()=>set(true));toc.addEventListener('mouseleave',()=>set(false));
     toc.addEventListener('focusin',()=>set(true));toc.addEventListener('focusout',e=>{if(!toc.contains(e.relatedTarget))set(false)});
     toc.addEventListener('click',e=>{if(BV_ET(e).closest('a'))set(false)})}
@@ -183,7 +203,15 @@ function setMode(){if(!S||!S.order.length)return;
   S.wrap.classList.toggle('split',m==='split');railToc();
   if(m==='flow'){if(was&&was!=='flow')S.order.forEach(F=>{F.el.classList.remove('kd-off','kd-in');if(F.ph.isConnected)F.ph.replaceWith(F.el)});S.dock.hidden=true}
   else if(!was||was==='flow'){S.order.forEach(F=>{if(F.el.parentNode!==S.box){F.el.replaceWith(F.ph);S.box.appendChild(F.el)}F.el.classList.add('kd-off')});S.dock.hidden=false;S.active=null}
-  S.anc=anchors();clearAct();tick()}
+  hold(m==='flow');S.anc=anchors();clearAct();tick()}
+
+/* в тексте (узкий экран) рисунок меняет высоту, когда переключается его состояние: из-за этого текст ниже
+   подпрыгивал при прокрутке. Рисунок запоминает свою наибольшую высоту и больше не сжимается */
+const RO=window.ResizeObserver?new ResizeObserver(es=>es.forEach(e=>{const f=e.target;if(!f._hold||f.classList.contains('full')||f.closest('.kd-pop'))return;
+  const h=f.offsetHeight;if(h>(f._hmax||0)){f._hmax=h;f.style.minHeight=h+'px'}})):null;
+function hold(on){if(!S||!RO)return;S.order.forEach(F=>{const f=F.el;
+  if(on){if(!f._hold){f._hold=1;f._hmax=0;RO.observe(f)}}
+  else if(f._hold){f._hold=0;f._hmax=0;f.style.minHeight='';RO.unobserve(f)}})}
 
 function clearAct(){$$('.hl-on',S.sheet).forEach(e=>e.classList.remove('hl-on'));S.actEl=null}
 
@@ -199,12 +227,21 @@ function pick(){const y=lineY(),A=S.anc;let last=-1;
 function tick(){if(!S||!S.order.length||!S.anc)return;
   const {a,pre,sec}=pick();
   const F=a?a.F:null;
-  if(S.mode!=='flow')showDock(F,pre,sec);
+  /* панель не прыгает обратно к списку рисунков у самого верха и низа страницы: остаётся последний рисунок, приглушённый */
+  if(S.mode!=='flow'){let G=F,pr=pre;if(!G&&S.order.length){G=S.active||S.order[0];pr=true}showDock(G,pr,sec)}
   /* подсветка абзаца и состояние рисунка */
   const el=a&&!pre&&a.acts?a.el:null;
   if(el!==S.actEl){if(S.actEl)S.actEl.classList.remove('hl-on');S.actEl=el;if(el){el.classList.add('hl-on');run(a.F,a.acts)}}
   S.order.forEach(G=>G.ph.classList.toggle('on',G===F&&!pre));
-  if(S.mode==='flow')chip(F&&!pre&&F.el.getBoundingClientRect().bottom<barh()+8?F:null);else chip(null)}
+  if(S.mode==='flow'){chip(F&&!pre&&F.el.getBoundingClientRect().bottom<barh()+8?F:null);
+    S.order.forEach(G=>{if(G._warm||!G.el._hold)return;const r=G.el.getBoundingClientRect();if(r.top<innerHeight*2.5&&r.bottom>-innerHeight)warm(G)})}
+  else chip(null)}
+
+/* заранее, пока рисунок ещё ниже экрана, прогоняем все его состояния из data-hl и запоминаем самую большую высоту:
+   тогда при чтении рисунок не растёт и текст под ним стоит на месте */
+function warm(F){F._warm=1;const A=S.anc.filter(a=>a.F===F&&a.acts);if(A.length<2)return;const f=F.el;let mx=f.offsetHeight;
+  A.forEach(a=>{run(F,a.acts);mx=Math.max(mx,f.offsetHeight)});run(F,A[0].acts);
+  f._hmax=Math.max(f._hmax||0,mx);f.style.minHeight=f._hmax+'px';if(S.actEl){S.actEl.classList.remove('hl-on');S.actEl=null}}
 
 function showDock(F,pre,sec){const d=S.dock;
   d.classList.toggle('pre',!!(F&&pre));
@@ -216,7 +253,7 @@ function showDock(F,pre,sec){const d=S.dock;
     S.active=F;
     const i=S.order.indexOf(F);$('[data-go="-1"]',d).disabled=i<=0;$('[data-go="1"]',d).disabled=i<0||i>=S.order.length-1}
   $('.kd-n',d).textContent=F?'Рис. '+F.n:'';
-  $('.kd-st',d).textContent=F?(pre?'ниже в тексте':'к тексту слева'):''}
+  $('.kd-st',d).textContent=F?(pre?(F.ph.isConnected&&F.ph.getBoundingClientRect().top<lineY()?'выше в тексте':'ниже в тексте'):'к тексту слева'):''}
 
 function goTo(F){const t=F.ph.isConnected?F.ph:F.el;const y=t.getBoundingClientRect().top-barh()-90;
   window.scrollBy({top:y,behavior:Math.abs(y)>innerHeight*2.5||matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})}
@@ -236,7 +273,7 @@ R.addEventListener('keydown',e=>{if(e.key==='Escape'&&S&&S.pop&&!S.pop.F.el.clas
 
 let raf=0;const sched=()=>{if(raf||!S)return;raf=requestAnimationFrame(()=>{raf=0;if(S)tick()})};
 addEventListener('scroll',sched,{passive:true});
-let rt=0;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(S){setMode();tick()}},120)});
+let rt=0,rw=innerWidth;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(!S)return;if(innerWidth!==rw){rw=innerWidth;hold(false)}setMode();if(S.mode==='flow')hold(true);tick()},120)});
 
 /* состояние хранится для каждой лекции: при возврате на страницу рисунки уже стоят на местах */
 const STATES=new WeakMap();

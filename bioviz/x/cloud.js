@@ -36,7 +36,8 @@ const AUTH=window.BVAUTH={
   /* только для учителя */
   codes:()=>rpc('bv_codes',{p_code:getCode()}),
   newCode:name=>rpc('bv_code_new',{p_code:getCode(),p_name:String(name||'')}),
-  delCode:id=>rpc('bv_code_delete',{p_code:getCode(),p_id:id})};
+  delCode:id=>rpc('bv_code_delete',{p_code:getCode(),p_id:id}),
+  renameCode:(id,name)=>rpc('bv_code_rename',{p_code:getCode(),p_id:id,p_name:String(name||'')})};
 
 /* --- база: тот же вид, что у claude.use('db') --- */
 /* после записи даём знать подписчикам на этой странице, чтобы журнал обновился сразу */
@@ -49,6 +50,8 @@ const db={
     async set(data){await rpc('bv_set',{p_code:getCode(),p_col:col,p_id:id,p_data:data});written()},
     async delete(){await rpc('bv_delete',{p_code:getCode(),p_col:col,p_id:id});written()}}},
   collection(col){return{
+    /* один раз прочитать всю коллекцию: [{id, data}] */
+    list:()=>rpc('bv_list',{p_code:getCode(),p_col:col}).then(l=>l||[]),
     /* живого канала нет: опрашиваем раз в 20 секунд и сразу после изменений на этой странице */
     onSnapshot(cb,err){let stop=false,last='';
       const tick=async()=>{if(stop)return;try{const l=await rpc('bv_list',{p_code:getCode(),p_col:col});const sig=JSON.stringify(l);if(sig!==last){last=sig;cb(snapDocs(l))}}catch(e){err&&err(e)}};

@@ -180,10 +180,14 @@ B.inputs.import = async (el, e) => {
 /* ---------- старт ---------- */
 B.render();
 B.connect().then(() => {
-  // один раз: «Сон до 00:00» теперь засчитывается по разбору до полуночи
+  // один раз: привычки «по разбору до 01:00» (сон, карточки) становятся ручными, их старые серии обнуляются
   setTimeout(() => {
-    const h = B.get('h_sleep'), cfg = B.get('cfg') || {};
-    if (h && !h.auto && !cfg.migNight){ B.put('h_sleep', Object.assign({}, h, {auto: 'night', mini: undefined})); B.setCfg({migNight: 1}); }
+    const cfg = B.get('cfg') || {};
+    if (cfg.migManual) return;
+    const ids = B.list('h_').filter(h => h.auto === 'night').map(h => h.id);
+    ids.forEach(id => { const h = B.get('h_' + id); const x = Object.assign({}, h); delete x.auto; B.put('h_' + id, x, true); });
+    if (ids.length) B.dayDates().forEach(d => { const h = B.day(d).h; if (h && ids.some(id => id in h)) B.editDay(d, x => { ids.forEach(id => { delete x.h[id]; }); }, true); });
+    B.setCfg({migManual: 1, migNight: 1});
   }, B.cloud ? 2500 : 0);
   B.render(); if (!special()) shared();
 });

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Микробиология · БиоВиз</title>
-<meta name="description" content="БиоВиз: конспекты лекций по микробиологии с интерактивными рисунками, лаборатория моделей и помощник для научной группы.">
+<meta name="description" content="БиоВиз: конспекты лекций по микробиологии с интерактивными рисунками и журнал лабораторных работ научной группы.">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#F3F1EA">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
@@ -41,9 +41,9 @@ if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWork
 /* Загрузка: файлы качаются параллельно, выполняются строго по порядку.
    К адресу добавляется версия: после обновления браузер не возьмёт старый файл из кеша.
    ПЕРЕД КАЖДЫМ PUSH поднимай BV_VER. */
-const BV_VER='2026-10-26-design2';
-const CORE=['bioviz/core/base.js','bioviz/core/konspekt.js','bioviz/core/vz.js','bioviz/core/lab.js','content/course.js'];
-const TAIL=['bioviz/core/app.js','bioviz/core/ai.js'];
+const BV_VER='2026-11-02-design3';
+const CORE=['bioviz/core/base.js','bioviz/core/konspekt.js','bioviz/core/vz.js','content/course.js'];
+const TAIL=['bioviz/core/app.js','bioviz/core/prompt.js','bioviz/core/labworks.js','bioviz/core/admin.js'];
 const url=(s,bust)=>s+'?v='+BV_VER+(bust?'&r='+Date.now():'');
 function load(src,bust){return new Promise((ok,no)=>{const e=document.createElement('script');e.src=url(src,bust);e.async=false;
   e.onload=ok;e.onerror=()=>{e.remove();no(new Error('Не загрузился '+src))};document.head.appendChild(e)})}
@@ -54,7 +54,7 @@ function fail(msg){const b=document.getElementById('boot');if(b){b.innerHTML=msg
   preload(CORE.concat(TAIL));
   /* оболочка должна пережить загрузку: заглушку убираем, когда base.js создаст теневой корень */
   for(const s of CORE){if(!await tryLoad(s)){fail('Не получилось загрузить курс. Проверьте интернет.');return}}
-  const C=window.BV_COURSE,files=C.lectures.concat(C.labs).map(x=>x.file),missed=[];
+  const C=window.BV_COURSE,files=C.lectures.map(x=>x.file),missed=[];
   preload(files);
   for(const s of files){if(!await tryLoad(s))missed.push(s)}
   for(const s of TAIL){if(!await tryLoad(s)){fail('Не получилось загрузить курс. Проверьте интернет.');return}}

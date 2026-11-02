@@ -1,8 +1,11 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<script src="cloud.js?v=2"></script>
+<script src="cloud.js?v=7"></script>
+<link rel="stylesheet" href="dragons/dragons.css?v=33">
+<link rel="stylesheet" href="dragons/world.css?v=33"><script src="dragons/world.js?v=33"></script><script src="dragons/genetics.js?v=33"></script><script src="dragons/element-art/manifest.js?v=33"></script><script src="dragons/art-motion.js?v=33"></script><script src="dragons/element-art.js?v=33"></script><script src="dragons/draw.js?v=33"></script><script src="dragons/puzzles.js?v=33"></script><script src="dragons/economy.js?v=33"></script><script src="dragons/island.js?v=33"></script><script src="dragons/store.js?v=33"></script><script src="dragons/battle.js?v=33"></script><script src="dragons/campaign.js?v=33"></script><script src="dragons/learning.js?v=33"></script><script src="dragons/ui.js?v=33"></script><script src="dragons/inspect.js?v=33"></script><script src="dragons/live.js?v=33"></script><script src="dragons/fight.js?v=33"></script>
 <meta charset="utf-8">
+<meta name="ph-ver" content="2026-10-31.3">
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Фаги естественных наук</title>
@@ -961,6 +964,23 @@ nav:empty{display:none}
 .rolesw button[aria-pressed="true"]{background:var(--ink);color:var(--card)}
 .rolesw button:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
 .rolesw.busy{opacity:.6;pointer-events:none}
+/* hidden должен прятать переключатель: иначе display:flex выше показывал его и ученическому коду, где кнопки ничего не делают */
+.rolesw[hidden]{display:none!important}
+/* статус сохранения ответа и плашка новой версии (4.4) */
+.svst{margin:0 0 10px;font-size:13.5px;color:var(--muted);display:flex;gap:6px;align-items:flex-start}.svst.ok{color:var(--ink)}
+.svst.err{color:#9A2B12;background:color-mix(in srgb,#E4572E 14%,transparent);padding:8px 10px;border-radius:10px;font-weight:600}
+/* сводка учителя (4.4) */
+.sum-c h3{margin:14px 0 6px;font-size:14.5px}.sum-avg{font:800 22px var(--d);color:var(--c)}
+.sum-k{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:10px}
+.sum-k span{display:flex;flex-direction:column;align-items:center;padding:8px 4px;border-radius:12px;background:var(--soft);font-size:12px;color:var(--muted);text-align:center}
+.sum-k b{font:800 20px var(--d);color:var(--text)}.sum-k .on{background:color-mix(in srgb,var(--chem) 18%,var(--soft))}.sum-k .bad{background:color-mix(in srgb,var(--accent) 18%,var(--soft))}
+@media(max-width:520px){.sum-k{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.sum-s{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:10px;font-size:13.5px}
+.sum-ls{display:flex;flex-wrap:wrap;gap:6px}.sum-l{font:inherit;font-size:13.5px;text-align:left;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:6px 10px;cursor:pointer}
+.sum-l:hover{border-color:var(--ink)}.sum-l small{color:var(--muted)}.sum-w{font-size:13.5px;padding:6px 10px;border-radius:10px;background:var(--soft)}
+.sum-t .sum-l{margin-right:8px}.sum-t{padding:10px 0;border-top:1px solid var(--line)}.sum-t:first-of-type{border-top:0}.sum-t p{margin:6px 0 0}
+#ph-upd{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 10px);transform:translateX(-50%);z-index:9998;background:var(--ink,#0E4A38);color:#fff;padding:10px 12px 10px 16px;border-radius:14px;box-shadow:0 10px 30px -10px rgba(0,0,0,.5);font-size:14.5px;display:flex;gap:10px;align-items:center;max-width:calc(100vw - 24px)}
+#ph-upd button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:6px 12px;background:#fff;color:var(--ink,#0E4A38);cursor:pointer}
 .srbtn{all:unset;box-sizing:border-box;flex:none;cursor:pointer;display:flex;align-items:center;gap:9px;height:40px;padding:0 8px 0 12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--muted);font-size:14px;min-width:230px;transition:border-color .15s,color .15s}
 .srbtn:hover{border-color:var(--ink);color:var(--text)}
 .srbtn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
@@ -1534,12 +1554,12 @@ function filesHTML(list,removeAct){
     return `<span class="file">${removeAct?`<button class="x" ${removeAct} data-i="${i}" aria-label="Убрать файл ${esc(f.name||'')}">×</button>`:''}<a href="${u}" data-fid="${f.id}" data-fn="${esc(f.name||'файл')}" data-ft="${esc(f.type||'')}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${img?`<img src="${u}" alt="${esc(f.name||'Фото')}" loading="lazy">`:`<span class="doc">${esc(((f.name||'').split('.').pop()||'файл').toUpperCase().slice(0,4))}</span>`}<span>${esc(f.name||'файл')}</span></a></span>`}).join('')}</div>`;
 }
 function uplErr(e){const c=e&&e.code;
-  if(c==='unsupported_type')toast('Такой тип файла не поддерживается. Подойдут фото (JPG, PNG), PDF или текст.');
+  if(c==='unsupported_type')toast('Такой тип файла не поддерживается. Подойдут фото (JPG, PNG, WebP, GIF, HEIC), PDF или текст.');
   else if(c==='too_large')toast('Файл больше 20 МБ. Уменьшите фото или разделите PDF.');
   else if(c==='quota_or_state')toast('Место для файлов закончилось.');
   else if(c==='not_granted')toast('Нет прав на загрузку файлов. Нужен доступ «Редактор».');
   else{console.warn(e);toast('Не получилось загрузить файл'+(c?' ('+c+')':'')+'. Попробуйте ещё раз.',6000)}}
-const EXT_TYPE={pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',gif:'image/gif',txt:'text/plain',csv:'text/csv',md:'text/markdown',json:'application/json'};
+const EXT_TYPE={pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',gif:'image/gif',heic:'image/heic',heif:'image/heif',bmp:'image/bmp',txt:'text/plain',csv:'text/csv',md:'text/markdown',json:'application/json'};
 const fileType=f=>{const t=(f.type||'').split(';')[0].trim().toLowerCase();if(t&&t!=='application/octet-stream'&&t!=='application/x-pdf')return t;
   return EXT_TYPE[((f.name||'').split('.').pop()||'').toLowerCase()]||t||'application/pdf'};
 // ids of files already referenced somewhere, so a recovered upload never grabs someone else's file
@@ -1676,6 +1696,20 @@ const maxOf=t=>t.kind==='test'?testMax(t):t.max;
 // v99 приписка к проценту выполнения
 const hwVerdict=pc=>pc>=90?['Шикарно!','var(--bio)']:pc>=85?['Хорошо','var(--bio)']:pc>=80?['Хорошо, но надо лучше','var(--bio)']:pc>=60?['Не ахти(','var(--chem)']:['Плохо, тема не закрыта','var(--accent)'];
 const hwPct=(score,max)=>score==null||score===''||!(Number(max)>0)||!isFinite(Number(score))?null:Math.round(Math.max(0,Math.min(1,Number(score)/Number(max)))*100);
+/* бонус за ДЗ (с 28 окт 2026): по ступеням процента, один раз за задание. Остров берёт сумму и начисляет только прирост
+   (поле credited.hwg/hwf), поэтому пересдача, повторная проверка и перезагрузка второй раз ничего не дают. Чашка получает
+   подкормку: дополнительные колонии в день проверки, если этот день есть в нынешней культуре */
+const HW_FROM='2026-10-28';
+/* 4.4: ДЗ весит больше — к самоцветам и корму золото и опыт острова, за 95 %+ ещё подарочное яйцо (редкий дракон) */
+const HW_TIERS=[[95,{gems:6,food:250,gold:900,xp:220,col:4,egg:1}],[90,{gems:4,food:150,gold:600,xp:140,col:3}],[85,{gems:3,food:100,gold:400,xp:90,col:2}],[80,{gems:2,food:60,gold:250,xp:60,col:2}],[60,{gems:1,food:30,gold:100,xp:25,col:1}]];
+const hwTier=pc=>{for(const [m,b] of HW_TIERS)if(pc>=m)return b;return null};
+function hwBonus(uid){const out=[];
+  (S.tasks||[]).forEach(t=>{if(!(t.to||[]).includes(uid))return;const g=(S.grades[uid]||{})[t.id],sb=(S.subs[uid]||{})[t.id];
+    const own=g&&g.returnedAt&&g.score!=null,auto=!own&&t.kind==='test'&&sb&&sb.status==='submitted';if(!own&&!auto)return;
+    const pc=hwPct(own?g.score:sb.auto||0,maxOf(t)),b=pc==null?null:hwTier(pc),d=String((own?g.returnedAt:sb.updatedAt)||'').slice(0,10);
+    if(b&&d>=HW_FROM)out.push({id:t.id,title:t.title||'Задание',pc,d,...b})});
+  return out.sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:a.id<b.id?-1:1)}
+window.hwBonus=hwBonus;
 const hwPctHTML=(score,max,cls='')=>{const pc=hwPct(score,max);if(pc==null)return '';const[v,c]=hwVerdict(pc);
   return `<div class="hwp ${cls}" style="--pc:${c}"><b>${pc}%</b><span><b>${v}</b><small>${esc(+(+score).toFixed(1))} из ${esc(max)} ${plural(Number(max),'балла','баллов','баллов')}</small></span></div>`};
 const markHTML=(g,max,cls='')=>g&&g.score!=null?`<span class="mark ${cls}">${esc(g.score)}${max?`<small>из ${esc(max)}</small>`:''}</span>`:'';
@@ -1930,7 +1964,7 @@ function myRsvp(uid,evId,date){return(((S.rsvp[uid]||{})[evId]||{}).occ||{})[dat
 const RS={yes:'Приду',late:'Опоздаю',no:'Не смогу'};
 
 /* ---------- views ---------- */
-const IC={
+const IC={sum:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   home:'<path d="M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5H15v-5.5H9v5.5H5.5A1.5 1.5 0 0 1 4 19z"/>',
   cal:'<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/>',
   tasks:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
@@ -1949,9 +1983,9 @@ function navHTML(){
   if(!['teacher','student'].includes(S.mode)||(S.mode==='student'&&!S.joined))return'';
   const dueCards=T()?0:myDecks().reduce((s,d)=>{const st=deckStats(d,(S.srs[meId()]||{})[d.id]);return s+st.due+st.newToday},0);
   const items=T()
-    ?[['home','Главная',pending().length],['cal','Расписание'],['track','Трекер'],['tasks','Задания'],['cards','Карточки'],['nbs','Тетради'],['arena','Арена'],['bio','Биовиз'],['journal','Журнал'],['people','Ученицы']]
-    :[['home','Главная'],['cal','Расписание'],['track','Трекер',tkLate(meId())],['tasks','Задания',myTasks().filter(t=>!inNb(t)&&['todo','late'].includes(status(t,meId()).k)).length],['cards','Карточки',dueCards],['nbs','Тетради',nbBadge()],['arena','Арена'],['bio','Биовиз'],['marks','Журнал',errPile(meId()).length+bvPile(meId()).length]];
-  const cur=S.view==='task'?'tasks':['deck','review','stview'].includes(S.view)?'cards':S.view==='fix'?'marks':S.view==='arview'?'arena':S.view==='nb'?'nbs':S.view;
+    ?[['home','Главная',pending().length],['sum','Сводка',sumAlerts()],['cal','Расписание'],['track','Трекер'],['tasks','Задания'],['cards','Карточки'],['nbs','Тетради'],['arena','Арена'],['bio','Биовиз'],['journal','Журнал'],['people','Ученицы']]
+    :[['home','Главная'],['cal','Расписание'],['track','Трекер',tkLate(meId())],['tasks','Задания',myTasks().filter(t=>!inNb(t)&&['todo','late'].includes(status(t,meId()).k)).length],['cards','Карточки',dueCards],['nbs','Тетради',nbBadge()],['arena','Арена'],['bio','Биовиз'],['marks','Журнал',errPile(meId()).length+bvPile(meId()).length]].map(x=>x[0]==='arena'&&DRGUI.on(meId())?['arena','Бои']:x);
+  const cur=S.view==='task'?'tasks':['deck','review','stview','island'].includes(S.view)?'cards':S.view==='fix'?'marks':S.view==='arview'?'arena':S.view==='nb'?'nbs':S.view;
   const kb=/Mac|iPhone|iPad/.test(navigator.platform||'')?'⌥':'Alt+';
   return items.map(([v,l,n],i)=>`<button data-act="go" data-v="${v}" aria-current="${cur===v}" aria-label="${l}${n?`, ${n}`:''}" title="${l}${i<9?` (${kb}${i+1})`:''}"><span class="ni" aria-hidden="true"><svg viewBox="0 0 24 24">${IC[v]}</svg></span><span class="nl">${l}</span>${n?`<span class="badge">${n}</span>`:''}</button>`).join('');
 }
@@ -2207,7 +2241,7 @@ function taskHTML(){
         hwLocal(t.id);if(s&&s.draft)Object.entries(s.draft).forEach(([k,v])=>{if(!(k in S.fv))S.fv[k]=v});
         const end=tl?Date.parse(s.startedAt)+tl*60000:0;
         html+=`${end?`<div class="timer" data-end="${end}" data-total="${tl*60000}" data-id="${t.id}" role="timer" aria-live="off"><span class="tl">Осталось</span><b class="tval">${fmtLeft(end-Date.now())}</b><span class="ttrack"><span class="tfill"></span></span></div>`:''}
-        <section class="sheet"><h2>Тест</h2><p class="muted small">Отправить ответы можно один раз, проверка мгновенная. Ответы сохраняются сами по ходу решения.</p>${testBody(t,null,false,'ta-'+t.id)}<div class="actions"><button class="btn" data-act="submittest" data-id="${t.id}">Отправить ответы</button></div></section>`;
+        <section class="sheet"><h2>Тест</h2><p class="muted small">Отправить ответы можно один раз, проверка мгновенная.</p>${svHTML(t.id,s)}${testBody(t,null,false,'ta-'+t.id)}<div class="actions"><button class="btn" data-act="submittest" data-id="${t.id}">Отправить ответы</button></div></section>`;
       }
     }
     return html;
@@ -2223,7 +2257,7 @@ function taskHTML(){
     html+=`<label style="margin-top:12px">Ответ<textarea id="ans-${t.id}" rows="7" placeholder="Напиши ответ здесь">${esc(val('ans-'+t.id,s?s.text:''))}</textarea></label>
     ${S.assets?`<div style="margin-bottom:12px"><span class="small muted">Фото решения или файл</span>${filesHTML(s&&s.files,`data-act="rmfile" data-id="${t.id}"`)}<label class="upl"><input type="file" accept="image/*,application/pdf" multiple data-upload="${t.id}"><span class="btn ghost sm">Прикрепить фото или PDF</span></label></div>`:''}
     <label>Или ссылка на файл (Google Диск, Яндекс Диск)<input id="lnk-${t.id}" type="url" placeholder="https://" value="${esc(val('lnk-'+t.id,s?s.link:''))}"></label>
-    <p class="muted small" style="margin:-4px 0 8px">Ответ сохраняется сам, пока ты пишешь.</p><div class="actions"><button class="btn ghost" data-act="draft" data-id="${t.id}">Сохранить черновик</button><button class="btn" data-act="submit" data-id="${t.id}">${st.k==='graded'?'Сдать заново':'Сдать работу'}</button></div>`;
+    ${svHTML(t.id,s)}<div class="actions"><button class="btn ghost" data-act="draft" data-id="${t.id}">Сохранить черновик</button><button class="btn" data-act="submit" data-id="${t.id}">${st.k==='graded'?'Сдать заново':'Сдать работу'}</button></div>`;
   }
   return html+`</section>`;
 }
@@ -2232,7 +2266,7 @@ function cardsHTML(){
   const ds=myDecks();
   const head=`<div class="page-h"><h1>Карточки</h1>${T()?`<button class="btn" data-act="newdeck">Новая колода</button>`:canAssign()?`<button class="btn" data-act="newdeck">Колода ученицам</button>`:''}</div>
   <p class="muted small" style="margin:-8px 0 16px">Интервальное повторение: карточка возвращается тогда, когда вы начинаете её забывать. Чем лучше помните, тем реже.</p>`;
-  const sHero=T()?(S.people.length?`<div class="st-strip">${S.people.map(p=>`<button class="st-chip" data-act="stview" data-uid="${p.id}" title="Открыть чашку подробно"><span class="nm">${esc(p.label)}</span>${streakHTML(p.id,true)}<span class="go" aria-hidden="true">›</span></button>`).join('')}</div>`:''):streakHTML(meId(),false)+peekStrip();
+  const sHero=T()?(S.people.length?`<div class="st-strip">${S.people.map(p=>`<button class="st-chip" data-act="stview" data-uid="${p.id}" title="Открыть чашку подробно"><span class="nm">${esc(p.label)}</span>${streakHTML(p.id,true)}<span class="go" aria-hidden="true">›</span></button>`).join('')}</div>`:''):DRGUI.switchHTML()+streakHTML(meId(),false)+peekStrip();
   const given=canAssign()?S.decks.filter(ownAsg):[];
   const gv=canAssign()?`<div class="cd-h"><h2>Вы дали ученицам</h2><span class="muted small">${given.length}</span></div>${given.length?`<div class="dgrid">${given.map(d=>{const n=(d.cards||[]).length;return `<button class="dk" data-act="deck" data-id="${d.id}" style="--c:${sc(d.subject)}"><span class="dk-h">${subj(d.subject)}<span class="dk-n">${n} ${plural(n,'карточка','карточки','карточек')}</span></span><span class="dk-t">${esc(d.title)}</span><span class="dk-s">Для: ${toNames(d)}</span></button>`}).join('')}</div>`:`<p class="muted small">Колоды, которые вы дадите ученицам кнопкой «Колода ученицам», появятся здесь. Прогресс учениц по ним видит учитель.</p>`}`:'';
   if(!ds.length)return head+sHero+`<div class="empty">${T()?'Колод пока нет. Создайте колоду и вставьте карточки из Anki или списком «вопрос ; ответ».':'Колод пока нет.'}</div>`+gv;
@@ -2287,8 +2321,8 @@ function reviewHTML(){
   const total=r.done+r.queue.length;
   const sti=streakInfo(S.streak[meId()]);
   const tm=!!d&&typeMode(d);
-  const top=`<div class="rv-top"><button class="back" data-act="endreview">← Закончить</button><span class="ttl">${r.mix?(r.sub?'Всё '+SUBJ_PO[r.sub]:'Все колоды'):esc(d.title)}</span>${d?`<button class="rv-tm" data-act="typemode" data-id="${d.id}" aria-pressed="${tm}" title="${r.mix?'Писать ответ с клавиатуры в колоде «'+esc(d.title)+'»':'Писать ответ с клавиатуры'}">⌨<span class="l"> Ввод ответа</span></button>`:''}<span class="rv-dish" title="Чашка Петри">${dishSVG(meId(),{size:30,pulse:S.pulseAt&&Date.now()-S.pulseAt<700})}<small>${sti.done?'+'+spawnN(sti.todayN)+' кол.':sti.todayN+'/'+GOAL}</small></span><span class="cnt">${r.done} / ${total}</span></div><div class="rv-bar" aria-hidden="true"><i style="width:${total?r.done/total*100:0}%"></i></div>`;
-  if(!r.queue.length){const inf=streakInfo(S.streak[meId()]);return `<div class="rv" style="--c:${col}">${top}<section class="rv-card"><div class="rv-done${r.newDay?' party':''}">${r.newDay?`<div class="party-dish">${dishSVG(meId(),{size:150,ring:false})}<span class="plus">+1</span></div><div class="big">${inf.cur} ${plural(inf.cur,'день','дня','дней')}</div><p><b>Серия продлена!</b> В чашке выросла новая колония, а старые получили порцию питания. Каждые 5 карточек сверх ${GOAL} дают ещё одну колонию.</p>`:`<div class="big">${r.done}</div><p>${plural(r.done,'повторение','повторения','повторений')} на сегодня сделано. Карточки вернутся, когда начнут забываться.${inf.done?(inf.cur?` Серия: ${inf.cur} ${plural(inf.cur,'день','дня','дней')} подряд.`:''):` Для серии сегодня ${inf.todayN} из ${GOAL}: повторите ещё ${GOAL-inf.todayN}, можно через «Пройти всю колоду».`}</p>`}<button class="btn" data-act="endreview">${r.mix?'К колодам':'К колоде'}</button></div></section></div>`}
+  const top=`<div class="rv-top"><button class="back" data-act="endreview">← Закончить</button><span class="ttl">${r.mix?(r.sub?'Всё '+SUBJ_PO[r.sub]:'Все колоды'):esc(d.title)}</span>${d?`<button class="rv-tm" data-act="typemode" data-id="${d.id}" aria-pressed="${tm}" title="${r.mix?'Писать ответ с клавиатуры в колоде «'+esc(d.title)+'»':'Писать ответ с клавиатуры'}">⌨<span class="l"> Ввод ответа</span></button>`:''}${DRGUI.on(meId())?DRGUI.reviewBadge(meId()):`<span class="rv-dish" title="Чашка Петри">${dishSVG(meId(),{size:30,pulse:S.pulseAt&&Date.now()-S.pulseAt<700})}<small>${sti.done?'+'+spawnN(sti.todayN)+' кол.':sti.todayN+'/'+GOAL}</small></span>`}<span class="cnt">${r.done} / ${total}</span></div><div class="rv-bar" aria-hidden="true"><i style="width:${total?r.done/total*100:0}%"></i></div>`;
+  if(!r.queue.length){const inf=streakInfo(S.streak[meId()]);return `<div class="rv" style="--c:${col}">${top}<section class="rv-card"><div class="rv-done${r.newDay?' party':''}">${r.newDay?(DRGUI.on(meId())?DRGUI.dayDoneHTML(meId()):`<div class="party-dish">${dishSVG(meId(),{size:150,ring:false})}<span class="plus">+1</span></div><div class="big">${inf.cur} ${plural(inf.cur,'день','дня','дней')}</div><p><b>Серия продлена!</b> В чашке выросла новая колония, а старые получили порцию питания. Каждые 5 карточек сверх ${GOAL} дают ещё одну колонию.</p>`):`<div class="big">${r.done}</div><p>${plural(r.done,'повторение','повторения','повторений')} на сегодня сделано. Карточки вернутся, когда начнут забываться.${inf.done?(inf.cur?` Серия: ${inf.cur} ${plural(inf.cur,'день','дня','дней')} подряд.`:''):` Для серии сегодня ${inf.todayN} из ${GOAL}: повторите ещё ${GOAL-inf.todayN}, можно через «Пройти всю колоду».`}</p>`}<button class="btn" data-act="endreview">${r.mix?'К колодам':'К колоде'}</button></div></section></div>`}
   const c=(d.cards||[]).find(x=>x.i===ci);
   if(!c){r.queue.shift();return reviewHTML()}
   const st=((S.srs[meId()]||{})[d.id]||{s:{}}).s[c.i];
@@ -2442,6 +2476,11 @@ function colonies(uid,list,days){
     let best=null;for(let a=0;a<10;a++){const an=rr()*Math.PI*2,q=Math.sqrt(rr())*68,x=100+q*Math.cos(an),y=100+q*Math.sin(an);const md=cols.reduce((m,c)=>Math.min(m,Math.hypot(c.x-x,c.y-y)),99);if(!best||md>best.md)best={x,y,md}}
     const born=list.slice(off,j).reduce((a,k)=>a+growth(days[k]||0),0);
     cols.push({id:d+':rare',x:best.x,y:best.y,born,day:d,sp,r0:3,rot:Math.floor(rr()*360),rare:sp})});
+  hwBonus(uid).forEach(b=>{if(!list.length||b.d<list[0])return;let j=list.length-1;while(j>0&&list[j]>b.d)j--;if(j<off)return;
+    const d=list[j],rr=rng(uid+'|hw|'+b.id),unl=SPECIES.filter(x=>x.d<=Math.max(1,rn[d])),born=list.slice(off,j).reduce((a,k)=>a+growth(days[k]||0),0);
+    for(let q=0;q<b.col&&cols.length<120;q++){let best=null;for(let a=0;a<10;a++){const an=rr()*Math.PI*2,r=Math.sqrt(rr())*72,x=100+r*Math.cos(an),y=100+r*Math.sin(an);
+        const md=cols.reduce((m,c)=>Math.min(m,Math.hypot(c.x-x,c.y-y)),99);if(!best||md>best.md)best={x,y,md}}
+      cols.push({id:d+':hw:'+b.id+':'+q,x:best.x,y:best.y,born,day:d,sp:unl[Math.floor(rr()*unl.length)],r0:2+rr()*1.7,rot:Math.floor(rr()*360),hw:1})}});
   cols.forEach(c=>{c.dn=rn[c.day]||1;c.r=Math.min(c.rare&&c.rare.look==='giant'?24:15,(c.rare&&c.rare.look==='giant'?1.6:1)*(c.r0+3.1*Math.sqrt(Math.max(0,B-c.born))))});
   return{cols,B,rares};
 }
@@ -2526,6 +2565,7 @@ function speciesHTML(n){
   return `<div class="lvwrap"><div class="lv-t"><span>Коллекция бактерий</span><span class="muted">${got} из ${SPECIES.length}</span></div><div class="lvs">${SPECIES.map(node).join('')}</div>${info}</div>`;
 }
 function streakHTML(uid,compact){
+  if(DRGUI.on(uid))return DRGUI.hero(uid,compact);
   const info=streakInfo(S.streak[uid]),c=culture(uid),n=info.cur,lbl=uid===meId()?(S.myLabel||''):name(uid);
   if(compact){
     if(c.broken)return `<div class="streak-mini dead">${dishSVG(uid,{size:64,mode:'dead'}).replace('class="dish dead','class="dish dead still')}<div><b>0</b> <span>дней</span><br><small class="muted">чашка погибла</small></div></div>`;
@@ -2555,10 +2595,14 @@ function streakHTML(uid,compact){
     ${growHowHTML(uid)}
     ${weekHTML(info)}
     ${speciesHTML(n)}
+    ${hwPetriHTML(uid,c)}
     <div class="st-facts"><span><b>${info.best}</b>рекорд</span><span><b>${info.total}</b>${plural(info.total,'день','дня','дней')} всего</span><span><b>${nextSp?nextSp.d-n:'—'}</b>${nextSp?'до нового вида':'все виды открыты'}</span>${(()=>{const rr=colonies(uid,c.list,c.days).rares.length;return rr?`<span class="rare-f"><b>${rr}</b>${plural(rr,'редкая находка','редкие находки','редких находок')}</span>`:''})()}</div>
     <div class="lab-btns"><button class="btn sm" data-act="lab" data-uid="${uid}" data-tab="mic">🔬 Микроскоп</button><button class="btn ghost sm" data-act="lab" data-uid="${uid}" data-tab="log">📓 Журнал наблюдений</button><button class="btn ghost sm" data-act="lab" data-uid="${uid}" data-tab="photo">📷 Фото чашки</button></div>
   </div></section>`;
 }
+/* подкормка за ДЗ: последние задания с бонусом и сколько колоний они дали */
+function hwPetriHTML(uid,c){const l=hwBonus(uid).filter(b=>c.list.length&&b.d>=c.list[0]).slice(-3);if(!l.length)return '';
+  return `<p class="muted small st-hw">🧪 Подкормка за ДЗ: ${l.map(b=>`«${esc(b.title)}» ${b.pc} % → +${b.col} ${plural(b.col,'колония','колонии','колоний')}`).join(', ')}. Чем выше процент, тем больше колоний.</p>`}
 /* v93 график активности: период, подписи без наложений, выбранный день под графиком */
 const ACTR=[['2w','2 недели',2],['4w','4 недели',4],['3m','3 месяца',13]];
 function actHTML(uid,info,got){
@@ -2734,6 +2778,21 @@ setInterval(()=>{document.querySelectorAll('.timer[data-end]').forEach(el=>{
    Kept in localStorage (hwd:<uid>:<task>) at once and on the server 1.2 s after typing; after a refused write the
    server part pauses 10 min so it never loops. Restored by hwLocal() into S.fv before the form is drawn. */
 let draftT=null,draftTask=null,draftFail=0;
+/* статус сохранения ответа (4.4): виден у теста и у ДЗ. SV[id] = {st:'saving'|'ok'|'err', at, n — номер повтора}.
+   При сбое запись повторяется через 5, 15, 30, 60 с, ответы всё это время лежат в браузере (hwd:…) */
+const SV={},SV_DELAY=[5,15,30,60];
+const hhmm=t=>{const d=new Date(t);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
+function svText(id,s){const v=SV[id];
+  if(v&&v.st==='saving')return '<span class="svi">☁️</span> Сохраняю…';
+  if(v&&v.st==='ok')return `<span class="svi">✓</span> Сохранено в облаке в ${hhmm(v.at)}`;
+  if(v&&v.st==='err')return `<span class="svi">⚠️</span> Нет связи с облаком. Ответы сохранены на этом устройстве, не закрывай страницу. Повторю через ${SV_DELAY[Math.min(v.n-1,SV_DELAY.length-1)]} с`;
+  if(s&&(s.draft&&Object.keys(s.draft).length||s.status==='draft'&&(s.text||s.link)))return '<span class="svi">✓</span> Черновик в облаке';
+  return 'Ответы сохраняются сами по ходу решения: в облако и на этом устройстве'}
+const svHTML=(id,s)=>`<p class="svst${SV[id]?' '+SV[id].st:''}" data-sv="${esc(id)}" role="status" aria-live="polite">${svText(id,s)}</p>`;
+function svSet(id,st){const v=SV[id]=Object.assign(SV[id]||{n:0},{st,at:Date.now()});if(st==='err')v.n++;else if(st==='ok')v.n=0;
+  document.querySelectorAll(`[data-sv="${CSS.escape(id)}"]`).forEach(e=>{e.className='svst '+st;e.innerHTML=svText(id,(S.subs[meId()]||{})[id])})}
+/* закрыть вкладку, пока ответ не дошёл до облака: браузер переспросит */
+window.addEventListener('beforeunload',e=>{if(Object.values(SV).some(v=>v.st==='err'||v.st==='saving')||draftTask){try{if(draftTask)draftSave()}catch{}e.preventDefault();e.returnValue=''}});
 const hwKey=id=>'hwd:'+meId()+':'+id;
 function hwFields(t){const d={};if(t.kind==='test'){const pre='ta-'+t.id+'-';Object.keys(S.fv).forEach(k=>{if(k.startsWith(pre))d[k]=S.fv[k]})}
   else['ans-'+t.id,'lnk-'+t.id].forEach(k=>{if(k in S.fv)d[k]=S.fv[k]});return d}
@@ -2742,21 +2801,25 @@ function hwLocal(id){if(T())return;try{const d=JSON.parse(localStorage.getItem(h
 function hwClear(id){try{localStorage.removeItem(hwKey(id))}catch(e){}}
 function draftTaskOf(el){
   if(T()||(S.view!=='task'&&S.view!=='nb'))return null;const k=el&&(el.dataset.q||el.id)||'';
-  const m=/^ta-([0-9a-zA-Z_]+)-\d+$/.exec(k)||/^(?:ans|lnk)-([0-9a-zA-Z_]+)$/.exec(k);if(!m)return null;
+  /* id заданий бывают с дефисами (seh-bio-w3-test): номер вопроса — последнее число после дефиса */
+  const m=/^ta-(.+)-\d+$/.exec(k)||/^(?:ans|lnk)-(.+)$/.exec(k);if(!m)return null;
   const t=S.tasks.find(x=>x.id===m[1]);if(!t)return null;
   const s=(S.subs[meId()]||{})[t.id];if(s&&s.status==='submitted'&&t.kind==='test')return null;
   if(t.kind==='test'&&t.time&&!(s&&s.startedAt))return null;return t}
 function draftSave(){
   clearTimeout(draftT);draftT=null;const t=draftTask;draftTask=null;if(!t||T()||!S.db)return;
   const s=(S.subs[meId()]||{})[t.id],f=hwFields(t);if(!Object.keys(f).length)return;
-  if(Date.now()<draftFail)return;
-  const ref=S.db.doc(`subs/${meId()}/items/${t.id}`),bad=()=>{draftFail=Date.now()+600000};
+  const ref=S.db.doc(`subs/${meId()}/items/${t.id}`);
+  /* сбой: повтор с нарастающей паузой, а не молчание; ответы тем временем лежат в браузере */
+  const bad=()=>{svSet(t.id,'err');const v=SV[t.id],d=SV_DELAY[Math.min(v.n-1,SV_DELAY.length-1)]*1000;
+    clearTimeout(v.rt);v.rt=setTimeout(()=>{if(draftTask&&draftTask.id!==t.id)draftSave();draftTask=t;draftSave()},d)};
+  svSet(t.id,'saving');
   let p;
   if(t.kind==='test')p=s?ref.update({draft:f}):ref.set({status:'draft',draft:f,updatedAt:now()});
-  else if(s&&s.status==='submitted')return; // already handed in (resubmitting after a mark): keep it local, «Сдать заново» saves it
+  else if(s&&s.status==='submitted'){SV[t.id]=null;return} // already handed in (resubmitting after a mark): keep it local, «Сдать заново» saves it
   else{const text=val('ans-'+t.id,s?s.text||'':''),link=val('lnk-'+t.id,s?s.link||'':'');
     p=ref.set({text,link,files:(s&&s.files)||[],status:'draft',updatedAt:now()})}
-  p.then(()=>{draftFail=0}).catch(bad);
+  p.then(()=>{draftFail=0;svSet(t.id,'ok')}).catch(bad);
 }
 function draftHook(el){
   const t=draftTaskOf(el);if(!t)return;
@@ -2766,6 +2829,16 @@ function draftHook(el){
 }
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&draftTask)draftSave()});
 window.addEventListener('pagehide',()=>{if(draftTask)draftSave()});
+/* новая версия платформы (4.4): метка ph-ver в index.html. Раз в 5 минут и при возвращении на вкладку страница проверяет сервер.
+   Если вышла новая, сверху плашка «Обновить»; когда несохранённых ответов нет, обновление само при следующем возвращении на вкладку */
+(function(){const cur=(document.querySelector('meta[name="ph-ver"]')||{}).content;if(!cur)return;let shown=false,newer=false;
+  const safe=()=>!draftTask&&!Object.values(SV).some(v=>v&&(v.st==='err'||v.st==='saving'))&&!document.querySelector('.dri,.drf,dialog[open]');
+  async function check(){try{const t=await(await fetch('./?ver='+Date.now(),{cache:'no-store'})).text(),m=/name="ph-ver" content="([^"]+)"/.exec(t);if(m&&m[1]!==cur){newer=true;banner()}}catch{}}
+  function banner(){if(shown)return;shown=true;const b=document.createElement('div');b.id='ph-upd';b.setAttribute('role','status');
+    b.innerHTML='Вышло обновление платформы. <button type="button">Обновить</button>';
+    b.querySelector('button').onclick=()=>{try{if(draftTask)draftSave()}catch{}setTimeout(()=>location.reload(),500)};document.body.append(b)}
+  setTimeout(check,15000);setInterval(check,5*60000);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)return;if(newer&&safe())location.reload();else check()})})();
 function analysisHTML(t){
   const subs=(t.to||[]).map(uid=>({uid,s:(S.subs[uid]||{})[t.id]})).filter(x=>x.s&&x.s.status==='submitted'&&Array.isArray(x.s.answers));
   if(!subs.length)return '';
@@ -2908,6 +2981,39 @@ function marksHTML(){
   if(!ts.length)return head+`<div class="empty">Проверенных работ пока нет.</div>`;
   return head+`<div class="list">${ts.map(t=>{const g=status(t,meId()).g;return `<button class="item" data-act="open" data-id="${t.id}"><span class="grow"><span class="t">${esc(t.title)}</span><br>${subj(t.subject)}${g.feedback?`<br><span class="muted small">${esc(g.feedback.replace(/\*\*/g,'').slice(0,90))}</span>`:''}</span>${markHTML(g,maxOf(t),'sm')||'<span class="st graded">Проверено</span>'}</button>`}).join('')}</div>`;
 }
+/* ---------- сводка учителя (4.4): кто что сдал, что ждёт проверки, просрочки, проценты по предметам, слабые темы,
+   трудные вопросы последних тестов. Только чтение: всё считается из тех же данных, что видит учитель в заданиях ---------- */
+function sumRows(uid){
+  const ts=S.tasks.filter(t=>t.kind!=='material'&&!inNb(t)&&(t.to||[]).includes(uid));
+  const by=k=>ts.filter(t=>status(t,uid).k===k);
+  const pcs=ts.map(t=>{const st=status(t,uid);if(st.k!=='graded'||!st.g)return null;const pc=hwPct(st.g.score,maxOf(t));return pc==null?null:{t,pc}}).filter(Boolean);
+  const subj={};pcs.forEach(x=>{const k=x.t.subject||'other';(subj[k]=subj[k]||[]).push(x.pc)});
+  const avg=a=>a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):null;
+  const weak=tagStats(uid).filter(x=>x.n>=3&&x.ok/x.n<0.6).sort((a,b)=>a.ok/a.n-b.ok/b.n).slice(0,5);
+  return {ts,wait:by('sub'),late:by('late'),todo:by('todo'),graded:by('graded'),avg:avg(pcs.map(x=>x.pc)),subj:Object.entries(subj).map(([k,a])=>[k,avg(a),a.length]),weak}}
+function sumAlerts(){if(!T())return 0;return S.people.reduce((n,p)=>{const r=sumRows(p.id);return n+r.wait.length+r.late.length},0)}
+function sumHTML(){
+  if(!T())return `<div class="empty">Сводка видна учителю.</div>`;
+  const link=t=>`<button class="sum-l" data-act="open" data-id="${esc(t.id)}">${esc(t.title||'Задание')}${t.due?` <small>до ${fmtDay(t.due)}</small>`:''}</button>`;
+  const pcC=pc=>pc==null?'var(--muted)':pc>=85?'var(--bio)':pc>=60?'var(--chem)':'var(--accent)';
+  const cards=S.people.map(p=>{const r=sumRows(p.id);
+    return `<section class="sheet sum-c"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 style="margin:0">${esc(p.label||'Без имени')}</h2>${r.avg!=null?`<b class="sum-avg" style="--c:${pcC(r.avg)}">${r.avg}%</b>`:''}</div>
+      <div class="sum-k"><span><b>${r.ts.length}</b>задано</span><span><b>${r.graded.length}</b>проверено</span><span class="${r.wait.length?'on':''}"><b>${r.wait.length}</b>ждут проверки</span><span class="${r.late.length?'bad':''}"><b>${r.late.length}</b>просрочено</span><span><b>${r.todo.length}</b>в работе</span></div>
+      ${r.subj.length?`<div class="sum-s">${r.subj.map(([k,a,n])=>`<span>${subj(k)} <b style="color:${pcC(a)}">${a}%</b> <small>${n} ${plural(n,'работа','работы','работ')}</small></span>`).join('')}</div>`:''}
+      ${r.wait.length?`<h3>Ждут проверки</h3><div class="sum-ls">${r.wait.map(link).join('')}</div>`:''}
+      ${r.late.length?`<h3>Просрочено</h3><div class="sum-ls">${r.late.map(link).join('')}</div>`:''}
+      ${r.weak.length?`<h3>Слабые темы по тестам</h3><div class="sum-ls">${r.weak.map(x=>`<span class="sum-w">${esc(x.tag)} <b style="color:${pcC(Math.round(x.ok/x.n*100))}">${x.ok} из ${x.n}</b></span>`).join('')}</div>`:''}
+    </section>`}).join('');
+  /* трудные вопросы: последние тесты, где сдали хотя бы двое или одна ученица из одной */
+  const tests=S.tasks.filter(t=>t.kind==='test'&&!inNb(t)&&(t.to||[]).some(u=>{const x=(S.subs[u]||{})[t.id];return x&&x.status==='submitted'}))
+    .sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))).slice(0,6);
+  const hardRows=tests.map(t=>{const subs=(t.to||[]).map(u=>(S.subs[u]||{})[t.id]).filter(x=>x&&x.status==='submitted'&&Array.isArray(x.answers));if(!subs.length)return '';
+    const hard=(t.q||[]).map((q,i)=>({i,p:subs.filter(x=>checkQ(q,x.answers[i])).length/subs.length,q})).filter(x=>x.p<0.5);
+    return `<div class="sum-t"><button class="sum-l" data-act="open" data-id="${esc(t.id)}">${esc(t.title||'Тест')}</button><span class="muted small">сдали ${subs.length} из ${(t.to||[]).length}</span>
+      ${hard.length?`<p class="small">Трудные: ${hard.slice(0,8).map(x=>`№${x.i+1}${x.q.tag?' ('+esc(x.q.tag)+')':''}`).join(', ')}${hard.length>8?' и ещё '+(hard.length-8):''}. Полный разбор — в тесте.</p>`:'<p class="small muted">Все вопросы решены хотя бы в половине работ.</p>'}</div>`}).join('');
+  return `<div class="page-h"><h1>Сводка</h1></div><p class="muted">Кто что сдал, что ждёт проверки и где ошибаются чаще всего. Нажмите на задание, чтобы открыть его.</p>
+    ${S.people.length?cards:'<div class="empty">Учениц пока нет.</div>'}
+    ${hardRows?`<section class="sheet"><h2>Трудные вопросы последних тестов</h2>${hardRows}</section>`:''}`}
 function peopleHTML(){
   return `<div class="page-h"><h1>Ученицы</h1></div>
   ${S.people.length?S.people.map(p=>`<section class="sheet"><div class="row"><label class="grow" style="margin:0">Имя в классе<input id="lbl-${p.id}" value="${esc(val('lbl-'+p.id,p.label))}" maxlength="40"></label>
@@ -2931,7 +3037,7 @@ function mainHTML(){
     <p class="muted">Напиши, как тебя зовут, чтобы учитель понимал, чья работа.</p>
     <label>Имя<input id="joinname" maxlength="40" value="${esc(val('joinname'))}" autocomplete="given-name"></label>
     <button class="btn" data-act="join">Войти в класс</button></section>`;
-  const html=({home:homeHTML,cal:calHTML,tasks:tasksHTML,task:taskHTML,cards:cardsHTML,deck:deckHTML,review:reviewHTML,stview:stViewHTML,journal:journalHTML,marks:marksHTML,fix:fixHTML,people:peopleHTML,arena:arenaHTML,arview:arviewHTML,bio:bioHTML,nbs:nbsHTML,nb:nbHTML,track:trackHTML}[S.view]||homeHTML)();
+  const html=({home:homeHTML,cal:calHTML,tasks:tasksHTML,task:taskHTML,cards:cardsHTML,deck:deckHTML,review:reviewHTML,stview:stViewHTML,journal:journalHTML,marks:marksHTML,fix:fixHTML,people:peopleHTML,arena:arenaHTML,arview:arviewHTML,island:DRGUI.islandView,sum:sumHTML,bio:bioHTML,nbs:nbsHTML,nb:nbHTML,track:trackHTML}[S.view]||homeHTML)();
   const c=PHC[S.view];
   return c&&IC[S.view]?html.replace('<div class="page-h"><h1>',`<div class="page-h"><h1><span class="phi" style="--c:${c}" aria-hidden="true"><svg viewBox="0 0 24 24">${IC[S.view]}</svg></span>`):html;
 }
@@ -2968,6 +3074,10 @@ function patchMain(M,html){
 function draw(soft){
   const a=document.activeElement,aid=a&&a.id;let ss,se;try{ss=a.selectionStart;se=a.selectionEnd}catch{}
   const sy=window.scrollY;
+  /* При кормлении панель заменяется. Сохраняем её прокрутку только внутри того же раздела/здания. */
+  const paneKey=()=>[S.view,S.drgUid||'',S.drgPanel||'',S.drgSel||''].join('|');
+  const pane=document.querySelector('#main>.drg-pan'),pk=paneKey();
+  const paneY=pane&&pane.dataset.scrollKey===pk?pane.scrollTop:0;
   $('#who').textContent=S.dual?'':T()?'Учитель':(S.mode==='student'&&S.joined?S.myLabel:'');
   const rs=$('#rolesw');rs.hidden=!S.dual;if(S.dual)rs.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.role===S.mode)));
   $('#srbtn').hidden=!(T()||(S.mode==='student'&&S.joined));
@@ -2982,6 +3092,8 @@ function draw(soft){
   if(S.view!==lastView){lastView=S.view;M.classList.remove('vin');void M.offsetWidth;M.classList.add('vin');setTimeout(()=>M.classList.remove('vin'),320)}
   patchMain(M,html);
   dRestore(M);
+  const nextPane=M.querySelector(':scope>.drg-pan');
+  if(nextPane){nextPane.dataset.scrollKey=pk;nextPane.scrollTop=paneY}
   if(aid){const e=document.getElementById(aid);if(e&&e!==document.activeElement&&!$('#dlg').open){e.focus({preventScroll:true});try{if(ss!=null)e.setSelectionRange(ss,se)}catch{}}}
   if(window.scrollY!==sy)window.scrollTo(0,sy);
   if(S.view==='people'&&S.user)fillProfiles();
@@ -3025,7 +3137,7 @@ function watch(uid){
   const db=S.db,map=q=>Object.fromEntries(q.docs.map(d=>[d.id,d.data()]));
   db.collection('subs/'+uid+'/items').onSnapshot(q=>{S.subs[uid]=map(q);render(true)},err);
   db.collection('srs/'+uid+'/meta').onSnapshot(q=>{const m=map(q),srv=m.streak||{days:{}};
-    if(uid===meId()){mergeStreak(srv);markReady('streak',q)}else S.streak[uid]=srv;syncPeek();syncArena();render(true)},err);
+    if(uid===meId()){mergeStreak(srv);markReady('streak',q)}else S.streak[uid]=srv;DRGUI.onSnap(uid,m.dragons);syncPeek();syncArena();render(true)},err);
   if(T())db.collection('petri/'+uid+'/from').onSnapshot(q=>{S.peek[uid]=map(q);syncPeek();render(true)},err);
   db.collection('subs/'+uid+'/fix').onSnapshot(q=>{S.fix[uid]=map(q);render(true)},err);
   db.collection('subs/'+uid+'/bv').onSnapshot(q=>{S.bverr[uid]=map(q);if(!T()&&uid===meId()){S.bvErrLoaded=true;bvErrChanged();bvBackfill()}render(true)},err);
@@ -3539,7 +3651,9 @@ function arenaHTML(){
     <div class="row"><button class="btn sm" data-act="arsave">Сохранить</button><button class="btn ${c.open?'':'ghost '}sm" data-act="aropen" aria-pressed="${!!c.open}">${c.open?'✓ Ученицы видят коллекции друг друга':'Коллекции соперниц скрыты'}</button></div></section>
     ${tableHTML()}<section class="sheet"><h2>Участницы</h2>${rivalsHTML(byPow,false)}</section>${RULES}`}
   const me=meId(),rivals=ids.filter(id=>id!==me).sort((a,b)=>armyPower(deckNow(b))-armyPower(deckNow(a))||arName(a).localeCompare(arName(b)));
-  return head+tourHero()+`<section class="sheet"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 style="margin:0">Моя армия</h2>${rsumHTML(me)}</div>${slotsHTML(me,true)}</section>
+  /* в режиме драконов страница «Бои»: сначала оба вида боёв, турнир бактерий ниже целиком */
+  const hub=DRGUI.on(me)?DRGUI.battleHub(me,{n:Object.keys(armyNow(me)).length,total:ALLSP().length}):'';
+  return (hub?`<div class="page-h"><h1>Бои</h1></div>`+hub+`<h2 class="drg-hubh" id="ar-tour">🦠 Турнир бактерий</h2>`:head)+tourHero()+`<section class="sheet"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 style="margin:0">Моя армия</h2>${rsumHTML(me)}</div>${slotsHTML(me,true)}</section>
   ${tableHTML()}
   <section class="sheet"><h2>Соперницы</h2>${c.open?rivalsHTML(rivals,true):'<p class="muted" style="margin:0">Учитель пока не открыл коллекции соперниц.</p>'}</section>
   <section class="sheet"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 style="margin:0">Моя коллекция</h2><span class="muted small">${Object.keys(armyNow(me)).length} из ${ALLSP().length}</span></div><p class="muted small" style="margin:4px 0 12px">Нажми на бактерию, чтобы узнать её способность и поставить в армию.</p>${collHTML(me)}</section>${RULES}`}
@@ -4292,6 +4406,7 @@ function rate(g){
 }
 const focusTyped=()=>{const r=S.rev;if(r&&typeMode(S.decks.find(x=>x.id===r.deckId)))setTimeout(()=>{const i=$('#rvin');if(i&&document.activeElement!==i)i.focus({preventScroll:true})},80)};
 const actions={
+  ...window.DRG_ACTIONS,
   bvopen:el=>{BVS.want=el.dataset.m;S.view='bio';window.scrollTo(0,0);if(BVS.st===2)bvWant()},
   ai:()=>{aiStart()},aistop:()=>{aiStop()},
   arview:el=>{S.arUid=el.dataset.uid;S.view='arview';window.scrollTo(0,0)},
@@ -5407,7 +5522,10 @@ Object.assign(actions,{
    потому что подписки на данные у учителя и ученика разные */
 const ROLE_K='ph_role';
 function roleGet(){try{return localStorage.getItem(ROLE_K)||''}catch{return ''}}
-async function roleSet(r){if(!S.dual||r===S.mode)return;const sw=$('#rolesw');sw.classList.add('busy');
+async function roleSet(r){if(!S.dual||r===S.mode)return;
+  /* вошли ученическим кодом: для учителя нужен код учителя, ответы ученика сначала сохраняются */
+  if(r==='teacher'&&!S.me.isOwner){try{if(draftTask)draftSave()}catch{}if(dirty.size||streakDirty)flush();if(window.PHCLOUD&&PHCLOUD.teacherLogin)PHCLOUD.teacherLogin();return}
+  const sw=$('#rolesw');sw.classList.add('busy');
   try{if(draftTask)draftSave()}catch{}
   if(dirty.size||streakDirty)flush();
   try{await Promise.race([chain,new Promise(f=>setTimeout(f,4000))])}catch{}
@@ -5429,7 +5547,11 @@ $('#rolesw').addEventListener('click',e=>{const b=e.target.closest('button[data-
   claude.use('sample').then(s=>{S.sample=s||null;if(S.view==='review')render()}).catch(()=>{S.sample=null});
   if(!S.me.isOwner&&!S.me.id){S.mode='noid';return render()}
   /* учитель и его ученический профиль это один аккаунт: режим выбирается переключателем в шапке */
-  S.dual=!!S.me.isOwner;
+  /* вход по ученическому коду Георгия — тот же профиль: переключатель виден, «Учитель» просит код учителя.
+     Признак берётся из базы (teach) или с устройства, где уже входили кодом учителя */
+  try{if(S.me.isOwner)localStorage.setItem('ph_teach_dev',S.me.id)}catch{}
+  let devT=false;try{devT=localStorage.getItem('ph_teach_dev')===S.me.id}catch{}
+  S.dual=!!S.me.isOwner||!!S.me.teach||devT;
   S.mode=S.me.isOwner&&roleGet()!=='student'?'teacher':'student';
   subscribe();render();
   loadScript('https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js').then(()=>{KX=window.katex||null;render()}).catch(()=>{});

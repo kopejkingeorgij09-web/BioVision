@@ -1,0 +1,33 @@
+module.exports=async(page,{OUT,store,UID,need})=>{
+ const path=`srs/${UID}/meta/dragons`,w=t=>page.waitForTimeout(t);
+ const d=store.get(path).d;d.pve={v:1,best:{e1:3,e2:3,e3:2},wins:{},at:{}};
+ d.dragons.forEach((x,i)=>{x.lvl=1;x.fed=0});d.bal.food=10000;d.bal.xp=4000;
+ store.set('people/'+UID,{d:{label:'Георгий'},t:new Date().toISOString()});
+ const gold=d.bal.gold;
+ await page.reload();await w(2500);
+ need(!!store.get(path).d.legacyPve20261029,'компенсация сохранена через CAS');
+ need(store.get(path).d.bal.gold===gold+420,'420 золота за старые победы');
+ await page.reload();await w(2200);need(store.get(path).d.bal.gold===gold+420,'перезагрузка не дублирует приз');
+ await page.click('[data-act=go][data-v=cards]');await w(500);
+ await page.click('[data-act=drgopen][data-full]');await w(1300);
+ for(let i=0;i<6;i++){await page.click('[data-act=drgzoom][data-v=in]');await w(80)}
+ const zoom=await page.evaluate(()=>{const e=document.querySelector('.drg-stage');return {tr:getComputedStyle(e).transform,w:e.clientWidth,viewport:innerWidth}});
+ need(!/matrix\([^1]/.test(zoom.tr)&&zoom.w>zoom.viewport,'приближение увеличивает SVG, без растягивания текстуры');
+ await page.screenshot({path:OUT+'/zoom.png'});
+ await page.click('[data-act=drgzoom][data-v=fit]');await w(200);
+ await page.click('[data-act=drgpanel][data-v=blds]');await w(300);
+ const home=d.dragons[0].home;
+ await page.click(`#main>.drg-pan [data-act=drgsel][data-id="${home}"]`);await w(400);
+ const btn=page.locator('#main>.drg-pan [data-t=feed]').first();await btn.scrollIntoViewIfNeeded();
+ const y=await page.locator('#main>.drg-pan').evaluate(e=>e.scrollTop);
+ if(+process.env.W===390)need(y>0,'панель прокручена перед кормлением');await btn.click();await w(900);
+ const after=await page.locator('#main>.drg-pan').evaluate(e=>e.scrollTop);
+ need(Math.abs(y-after)<3,`кормление сохраняет прокрутку ${y} → ${after}`);
+ await page.screenshot({path:OUT+'/feed.png'});
+ await page.keyboard.press('Escape');await w(300);
+ await page.click('.drg-dock [data-act=drgfight]');await w(700);
+ await page.click('.drf-pin[data-id=e1]');await w(200);
+ await page.click('.drf-nc [data-fk=prep]');
+ await w(1300);await page.screenshot({path:OUT+'/team.png'});
+ need(await page.locator('.drf img.on').count()>0,'портреты команды загружены');
+};

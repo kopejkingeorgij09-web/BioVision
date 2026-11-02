@@ -1,0 +1,14 @@
+'use strict';
+const assert=require('assert');global.DRG=require('./genetics.js');const E=require('./economy.js');
+const s=E.startState([{id:'d1',genome:DRG.make({sex:'F',E:'F/F'})},{id:'d2',genome:DRG.make({sex:'M',E:'F/F'})}]);
+s.dragons[1].home=s.dragons[0].home;s.dragons[1].lvl=3;
+const b=s.bld.find(b=>b.id===s.dragons[0].home);b.chest={amt:0,k0:0};
+const sum=s.dragons.reduce((n,d)=>n+E.goldNow({...s,evK:0},d,0),0);
+assert(Math.abs(E.chestNow(s,b,1,k=>2*k)-sum)<1e-9,'оба дракона дают доход за карточку');
+s.pve={best:{e1:3,e2:3,e3:2}};
+const before=JSON.stringify(s),g=E.legacyPveGrant(s);
+assert.equal(JSON.stringify(s),before,'исходное сохранение не меняется');
+for(const [k,n] of Object.entries({gold:420,food:56,gems:2,xp:31}))assert.equal(g.bal[k]-s.bal[k],n,k);
+assert.equal(E.legacyPveGrant(g),null,'повторное начисление запрещено');
+assert.equal(E.legacyPveGrant({...s,pve:{best:{e1:3,e2:3}}}),null,'непройденные бои не награждаются');
+console.log('PASS: общий доход, компенсация, идемпотентность, проверка побед');

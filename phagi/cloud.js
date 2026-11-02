@@ -21,7 +21,7 @@ async function rpc(fn,args){
   return j}
 
 /* ---------- вход ---------- */
-let me=null;
+let me=null;const BOOT=getCode();
 const ready=(async()=>{const c=getCode();if(!c)return null;
   try{me=await rpc('ph_login',{p_code:c});if(!me)setCode('')}catch(e){me=null}
   return me})();
@@ -48,21 +48,25 @@ function css(){if(document.getElementById('ph-css'))return;const s=document.crea
 #ph-codes .row{display:flex;gap:8px}#ph-codes input{flex:1;min-width:0;font:inherit;padding:6px 10px;border-radius:10px;border:1px solid var(--line,#D2E1D7);background:var(--bg,#F1F6F2);color:inherit}
 `;document.head.append(s)}
 
-function loginScreen(){css();const d=document.createElement('div');d.id='ph-login';
-  d.innerHTML=`<form><h1>Фаги естественных наук</h1><p>Введите код, который дал учитель. Он выглядит так: FAG-XXXX-XXXX.</p>
+function loginScreen(teach){css();const d=document.createElement('div');d.id='ph-login';
+  d.innerHTML=`<form><h1>Фаги естественных наук</h1><p>${teach?'Введите код учителя, чтобы перейти в режим учителя. Ответы и прогресс ученика сохранены.':'Введите код, который дал учитель. Он выглядит так: FAG-XXXX-XXXX.'}</p>
   <input id="ph-code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="FAG-XXXX-XXXX" aria-label="Код входа">
   <button type="submit">Войти</button><div class="err" role="alert"></div></form>`;
   document.body.append(d);const f=d.querySelector('form'),inp=d.querySelector('input'),er=d.querySelector('.err');inp.focus();
   f.onsubmit=async e=>{e.preventDefault();const c=inp.value.trim().toUpperCase();if(!c){er.textContent='Введите код.';return}
     er.textContent='Проверяю…';let r;try{r=await rpc('ph_login',{p_code:c})}catch(x){er.textContent='Нет связи с облаком. Проверьте интернет.';return}
     if(!r){er.textContent='Такого кода нет. Проверьте буквы: они латинские.';return}
-    setCode(c);location.reload()}}
+    if(teach&&!r.isOwner){er.textContent='Это ученический код. Для режима учителя нужен код учителя.';return}
+    if(teach)try{localStorage.setItem('ph_role','teacher')}catch(x){}
+    setCode(c);location.reload()}
+  if(teach){const x=document.createElement('button');x.type='button';x.textContent='Отмена';x.style.cssText='margin-top:8px;background:transparent;color:inherit;border:1px solid currentColor';x.onclick=()=>d.remove();f.append(x)}}
 
 function bar(){css();if(document.getElementById('ph-bar'))return;const b=document.createElement('div');b.id='ph-bar';
   b.innerHTML=(me.isOwner?'<button type="button" data-a="codes">Коды учениц</button>':'')+`<button type="button" data-a="out">Выйти</button>`;
   b.onclick=e=>{const a=e.target.closest('button');if(!a)return;
     if(a.dataset.a==='out'){if(!confirm('Выйти? На этом устройстве нужно будет снова ввести код.'))return;setCode('');
-      try{Object.keys(localStorage).forEach(k=>{if(k!=='theme')localStorage.removeItem(k)})}catch(x){}location.reload()}
+      /* черновики ответов (hwd:…) и признак учителя на устройстве не стираются: несданные ответы не должны пропадать */
+      try{Object.keys(localStorage).forEach(k=>{if(k!=='theme'&&!k.startsWith('hwd:')&&k!=='ph_teach_dev')localStorage.removeItem(k)})}catch(x){}location.reload()}
     else codes()};
   const place=()=>{const w=document.getElementById('who');if(!w||!w.parentNode)return false;if(b.parentNode!==w.parentNode||b.previousElementSibling!==w)w.after(b);return true};
   if(!place()){b.style.cssText='position:fixed;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:40';document.body.append(b)}
@@ -172,7 +176,7 @@ const db={doc:docRef,collection:colRef};
 const prof={};
 const user={
   async id(){return me?me.id:null},
-  async me(){return{id:me.id,isOwner:!!me.isOwner,name:me.name||''}},
+  async me(){return{id:me.id,isOwner:!!me.isOwner,name:me.name||'',teach:!!me.teach}},
   async isOwner(){return !!(me&&me.isOwner)},
   async canEdit(){return !!(me&&me.isOwner)},
   async can(){return !!me},
@@ -191,10 +195,66 @@ const gate=ready.then(m=>{if(m)return m;
   return new Promise(()=>{})});
 gate.then(()=>{const go=()=>bar();document.readyState==='loading'?document.addEventListener('DOMContentLoaded',go):go()});
 
-window.PHCLOUD={rpc,get me(){return me},sync,codes:()=>me&&me.isOwner&&codes()};
+/* fresh — документ прямо с сервера, мимо кеша страницы (кеш может держать неподтверждённую запись): нужен сохранению острова */
+window.PHCLOUD={rpc,teacherLogin:()=>loginScreen(true),get me(){return me},sync,codes:()=>me&&me.isOwner&&codes(),fresh:path=>rpc('ph_get',{p_code:getCode(),p_path:path}),
+  /* тот ли код входа, с которым открыта страница: в другой вкладке могли выйти или войти под другим кодом */
+  session:()=>getCode()===BOOT,
+  /* запись «только если в базе та же версия» (ph_set_if, supabase/migrations/20261028_ph_set_if_rev.sql, применена 28.10.2026).
+     Остров пишется одной атомарной записью; false вернёт обычный ph_set. План и откат: supabase/proposals/CAS-PLAN-RU.md */
+  CAS:true,
+  casSet:async(path,data,rev,op)=>{const r=await rpc('ph_set_if',{p_code:getCode(),p_path:path,p_data:data,p_rev:rev,p_op:op});
+    if(r&&r.ok){put(path,clone(data),r.t);notify([path])}return r}};
+/* ---------- файлы (28.10.2026): фото и PDF к работам и заданиям ----------
+   Хранятся в той же базе, кусками по ~300 КБ (base64): заголовок <путь>/<id> {name,type,size,parts}, куски <путь>/<id>~k {d}.
+   Файл ученицы — subs/<uid>/files/<id> (читают она и учитель, правило subs/{self}), файл учителя — files/<id> (читают все).
+   id несёт место хранения: «S<uid>-…» или «T-…». Страница ссылается на файл как _blob/<id> (так же, как на старые файлы
+   из репозитория); такие ссылки и картинки здесь подменяются на blob:-адреса после загрузки из базы.
+   Фото больше 1,5 МБ сжимаются до 2000 px по длинной стороне (JPEG 0,85), PDF и прочее до 20 МБ */
+const FMAX=20*1024*1024,FCH=300000;
+const fRand=()=>{const a=new Uint8Array(8);crypto.getRandomValues(a);return [...a].map(x=>x.toString(36).padStart(2,'0')).join('').slice(0,12)};
+const fPath=id=>id.startsWith('T-')?'files/'+id:id.startsWith('S')&&id.lastIndexOf('-')>1?'subs/'+id.slice(1,id.lastIndexOf('-'))+'/files/'+id:null;
+const isDbFile=id=>typeof id==='string'&&!!fPath(id);
+const b64=buf=>{let s='';const u=new Uint8Array(buf);for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)};
+async function shrink(file,type){
+  if(!/^image\/(jpeg|png|webp)$/.test(type)||file.size<=1.5*1024*1024)return {blob:file,type};
+  try{const bm=await createImageBitmap(file),k=Math.min(1,2000/Math.max(bm.width,bm.height)),cv=document.createElement('canvas');
+    cv.width=Math.round(bm.width*k);cv.height=Math.round(bm.height*k);const c=cv.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,cv.width,cv.height);c.drawImage(bm,0,0,cv.width,cv.height);
+    const out=await new Promise(r=>cv.toBlob(r,'image/jpeg',0.85));return out&&out.size<file.size?{blob:out,type:'image/jpeg'}:{blob:file,type}}catch(e){return {blob:file,type}}}
+const fErr=(code,m)=>Object.assign(new Error(m||code),{code});
+const fCache=new Map();
+const assets={
+  async upload(file,opt){if(!me)throw fErr('not_granted');const type=(opt&&opt.type)||file.type||'application/octet-stream';
+    if(!/^(image\/|application\/pdf|text\/)/.test(type))throw fErr('unsupported_type');
+    const {blob,type:t2}=await shrink(file,type);if(blob.size>FMAX)throw fErr('too_large');
+    const id=(me.isOwner?'T-':'S'+me.id+'-')+fRand(),path=fPath(id),data=b64(await blob.arrayBuffer()),parts=Math.max(1,Math.ceil(data.length/FCH));
+    for(let k=0;k<parts;k++)await rpc('ph_set',{p_code:getCode(),p_path:path+'~'+k,p_data:{d:data.slice(k*FCH,(k+1)*FCH)}});
+    await rpc('ph_set',{p_code:getCode(),p_path:path,p_data:{name:file.name||'файл',type:t2,size:blob.size,parts,at:new Date().toISOString()}});
+    fCache.set(id,window.URL.createObjectURL(blob));return {id,contentType:t2,sizeBytes:blob.size}},
+  async list(){return {assets:[]}},
+  /* файл из базы → blob:-адрес (кешируется на время жизни страницы) */
+  async url(id){if(fCache.has(id))return fCache.get(id);const path=fPath(id);if(!path)return null;
+    const p=(async()=>{const h=await rpc('ph_get',{p_code:getCode(),p_path:path});if(!h||!h.parts)return null;let data='';
+      for(let k=0;k<h.parts;k++){const c=await rpc('ph_get',{p_code:getCode(),p_path:path+'~'+k});if(!c)return null;data+=c.d}
+      const bin=atob(data),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return window.URL.createObjectURL(new Blob([u],{type:h.type}))})();
+    fCache.set(id,p);const u=await p.catch(()=>null);fCache.set(id,u);if(!u)fCache.delete(id);return u}};
+/* fetch('_blob/<id>') для файлов из базы (29.10): просмотрщик файлов, PDF тетрадей и пометки на фото берут файл через fetch,
+   а GitHub Pages такого файла не знает. Здесь он собирается из базы; остальные запросы идут как обычно */
+const nativeFetch=window.fetch.bind(window);
+window.fetch=function(u,o){const s=typeof u==='string'?u:u&&u.url||'',m=/(?:^|\/)_blob\/([^/?#]+)$/.exec(s.split(/[?#]/)[0]);
+  if(m&&isDbFile(m[1]))return Promise.resolve(assets.url(m[1])).then(x=>x?nativeFetch(x):new Response('',{status:404}));
+  return nativeFetch(u,o)};
+/* ссылки и картинки на файлы из базы: _blob/<id> → blob:-адрес */
+function fixBlobs(root){(root||document).querySelectorAll('a[href^="_blob/"],img[src^="_blob/"]').forEach(el=>{const at=el.tagName==='A'?'href':'src',id=el.getAttribute(at).slice(6);
+  if(!isDbFile(id))return;const c=fCache.get(id);
+  if(typeof c==='string'){el.setAttribute(at,c);if(at==='href'){el.setAttribute('download',el.dataset.fn||'файл')}return}
+  el.setAttribute(at,at==='href'?'#':'data:image/gif;base64,R0lGODlhAQABAAAAACw=');el.dataset.dbload=id;
+  assets.url(id).then(u=>{if(u&&el.dataset.dbload===id){el.setAttribute(at,u);if(at==='href')el.setAttribute('download',el.dataset.fn||'файл');delete el.dataset.dbload}})})}
+new MutationObserver(ms=>{for(const m of ms){if(m.type==='attributes'){const t=m.target;if(t.getAttribute&&/^_blob\//.test(t.getAttribute(m.attributeName)||''))fixBlobs(t.parentNode||document)}
+  else if(m.addedNodes.length){fixBlobs(document);break}}}).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['href','src']});
 window.claude={use:async name=>{await gate;
   if(name==='db')return db;
   if(name==='user')return user;
   if(name==='downloads')return downloads;
+  if(name==='assets')return assets;
   return null}};
 })();

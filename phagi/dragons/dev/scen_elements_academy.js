@@ -1,0 +1,21 @@
+module.exports=async(page,{OUT,store,UID,need})=>{
+ const state=store.get(`srs/${UID}/meta/dragons`).d;
+ const genome=await page.evaluate(()=>DRG.make({sex:'F',E:'F/W',E2:'T/A',S:'S/S'}));
+ state.dragons.slice(0,3).forEach((d,i)=>{d.genome=genome;d.lvl=i===1?9:16;d.academyRank=i===0?3:0;d.specialties=i===0?{F:1}:{};delete d.elementNameV;delete d.training});state.bal.gold=90000;state.bld.find(b=>b.type==='nest').pair=null;
+ await page.reload();await page.waitForTimeout(1300);await page.click('[data-act=go][data-v=cards]');await page.waitForTimeout(300);await page.click('[data-act=drgopen][data-full]');await page.waitForTimeout(2000);
+ need(await page.locator('.drg-academy-building').count()===1,'у старого острова появилась одна академия');
+ await page.locator('.drg-academy-building').evaluate(el=>el.closest('[data-act]').dispatchEvent(new MouseEvent('click',{bubbles:true})));
+ await page.locator('.drg-academy').waitFor();need((await page.locator('.drg-academy').innerText()).includes('10-м уровне'),'граница доступа показана');need(await page.locator('[data-t=specialize]').count()===3,'после 3 рангов доступны оставшиеся стихии');
+ await page.click('[data-t=specialize][data-element=W]');await page.locator('.drg-training time').waitFor();const t=await page.locator('.drg-training time').innerText();await page.waitForTimeout(2500);console.log('TIMER',t,await page.locator('.drg-training time').innerText(),await page.evaluate(()=>({view:S.view,hidden:document.hidden,overlay:!!document.querySelector('.drf,.dri'),now:Date.now(),end:document.querySelector('[data-drgtimer]').dataset.drgtimer})));need((await page.locator('.drg-training time').innerText())!==t,'живой таймер обновился без действия');await page.screenshot({path:OUT+'/academy.png'});
+ await page.keyboard.press('Escape');await page.waitForTimeout(200);await page.click('.drg-zm [data-v=blds]');await page.waitForTimeout(200);const hab=state.bld.find(b=>b.type==='F');await page.locator(`#main>.drg-pan [data-act=drgsel][data-id="${hab.id}"]`).click();await page.locator('.drg-home').waitFor();await page.waitForTimeout(450);need(await page.locator('.drg-residents').count()===1,'компактные карточки жителей');await page.screenshot({path:OUT+'/home.png'});await page.keyboard.press('Escape');
+ await page.click('.drg-dock [data-act=drgfight]');await page.waitForTimeout(1200);await page.click('.drf-pin[data-id=e1]');await page.click('.drf-nc [data-fk=prep]');await page.waitForTimeout(600);
+ const id=state.dragons[0].id;const chosen=await page.evaluate(()=>DRFIGHT.state().pick);for(const x of chosen)await page.locator(`.drf-pk[data-id="${x}"]`).click();for(const d of state.dragons.slice(0,3))await page.locator(`.drf-pk[data-id="${d.id}"]`).click();
+ need(await page.locator('[data-fk=load]').count()===0,'настройка двух стихий убрана');await page.click('[data-fk=start]');await page.waitForFunction(()=>DRFIGHT.state().waiting,{timeout:25000});
+ need(await page.locator('.drf-orbit:not([hidden]) button').count()===4,'у атакующего четыре доступные стихии');need(await page.locator('.drf-skb[data-sk^="el:"]').count()===4,'все стихии доступны в основном меню');
+ const actual=await page.evaluate(id=>DRFIGHT.state().f.find(f=>f.id===id),id);need(actual.specialties.F===1,'специализация передана в бой');need(actual.maxHp>70,'академия усиливает характеристики');
+ need((await page.locator('.drf-skb[data-sk="el:F"]').innerText()).includes('Плавление'),'эффект и специализация объяснены');
+ await page.locator('.drf-orbit [data-sk="el:T"]').click();need(await page.locator('.drf-skb.selected').getAttribute('data-sk')==='el:T','землю можно выбрать у дракона');await page.keyboard.press('5');need(await page.locator('.drf-skb.selected').getAttribute('data-sk')==='el:A','четвёртую стихию можно выбрать клавиатурой');
+ need(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'нет горизонтального переполнения');await page.screenshot({path:OUT+'/battle.png'});
+ await page.locator('.drf-target').first().click();await page.waitForTimeout(1200);await page.screenshot({path:OUT+'/attack.png'});await page.waitForTimeout(3500);
+ await page.click('[data-fk=auto]');await page.waitForFunction(()=>DRFIGHT.state().result,{timeout:120000});need(!!(await page.evaluate(()=>DRFIGHT.state().result)),'полный бой завершился');
+};

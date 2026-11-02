@@ -2,16 +2,22 @@
    Адреса (хеш, работают кнопки «Назад» и «Вперёд», ссылкой можно поделиться):
      #/                 главная курса
      #/l/1              лекция 1;  #/l/1/mb4 — сразу §4
-     #/lab/microlab     лаборатория; #/lab/microlab/mlCfu — сразу модель
-     #/me               вход по коду, для учителя — коды группы
-   Старые ссылки вида #bact и #microlab перенаправляются сюда же. */
+     #/labs             лабораторные работы; #/labs/<id> — одна работа (bioviz/core/labworks.js)
+     #/me               вход по коду; у руководителя здесь панель управления (bioviz/core/admin.js)
+   Старые ссылки вида #bact, #microlab и #/lab/... перенаправляются сюда же.
+   Другие файлы добавляют свои страницы через BV.app.add(). */
 (function(){
 const {$,$$,esc,store}=BV,R=BVHOST.root,C=window.BV_COURSE;
 
 const I={
  home:'<path d="M4 10.5 12 4l8 6.5V20H14.5v-5.5h-5V20H4z"/>',
  lab:'<path d="M9.5 3.5h5M10.5 3.5v6L5 18.6A1.6 1.6 0 0 0 6.4 21h11.2a1.6 1.6 0 0 0 1.4-2.4L13.5 9.5v-6"/><path d="M7.4 15h9.2"/>',
- ai:'<path d="M12 3.5l1.9 4.6 4.6 1.9-4.6 1.9L12 16.5l-1.9-4.6L5.5 10l4.6-1.9z"/><path d="M18.5 15.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"/>',
+ prompt:'<rect x="8" y="3.5" width="12.5" height="14" rx="2"/><path d="M5.5 7v11.5a2 2 0 0 0 2 2H16"/><path d="M11 8.5h6.5M11 12h6.5M11 15.5h4"/>',
+ plus:'<path d="M12 5v14M5 12h14"/>',
+ edit:'<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+ copy:'<rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5"/>',
+ photo:'<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M20.5 16l-5-5-8 8"/>',
+ gear:'<circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/>',
  me:'<circle cx="12" cy="8.5" r="4"/><path d="M4.5 20.5c1.2-3.7 4-5.5 7.5-5.5s6.3 1.8 7.5 5.5"/>',
  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/>',
  moon:'<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
@@ -183,28 +189,42 @@ main{flex:1;width:100%;max-width:1240px;margin:0 auto;padding:34px max(20px,env(
 .row b{display:block;font:600 20px/1.25 var(--font-display);letter-spacing:-.005em}
 .row small{display:block;color:var(--muted);font:500 12px/1.4 var(--font-mono);letter-spacing:.02em;margin:3px 0 5px}
 .row .ab{color:var(--muted);font-size:14.5px;line-height:1.5}
-.row .pr{display:flex;flex-direction:column;align-items:flex-end;gap:7px;font:500 12px/1 var(--font-mono);color:var(--muted);white-space:nowrap}
-.row .pr>.i{transition:transform .2s}
-.row:hover .pr>.i{transform:translateX(3px);color:var(--ink)}
-/* прогресс лекции: дорожка из разделов, прочитанные закрашены, как экзоны на карте гена */
+.row .pr{display:flex;flex-direction:column;align-items:flex-end;gap:6px;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.bar-p{width:88px;height:5px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.bar-p i{display:block;height:100%;background:var(--ui);border-radius:3px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.tags span{font-size:12.5px;padding:2px 9px;border-radius:999px;background:var(--surface-2);color:var(--muted)}
+@media (max-width:560px){.row{grid-template-columns:auto minmax(0,1fr);padding:16px}.row .pr{grid-column:2;align-items:flex-start;flex-direction:row;align-items:center}}
+.pr-tip{display:inline-flex;align-items:center;gap:7px;font:500 12.5px/1.4 var(--font-mono);color:var(--muted)}
+.pr-tip .i{width:16px;height:16px;color:var(--cut)}
+/* объявление руководителя на главной */
+.news{position:relative;display:flex;flex-direction:column;gap:6px;max-width:760px;padding:16px 18px 16px 22px;border:1px solid var(--line);border-radius:var(--r);background:var(--card)}
+.news:before{content:"";position:absolute;left:-1px;top:-1px;bottom:-1px;width:4px;border-radius:var(--r) 0 0 var(--r);background:var(--cut)}
+.news small{font:500 11.5px/1.3 var(--font-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.news .md{font-size:15px;line-height:1.6}
+.md p{margin:0 0 9px}.md p:last-child{margin-bottom:0}
+.md ul,.md ol{margin:0 0 9px;padding-left:22px}.md li{margin:3px 0}
+.md h4{font:600 16px/1.3 var(--font-display);margin:12px 0 4px}
+.md code{font-family:var(--font-mono);font-size:.9em;background:var(--surface-2);padding:1px 5px;border-radius:var(--rx)}
+.md-tw{overflow-x:auto;margin:4px 0 10px;border:1px solid var(--line);border-radius:var(--rs)}
+.md-t{border-collapse:collapse;width:100%;font-size:14px}
+.md-t th,.md-t td{padding:7px 10px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+.md-t tr:last-child td{border-bottom:0}
+.md-t th{font:600 11.5px/1.3 var(--font-mono);letter-spacing:.04em;text-transform:uppercase;color:var(--muted);background:var(--surface-2)}
+.badge{display:inline-flex;align-items:center;font:600 11px/1 var(--font-mono);letter-spacing:.05em;text-transform:uppercase;padding:4px 7px;border-radius:var(--rx);border:1px solid var(--line);color:var(--muted);vertical-align:middle}
+.badge.cut{border-color:var(--cut);color:var(--cut)}
+.empty{padding:22px 20px;border:1px dashed var(--line);border-radius:var(--r);color:var(--muted);font-size:14.5px;max-width:760px;background:var(--card)}
+
 .trk{display:flex;align-items:center;gap:3px;width:max-content}
-.trk i{display:block;width:8px;height:12px;border-radius:1.5px;border:1px solid var(--line);background:var(--card)}
+.trk i{display:block;width:8px;height:12px;border-radius:2px;border:1px solid var(--line);background:var(--card)}
 .trk i.on{background:var(--ink);border-color:var(--ink)}
-.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.tags span{font:500 11.5px/1.4 var(--font-mono);padding:3px 8px;border-radius:var(--rx);border:1px solid var(--line);color:var(--muted)}
-@media (max-width:560px){.row{grid-template-columns:auto minmax(0,1fr);gap:6px 14px;padding:16px}.row .no{width:40px;height:40px;font-size:14px}.row b{font-size:18.5px}.row .pr{grid-column:2;align-items:center;flex-direction:row-reverse;justify-content:flex-end;gap:10px;margin-top:4px}}
-.askcard{display:flex;gap:16px;align-items:center;padding:18px 20px;border:1px solid var(--line);border-radius:var(--r);background:var(--card);max-width:760px}
-.askcard>.i{width:26px;height:26px;color:var(--ink)}
-.askcard b{display:block;font:600 18px/1.3 var(--font-display)}
-.askcard p{color:var(--muted);font-size:14px}
-.askcard .btn{margin-left:auto;flex:none}
-@media (max-width:560px){.askcard{flex-wrap:wrap}.askcard .btn{margin-left:0}}
+.lw-doc h2,.lw-doc h1{font-weight:700}
 
 /* хлебные крошки и шапка внутренних страниц */
 .crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font:500 12.5px/1.4 var(--font-mono);letter-spacing:.03em;color:var(--muted)}
-.crumbs a{color:var(--muted);text-decoration:none}
-.crumbs a:hover{color:var(--ink)}
-.crumbs span:before{content:"/";margin-right:6px;opacity:.6}
+.crumbs a{color:var(--muted);text-decoration:none;font-weight:600}
+.crumbs a:hover{color:var(--ui)}
+.crumbs>*+*:before{content:"/";margin-right:6px;opacity:.6}
 .lhead{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
 .module{display:flex;flex-direction:column;gap:18px;min-width:0}
 .after{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;max-width:1000px}
@@ -400,8 +420,7 @@ app.innerHTML=`<header class="bar">
   <a class="brand" href="#/" aria-label="БиоВиз, главная курса">${LOGO}<span><b>БиоВиз</b><small>${esc(C.group)}</small></span></a>
   <nav class="tabs" aria-label="Разделы">
     <a href="#/" data-nav="home">Курс</a>
-    <a href="#/lab/${esc(C.labs[0].id)}" data-nav="lab">Лаборатория</a>
-    <button type="button" data-nav="ai" aria-expanded="false">${ic('ai')}Помощник</button>
+    <a href="#/labs" data-nav="labs">Лабораторные работы</a>
   </nav>
   <div class="bar-r">
     <button type="button" class="icb" data-theme-btn aria-label="Оформление" aria-haspopup="true" aria-expanded="false"></button>
@@ -411,8 +430,7 @@ app.innerHTML=`<header class="bar">
 <main id="main"></main>
 <nav class="dock" aria-label="Разделы">
   <a href="#/" data-nav="home">${ic('home')}<span>Курс</span></a>
-  <a href="#/lab/${esc(C.labs[0].id)}" data-nav="lab">${ic('lab')}<span>Лаборатория</span></a>
-  <button type="button" data-nav="ai" aria-expanded="false">${ic('ai')}<span>Помощник</span></button>
+  <a href="#/labs" data-nav="labs">${ic('lab')}<span>Лабораторные</span></a>
   <a href="#/me" data-nav="me">${ic('me')}<span>Профиль</span></a>
 </nav>`;
 R.appendChild(app);
@@ -425,116 +443,129 @@ function page(id,cls='page'){const s=document.createElement('section');s.classNa
 /* лекции: контейнер для движка конспектов. id модуля = id лекции (l01) */
 C.lectures.forEach(L=>{const s=page('m-'+L.id,'module page');
   s.innerHTML=`<div class="lhead"><nav class="crumbs" aria-label="Путь"><a href="#/">${esc(C.title)}</a><span>Лекция ${L.n}</span></nav>
-    <button type="button" class="btn ghost sm" data-ask>${ic('ai')}Спросить о лекции</button></div>
+    <span class="pr-tip">${ic('prompt')}Выдели фрагмент текста, чтобы создать промпт для ИИ</span></div>
     <div class="k-doc"></div><div class="after"></div>`;
   pages['l'+L.n]=s});
-/* лаборатории */
-C.labs.forEach(B=>{const s=page('pg-lab-'+B.id);
-  s.innerHTML=`<nav class="crumbs" aria-label="Путь"><a href="#/">${esc(C.title)}</a><span>Лаборатория</span></nav>
-    <header class="hero"><p class="eyebrow">Лаборатория</p><h1>${esc(B.title)}</h1><p class="lead">${esc(B.about)}</p></header>
-    <div class="el-lab" id="${BV.LABS&&BV.LABS[B.id]?BV.LABS[B.id].box:'lab-'+B.id}"></div>`;
-  pages['lab:'+B.id]=s});
 const home=pages.home=page('pg-home');
 const me=pages.me=page('pg-me');
-const NOTE=()=>`<p class="note">На этом устройстве хранятся код входа, тема оформления и место, где ты остановился в лекции. ${C.ai==='server'?'Разговор с помощником живёт до закрытия вкладки, вопросы уходят на сервер группы и дальше в Claude вместе с текстом открытого раздела.':'Вопросы помощнику уходят прямо в claude.ai, в твой аккаунт, вместе с текстом открытого раздела. Сайт их не хранит.'}</p>`;
+const NOTE=()=>`<p class="note">На этом устройстве хранятся код входа, тема оформления и место, где ты остановился в лекции. Если ты вошёл по коду участника, руководитель видит, какие разделы лекций ты прочитал. Кнопка «Создать промпт» только копирует текст в буфер обмена, сайт ничего никуда не отправляет.</p>`;
+
+/* ---------- облако: настройки сайта ----------
+   Документ site/main: объявление на главной и список скрытых лекций. Пишет только руководитель.
+   Последняя версия хранится в браузере, чтобы главная не ждала облако. */
+const A=window.BVAUTH;
+const db=()=>window.claude.use('db');
+const isAdmin=()=>!!(A&&A.me&&A.me.role==='admin');
+const site={data:store.get('site',{}),
+  async load(){try{const d=await (await db()).doc('site/main').get();site.data=d.exists&&d.data()||{};store.set('site',site.data)}catch(e){}return site.data},
+  async save(patch){const next={...site.data,...patch,t:Date.now()};await (await db()).doc('site/main').set(next);site.data=next;store.set('site',next);return next}};
+const hiddenL=()=>new Set(site.data.hidden||[]);
+const visibleLectures=()=>{const h=hiddenL();return isAdmin()?C.lectures:C.lectures.filter(L=>!h.has(L.id))};
 
 /* ---------- прогресс чтения ---------- */
 const secsOf=id=>((BV.KR||{})[id]||{}).sections||[];
 function parentOf(id,sid){for(const s of secsOf(id)){if(s.id===sid)return s;if((s.sub||[]).some(x=>x[0]===sid))return s}return null}
 const seenOf=id=>new Set(store.get('seen:'+id,[]));
 function progress(L){const S=secsOf(L.id).filter(s=>s.no),seen=seenOf(L.id);return{done:S.filter(s=>seen.has(s.id)).length,total:S.length}}
+/* участник с кодом: прочитанные разделы уходят в его документ students/<id>, руководитель видит их в панели.
+   Документ мог хранить что-то ещё, поэтому сначала читаем его и дописываем поле prog. */
+let syncT=0;
+function syncProgress(now){const u=A&&A.me;if(!u||u.role!=='student')return;clearTimeout(syncT);
+  syncT=setTimeout(async()=>{try{const D=await db(),ref=D.doc('students/'+u.id),old=await ref.get(),data=old.exists&&old.data()||{};
+    const seen={};C.lectures.forEach(L=>{const s=store.get('seen:'+L.id,[]);if(s.length)seen[L.id]=s});
+    const last=store.get('last',null);
+    await ref.set({...data,prog:{seen,last:last?{id:last.id,s:last.s}:null,t:Date.now()}})}catch(e){}},now?300:4000)}
+if(A&&A.ready)A.ready.then(()=>syncProgress(true));
+BV.progress={secsOf,progress,sync:syncProgress};
 
 /* ---------- главная ---------- */
 const MONTHS=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
-const fmtDate=d=>{const [y,m,dd]=d.split('-').map(Number);return `${dd} ${MONTHS[m-1]}`};
+const fmtDate=d=>{if(!d)return '';const [y,m,dd]=String(d).split('-').map(Number);return m?`${dd} ${MONTHS[m-1]}${y&&y!==new Date().getFullYear()?' '+y:''}`:''};
+BV.fmtDate=fmtDate;
+function lectureRows(list){const h=hiddenL();return list.map(L=>{const p=progress(L);
+  return `<li><a class="row" href="#/l/${L.n}"><span class="no">${String(L.n).padStart(2,'0')}</span><span><b>${esc(L.title)}${h.has(L.id)?' <span class="badge cut">скрыта</span>':''}</b><small>${fmtDate(L.date)} · ${p.total} разделов</small><span class="ab">${esc(L.about)}</span></span>
+    <span class="pr">${p.done?`${p.done} из ${p.total}`:'не начата'}<span class="trk" aria-hidden="true">${Array.from({length:p.total},(_,k)=>`<i${k<p.done?' class="on"':''}></i>`).join('')}</span></span></a></li>`}).join('')}
 function renderHome(){
-  const last=store.get('last',null),L=last&&C.lectures.find(x=>x.id===last.id);
+  const last=store.get('last',null),L=last&&visibleLectures().find(x=>x.id===last.id);
   const sec=L&&parentOf(L.id,last.s);
   const cont=L?`<a class="cont" href="#/l/${L.n}${last.s?'/'+esc(last.s):''}"><span><small>Продолжить</small><b>Лекция ${L.n} · ${esc(L.title)}</b>${sec?`<em>§${sec.no} ${esc(sec.t)}</em>`:''}</span>${ic('arrow')}</a>`:'';
+  const N=site.data.news,news=N&&N.on&&N.text?`<aside class="news" aria-label="Объявление"><small>Объявление${N.date?' · '+fmtDate(N.date):''}</small><div class="md">${BV.md(N.text)}</div></aside>`:'';
+  const LL=visibleLectures();
   home.innerHTML=`<div class="top"><header class="hero"><p class="eyebrow">Научная группа · ${esc(C.group)}</p><h1>${esc(C.title)}</h1>
-     <p class="lead">Конспекты лекций с интерактивными рисунками, модели лаборатории и помощник, который отвечает по материалу курса.</p></header>${locus()}</div>
-   ${cont}
-   <section class="blk" aria-labelledby="hLect"><h2 id="hLect">Лекции <em>${C.lectures.length}</em></h2><ol class="rows">${C.lectures.map(L=>{const p=progress(L);
-     return `<li><a class="row" href="#/l/${L.n}"><span class="no">${String(L.n).padStart(2,'0')}</span><span><b>${esc(L.title)}</b><small>${fmtDate(L.date)} · ${p.total} разделов</small><span class="ab">${esc(L.about)}</span></span>
-       <span class="pr">${p.done?`${p.done} из ${p.total}`:'не начата'}<span class="trk" aria-hidden="true">${Array.from({length:p.total},(_,k)=>`<i${k<p.done?' class="on"':''}></i>`).join('')}</span></span></a></li>`}).join('')}</ol></section>
-   <section class="blk" aria-labelledby="hLab"><h2 id="hLab">Лаборатория</h2><ul class="rows">${C.labs.map(B=>`<li><a class="row" href="#/lab/${esc(B.id)}"><span class="no">${ic('lab')}</span><span><b>${esc(B.title)}</b><span class="ab">${esc(B.about)}</span><span class="tags">${(B.models||[]).map(m=>`<span>${esc(m)}</span>`).join('')}</span></span><span class="pr">${ic('arrow')}</span></a></li>`).join('')}</ul></section>
-   <section class="blk" aria-labelledby="hAsk"><h2 id="hAsk">Помощник</h2><div class="askcard">${ic('ai')}<span><b>Вопрос по материалу</b><p>Объяснит непонятное место, разберёт задачу из лекции, подскажет, что почитать. ${C.ai==='server'?'Нужен код группы.':'Ответ откроется в claude.ai, в твоём аккаунте.'}</p></span><button type="button" class="btn" data-ask>Открыть помощника</button></div></section>`}
+     <p class="lead">Конспекты лекций с интерактивными рисунками и журнал лабораторных работ группы.</p></header>${locus()}</div>
+   ${news}${cont}
+   <section class="blk" aria-labelledby="hLect"><h2 id="hLect">Лекции <em>${LL.length}</em></h2>${LL.length?`<ol class="rows">${lectureRows(LL)}</ol>`:'<p class="empty">Лекций пока нет.</p>'}</section>
+   <section class="blk" aria-labelledby="hLab"><h2 id="hLab">Лабораторные работы <em data-lw-count></em></h2><div data-lw-home><p class="empty">Загружаю…</p></div></section>`;
+  if(BV.labworks)BV.labworks.homeBlock($('[data-lw-home]',home),$('[data-lw-count]',home))}
+/* настройки сайта пришли из облака: перерисовать главную, если она открыта */
+site.load().then(()=>{if(cur&&cur.kind==='home')renderHome()});
 
 /* ---------- профиль и вход ---------- */
-const A=window.BVAUTH;
 async function renderMe(){
   if(!A){me.innerHTML='<p class="msg">Облако не загрузилось. Обнови страницу.</p>';return}
   await A.ready;const u=A.me;
-  if(!u){me.innerHTML=`<header class="hero"><p class="eyebrow">Профиль</p><h1>Вход</h1><p class="lead">${C.ai==='server'?'Код выдаёт руководитель группы. С кодом работает помощник, без кода конспекты и лаборатория открыты всем.':'Вход нужен руководителю группы. Конспекты, лаборатория и помощник открыты без кода.'}</p></header>
+  if(!u){me.innerHTML=`<header class="hero"><p class="eyebrow">Профиль</p><h1>Вход</h1><p class="lead">Код выдаёт руководитель группы. С кодом руководитель видит, какие разделы ты прочитал. Без кода конспекты и лабораторные работы открыты всем.</p></header>
     <form class="card" id="meForm"><h2>Код группы</h2><div class="field"><input id="meCode" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="BIO-XXXX-XXXX" aria-label="Код"><button class="btn">Войти</button></div><p class="msg" id="meMsg" role="status"></p></form>${NOTE()}`;
     $('#meForm').addEventListener('submit',async e=>{e.preventDefault();const m=$('#meMsg');m.className='msg';m.textContent='Проверяю…';
-      try{await A.login($('#meCode').value);syncWho();renderMe()}catch(er){m.className='msg err';m.textContent=er.message}});
+      try{await A.login($('#meCode').value);syncWho();syncProgress(true);renderMe()}catch(er){m.className='msg err';m.textContent=er.message}});
     return}
-  const admin=u.role==='admin';
-  me.innerHTML=`<header class="hero"><p class="eyebrow">Профиль</p><h1>${esc(u.name||'Участник')}</h1><p class="lead">${admin?'Руководитель группы: здесь коды участников.':'Участник группы. Помощник доступен.'}</p></header>
-   ${admin?`<section class="card"><h2>Коды группы</h2><p>Каждому участнику свой код. Удалённый код перестаёт работать сразу.</p>
-     <form class="field" id="cNew"><input class="plain" id="cName" placeholder="Имя участника" aria-label="Имя участника"><button class="btn">Выдать код</button></form>
-     <p class="msg" id="cMsg" role="status"></p><ul class="codes" id="cList"><li class="msg">Загружаю…</li></ul></section>`:''}
+  if(u.role==='admin'&&BV.admin){BV.admin.render(me,{site,NOTE,logout:()=>{A.logout();syncWho();renderMe()}});return}
+  const LL=visibleLectures();
+  me.innerHTML=`<header class="hero"><p class="eyebrow">Профиль</p><h1>${esc(u.name||'Участник')}</h1><p class="lead">Участник группы. Прочитанные разделы видны руководителю.</p></header>
+   ${LL.length?`<section class="blk"><h2>Мои лекции</h2><ol class="rows">${lectureRows(LL)}</ol></section>`:''}
    <div><button type="button" class="btn ghost" id="meOut">Выйти</button></div>${NOTE()}`;
-  $('#meOut').addEventListener('click',()=>{A.logout();syncWho();renderMe()});
-  if(admin){
-    const draw=async()=>{const ul=$('#cList');try{const L=await A.codes()||[];
-        ul.innerHTML=L.length?L.map(c=>`<li><span>${esc(c.name||'Без имени')}</span><code>${esc(c.code)}</code><button type="button" data-del="${esc(c.id)}">Удалить</button></li>`).join(''):'<li class="msg">Кодов пока нет.</li>';
-        $$('[data-del]',ul).forEach(b=>b.addEventListener('click',async()=>{if(!confirm('Удалить код? Участник больше не сможет войти.'))return;try{await A.delCode(b.dataset.del);draw()}catch(e){$('#cMsg').textContent='Не удалось удалить: '+e.message}}))}
-      catch(e){ul.innerHTML='<li class="msg err">Не удалось загрузить коды.</li>'}};
-    $('#cNew').addEventListener('submit',async e=>{e.preventDefault();const n=$('#cName').value.trim();if(!n)return;
-      try{const r=await A.newCode(n);$('#cName').value='';$('#cMsg').textContent=r&&r.code?`Код для «${n}»: ${r.code}`:'Код создан.';draw()}catch(er){$('#cMsg').textContent='Не удалось создать код: '+er.message}});
-    draw()}}
-function syncWho(){const u=A&&A.me,w=$('.who span');if(w)w.textContent=u?(u.name||'Профиль'):'Войти';
-  const d=$('.dock [data-nav="me"] span');if(d)d.textContent=u?'Профиль':'Войти'}
+  $('#meOut').addEventListener('click',()=>{A.logout();syncWho();renderMe()})}
+function syncWho(){const u=A&&A.me,w=$('.who span');if(w)w.textContent=u?(u.role==='admin'?'Управление':(u.name||'Профиль')):'Войти';
+  const d=$('.dock [data-nav="me"] span');if(d)d.textContent=u?(u.role==='admin'?'Управление':'Профиль'):'Войти';
+  if(cur&&cur.kind==='home')renderHome()}
 if(A&&A.ready)A.ready.then(syncWho);
 
 /* ---------- маршрутизация ---------- */
+/* страницы из других файлов: {key, nav, parse(части адреса) → параметры или null, show(параметры) → заголовок вкладки} */
+const EXT=[];
 let cur=null,curLecture=null;
 function parse(h){const p=String(h||'').replace(/^#\/?/,'').split('/').filter(Boolean).map(decodeURIComponent);
   if(!p.length)return{kind:'home'};
   if(p[0]==='l'){const L=C.lectures.find(x=>String(x.n)===p[1]);return L?{kind:'lecture',L,sec:p[2]||null}:{kind:'home'}}
-  if(p[0]==='lab'){const B=C.labs.find(x=>x.id===p[1]);return B?{kind:'lab',B,model:p[2]||null}:{kind:'home'}}
   if(p[0]==='me')return{kind:'me'};
-  /* старые адреса прежнего сайта */
+  for(const x of EXT){const m=x.parse(p);if(m)return{kind:'x',x,m,key:x.key+':'+(m.key||'')}}
+  /* старые адреса прежнего сайта и удалённой лаборатории моделей */
   if(p[0]==='bact')return{kind:'redirect',to:'#/l/1'};
-  if(C.labs.some(b=>b.id===p[0]))return{kind:'redirect',to:'#/lab/'+p[0]};
+  if(p[0]==='lab'||p[0]==='microlab')return{kind:'redirect',to:'#/labs'};
   return{kind:'home'}}
-const href=r=>r.kind==='lecture'?`#/l/${r.L.n}`:r.kind==='lab'?`#/lab/${r.B.id}`:r.kind==='me'?'#/me':'#/';
 
 function scrollToId(scope,id){const el=$('#k-'+id,scope)||$('#'+id,scope);if(!el)return false;
   let n=0;const f=()=>{const t=el.getBoundingClientRect().top-(parseFloat(getComputedStyle(BVHOST.host).getPropertyValue('--barh'))||60)-12;if(Math.abs(t)>4)window.scrollBy(0,t);if(++n<4)setTimeout(()=>requestAnimationFrame(f),140*n)};f();return true}
 
 function show(r){
   if(r.kind==='redirect'){history.replaceState(null,'',r.to);return show(parse(r.to))}
-  const target=r.kind==='lecture'?pages['l'+r.L.n]:r.kind==='lab'?pages['lab:'+r.B.id]:r.kind==='me'?me:home;
+  const target=r.kind==='lecture'?pages['l'+r.L.n]:r.kind==='x'?r.x.page:r.kind==='me'?me:home;
   if(curLecture&&(r.kind!=='lecture'||r.L!==curLecture)){BV.K.hide(curLecture.id);curLecture=null}
-  Object.values(pages).forEach(p=>{p.hidden=p!==target});
-  const same=cur&&cur.kind===r.kind&&(cur.L===r.L)&&(cur.B===r.B);
+  Object.values(pages).concat(EXT.map(x=>x.page)).forEach(p=>{p.hidden=p!==target});
+  const same=cur&&cur.kind===r.kind&&(cur.L===r.L)&&(cur.key===r.key);
   cur=r;
   if(r.kind==='home')renderHome();
   if(r.kind==='me')renderMe();
   if(r.kind==='lecture'){curLecture=r.L;BV.K.show(r.L.id);fillAfter(r.L);
     if(r.sec)requestAnimationFrame(()=>{if(!scrollToId(target,r.sec))window.scrollTo({top:0})});else if(!same)window.scrollTo({top:0});
     document.title=`Лекция ${r.L.n}. ${r.L.title} · БиоВиз`}
-  else if(r.kind==='lab'){const L=BV.LABS&&BV.LABS[r.B.id];if(L&&!L.done){try{L.build();L.done=1}catch(e){console.error('Лаборатория',e)}}
-    if(r.model)requestAnimationFrame(()=>{if(!scrollToId(target,'lab-'+r.model))window.scrollTo({top:0})});else if(!same)window.scrollTo({top:0});
-    document.title=`${r.B.title} · БиоВиз`}
+  else if(r.kind==='x'){if(!same)window.scrollTo({top:0});let t='';try{t=r.x.show(r.m)}catch(e){console.error(r.x.key,e)}document.title=(t?t+' · ':'')+'БиоВиз'}
   else{if(!same)window.scrollTo({top:0});document.title=r.kind==='me'?'Профиль · БиоВиз':`${C.title} · БиоВиз`}
-  const nav=r.kind==='lecture'?'home':r.kind;
+  const nav=r.kind==='lecture'?'home':r.kind==='x'?r.x.nav:r.kind;
   $$('[data-nav]').forEach(a=>{if(a.tagName==='A')a.dataset.nav===nav?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current')});
   if(!same)target.focus({preventScroll:true});
   lastSec=null}
 function route(){show(parse(location.hash))}
 addEventListener('hashchange',route);
-BV.app={go:h=>{if(location.hash===h)route();else location.hash=h},get route(){return cur}};
+BV.app={go:h=>{if(location.hash===h)route();else location.hash=h},get route(){return cur},refresh:route,
+  add(x){x.page=page('pg-'+x.key);EXT.push(x);return x.page},
+  site,isAdmin,db,lectureRows,visibleLectures};
 
-/* «дальше» под лекцией: следующая лекция или лаборатория */
-function fillAfter(L){const box=$('.after',pages['l'+L.n]);if(box.childElementCount)return;
-  const next=C.lectures.find(x=>x.n===L.n+1);
+/* «дальше» под лекцией: следующая лекция и лабораторные работы */
+function fillAfter(L){const box=$('.after',pages['l'+L.n]);
+  const LL=visibleLectures(),next=LL.find(x=>x.n>L.n);
   box.innerHTML=(next?`<a href="#/l/${next.n}"><small>Следующая лекция</small><b>${esc(next.title)}</b></a>`:'')+
-    C.labs.map(B=>`<a href="#/lab/${esc(B.id)}"><small>Закрепить руками</small><b>${esc(B.title)}</b></a>`).join('')+
-    `<a href="#/"><small>Курс</small><b>Все лекции</b></a>`}
+    `<a href="#/labs"><small>Практика</small><b>Лабораторные работы</b></a><a href="#/"><small>Курс</small><b>Все лекции</b></a>`}
 
 /* где остановился: текущий раздел пишется в адрес (без новой записи в истории) и в память браузера */
 let lastSec=null,tm=0;
@@ -545,7 +576,7 @@ addEventListener('scroll',()=>{if(tm)return;tm=setTimeout(()=>{tm=0;if(!cur||cur
   try{history.replaceState(history.state,'',`#/l/${L.n}/${id}`)}catch(e){}
   cur={...cur,sec:id};
   store.set('last',{id:L.id,s:id,t:Date.now()});
-  const p=parentOf(L.id,id);if(p){const S=seenOf(L.id);if(!S.has(p.id)){S.add(p.id);store.set('seen:'+L.id,[...S])}}},250)},{passive:true});
+  const p=parentOf(L.id,id);if(p){const S=seenOf(L.id);if(!S.has(p.id)){S.add(p.id);store.set('seen:'+L.id,[...S]);syncProgress()}}},250)},{passive:true});
 
 /* ---------- тема ---------- */
 const tb=$('[data-theme-btn]');
@@ -581,10 +612,6 @@ tb.addEventListener('click',()=>{if($('.thm')){closeThm();return}
     const k=b?'[data-v="'+b.dataset.v+'"]':'[data-st="'+st.dataset.st+'"]';drawThm(m);const f=m.querySelector(k);if(f)f.focus()})});
 document.addEventListener('click',e=>{if($('.thm')&&!BV_ET(e).closest('.thm,[data-theme-btn]'))closeThm()});
 R.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('.thm'))closeThm(true)});
-
-/* кнопки «Помощник» и «Спросить» */
-R.addEventListener('click',e=>{const b=BV_ET(e).closest('[data-nav="ai"],[data-ask]');if(!b||!BV.ai)return;
-  if(b.dataset.nav==='ai')BV.ai.toggle();else BV.ai.open()});
 
 /* запуск */
 BV.start=()=>{route()};

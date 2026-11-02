@@ -1,0 +1,32 @@
+{
+ "fire-dark": {
+  "file": "fire-dark/body.webp",
+  "tries": 1,
+  "note": ""
+ },
+ "water-earth": {
+  "file": "water-earth/body.webp",
+  "tries": 1,
+  "note": ""
+ },
+ "water-air": {
+  "file": "water-air/body.webp",
+  "tries": 1,
+  "note": ""
+ },
+ "water-flora": {
+  "file": "water-flora/body.webp",
+  "tries": 1,
+  "note": ""
+ },
+ "water-light": {
+  "file": "water-light/body.webp",
+  "tries": 1,
+  "note": ""
+ },
+ "water-dark": {
+  "file": "water-dark/body.webp",
+  "tries": 1,
+  "note": ""
+ }
+}

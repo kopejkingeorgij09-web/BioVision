@@ -120,6 +120,7 @@ B.views.tasks = {
             <p class="hint">${B.quickHint}</p>
           </div>
           ${mode === 'board' ? boardView(tasks) : listView(key, tasks)}
+          ${key === 'shad' && B.shadPlanView ? B.shadPlanView() : ''}
         </div>
       </div>
     </div>`;

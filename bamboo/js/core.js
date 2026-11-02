@@ -142,7 +142,7 @@ function seed(){
   mk('p_life', {id: 'life', name: 'Личное', color: 'amber', order: 5});
   mk('h_read', {id: 'read', name: 'Чтение', icon: 'book', kind: 'daily', auto: 'read', min: 30, order: 0, created: t});
   mk('h_sport', {id: 'sport', name: 'Тренировка', icon: 'run', kind: 'weekly', target: 3, auto: 'sport', order: 1, created: t});
-  mk('h_sleep', {id: 'sleep', name: 'Сон до 00:00', icon: 'moon', kind: 'daily', auto: 'night', order: 2, created: t});
+  mk('h_sleep', {id: 'sleep', name: 'Сон до 00:00', icon: 'moon', kind: 'daily', order: 2, created: t});
   lsSave(); changed();
   if (db) flushAll();
 }
@@ -152,7 +152,7 @@ B.SHAD_STAGES = ['Не начат', 'Смотрю', 'Веб посмотрен',
 B.shad = {plan: [], courses: {}, marks: {}, lms: ''};
 const LS_SHADPLAN = 'bamboo-shadplan', LS_SHADMARKS = 'shad-track-progress';   // второй ключ общий с трекером shad/ на этом устройстве
 function usePlan(d){
-  B.shad.courses = d.courses || {}; B.shad.lms = d.lms || '';
+  B.shad.courses = d.courses || {}; B.shad.lms = d.lms || ''; B.shad.brk = d.break || null;
   B.shad.plan = (d.webs || []).map(x => ({n: x.n, c: x.course, code: x.code, t: x.title, w: x.web, h: x.hw}));
   changed();
 }
@@ -291,13 +291,6 @@ B.habitVal = (h, date) => {
     return h.mini && m >= (h.miniMin || 10) ? 0.5 : 0;
   }
   if (h.auto === 'sport') return sportSet().has(date) ? 1 : 0;
-  if (h.auto === 'night'){
-    // разбор начат до часу ночи: в тот же календарный день или после полуночи, но раньше 01:00
-    const r = B.day(date).review, f = r && (r.first || r.at);
-    if (!f || !B.hasReview(B.day(date))) return 0;
-    const x = new Date(f), day = B.ymd(x);
-    return day === date || (day === B.add(date, 1) && x.getHours() < 1) ? 1 : 0;
-  }
   const d = B.day(date), v = d.h && d.h[h.id];
   return v ? (v === 0.5 ? 0.5 : 1) : 0;
 };

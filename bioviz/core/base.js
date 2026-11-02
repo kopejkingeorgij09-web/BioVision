@@ -23,6 +23,39 @@ window.BV={$,$$,store,clamp,esc,reduced,themeFns,hooks:{},
   cssVar:n=>getComputedStyle(host).getPropertyValue(n).trim(),
   rng(seed){let a=seed>>>0;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}};
 
+/* ---------- короткий и безопасный разбор текста ----------
+   Абзацы через пустую строку, списки «- » и «1. », таблицы из строк «| a | b |», **жирный**, *курсив*, `код`,
+   ссылки [подпись](https://…) и голые https://… . Весь ввод сначала экранируется. */
+BV.md=function(s){
+  const lines=esc(s).replace(/\r/g,'').split('\n');let out='',list=null,para=[],tbl=null;
+  const inl=t=>t.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/(^|[^*\w])\*([^*\s][^*]*?)\*(?![*\w])/g,'$1<i>$2</i>').replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g,'$1<a href="$2" target="_blank" rel="noopener noreferrer">$2</a>');
+  const flush=()=>{if(para.length){out+=`<p>${inl(para.join('<br>'))}</p>`;para=[]}};
+  const close=()=>{if(list){out+=`</${list}>`;list=null}};
+  const endT=()=>{if(!tbl)return;const [h,...b]=tbl;tbl=null;
+    out+=`<div class="md-tw"><table class="md-t"><thead><tr>${h.map(c=>`<th>${inl(c)}</th>`).join('')}</tr></thead><tbody>${b.map(r=>`<tr>${h.map((_,i)=>`<td>${inl(r[i]||'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`};
+  for(const l of lines){let m;
+    if(/^\s*\|.*\|\s*$/.test(l)){flush();close();if(/^\s*\|[\s:|-]+\|\s*$/.test(l)&&tbl)continue;
+      (tbl=tbl||[]).push(l.trim().slice(1,-1).split('|').map(c=>c.trim()));continue}
+    endT();
+    if(/^\s*$/.test(l)){flush();close();continue}
+    if((m=l.match(/^#{1,4}\s+(.*)/))){flush();close();out+=`<h4>${inl(m[1])}</h4>`;continue}
+    if((m=l.match(/^\s*[-*•]\s+(.*)/))){flush();if(list!=='ul'){close();out+='<ul>';list='ul'}out+=`<li>${inl(m[1])}</li>`;continue}
+    if((m=l.match(/^\s*\d+[.)]\s+(.*)/))){flush();if(list!=='ol'){close();out+='<ol>';list='ol'}out+=`<li>${inl(m[1])}</li>`;continue}
+    close();para.push(l)}
+  endT();flush();close();return out};
+
+/* ---------- буфер обмена и всплывающая подсказка ---------- */
+BV.copy=async function(text){
+  try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(text);return true}}catch(e){}
+  /* запасной путь для старых браузеров и http: скрытое поле и команда copy */
+  try{const t=document.createElement('textarea');t.value=text;t.setAttribute('readonly','');t.style.cssText='position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+    document.body.appendChild(t);t.select();t.setSelectionRange(0,text.length);const ok=document.execCommand('copy');t.remove();return ok}catch(e){return false}};
+BV.toast=function(msg,ms){let t=root.querySelector('.bv-toast');
+  if(!t){t=document.createElement('div');t.className='bv-toast';t.setAttribute('role','status');t.setAttribute('aria-live','polite');root.appendChild(t)}
+  t.textContent=msg;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),ms||3200)};
+
 /* настоящая цель события, даже если оно пришло из теневого DOM */
 window.BV_ET=e=>(e&&e.composedPath&&e.composedPath()[0])||e.target;
 

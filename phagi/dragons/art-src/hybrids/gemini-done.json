@@ -115,5 +115,16 @@
   "next": "fire-earth-flora и далее по порядку canva-jobs.json",
   "done": 22,
   "total": 51
- }
+ },
+ "_canva": {
+  "fire-water": "raw.png скопирован из ~/Downloads владельца, совпадает с превью media MAHZwr2VBPQ; 1536x1024",
+  "not_done": [
+   "fire-earth",
+   "fire-air",
+   "fire-flora",
+   "fire-light"
+  ],
+  "reason": "В Chrome нет входа в Canva; коннектор отдаёт только превью 200 px."
+ },
+ "_edges": "Огненные без света дополнительно очищены от кремовой каймы. fire-water-light: кремовая кайма на хвостовом пламени осталась, очистка съедала нимб."
 }

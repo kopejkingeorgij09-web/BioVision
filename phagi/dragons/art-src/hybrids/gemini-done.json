@@ -63,5 +63,20 @@
   "file": "air-dark/body.webp",
   "tries": 1,
   "note": ""
+ },
+ "flora-light": {
+  "file": "flora-light/body.webp",
+  "tries": 1,
+  "note": ""
+ },
+ "flora-dark": {
+  "file": "flora-dark/body.webp",
+  "tries": 1,
+  "note": ""
+ },
+ "light-dark": {
+  "file": "light-dark/body.webp",
+  "tries": 1,
+  "note": ""
  }
 }

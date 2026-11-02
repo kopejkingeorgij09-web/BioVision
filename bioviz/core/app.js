@@ -30,16 +30,17 @@ BV.icon=ic;
 
 /* ---------- стили оболочки и токены оформления ---------- */
 const CSS=`
-/* Оформление «лабораторный журнал + геномный браузер»: бумага в клетку, чернила,
-   моноширинные подписи, как у последовательностей, и четыре цвета нуклеотидов (A, C, G, T).
-   Красно-оранжевый --cut отмечает разрез и текущее место: активная вкладка, раздел, прогресс. */
+/* Оформление: лабораторный журнал в лесной зелёной гамме. Бумага с лёгкой сеткой, засечки в заголовках,
+   моноширинные подписи, как у последовательностей. Главный акцент --ui, тёмно-зелёный лесной;
+   --cut отмечает текущее место (раздел, прогресс), --mark только место разреза на схеме Cas9.
+   Цвета нуклеотидов A, C, G, T живут в полоске под шапкой и на схеме мишени. */
 :host{
-  --bg:#F3F1EA;--card:#FFFEFA;--surface:var(--card);--surface-2:#ECE9E0;--soft:var(--surface-2);
-  --ink:#15171B;--text:var(--ink);--muted:#5B5F66;--line:#DCD8CC;--grid:rgba(21,23,27,.045);
-  --ui:#15171B;--ui-soft:color-mix(in oklab,var(--ui) 7%,var(--card));
-  --cut:#C63C25;--nA:#2C8650;--nC:#2B66BF;--nG:#C98A0C;--nT:#C93A4C;
+  --bg:#F2F3EE;--card:#FBFCF8;--surface:var(--card);--surface-2:#E8EBE3;--soft:var(--surface-2);
+  --ink:#17211C;--text:var(--ink);--muted:#56625B;--line:#D6DCD3;--grid:rgba(23,33,28,.04);
+  --ui:#1F5A3D;--ui-soft:color-mix(in oklab,var(--ui) 9%,var(--card));
+  --cut:#2F7A50;--mark:#C4532E;--deep:#1F5A3D;--on-deep:#F3F8F2;--nA:#2C8650;--nC:#2B66BF;--nG:#C98A0C;--nT:#C93A4C;
   --eosin:#B4366A;--accent:var(--eosin);--hema:#3B3DA0;--chl:#2F8A4C;--bio:#2F8A4C;
-  --ok:#2F8A4C;--bad:#C2384A;--amber:#B97A10;--sky:#2F72B8;--on-accent:#FFFEFA;
+  --ok:#2F8A4C;--bad:#C2384A;--amber:#B97A10;--sky:#2F72B8;--on-accent:#F6FAF5;
   --hema-soft:color-mix(in oklab,var(--hema) 11%,var(--card));--eosin-soft:color-mix(in oklab,var(--eosin) 11%,var(--card));
   --font-body:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --font-display:"Source Serif 4","PT Serif",Georgia,serif;
@@ -49,11 +50,11 @@ const CSS=`
   --pattern:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);--pattern-size:24px 24px;
   --barh:60px;
   display:block;color:var(--ink);font-family:var(--font-body);font-size:15.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
-:host([data-theme="dark"]) .bar:after{opacity:.6}
+:host([data-theme="dark"]) .bar:after{opacity:.5}
 :host([data-theme="dark"]){
-  --bg:#0F1215;--card:#161A1E;--surface-2:#1E2328;--ink:#ECE9E1;--muted:#9EA3A9;--line:#2B3137;--grid:rgba(236,233,225,.03);
-  --ui:#ECE9E1;--cut:#FF7A5C;--nA:#5BC98A;--nC:#74A9FF;--nG:#F0C04E;--nT:#FF7487;
-  --eosin:#F07AA6;--hema:#9A9DFF;--chl:#64C47E;--bio:#64C47E;--ok:#64C47E;--bad:#FF7D8C;--amber:#EDB34A;--sky:#6FB3EE;--on-accent:#111316;
+  --bg:#0D1410;--card:#131C17;--surface-2:#1A251F;--ink:#E3EBE5;--muted:#97A69D;--line:#24332B;--grid:rgba(227,235,229,.028);
+  --ui:#7CC79B;--cut:#6FBF8F;--mark:#FF8A65;--deep:#1D4431;--on-deep:#E6F0E8;--nA:#5BC98A;--nC:#74A9FF;--nG:#F0C04E;--nT:#FF7487;
+  --eosin:#F07AA6;--hema:#9A9DFF;--chl:#64C47E;--bio:#64C47E;--ok:#64C47E;--bad:#FF7D8C;--amber:#EDB34A;--sky:#6FB3EE;--on-accent:#0C1710;
   color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -154,9 +155,9 @@ main{flex:1;width:100%;max-width:1240px;margin:0 auto;padding:34px max(20px,env(
 .lc-nt.fl{opacity:.45}
 .lc-nt.b{opacity:.68}.lc-nt.b.fl{opacity:.3}
 .lc-guide{grid-column:var(--a) / var(--b);height:1.55em;margin:0 1px;border-radius:3px 0 0 3px;background:color-mix(in oklab,var(--ink) 9%,var(--card));border:1px solid color-mix(in oklab,var(--ink) 30%,var(--line));font-size:.72em;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);justify-content:flex-start!important;padding-left:.6em;white-space:nowrap;overflow:hidden}
-.lc-pam{grid-column:var(--a) / var(--b);height:1.55em;margin:0 1px;border-radius:0 3px 3px 0;background:var(--cut);color:var(--card);font-size:.72em;font-weight:700;letter-spacing:.08em}
-.lc-cut{grid-column:var(--c);grid-row:2 / 5!important;justify-self:start;justify-content:flex-start!important;align-items:stretch!important;width:0;border-left:2px dashed var(--cut);margin-left:-1px;position:relative}
-.lc-cut:before{content:"";position:absolute;top:-6px;left:-6px;border:5px solid transparent;border-top:7px solid var(--cut)}
+.lc-pam{grid-column:var(--a) / var(--b);height:1.55em;margin:0 1px;border-radius:0 3px 3px 0;background:var(--mark);color:var(--card);font-size:.72em;font-weight:700;letter-spacing:.08em}
+.lc-cut{grid-column:var(--c);grid-row:2 / 5!important;justify-self:start;justify-content:flex-start!important;align-items:stretch!important;width:0;border-left:2px dashed var(--mark);margin-left:-1px;position:relative}
+.lc-cut:before{content:"";position:absolute;top:-6px;left:-6px;border:5px solid transparent;border-top:7px solid var(--mark)}
 .lc-f{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:11px;letter-spacing:.04em;color:var(--muted)}
 .lc-f i{font-style:normal;display:inline-flex;align-items:center;gap:6px}
 .lc-f i:before{content:"";width:8px;height:8px;border-radius:2px;background:var(--c)}
@@ -173,7 +174,7 @@ main{flex:1;width:100%;max-width:1240px;margin:0 auto;padding:34px max(20px,env(
 /* линейка с делениями, как ось координат в геномном браузере */
 .blk>h2:after,.ruler{content:"";flex:1;height:7px;margin-bottom:3px;
   background:linear-gradient(var(--line),var(--line)) left bottom/100% 1px no-repeat,repeating-linear-gradient(90deg,var(--line) 0 1px,transparent 1px 10px) left bottom/100% 4px no-repeat,repeating-linear-gradient(90deg,var(--muted) 0 1px,transparent 1px 50px) left bottom/100% 7px no-repeat;opacity:.9}
-.cont{position:relative;display:flex;align-items:center;gap:16px;padding:16px 18px 16px 26px;border-radius:var(--r);background:var(--ink);color:var(--bg);text-decoration:none;max-width:760px;overflow:hidden}
+.cont{position:relative;display:flex;align-items:center;gap:16px;padding:16px 18px 16px 26px;border-radius:var(--r);background:var(--deep);color:var(--on-deep);text-decoration:none;max-width:760px;overflow:hidden}
 .cont:before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--read-v)}
 .cont small{display:block;font:500 11.5px/1.3 var(--font-mono);letter-spacing:.07em;text-transform:uppercase;opacity:.7;margin-bottom:2px}
 .cont b{display:block;font:600 19px/1.25 var(--font-display)}
@@ -184,7 +185,7 @@ main{flex:1;width:100%;max-width:1240px;margin:0 auto;padding:34px max(20px,env(
 .rows>li+li{border-top:1px solid var(--line)}
 .row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px 18px;align-items:center;padding:18px 20px;text-decoration:none;color:var(--ink);transition:background .15s}
 .row:hover{background:color-mix(in oklab,var(--ink) 3%,var(--card))}
-.row .no{font:600 15px/1 var(--font-mono);color:var(--ink);border:1.5px solid var(--ink);border-radius:var(--rx);width:46px;height:46px;display:grid;place-items:center;align-self:start;position:relative}
+.row .no{font:600 15px/1 var(--font-mono);color:var(--ui);border:1.5px solid var(--ui);border-radius:var(--rx);width:46px;height:46px;display:grid;place-items:center;align-self:start;position:relative}
 .row .no .i{width:22px;height:22px}
 .row b{display:block;font:600 20px/1.25 var(--font-display);letter-spacing:-.005em}
 .row small{display:block;color:var(--muted);font:500 12px/1.4 var(--font-mono);letter-spacing:.02em;margin:3px 0 5px}
@@ -217,7 +218,7 @@ main{flex:1;width:100%;max-width:1240px;margin:0 auto;padding:34px max(20px,env(
 
 .trk{display:flex;align-items:center;gap:3px;width:max-content}
 .trk i{display:block;width:8px;height:12px;border-radius:2px;border:1px solid var(--line);background:var(--card)}
-.trk i.on{background:var(--ink);border-color:var(--ink)}
+.trk i.on{background:var(--cut);border-color:var(--cut)}
 .lw-doc h2,.lw-doc h1{font-weight:700}
 
 /* хлебные крошки и шапка внутренних страниц */
@@ -258,8 +259,26 @@ main{flex:1;width:100%;max-width:1240px;margin:0 auto;padding:34px max(20px,env(
 .k-toc a{border-radius:var(--rx)}
 .k-toc a.on{background:var(--surface-2);color:var(--ink);box-shadow:inset 2px 0 var(--cut);border-radius:0 5px 5px 0}
 .k-sheetnav a.on{background:var(--surface-2);color:var(--ink);box-shadow:inset 3px 0 var(--cut)}
-.k-prog{height:3px;border-radius:0}
-.k-prog i{background:var(--cut);border-radius:0}
+.k-prog{display:none}
+/* линия прогресса вдоль содержания: заполняется до текущего раздела */
+.k-toc{position:sticky}
+.k-toc a{padding-left:20px;position:relative}
+.k-toc a.sub{padding-left:32px}
+.k-toc a.past{color:var(--ink)}
+.toc-line{position:absolute;left:12px;width:2px;border-radius:2px;background:var(--line);pointer-events:none}
+.toc-line b{position:absolute;left:0;top:0;width:100%;border-radius:2px;background:var(--cut);transition:height .45s cubic-bezier(.3,.7,.2,1)}
+.toc-line b:after{content:"";position:absolute;left:50%;bottom:-4px;width:8px;height:8px;margin-left:-4px;border-radius:50%;background:var(--cut);box-shadow:0 0 0 3px color-mix(in oklab,var(--cut) 22%,transparent)}
+.k-toc a.on{background:var(--surface-2);color:var(--ink);box-shadow:none;border-radius:var(--rx)}
+@media (prefers-reduced-motion:reduce){.toc-line b{transition:none}}
+/* «Мостик от школьного курса»: свёрнут в таблетку, раскрывается по клику */
+.k-box.k-fold{display:block;padding:0;border:0;background:none;margin:12px 0 16px}
+.k-fold-h{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:9px;padding:7px 14px 7px 12px;border-radius:999px;border:1px solid color-mix(in oklab,var(--ui) 35%,var(--line));background:var(--ui-soft);color:var(--ui);font:500 12.5px/1.3 var(--font-mono);letter-spacing:.03em;transition:border-color .15s,background .15s}
+.k-fold-h:hover{border-color:var(--ui)}
+.k-fold-h:focus-visible{outline:2px solid var(--cut);outline-offset:2px}
+.k-fold-h svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .25s}
+.k-fold-h[aria-expanded="true"] svg{transform:rotate(180deg)}
+.k-fold-b{margin-top:10px;padding:14px 18px;border-left:2px solid color-mix(in oklab,var(--ui) 45%,var(--line));background:color-mix(in oklab,var(--ui) 5%,var(--card));border-radius:0 var(--rs) var(--rs) 0}
+.k-fold-b p:last-child,.k-fold-b ul:last-child{margin-bottom:0}
 .k-opt,.k-mrow{border-radius:var(--rs)}
 .k-opt>i{border-radius:var(--rx);font-family:var(--font-mono)}
 .k-opt:hover{border-color:var(--ink)}
@@ -302,100 +321,24 @@ main{flex:1;width:100%;max-width:1240px;margin:0 auto;padding:34px max(20px,env(
 .codes button{all:unset;cursor:pointer;color:var(--muted);font-size:13px;padding:4px 8px;border-radius:var(--rx)}
 .codes button:hover{color:var(--bad);background:var(--surface-2)}
 
-/* общие правила для заголовков и карточек: их меняет выбранный стиль */
+/* общие правила для заголовков и карточек */
 .hero h1,.row b,.cont b,.askcard b,.after b,.card h2,.k-title h2,.k-sec>h2,.k-sheet h3,.k-steptx b,.k-q>b:first-child,.el-card h2,.brand b,.ai .ai-h b,.ai .ai-empty b{font-family:var(--font-display);font-weight:var(--dw);letter-spacing:var(--dls);text-transform:var(--dcase)}
 .btn,.seg{border-radius:var(--rb)}
 .seg button{border-radius:calc(var(--rb) - 3px)}
 .rows,.locus,.askcard,.after a,.k-sheet,.k-toc,.el-card,.card,.cont{box-shadow:var(--csh)}
 
-/* ---------- стили оформления ----------
-   Каждый стиль задаёт токены для светлого (:not([data-theme="dark"])) и тёмного режима
-   и при необходимости несколько своих правил. Список стилей и их шрифты в bioviz/core/base.js. */
-
-/* Гель: агарозный гель, дорожки; в тёмном режиме полосы светятся, как под УФ */
-:host([data-style="gel"]){--font-body:"IBM Plex Sans",system-ui,sans-serif;--font-display:"IBM Plex Sans",system-ui,sans-serif;--font-mono:"IBM Plex Mono",ui-monospace,monospace;
-  --r:6px;--rs:4px;--rx:3px;--rb:4px;--dw:600;--dls:-.02em;--pattern-size:auto}
-:host([data-style="gel"]:not([data-theme="dark"])){--bg:#E8ECEF;--card:#F7F9FA;--surface-2:#DDE3E8;--ink:#101820;--muted:#55606A;--line:#C9D2DA;--ui:#1E3A5F;--on-accent:#fff;--cut:#D2531A;
-  --pattern:repeating-linear-gradient(90deg,transparent 0 52px,rgba(30,58,95,.045) 52px 96px)}
-:host([data-style="gel"][data-theme="dark"]){--bg:#070B14;--card:#0D1320;--surface-2:#151D2C;--ink:#E6ECF5;--muted:#8E9AAC;--line:#223047;--ui:#FF9A4D;--on-accent:#1A0E05;--cut:#FF9A4D;
-  --pattern:repeating-linear-gradient(90deg,transparent 0 52px,rgba(255,154,77,.035) 52px 96px);
-  --csh:0 0 0 1px rgba(255,154,77,.04),0 18px 40px -28px rgba(255,154,77,.35)}
-:host([data-style="gel"][data-theme="dark"]) .hero h1{text-shadow:0 0 28px rgba(255,154,77,.35)}
-:host([data-style="gel"]) .row .no,:host([data-style="gel"]) .lc-pam{box-shadow:0 0 14px -2px color-mix(in srgb,var(--cut) 60%,transparent)}
-
-/* Флуоресценция: чёрное поле конфокального микроскопа и каналы GFP, DAPI, mCherry */
-:host([data-style="fluo"]){--font-display:"Unbounded","Golos Text",sans-serif;--r:18px;--rs:12px;--rx:8px;--rb:999px;--dw:600;--dls:-.03em;--pattern-size:auto}
-:host([data-style="fluo"]:not([data-theme="dark"])){--bg:#F7F7FB;--card:#FFFFFF;--surface-2:#EEEFF6;--ink:#12131F;--muted:#585D78;--line:#E0E2EE;--ui:#0A7F49;--on-accent:#fff;--cut:#C81C6B;
-  --pattern:radial-gradient(circle at 12% 18%,rgba(76,125,255,.09),transparent 32%),radial-gradient(circle at 88% 8%,rgba(209,31,114,.07),transparent 30%),radial-gradient(circle at 70% 85%,rgba(10,143,82,.07),transparent 34%);
-  --csh:0 14px 34px -24px rgba(30,30,90,.35)}
-:host([data-style="fluo"][data-theme="dark"]){--bg:#04050A;--card:#0B0D16;--surface-2:#131624;--ink:#F1F3FF;--muted:#9299B9;--line:#1E2236;--ui:#3DF08A;--on-accent:#03140A;--cut:#FF4FA3;
-  --pattern:radial-gradient(circle at 12% 18%,rgba(76,125,255,.16),transparent 32%),radial-gradient(circle at 88% 8%,rgba(255,61,154,.12),transparent 30%),radial-gradient(circle at 70% 85%,rgba(61,240,138,.09),transparent 34%);
-  --csh:0 0 0 1px rgba(255,255,255,.02),0 22px 50px -30px rgba(61,240,138,.3)}
-:host([data-style="fluo"]) .hero h1{font-size:clamp(30px,5.2vw,58px)}
-:host([data-style="fluo"][data-theme="dark"]) .hero h1{text-shadow:0 0 30px rgba(61,240,138,.35)}
-:host([data-style="fluo"]) .cont{background:linear-gradient(120deg,var(--ui),color-mix(in oklab,var(--ui) 55%,#4C7DFF));color:var(--on-accent)}
-:host([data-style="fluo"]) .row .no{border-radius:50%;border-color:var(--ui);color:var(--ui)}
-:host([data-style="fluo"][data-theme="dark"]) .row .no{box-shadow:0 0 16px -3px var(--ui)}
-
-/* Агар: чашка Петри, тёплый агар и колонии, всё круглое */
-:host([data-style="agar"]){--font-body:"Nunito","Golos Text",sans-serif;--font-display:"Nunito","Golos Text",sans-serif;--r:24px;--rs:14px;--rx:10px;--rb:999px;--dw:800;--dls:-.02em;--pattern-size:150px 150px}
-:host([data-style="agar"]:not([data-theme="dark"])){--bg:#F4E7C9;--card:#FFF8E6;--surface-2:#F0E1BD;--ink:#2B1D0E;--muted:#6B573C;--line:#E2CFA3;--ui:#9C3412;--on-accent:#FFF8E6;--cut:#C2410C;
-  --pattern:radial-gradient(circle at 20% 30%,rgba(156,52,18,.09) 0 3px,transparent 4px),radial-gradient(circle at 72% 62%,rgba(156,52,18,.06) 0 7px,transparent 8px),radial-gradient(circle at 46% 86%,rgba(140,100,20,.08) 0 2px,transparent 3px),radial-gradient(circle at 88% 14%,rgba(140,100,20,.06) 0 4px,transparent 5px);
-  --csh:0 2px 0 rgba(120,80,20,.08),0 18px 36px -26px rgba(120,80,20,.45)}
-:host([data-style="agar"][data-theme="dark"]){--bg:#1A140C;--card:#241B10;--surface-2:#2E2315;--ink:#F6E9CF;--muted:#BBA683;--line:#3D3020;--ui:#F2A65A;--on-accent:#241405;--cut:#FF8A4C;
-  --pattern:radial-gradient(circle at 20% 30%,rgba(242,166,90,.09) 0 3px,transparent 4px),radial-gradient(circle at 72% 62%,rgba(242,166,90,.06) 0 7px,transparent 8px),radial-gradient(circle at 46% 86%,rgba(242,200,120,.07) 0 2px,transparent 3px),radial-gradient(circle at 88% 14%,rgba(242,200,120,.05) 0 4px,transparent 5px);
-  --csh:0 18px 36px -26px rgba(0,0,0,.7)}
-:host([data-style="agar"]) .row .no{border-radius:50%;border-width:2px;border-color:var(--ui);color:var(--ui);background:color-mix(in oklab,var(--ui) 8%,var(--card))}
-:host([data-style="agar"]) .eyebrow:before{border-radius:50%}
-:host([data-style="agar"]) .k-sec>h2 .k-no{border-radius:50%;min-width:38px;height:38px}
-
-/* Секвенатор: терминал прибора и распечатка прочтений, всё моноширинное */
-:host([data-style="term"]){--font-body:"JetBrains Mono",ui-monospace,monospace;--font-display:"JetBrains Mono",ui-monospace,monospace;--r:0px;--rs:0px;--rx:0px;--rb:0px;--dw:800;--dls:-.02em;--pattern-size:auto;font-size:14.5px}
-:host([data-style="term"]:not([data-theme="dark"])){--bg:#FBFBF4;--card:#FFFFFF;--surface-2:#EFF0E5;--ink:#121412;--muted:#545A54;--line:#C9CDBF;--ui:#0B6E2E;--on-accent:#fff;--cut:#B86E00;
-  --pattern:repeating-linear-gradient(180deg,rgba(11,110,46,.05) 0 28px,transparent 28px 56px)}
-:host([data-style="term"][data-theme="dark"]){--bg:#0A0F0A;--card:#0D140D;--surface-2:#132013;--ink:#CFF2D2;--muted:#82A888;--line:#22382A;--ui:#4BFF8C;--on-accent:#021006;--cut:#FFB000;
-  --pattern:repeating-linear-gradient(180deg,rgba(75,255,140,.025) 0 1px,transparent 1px 3px)}
-:host([data-style="term"]) .hero h1:before{content:"> ";color:var(--cut)}
-:host([data-style="term"]) .hero h1:after{content:"_";color:var(--cut);animation:blink 1.1s steps(1) infinite}
-@keyframes blink{50%{opacity:0}}
-@media (prefers-reduced-motion:reduce){:host([data-style="term"]) .hero h1:after{animation:none}}
-:host([data-style="term"]) .rows,:host([data-style="term"]) .card,:host([data-style="term"]) .after a,:host([data-style="term"]) .askcard,:host([data-style="term"]) .locus{border-style:dashed}
-:host([data-style="term"][data-theme="dark"]) .hero h1,:host([data-style="term"][data-theme="dark"]) .k-title h2{color:var(--ui);text-shadow:0 0 14px rgba(75,255,140,.3)}
-
-/* Чертёж: карта плазмиды на синьке, крупная и мелкая сетка, узкий шрифт прописными */
-:host([data-style="blue"]){--font-body:"PT Sans","Golos Text",sans-serif;--font-display:"PT Sans Narrow","PT Sans",sans-serif;--font-mono:"PT Mono",ui-monospace,monospace;
-  --r:2px;--rs:2px;--rx:2px;--rb:2px;--dw:700;--dls:.01em;--dcase:uppercase;--pattern-size:100px 100px,100px 100px,20px 20px,20px 20px;font-size:16px}
-:host([data-style="blue"]:not([data-theme="dark"])){--bg:#F7FAFF;--card:#FFFFFF;--surface-2:#EAF1FB;--ink:#0E2A55;--muted:#475E85;--line:#C2D3EC;--ui:#1B4FA0;--on-accent:#fff;--cut:#D2450C;
-  --pattern:linear-gradient(rgba(27,79,160,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(27,79,160,.12) 1px,transparent 1px),linear-gradient(rgba(27,79,160,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(27,79,160,.05) 1px,transparent 1px)}
-:host([data-style="blue"][data-theme="dark"]){--bg:#0D2B52;--card:#103362;--surface-2:#154076;--ink:#F2F7FF;--muted:#AFC5E6;--line:#3A659E;--ui:#FFFFFF;--on-accent:#0D2B52;--cut:#FFD04D;
-  --pattern:linear-gradient(rgba(255,255,255,.1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.1) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px)}
-:host([data-style="blue"]) .hero h1{font-size:clamp(38px,7vw,76px);line-height:.98}
-:host([data-style="blue"]) .rows,:host([data-style="blue"]) .card,:host([data-style="blue"]) .after a,:host([data-style="blue"]) .askcard,:host([data-style="blue"]) .locus,:host([data-style="blue"]) .k-sheet,:host([data-style="blue"]) .el-card{border-width:1.5px;border-color:color-mix(in oklab,var(--ink) 40%,var(--line))}
-
 /* ---------- меню «Оформление» ---------- */
-.thm{position:fixed;z-index:70;width:min(380px,calc(100vw - 16px));max-height:calc(100dvh - var(--barh) - 24px);overflow:auto;overscroll-behavior:contain;background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:0 18px 44px -14px rgba(0,0,0,.35);padding:14px;display:flex;flex-direction:column;gap:12px}
+.thm{position:fixed;z-index:70;width:min(340px,calc(100vw - 16px));max-height:calc(100dvh - var(--barh) - 24px);overflow:auto;overscroll-behavior:contain;background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:0 18px 44px -14px rgba(0,0,0,.35);padding:14px;display:flex;flex-direction:column;gap:12px}
 .thm>b{font:500 11.5px/1.3 var(--font-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
 .thm .seg{display:flex;width:100%}
 .thm .seg button{flex:1 1 0;display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 6px}
 .thm .seg .i{width:16px;height:16px}
-.sty{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.sty button{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--rs);overflow:hidden;background:var(--card)}
-.sty button:hover{border-color:var(--ink)}
-.sty button:focus-visible{outline:2px solid var(--cut);outline-offset:2px}
-.sty button[aria-checked="true"]{border-color:var(--cut);box-shadow:0 0 0 1px var(--cut)}
-.sty .pv{position:relative;height:66px;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;background:var(--pbg);color:var(--pink);background-image:var(--ppat);background-size:var(--psz,auto)}
-.sty .pv em{font-style:normal;font-size:24px;line-height:1;font-family:var(--pf);font-weight:var(--pw);text-transform:var(--pc,none)}
-.sty .pv span{display:flex;gap:4px}
-.sty .pv span i{width:14px;height:5px;border-radius:1px;background:var(--c)}
-.sty .nm{padding:7px 10px 8px;display:flex;flex-direction:column;gap:1px}
-.sty .nm b{font-size:13.5px;font-weight:700;color:var(--ink)}
-.sty .nm small{font-size:11.5px;line-height:1.3;color:var(--muted)}
 `;
 {const st=document.createElement('style');st.textContent=CSS;R.appendChild(st)}
 
 /* ---------- разметка ---------- */
 /* знак: двойная нить ДНК, разрезанная поперёк обеих нитей (так режет Cas9), над разрезом метка */
-const LOGO=`<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="7" fill="var(--ui)"/><path d="M13.6 5.2h4.8L16 8.6z" fill="var(--cut)"/><g stroke-width="2.2" stroke-linecap="round"><path d="M6 12h8M18 12h8M6 22h8M18 22h8" stroke="var(--card)"/><path d="M8.5 13.6v6.8" stroke="var(--nA)"/><path d="M11.8 13.6v6.8" stroke="var(--nC)"/><path d="M20.2 13.6v6.8" stroke="var(--nG)"/><path d="M23.5 13.6v6.8" stroke="var(--nT)"/></g></svg>`;
+const LOGO=`<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="7" fill="var(--deep)"/><path d="M13.6 5.2h4.8L16 8.6z" fill="var(--mark)"/><g stroke-width="2.2" stroke-linecap="round"><path d="M6 12h8M18 12h8M6 22h8M18 22h8" stroke="var(--on-deep)"/><path d="M8.5 13.6v6.8" stroke="var(--nA)"/><path d="M11.8 13.6v6.8" stroke="var(--nC)"/><path d="M20.2 13.6v6.8" stroke="var(--nG)"/><path d="M23.5 13.6v6.8" stroke="var(--nT)"/></g></svg>`;
 
 /* «прочтение»: короткая последовательность, раскрашенная по нуклеотидам; полоска под шапкой и у карточки «Продолжить» */
 const READ='GATTCAGCTGACGTCAATGGCATCGAAGGCTTACCGTAGTCAGGATCCTTGACAGTCGATGCA';
@@ -413,7 +356,7 @@ function locus(){const fl1='TCA',guide='GCTGACGTCAATGGCATCGA',pam='AGG',fl2='CTT
   h+=`<span class="lc-cut" style="--c:${cut+2}" title="Место разреза"></span>`;
   return `<figure class="locus go" aria-hidden="true" style="margin:0"><div class="lc-h"><span>Cas9 · <b>мишень</b></span><span>${n} п.н.</span></div>
     <div class="lc-g" style="--n:${n}">${h}</div>
-    <div class="lc-f"><i style="--c:var(--nA)">A</i><i style="--c:var(--nC)">C</i><i style="--c:var(--nG)">G</i><i style="--c:var(--nT)">T</i><i style="--c:var(--cut);margin-left:auto">разрез</i></div></figure>`}
+    <div class="lc-f"><i style="--c:var(--nA)">A</i><i style="--c:var(--nC)">C</i><i style="--c:var(--nG)">G</i><i style="--c:var(--nT)">T</i><i style="--c:var(--mark);margin-left:auto">разрез</i></div></figure>`}
 const app=document.createElement('div');app.className='app';
 app.style.setProperty('--read',readGrad('90deg'));app.style.setProperty('--read-v',readGrad('180deg'));
 app.innerHTML=`<header class="bar">
@@ -546,7 +489,7 @@ function show(r){
   cur=r;
   if(r.kind==='home')renderHome();
   if(r.kind==='me')renderMe();
-  if(r.kind==='lecture'){curLecture=r.L;BV.K.show(r.L.id);fillAfter(r.L);
+  if(r.kind==='lecture'){curLecture=r.L;BV.K.show(r.L.id);fillAfter(r.L);folds(target);requestAnimationFrame(()=>tocLine(target));
     if(r.sec)requestAnimationFrame(()=>{if(!scrollToId(target,r.sec))window.scrollTo({top:0})});else if(!same)window.scrollTo({top:0});
     document.title=`Лекция ${r.L.n}. ${r.L.title} · БиоВиз`}
   else if(r.kind==='x'){if(!same)window.scrollTo({top:0});let t='';try{t=r.x.show(r.m)}catch(e){console.error(r.x.key,e)}document.title=(t?t+' · ':'')+'БиоВиз'}
@@ -567,6 +510,28 @@ function fillAfter(L){const box=$('.after',pages['l'+L.n]);
   box.innerHTML=(next?`<a href="#/l/${next.n}"><small>Следующая лекция</small><b>${esc(next.title)}</b></a>`:'')+
     `<a href="#/labs"><small>Практика</small><b>Лабораторные работы</b></a><a href="#/"><small>Курс</small><b>Все лекции</b></a>`}
 
+/* линия прогресса вдоль содержания: заполняется до текущего раздела, пройденные пункты темнее */
+function tocLine(page){const toc=$('.k-toc',page);if(!toc||!toc.offsetParent)return;
+  const links=$$('a',toc);if(!links.length)return;
+  let line=$('.toc-line',toc);if(!line){line=document.createElement('i');line.className='toc-line';line.setAttribute('aria-hidden','true');line.innerHTML='<b></b>';toc.appendChild(line)}
+  const a0=links[0],aN=links[links.length-1],on=$('a.on',toc)||a0,top=a0.offsetTop+6,bot=aN.offsetTop+aN.offsetHeight-6;
+  line.style.top=top+'px';line.style.height=Math.max(0,bot-top)+'px';
+  line.firstChild.style.height=Math.max(0,on.offsetTop+on.offsetHeight/2-top)+'px';
+  let past=true;links.forEach(a=>{if(a===on)past=false;a.classList.toggle('past',past)})}
+let tlRaf=0;
+addEventListener('scroll',()=>{if(tlRaf||!cur||cur.kind!=='lecture')return;tlRaf=requestAnimationFrame(()=>{tlRaf=0;tocLine(pages['l'+cur.L.n])})},{passive:true});
+addEventListener('resize',()=>{if(cur&&cur.kind==='lecture')tocLine(pages['l'+cur.L.n])});
+
+/* «Мостик от школьного курса» сворачивается в таблетку. Свернуть можно и любую другую врезку: класс k-fold в K.box */
+const CHEV='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+function folds(scope){$$('.k-box',scope).forEach(bx=>{if(bx.dataset.fold)return;const h=bx.firstElementChild;
+  if(!h||h.tagName!=='B'||!(/^Мостик/.test(h.textContent.trim())||bx.classList.contains('k-fold')))return;
+  bx.dataset.fold='1';bx.classList.add('k-fold');
+  const body=document.createElement('div');body.className='k-fold-b';body.hidden=true;while(h.nextSibling)body.appendChild(h.nextSibling);
+  const btn=document.createElement('button');btn.type='button';btn.className='k-fold-h';btn.setAttribute('aria-expanded','false');btn.innerHTML=h.innerHTML+CHEV;
+  h.replaceWith(btn);bx.appendChild(body);
+  btn.addEventListener('click',()=>{const o=btn.getAttribute('aria-expanded')!=='true';btn.setAttribute('aria-expanded',String(o));body.hidden=!o;if(cur&&cur.kind==='lecture')requestAnimationFrame(()=>tocLine(pages['l'+cur.L.n]))})})}
+
 /* где остановился: текущий раздел пишется в адрес (без новой записи в истории) и в память браузера */
 let lastSec=null,tm=0;
 addEventListener('scroll',()=>{if(tm)return;tm=setTimeout(()=>{tm=0;if(!cur||cur.kind!=='lecture')return;
@@ -582,34 +547,15 @@ addEventListener('scroll',()=>{if(tm)return;tm=setTimeout(()=>{tm=0;if(!cur||cur
 const tb=$('[data-theme-btn]');
 const drawTb=()=>{const v=BV.theme.get();tb.innerHTML=ic(v==='dark'?'moon':v==='light'?'sun':'auto');tb.title='Оформление: '+({auto:'как в системе',light:'светлое',dark:'тёмное'})[v]};
 drawTb();
-/* превью стилей в меню: фон, текст, акцент и разрез для светлого и тёмного режима, шрифт заголовка */
-const PV={
-  journal:{l:['#F3F1EA','#15171B','#15171B','#C63C25'],d:['#0F1215','#ECE9E1','#ECE9E1','#FF7A5C'],f:'"Source Serif 4",serif',w:600},
-  gel:{l:['#E8ECEF','#101820','#1E3A5F','#D2531A'],d:['#070B14','#E6ECF5','#FF9A4D','#FF9A4D'],f:'"IBM Plex Sans",sans-serif',w:600,
-    p:['repeating-linear-gradient(90deg,transparent 0 14px,rgba(30,58,95,.08) 14px 26px)','repeating-linear-gradient(90deg,transparent 0 14px,rgba(255,154,77,.09) 14px 26px)']},
-  fluo:{l:['#F7F7FB','#12131F','#0A7F49','#C81C6B'],d:['#04050A','#F1F3FF','#3DF08A','#FF4FA3'],f:'Unbounded,sans-serif',w:600,
-    p:['radial-gradient(circle at 80% 20%,rgba(209,31,114,.14),transparent 45%),radial-gradient(circle at 20% 90%,rgba(10,143,82,.14),transparent 45%)','radial-gradient(circle at 80% 20%,rgba(255,61,154,.3),transparent 45%),radial-gradient(circle at 20% 90%,rgba(61,240,138,.22),transparent 45%)']},
-  agar:{l:['#F4E7C9','#2B1D0E','#9C3412','#C2410C'],d:['#1A140C','#F6E9CF','#F2A65A','#FF8A4C'],f:'Nunito,sans-serif',w:800,
-    p:['radial-gradient(circle at 75% 35%,rgba(156,52,18,.18) 0 4px,transparent 5px),radial-gradient(circle at 88% 70%,rgba(156,52,18,.12) 0 7px,transparent 8px)','radial-gradient(circle at 75% 35%,rgba(242,166,90,.25) 0 4px,transparent 5px),radial-gradient(circle at 88% 70%,rgba(242,166,90,.16) 0 7px,transparent 8px)']},
-  term:{l:['#FBFBF4','#121412','#0B6E2E','#B86E00'],d:['#0A0F0A','#CFF2D2','#4BFF8C','#FFB000'],f:'"JetBrains Mono",monospace',w:800,
-    p:['repeating-linear-gradient(180deg,rgba(11,110,46,.07) 0 11px,transparent 11px 22px)','repeating-linear-gradient(180deg,rgba(75,255,140,.05) 0 1px,transparent 1px 3px)']},
-  blue:{l:['#F7FAFF','#0E2A55','#1B4FA0','#D2450C'],d:['#0D2B52','#F2F7FF','#FFFFFF','#FFD04D'],f:'"PT Sans Narrow",sans-serif',w:700,c:'uppercase',
-    p:['linear-gradient(rgba(27,79,160,.14) 1px,transparent 1px),linear-gradient(90deg,rgba(27,79,160,.14) 1px,transparent 1px)','linear-gradient(rgba(255,255,255,.14) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.14) 1px,transparent 1px)'],sz:'12px 12px'}};
 const MODES=[['auto','Система'],['light','Светлое'],['dark','Тёмное']];
-function drawThm(m){const v=BV.theme.get(),cur=BV.theme.style(),dk=BVHOST.host.dataset.theme==='dark';
-  m.innerHTML=`<b>Режим</b><div class="seg" role="radiogroup" aria-label="Режим">${MODES.map(([k,t])=>`<button type="button" role="radio" aria-pressed="${k===v}" aria-checked="${k===v}" data-v="${k}">${ic(k==='dark'?'moon':k==='light'?'sun':'auto')}${t}</button>`).join('')}</div>
-    <b>Стиль</b><div class="sty" role="radiogroup" aria-label="Стиль">${BV.theme.styles.map(st=>{const P=PV[st.id],c=P[dk?'d':'l'];
-      return `<button type="button" role="radio" aria-checked="${st.id===cur}" data-st="${st.id}"><span class="pv" style="--pbg:${c[0]};--pink:${c[1]};--pf:${esc(P.f)};--pw:${P.w};--pc:${P.c||'none'};--ppat:${P.p?P.p[dk?1:0]:'none'};--psz:${P.sz||'auto'}"><em>Аа</em><span><i style="--c:${c[2]}"></i><i style="--c:${c[3]}"></i><i style="--c:var(--nA)"></i><i style="--c:var(--nC)"></i></span></span><span class="nm"><b>${esc(st.name)}</b><small>${esc(st.about)}</small></span></button>`}).join('')}</div>`}
+function drawThm(m){const v=BV.theme.get();
+  m.innerHTML=`<b>Оформление</b><div class="seg" role="radiogroup" aria-label="Оформление">${MODES.map(([k,t])=>`<button type="button" role="radio" aria-pressed="${k===v}" aria-checked="${k===v}" data-v="${k}">${ic(k==='dark'?'moon':k==='light'?'sun':'auto')}${t}</button>`).join('')}</div>`}
 function closeThm(focus){const m=$('.thm');if(!m)return;m.remove();tb.setAttribute('aria-expanded','false');if(focus)tb.focus()}
 tb.addEventListener('click',()=>{if($('.thm')){closeThm();return}
-  BV.theme.loadAll();
   const m=document.createElement('div');m.className='thm';m.setAttribute('role','dialog');m.setAttribute('aria-label','Оформление');drawThm(m);
   R.appendChild(m);const r=tb.getBoundingClientRect();m.style.top=(r.bottom+8)+'px';m.style.right=Math.max(8,innerWidth-r.right)+'px';
-  tb.setAttribute('aria-expanded','true');(m.querySelector('.sty [aria-checked="true"]')||m.querySelector('button')).focus();
-  /* меню остаётся открытым, чтобы можно было перебрать стили подряд */
-  m.addEventListener('click',e=>{const t=BV_ET(e),b=t.closest('[data-v]'),st=t.closest('[data-st]');
-    if(b){BV.theme.set(b.dataset.v);drawTb()}else if(st)BV.theme.setStyle(st.dataset.st);else return;
-    const k=b?'[data-v="'+b.dataset.v+'"]':'[data-st="'+st.dataset.st+'"]';drawThm(m);const f=m.querySelector(k);if(f)f.focus()})});
+  tb.setAttribute('aria-expanded','true');(m.querySelector('[aria-checked="true"]')||m.querySelector('button')).focus();
+  m.addEventListener('click',e=>{const b=BV_ET(e).closest('[data-v]');if(!b)return;BV.theme.set(b.dataset.v);drawTb();closeThm(true)})});
 document.addEventListener('click',e=>{if($('.thm')&&!BV_ET(e).closest('.thm,[data-theme-btn]'))closeThm()});
 R.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('.thm'))closeThm(true)});
 

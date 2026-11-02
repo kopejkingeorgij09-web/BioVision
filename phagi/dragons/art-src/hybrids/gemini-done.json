@@ -11,8 +11,8 @@
  },
  "water-air": {
   "file": "water-air/body.webp",
-  "tries": 1,
-  "note": ""
+  "tries": 3,
+  "note": "Первые две отправки ушли без картинок родителей и отброшены; в repo третья, с вложениями."
  },
  "water-flora": {
   "file": "water-flora/body.webp",
@@ -103,5 +103,17 @@
   "file": "fire-water-dark/body.webp",
   "tries": 1,
   "note": ""
+ },
+ "fire-earth-air": {
+  "file": "fire-earth-air/body.webp",
+  "tries": 1,
+  "note": ""
+ },
+ "_stopped": {
+  "at": "fire-earth-flora",
+  "reason": "Лимит картинок Gemini (Pro): интерфейс сообщил о сбросе в 16:08 2.11.2026, модель переключилась на Flash-Lite.",
+  "next": "fire-earth-flora и далее по порядку canva-jobs.json",
+  "done": 22,
+  "total": 51
  }
 }

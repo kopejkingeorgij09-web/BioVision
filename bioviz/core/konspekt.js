@@ -463,6 +463,26 @@
                 }),
                   (a._stop = p),
                   h(1));
+                /* подпись шага занимает место под самый длинный шаг, чтобы рисунок не менял высоту
+                   при переключении и текст под ним не подпрыгивал */
+                const fit = () => {
+                  if (!s.offsetParent) return;
+                  const w = s.offsetWidth;
+                  if (!w || w === s._fw) return;
+                  s._fw = w;
+                  const keep = s.innerHTML;
+                  s.style.minHeight = "";
+                  let mx = 0;
+                  o.steps.forEach((c, i) => {
+                    s.innerHTML = `<b>${i + 1}. ${c.t}</b>${c.d}`;
+                    mx = Math.max(mx, s.offsetHeight);
+                  });
+                  s.innerHTML = keep;
+                  s.style.minHeight = mx + "px";
+                };
+                window.ResizeObserver
+                  ? new ResizeObserver(() => requestAnimationFrame(fit)).observe(s)
+                  : fit();
               })(a, b[o]),
             c[o])
           )
@@ -487,8 +507,13 @@
           if (!a) return;
           let o = 0;
           const l = () => {
-            const t = a.getBoundingClientRect().top;
-            (Math.abs(t - 14) > 4 && window.scrollBy(0, t - 14),
+            /* заголовок встаёт сразу под шапкой сайта, а не прячется под ней */
+            const bh =
+                (parseFloat(
+                  getComputedStyle(BVHOST.host).getPropertyValue("--barh"),
+                ) || 0) + 14,
+              t = a.getBoundingClientRect().top;
+            (Math.abs(t - bh) > 4 && window.scrollBy(0, t - bh),
               ++o < 4 && setTimeout(() => requestAnimationFrame(l), 120 * o));
           };
           l();

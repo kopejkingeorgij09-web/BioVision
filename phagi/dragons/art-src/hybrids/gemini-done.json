@@ -78,5 +78,30 @@
   "file": "light-dark/body.webp",
   "tries": 1,
   "note": ""
+ },
+ "fire-water-earth": {
+  "file": "fire-water-earth/body.webp",
+  "tries": 1,
+  "note": ""
+ },
+ "fire-water-air": {
+  "file": "fire-water-air/body.webp",
+  "tries": 1,
+  "note": ""
+ },
+ "fire-water-flora": {
+  "file": "fire-water-flora/body.webp",
+  "tries": 1,
+  "note": ""
+ },
+ "fire-water-light": {
+  "file": "fire-water-light/body.webp",
+  "tries": 1,
+  "note": ""
+ },
+ "fire-water-dark": {
+  "file": "fire-water-dark/body.webp",
+  "tries": 1,
+  "note": ""
  }
 }

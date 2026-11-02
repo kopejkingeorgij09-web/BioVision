@@ -229,7 +229,7 @@ function startState(uid,today,now,oldL){const r=rng(uid+':founders6'),a=pick(r,B
   const homeOf=e=>{const t='h'+e,p=freeSpot(s);return put(t,p.x,p.y)};
   const ha=homeOf(a),hb=homeOf(b);{const p=freeSpot(s);put('farm',p.x,p.y)}
   const mk=(e,sex,home)=>{const g=genomeOf([e],sex),id='d'+s.seq++;s.dragons.push({id,name:nameFor(g,uid+':n:'+id),g,lvl:1,fed:0,home,born:today,acad:{b:0,m:{}},job:null});return id};
-  mk(a,'F',ha);mk(b,'M',hb);
+  mk(a,'F',ha);mk(b,'M',hb);s.dragons.forEach(d=>collect(s,d.g));
   const gift=giftFor(oldL);s.bal.gold=gift.gold;s.bal.food=gift.food;s.bal.gems=gift.gems;
   gift.eggs.forEach((rar,i)=>s.eggs.push({id:'e'+s.seq++,g:eggGenome(rar,uid+':gift6:'+i),rar,from:'gift'}));
   s.welcome={gift,seen:false};
@@ -269,7 +269,11 @@ function finishJobs(s,now,uid){
     else if(j.kind==='mag'){d.acad.m=Object.assign({},d.acad.m,{[j.el]:j.to});news(s,`${d.name}: магистратура «${EL[j.el].name}», ${j.to}-я ступень`)}
     xp(s,25)}})}
 const PRED_GEMS=2;
-function hatch(s,egg,uid){const id='d'+s.seq++,g=egg.g,els=elementsOf(g);
+/* коллекция: какие чистые стихии (обычные одностихийные драконы) были на острове. Мифические яйца проклёвываются
+   только когда собраны все семь: так мифические драконы приходят последними, а до тех пор яйцо ждёт на складе */
+function collect(s,g){const els=elementsOf(g);if(els.length===1&&!(s.coll||[]).includes(els[0]))s.coll=(s.coll||[]).concat(els[0])}
+const mythOpen=s=>ELS.every(e=>(s.coll||[]).includes(e));
+function hatch(s,egg,uid){const id='d'+s.seq++,g=egg.g,els=elementsOf(g);collect(s,g);
   const home=s.bld.find(b=>TYPES[b.type].kind==='hab'&&built(b)&&els.includes(TYPES[b.type].el)&&residents(s,b).length<habCap(b));
   s.dragons.push({id,name:nameFor(g,uid+':n:'+id),g,lvl:1,fed:0,home:home?home.id:null,born:s.today||null,acad:{b:0,m:{}},job:null,from:egg.from,par:egg.par||null});
   news(s,`Вылупился ${RARITY[rarityOf(g)]} дракон: ${els.map(e=>EL[e].name).join(', ')}${home?'':'. Ему нужно жилище'}`);xp(s,10+20*rarityOf(g))}
@@ -308,6 +312,7 @@ const A={
     if(level(s)<k.L)return `${k.name}: с ${k.L}-го уровня острова`;b.slots=b.slots||[];if(b.slots.length>=FARM_PLOTS[lvlOf(b)-1])return 'Все грядки заняты';
     const e=pay(s,k.gold);if(e)return e;b.slots.push(job('crop',c.now,k.h,{crop,food:k.food}))},
   incubate(s,c,{egg}){const h=ofType(s,'hatchery')[0];if(!h||!built(h))return 'Сначала постройте Инкубатор';const i=s.eggs.findIndex(x=>x.id===egg);if(i<0)return 'Нет такого яйца';
+    if(s.eggs[i].rar>=3&&!mythOpen(s))return `Мифическое яйцо проклюнется, когда в коллекции будут драконы всех семи стихий (собрано ${(s.coll||[]).length} из 7)`;
     h.slots=h.slots||[];if(h.slots.length>=HATCH_SLOTS[lvlOf(h)-1])return 'В Инкубаторе нет места';const eg=s.eggs.splice(i,1)[0];h.slots.push(job('hatch',c.now,HATCH_H[eg.rar],{egg:eg}))},
   /* Академия: бакалавриат по порядку, потом магистратура по стихиям дракона */
   study(s,c,{dragon,el}){const a=ofType(s,'academy')[0];if(!a||!built(a))return 'Сначала постройте Академию';const d=s.dragons.find(x=>x.id===dragon);if(!d)return 'Нет дракона';
@@ -346,6 +351,7 @@ const RULES=[
   ['Академия','С 10-го уровня бакалавриат из четырёх курсов, с 15-го магистратура по стихиям дракона, с 25-го аспирантура. Пока дракон учится, он не летает в налёты и не приносит золото.'],
   ['Суперудар','С 30-го уровня у редких, эпических и мифических драконов открывается суперудар: смесь всех их стихий, раз в 15 секунд в бою.'],
   ['Стихии','Каждая стихия сильна против двух и слаба против двух. Самой сильной нет, побеждает тот, кто подобрал отряд.'],
+  ['Мифические драконы','Мифическое яйцо (четыре стихии) ждёт на складе и проклёвывается, только когда у вас побывали обычные драконы всех семи стихий: огня, воды, земли, воздуха, флоры, света и тьмы.'],
   ['Скрещивание','Стихии наследуются по Менделю. Предскажите долю потомков с нужной стихией: точный прогноз приносит самоцветы.'],
   ['Налёты','Заряды налётов дают карточки. Выпускайте драконов над чужим островом и вовремя включайте способности. Удачный налёт на остров ученицы забирает до 10 % её Казны и Амбара, после этого у неё щит на сутки.']
 ];
@@ -356,6 +362,6 @@ const DR6={rng,ELS,BASIC,LEGEND,EL,elValue,RING,beats,mult,vs,strongVs,weakVs,ST
   TYPES,CAP_GOLD,CAP_FOOD,HAB_CAP,HATCH_SLOTS,ACAD_SEATS,habsMax,GRID,CENTER,capGold,capFood,
   ISLE_MAX,xpFor,levelOf,level,CARD_MIN,GEM_MIN,LADDER,ladder,CARD_GOLD,cardFood,CHARGE_CARDS,CHARGE_MAX,goldPerCard,
   HW_GEMS,hwGems,eggOdds,hwEgg,HATCH_H,BREED_H,breedCost,LOOT_MAX,SHIELD_H,lootOf,raided,shielded,
-  giftFor,startState,tick,apply,jobLeft,jobsOf,RULES,HOUR,MIN,DAY};
+  giftFor,startState,mythOpen,tick,apply,jobLeft,jobsOf,RULES,HOUR,MIN,DAY};
 if(typeof module!=='undefined'&&module.exports)module.exports=DR6;else root.DR6=DR6;
 })(typeof window!=='undefined'?window:globalThis);

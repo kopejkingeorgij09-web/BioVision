@@ -141,6 +141,12 @@ t('точный прогноз приносит самоцветы, неточн
     s=ok(D.apply(s,ctx(),{t:'breed',m:m.id,f:f.id,pred:{q:{t:'has',el},p}}));return D.tick(s,ctx({now:T0+2*H})).s.bal.gems-g0};
   assert.strictEqual(run(1),D.PRED_GEMS);assert.strictEqual(run(0.3),0)});
 
+t('мифическое яйцо не проклёвывается, пока не собраны все семь стихий',()=>{let s=withNest();s.eggs.push({id:'eM',g:D.eggGenome(3,'m'),rar:3,from:'hw'});
+  const r=D.apply(s,ctx(),{t:'incubate',egg:'eM'});assert.ok(/7/.test(r.err),r.err);assert.ok(!D.mythOpen(s));
+  s.coll=D.ELS.slice();assert.ok(D.mythOpen(s));s=ok(D.apply(s,ctx(),{t:'incubate',egg:'eM'}));assert.strictEqual(s.eggs.length,0)});
+t('коллекция пополняется основателями и вылупившимися обычными драконами',()=>{const s=fresh();assert.strictEqual(s.coll.length,2);
+  let x=withNest();x.eggs.push({id:'eC',g:D.genomeOf(['D'],'F'),rar:0,from:'t'});x=ok(D.apply(x,ctx(),{t:'incubate',egg:'eC'}));x=D.tick(x,ctx({now:T0+2*H})).s;assert.ok(x.coll.includes('D'))});
+
 console.log('налёты');
 t('добыча не больше 10 %, щит на сутки',()=>{const s=fresh();const r=D.raided(s,T0,100);assert.strictEqual(r.loot.gold,Math.floor(s.bal.gold*0.1));
   assert.ok(D.shielded(r.s,T0+23*H)&&!D.shielded(r.s,T0+25*H));assert.strictEqual(D.lootOf(s,50).gold,Math.floor(s.bal.gold*0.05))});

@@ -148,7 +148,7 @@ function paintLeg(f){$$('.km-leg i',f).forEach(i=>i.style.background=col(i.datas
 /* модель грузится только по нажатию: структура весит мегабайты, а её разбор на слабом телефоне подвешивает страницу.
    Когда карточка подходит к экрану, подтягивается только подпись из базы RCSB (несколько килобайт) */
 async function preview(f){if(f._kmPv)return;f._kmPv=1;const ov=$('.km-ov',f),id=f.dataset.pdb;
-  const draw=n=>{if(f._km)return;ov.hidden=false;ov.innerHTML=`<div class="km-pv">${MOLSVG}<div><b>3D-модель ${esc(id)}</b>${n?`<small>${n.toLocaleString('ru-RU')} атомов${n>BIG?' · загрузка займёт время':''}</small>`:''}</div><button type="button" class="btn km-go">Показать 3D-модель</button></div>`;
+  const draw=n=>{if(f._km)return;ov.hidden=false;ov.innerHTML=`<div class="km-pv">${MOLSVG}<div><b>3D-модель ${esc(id)}</b>${n?`<small>${n.toLocaleString('ru-RU')} атомов${n>BIG?' · загрузка займёт время':''}</small>`:''}</div>${BV.lite?'<small>В лёгком режиме 3D-модели выключены</small>':''}<button type="button" class="btn${BV.lite?' ghost':''} km-go">${BV.lite?'Всё равно показать':'Показать 3D-модель'}</button></div>`;
     $('.km-go',ov).addEventListener('click',ev=>{ev.stopPropagation();start(f)},{once:true})};
   draw(0);
   try{const e=await meta(id);$('.km-src',f).innerHTML=srcLine(id,e);draw(e.rcsb_entry_info&&e.rcsb_entry_info.deposited_atom_count)}catch(err){}}

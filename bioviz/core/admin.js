@@ -31,6 +31,20 @@ const CSS=`
 .ppl .pg{display:flex;flex-direction:column;gap:4px;font:500 12px/1.3 var(--font-mono);color:var(--muted)}
 .ppl .nm{font-weight:600}
 .ppl .tw{display:flex;gap:2px;align-items:center}
+.sst{display:flex;flex-direction:column;gap:18px}
+.sst h3{font:600 16px/1.3 var(--font-display);margin:0 0 6px}
+.sst h3 small{font:500 12px/1.4 var(--font-mono);color:var(--muted);margin-left:8px}
+.sst ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.sst li{display:grid;grid-template-columns:34px minmax(0,1fr) minmax(90px,30%) 64px;gap:10px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line);font-size:14.5px}
+.sst li:last-child{border-bottom:0}
+.sst li>i{font:600 12px/1 var(--font-mono);font-style:normal;color:var(--muted);text-align:right}
+.sst li>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sst .sb{height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+.sst .sb b{display:block;height:100%;border-radius:4px;background:var(--ui)}
+.sst li>em{font:500 12.5px/1 var(--font-mono);font-style:normal;color:var(--muted);text-align:right;white-space:nowrap}
+.sst li.low .sb b{background:var(--amber)}
+.sst li.low>span:after{content:"реже всего";display:inline-block;white-space:nowrap;margin-left:8px;font:600 10.5px/1 var(--font-mono);letter-spacing:.04em;text-transform:uppercase;color:var(--amber)}
+@media (max-width:640px){.sst li{grid-template-columns:28px minmax(0,1fr) 56px}.sst li .sb{grid-column:2/4;grid-row:2}.sst li>span{white-space:normal}}
 @media (max-width:640px){
   .ppl thead{display:none}
   .ppl,.ppl tbody,.ppl tr,.ppl td{display:block;width:100%}
@@ -70,6 +84,10 @@ function render(box,{site,NOTE,logout}){
      <p>Один файл JSON: лабораторные работы с фотографиями, объявление, участники и их прогресс. Храни его у себя, коды участников в нём есть.</p>
      <div class="acts"><button type="button" class="btn ghost" data-bak>Скачать копию</button><p class="msg" role="status" data-bm></p></div></section>
 
+   <section class="card wide" aria-labelledby="aSst"><h2 id="aSst">Какие разделы читают</h2>
+     <p>Сколько участников дошли до каждого раздела, среди тех, кто открывал лекцию. Раздел засчитывается, когда участник долистал до него, войдя по коду. Жёлтым отмечены разделы, до которых доходят реже всего.</p>
+     <div class="sst" data-sst><p class="msg">Загружаю…</p></div></section>
+
    <section class="card wide" aria-labelledby="aPpl"><h2 id="aPpl">Участники</h2>
      <p>Каждому участнику свой код. Удалённый код перестаёт работать сразу. Прогресс приходит, когда участник читает лекции, войдя по коду.</p>
      <form class="field" id="cNew"><input class="plain" id="cName" placeholder="Имя участника" aria-label="Имя участника" maxlength="40"><button class="btn">Выдать код</button></form>
@@ -99,8 +117,9 @@ function render(box,{site,NOTE,logout}){
   const lecs=C.lectures.map(L=>({L,secs:BV.progress.secsOf(L.id).filter(s=>s.no).map(s=>s.id)}));
   async function draw(){const out=$('[data-ppl]',box);if(!out)return;
     let codes,prog={};
-    try{codes=await A.codes()||[]}catch(e){out.innerHTML='<p class="msg err">Не удалось загрузить коды.</p>';return}
+    try{codes=await A.codes()||[]}catch(e){out.innerHTML='<p class="msg err">Не удалось загрузить коды.</p>';const ss=$('[data-sst]',box);if(ss)ss.innerHTML='<p class="msg err">Не удалось загрузить данные.</p>';return}
     try{const D=await APP.db();(await D.collection('students').list()).forEach(x=>{prog[x.id]=x.data&&x.data.prog||null})}catch(e){}
+    stats(codes,prog);
     if(!codes.length){out.innerHTML='<p class="msg">Кодов пока нет.</p>';return}
     out.innerHTML=`<table class="ppl"><thead><tr><th>Участник</th><th>Код</th><th>Прочитано</th><th>Заходил</th><th></th></tr></thead><tbody>${codes.map(c=>{const p=prog[c.id];
       const pg=lecs.map(({L,secs})=>{const s=new Set(p&&p.seen&&p.seen[L.id]||[]),n=secs.filter(x=>s.has(x)).length;
@@ -108,6 +127,19 @@ function render(box,{site,NOTE,logout}){
       return `<tr><td><span class="nm">${esc(c.name||'Без имени')}</span></td><td><code>${esc(c.code)}</code> <button type="button" class="lb" data-copy="${esc(c.code)}" aria-label="Скопировать код">${ic('copy')}</button></td>
         <td><div class="pg">${pg}</div></td><td><span class="msg">${p?ago(p.t):'не заходил'}</span></td>
         <td style="white-space:nowrap"><button type="button" class="lb" data-ren="${esc(c.id)}" data-name="${esc(c.name||'')}">${ic('edit')}Имя</button><button type="button" class="lb del" data-del="${esc(c.id)}" data-name="${esc(c.name||'')}">Удалить</button></td></tr>`}).join('')}</tbody></table>`}
+  /* статистика по разделам: у скольких участников, открывавших лекцию, раздел отмечен прочитанным */
+  function stats(codes,prog){const out=$('[data-sst]',box);if(!out)return;
+    const ids=codes.map(c=>c.id);
+    const html=C.lectures.map(L=>{const secs=BV.progress.secsOf(L.id).filter(x=>x.no);if(!secs.length)return '';
+      const seenBy=ids.map(id=>new Set((prog[id]&&prog[id].seen&&prog[id].seen[L.id])||[])).filter(x=>x.size);
+      const M=seenBy.length;
+      if(!M)return `<div><h3>Лекция ${L.n}. ${esc(L.title)}</h3><p class="msg">Эту лекцию пока никто не открывал.</p></div>`;
+      const cnt=secs.map(x=>seenBy.filter(S=>S.has(x.id)).length);
+      /* «реже всего»: разделы с наименьшим числом читателей, если они отстают от остальных */
+      const top=Math.max(...cnt),min=Math.min(...cnt),low=new Set(min<top?cnt.map((n,i)=>n===min?i:-1).filter(i=>i>=0):[]);
+      const plain=h=>{const d=document.createElement('div');d.innerHTML=h;return d.textContent};
+      return `<div><h3>Лекция ${L.n}. ${esc(L.title)}<small>открывали ${M} из ${ids.length}</small></h3><ol>${secs.map((x,i)=>`<li${low.has(i)?' class="low"':''}><i>${x.no}</i><span>${esc(plain(x.t))}</span><span class="sb" aria-hidden="true"><b style="width:${(cnt[i]/M*100).toFixed(0)}%"></b></span><em>${cnt[i]} из ${M}</em></li>`).join('')}</ol></div>`}).join('');
+    out.innerHTML=ids.length?html:'<p class="msg">Участников пока нет: выдай коды ниже.</p>'}
   $('[data-ppl]',box).addEventListener('click',async e=>{const b=BV_ET(e).closest('button');if(!b)return;const cm=$('#cMsg',box);cm.className='msg';
     if(b.dataset.copy){const ok=await BV.copy(b.dataset.copy);BV.toast(ok?'Код скопирован.':'Не получилось скопировать.');return}
     if(b.dataset.ren){const n=prompt('Новое имя участника',b.dataset.name);if(n==null||!n.trim()||n.trim()===b.dataset.name)return;

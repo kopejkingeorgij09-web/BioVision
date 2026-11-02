@@ -20,36 +20,32 @@ B.levelCard = (c, compact) => {
       ${B.bar(c.frac, 'xp')}
       <div class="lvl-sub">${icon('bamboo')} бамбук <b>${B.fmtH(c.height)}</b>${next ? ` · до «${esc(next[1])}» ${B.fmtH(next[0] - c.height)}` : ''}</div>
     </div>
-    <div class="streak ${c.live ? 'on' : ''}" title="Серия закрытых дней">${icon('flame')}<b>${c.live}</b></div>
+    <div class="streak ${c.live ? 'on' : ''}" title="Разборов в дневнике подряд">${icon('flame')}<b>${c.live}</b></div>
   </a>`;
 };
 
-function yesterdayNote(c){
-  const y = B.add(c.today, -1), r = c.days[y];
-  if (!r) return '';
-  if (r.result === 'good') return `<div class="note good">${icon('leaf')}<div><b>Вчера день закрыт.</b> ${r.xp > 0 ? '+' + r.xp + ' XP, ' : ''}серия ${c.streak} ${B.plural(c.streak, 'день', 'дня', 'дней')}. Держи темп.</div></div>`;
-  if (r.result === 'frozen') return `<div class="note frozen">${icon('moon')}<div><b>Вчера день не закрыт, сработала заморозка недели.</b> Серия сохранена, но следующий провал на этой неделе уже со штрафом. <a href="#/journal/${y}">Что помешало?</a></div></div>`;
-  if (r.result === 'fail') return `<div class="note bad">${icon('leaf')}<div><b>Вчера день не закрыт: ${B.XP.fail} XP, на бамбуке сухой лист.</b> ${!r.top ? 'Не было плана.' : r.top < 2 ? 'В плане было меньше двух дел.' : r.topDone < 2 ? `Главных дел сделано ${r.topDone} из ${r.top}.` : ''} ${!r.review ? 'Не написан разбор.' : ''} <a href="#/journal/${y}">Разобрать вчера</a></div></div>`;
-  return '';
-}
-
-function steps(c, d){
-  const r = c.days[c.today] || {top: 0, topDone: 0, needTop: 0};
-  const daily = B.habits().filter(h => h.kind !== 'weekly'), weekly = B.habits().filter(h => h.kind === 'weekly');
-  const hd = daily.filter(h => B.habitDone(h, c.today)).length;
-  const st = [
-    {ok: r.top >= 2 && r.topDone >= 2, label: 'Главное', sub: !r.top ? 'нет плана' : r.top < 2 ? 'нужно 2 дела' : `${r.topDone}/2`},
-    {ok: daily.length > 0 && hd === daily.length, label: 'Ежедневные', sub: `${hd}/${daily.length}`, soft: true},
-    {ok: B.reviewDone(c.today), label: 'Разбор', sub: B.reviewDone(c.today) ? 'есть' : B.hasReview(d) ? 'нет плана' : 'вечером'}
-  ];
-  const must = st.filter(s => !s.soft), done = must.filter(s => s.ok).length;
-  return `<section class="card day-steps">
-    <div class="row between"><h2>День закрыт на ${Math.round(done / must.length * 100)}%</h2><span class="muted mono">${r.xp > 0 ? '+' : ''}${(c.days[c.today] || {}).xp || 0} XP сегодня</span></div>
-    ${B.bar(done / must.length, 'day')}
-    <ol class="steps s3">${st.map(s => `<li class="${s.ok ? 'ok' : ''}"><i>${s.ok ? icon('check') : ''}</i><b>${s.label}</b><span>${s.sub}</span></li>`).join('')}</ol>
-    ${weekly.length ? `<div class="wk-line">${weekly.map(h => { let k = 0; const ws = B.weekStart(c.today); for (let i = 0; i < 7; i++) if (B.habitDone(h, B.add(ws, i))) k++;
-      return `<span class="${k >= (h.target || 3) ? 'ok' : ''}">${icon(h.icon || 'habit')}${esc(h.name)} на неделе <b>${k}/${h.target || 3}</b></span>`; }).join('')}</div>` : ''}
-    <p class="hint">День закрывают два сделанных главных дела (в плане хотя бы два) и вечерний разбор с планом на завтра. Привычки дают опыт отдельно.</p>
+/* прогресс вместо «закрытого дня»: что сделано сегодня и серии — дневник, дела, привычки */
+function progressCard(c, d){
+  const r = c.days[c.today] || {};
+  const t = c.today, ids = new Set(d.top || []);
+  const todays = B.tasks().filter(x => (x.due && x.due <= t && !x.done) || (x.done && x.doneAt && B.dayOf(x.doneAt) === t) || ids.has(x.id));
+  const dn = todays.filter(x => x.done).length;
+  const daily = B.habits().filter(h => h.kind !== 'weekly'), hd = daily.filter(h => B.habitDone(h, t)).length;
+  const rv = B.reviewDone(t);
+  const rows = [
+    {ic: 'pen', name: 'Дневник', cur: c.review.cur, best: c.review.best, unit: 'дн', today: rv},
+    {ic: 'list', name: 'Дела', cur: c.tasks.cur, best: c.tasks.best, unit: 'дн', today: !!r.done}
+  ].concat(B.habits().map(h => { const s = B.habitStreak(h); return {ic: h.icon || 'habit', name: h.name, cur: s.cur, best: s.best, unit: s.unit, today: h.kind === 'weekly' ? s.thisWeek >= s.target : B.habitDone(h, t), sub: h.kind === 'weekly' ? `${s.thisWeek}/${s.target} на неделе` : ''}; }));
+  return `<section class="card progress">
+    <div class="row between"><h2>${icon('flame')}Прогресс</h2><span class="muted mono">${r.xp > 0 ? '+' : ''}${r.xp || 0} XP сегодня</span></div>
+    <div class="ptoday">
+      <div><b>${dn}<small>/${todays.length}</small></b><span>дел</span>${B.bar(todays.length ? dn / todays.length : 0)}</div>
+      <div><b>${hd}<small>/${daily.length}</small></b><span>ежедневных</span>${B.bar(daily.length ? hd / daily.length : 0)}</div>
+      <div><b class="${rv ? 'ok' : ''}">${rv ? icon('check') : '—'}</b><span>разбор</span>${B.bar(rv ? 1 : 0)}</div>
+    </div>
+    <div class="sub-h">Серии</div>
+    <ul class="streaks">${rows.map(x => `<li class="${x.today ? 'today' : ''}"><i>${icon(x.ic)}</i><span class="grow">${esc(x.name)}${x.sub ? `<small>${x.sub}</small>` : ''}</span>
+      <b class="${x.cur ? 'on' : ''}">${icon('flame')}${x.cur}<small>${x.unit}</small></b><em>рекорд ${x.best}</em></li>`).join('')}</ul>
   </section>`;
 }
 
@@ -59,16 +55,16 @@ function steps(c, d){
 let qCrown = false, qPri = 4;
 B.dayList = (date, opts = {}) => {
   const d = B.day(date), ids = d.top || [], t = B.today();
-  const crowned = ids.map(B.task).filter(x => x && !x.deleted);
+  const ord = d.order || [], oi = x => { const i = ord.indexOf(x.id); return i < 0 ? 1e6 : i; };
+  const crowned = ids.map(B.task).filter(x => x && !x.deleted).sort((a, b) => oi(a) - oi(b));
   const cset = new Set(crowned.map(x => x.id));
   const rest = B.tasks().filter(x => !cset.has(x.id) && !x.done && x.due && x.due <= date)
-    .sort((a, b) => (a.pri || 4) - (b.pri || 4) || a.due.localeCompare(b.due) || (a.time || '99').localeCompare(b.time || '99'));
+    .sort((a, b) => oi(a) - oi(b) || (a.pri || 4) - (b.pri || 4) || a.due.localeCompare(b.due) || (a.time || '99').localeCompare(b.time || '99'));
   const doneDay = date === t ? B.tasks().filter(x => x.done && x.doneAt && B.dayOf(x.doneAt) === t && !cset.has(x.id)) : [];
-  const n = crowned.length, nd = crowned.filter(x => x.done).length;
-  const row = x => B.taskRow(x, {crownDate: date, when: (d.when || {})[x.id], cls: cset.has(x.id) ? 'crowned' : ''});
+  const all = crowned.concat(rest), nAll = all.length + doneDay.length, nDone = all.filter(x => x.done).length + doneDay.length;
+  const row = x => B.taskRow(x, {crownDate: date, when: (d.when || {})[x.id], cls: cset.has(x.id) ? 'crowned' : '', grip: true});
   return `<div class="daylist" data-d="${date}">
-    <div class="crown-meter ${n >= 2 ? (nd >= 2 ? 'ok' : 'set') : ''}">${icon('crown')}<span>${n < 2 ? `Отметь короной ${n ? 'ещё одно главное дело' : 'два-три главных дела'}` : `Главных сделано ${nd} из ${n}`}</span>
-      <i>${[0, 1, 2].map(i => `<b class="${i < nd ? 'done' : i < n ? 'on' : ''}"></b>`).join('')}</i></div>
+    ${nAll ? `<div class="crown-meter ${nDone && nDone === nAll ? 'ok' : nDone ? 'set' : ''}">${icon('check')}<span>Сделано ${nDone} из ${nAll}</span>${B.bar(nDone / nAll)}</div>` : ''}
     <div class="add-line quick">
       <button class="icon-btn qcrown ${qCrown ? 'on' : ''}" data-act="qCrown" title="Сразу главным">${icon('crown')}</button>
       <button class="icon-btn qflag p${qPri}" data-act="qPri" title="Важность: ${B.PRI[qPri]}">${icon('flag')}</button>
@@ -79,7 +75,7 @@ B.dayList = (date, opts = {}) => {
     ${doneDay.length ? `<details class="done-fold"><summary>Ещё сделано сегодня: ${doneDay.length}</summary><div class="tasks">${doneDay.map(x => B.taskRow(x)).join('')}</div></details>` : ''}
   </div>`;
 };
-B.planPicker = date => B.dayList(date, {ph: 'Дело на завтра', empty: 'На завтра пока ничего. Добавь дела и отметь главные короной.'});
+B.planPicker = date => B.dayList(date, {ph: 'Дело на завтра', empty: 'На завтра пока ничего.'});
 
 function dayCard(c, d){
   const late = B.tasks().filter(x => !x.done && x.due && x.due < c.today).length;
@@ -232,7 +228,7 @@ function reviewCard(c, d){
   if (has) return `<section class="card review done"><h2>${icon('pen')}Разбор дня написан</h2><p class="muted">${d.review.mood ? 'Настроение ' + '●'.repeat(d.review.mood) + ' · ' : ''}<a href="#/journal">открыть дневник</a></p></section>`;
   return `<section class="card review ${h >= 19 || h < 4 ? 'hot' : ''}">
     <h2>${icon('pen')}Вечерний разбор</h2>
-    <p class="hint">Пять минут перед сном: что сделал, что не вышло и почему, и три главных дела на завтра. Без этого день не закрывается.</p>
+    <p class="hint">Пять минут перед сном: что сделал, что не вышло и почему, что на завтра. Продлевает серию дневника.</p>
     <a class="btn ${h >= 19 || h < 4 ? 'primary' : ''}" href="#/journal">Написать разбор</a>
   </section>`;
 }
@@ -258,12 +254,23 @@ B.views.today = {
   render(){
     const c = B.calc(), d = B.day(c.today);
     const date = B.parse(c.today);
-    return `<div class="page today">
-      <header class="page-h">
+    const r = c.days[c.today] || {}, rv = B.reviewDone(c.today);
+    const head = `<header class="page-h">
         <div><div class="eyebrow">${B.WDF[B.wd(c.today)]}, ${date.getDate()} ${B.MONG[date.getMonth()]}</div><h1>${greet()}</h1></div>
-      </header>
+        <button class="btn sm ghost" data-act="compact" title="${compact ? 'Показать всё' : 'Оставить только дела и привычки'}">${icon(compact ? 'board' : 'list')} ${compact ? 'Полный вид' : 'Компактно'}</button>
+      </header>`;
+    if (compact) return `<div class="page today compact-today">${head}
+      <div class="mini-strip">
+        <a href="#/bamboo" class="ms">${icon('bamboo')}<b>${c.level}</b><span>ур.</span></a>
+        <a href="#/journal" class="ms ${rv ? 'ok' : ''}">${icon('pen')}<b>${c.live}</b><span>${rv ? 'разбор есть' : 'разбор'}</span></a>
+        <a href="#/focus" class="ms">${icon('timer')}<b>${B.mins((d.pomo || []).reduce((a, p) => a + (p.min || 0), 0))}</b><span>фокус</span></a>
+        <span class="ms">${icon('sparkle')}<b>${r.xp > 0 ? '+' : ''}${r.xp || 0}</b><span>XP</span></span>
+      </div>
+      <div class="cols"><div class="col">${dayCard(c, d)}</div><div class="col">${habitsCard(c)}${deadlineCard(c)}</div></div>
+    </div>`;
+    return `<div class="page today">
+      ${head}
       ${B.levelCard(c)}
-      ${yesterdayNote(c)}
       ${weekCard(c)}
       <div class="cols">
         <div class="col">
@@ -272,7 +279,7 @@ B.views.today = {
           ${reviewCard(c, d)}
         </div>
         <div class="col">
-          ${steps(c, d)}
+          ${progressCard(c, d)}
           ${habitsCard(c)}
           ${deadlineCard(c)}
           ${shadCard(c)}
@@ -283,6 +290,38 @@ B.views.today = {
     </div>`;
   }
 };
+let compact = false;
+try { compact = localStorage.getItem('bamboo-compact') === '1'; } catch (e) {}
+B.acts.compact = () => { compact = !compact; try { localStorage.setItem('bamboo-compact', compact ? '1' : '0'); } catch (e) {} B.render(); };
+
+/* перетаскивание дел за ручку: порядок хранится в дне (d.order) */
+let drag = null;
+document.addEventListener('pointerdown', e => {
+  const g = e.target.closest('.grip'); if (!g) return;
+  const row = g.closest('.task'), list = row && row.parentElement, box = row && row.closest('.daylist'); if (!box) return;
+  e.preventDefault();
+  const r = row.getBoundingClientRect();
+  drag = {row, list, date: box.dataset.d, y0: e.clientY, h: r.height, id: g.closest('.task').dataset.tid};
+  row.classList.add('dragging'); row.setPointerCapture && g.setPointerCapture(e.pointerId);
+});
+document.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dy = e.clientY - drag.y0; drag.row.style.transform = `translateY(${dy}px)`;
+  const sibs = [...drag.list.children].filter(x => x !== drag.row && x.classList.contains('task'));
+  const mid = drag.row.getBoundingClientRect().top + drag.h / 2;
+  const before = sibs.find(x => { const b = x.getBoundingClientRect(); return mid < b.top + b.height / 2; });
+  sibs.forEach(x => x.classList.toggle('drop-before', x === before));
+  drag.before = before ? before.dataset.tid : null;
+});
+document.addEventListener('pointerup', () => {
+  if (!drag) return;
+  const {row, list, date, id, before} = drag; drag = null;
+  row.classList.remove('dragging'); row.style.transform = '';
+  const ids = [...list.children].filter(x => x.classList.contains('task')).map(x => x.dataset.tid).filter(x => x !== id);
+  const i = before ? ids.indexOf(before) : ids.length; ids.splice(i < 0 ? ids.length : i, 0, id);
+  B.editDay(date, d => { d.order = ids; });
+  B.render(true);
+});
 
 /* план дня */
 const pdate = el => el.dataset.d || B.today();
@@ -291,7 +330,7 @@ B.acts.crown = async el => {
   const t = pdate(el), id = el.dataset.id, d = B.day(t);
   if ((d.top || []).includes(id)){ B.editDay(t, x => { x.top = (x.top || []).filter(i => i !== id); }); return; }
   const live = (d.top || []).filter(i => { const k = B.task(i); return k && !k.deleted; });
-  if (live.length >= 3){ B.toast('Главных уже три. Сними корону с одного, чтобы поставить на другое'); return; }
+  if (live.length >= 3){ B.toast('Корон уже три. Сними одну, чтобы отметить другое дело'); return; }
   const tk = B.task(id); if (!tk) return;
   // просроченное дело главным на более поздний день — это перенос, нужна причина
   if (!tk.done && tk.due && tk.due < B.today() && t > tk.due){
@@ -301,7 +340,7 @@ B.acts.crown = async el => {
   }
   B.editDay(t, x => { x.top = (x.top || []).filter(i => { const k = B.task(i); return k && !k.deleted; }).concat(id); x.planAt = x.planAt || Date.now(); });
   const k = B.task(id); if (k && (!k.due || k.due > t)) B.updTask(id, {due: t});
-  if (live.length === 0) B.toast(`${B.icon('crown')} Главное дело. Нажми «когда и где», чтобы назначить время`);
+  if (live.length === 0) B.toast(`${B.icon('crown')} Отмечено как важное. Нажми «когда и где», чтобы назначить время`);
 };
 B.acts.topAdd = el => B.acts.crown(el);
 B.acts.qCrown = () => { qCrown = !qCrown; B.render(true); };

@@ -4,7 +4,7 @@ const {esc, icon} = B;
 const NAV = [
   ['today', 'Сегодня', 'today'], ['journal', 'Дневник', 'pen'], ['tasks', 'Задачи', 'list'], ['cal', 'Календарь', 'cal'], ['focus', 'Фокус', 'timer'],
   ['habits', 'Привычки', 'habit'], ['read', 'Чтение', 'book'], ['sport', 'Спорт', 'dumbbell'],
-  ['bamboo', 'Бамбук', 'bamboo'], ['stats', 'Итоги', 'chart'], ['settings', 'Настройки', 'gear']
+  ['bamboo', 'Бамбук', 'bamboo'], ['stats', 'Итоги', 'chart'], ['search', 'Поиск', 'search'], ['settings', 'Настройки', 'gear']
 ];
 const BOTTOM = ['today', 'journal', 'tasks', 'cal'];
 
@@ -13,8 +13,8 @@ const LS_THEME = 'bamboo-theme';
 function applyTheme(){
   let t = 'auto'; try { t = localStorage.getItem(LS_THEME) || 'auto'; } catch (e) {}
   if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t);
-  const dark = t === 'dark' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
-  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = t === 'sakura' ? '#FBF1F1' : dark ? '#151A14' : '#F4EFE4';
+  const dark = t === 'dark' || t === 'night' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = t === 'sakura' ? '#FBF1F1' : t === 'night' ? '#0B1A14' : dark ? '#151A14' : '#F4EFE4';
 }
 applyTheme();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
@@ -112,7 +112,7 @@ B.views.settings = {
           </section>
           <section class="card">
             <h2>${icon('sun')}Тема</h2>
-            <div class="toggle wide">${[['auto', 'Как в системе'], ['light', 'Бумага'], ['sakura', 'Сакура'], ['dark', 'Тёмная']].map(([k, l]) => `<button class="${theme === k ? 'on' : ''}" data-act="theme" data-v="${k}">${l}</button>`).join('')}</div>
+            <div class="toggle wide themes">${[['auto', 'Как в системе'], ['light', 'Бумага'], ['sakura', 'Сакура'], ['dark', 'Тёмная'], ['night', 'Ночной бамбук']].map(([k, l]) => `<button class="${theme === k ? 'on' : ''}" data-act="theme" data-v="${k}">${l}</button>`).join('')}</div>
           </section>
           <section class="card">
             <h2>${icon('star')}Цели</h2>

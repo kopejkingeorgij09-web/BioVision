@@ -16,7 +16,7 @@
   --s-deep:#0B0F1E; --s-space:#121833; --s-strato:#2B4A86; --s-high:#6D9FD6; --s-sky:#AFD3EE; --s-low:#E3F0E6;
   --hill:#9BC08A; --soil:#7E6A4B; --cul-a:#4E9B5E; --cul-b:#5FAA6C; --node:#2F6E3F; --mile:#22314A; --mile-ok:#2F7A4B;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]):not([data-theme="sakura"]){
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]):not([data-theme="sakura"]):not([data-theme="night"]){
   --paper:#121611; --paper-2:#181D16; --sheet:#1B211A; --ink:#EAE6D9; --ink-2:#B4B3A6; --ink-3:#7F8277;
   --rule:#2B3329; --rule-2:#38412F;
   --accent:#7CC48F; --accent-2:#94D3A5; --accent-ink:#0F1A12; --accent-soft:#1E3324;
@@ -663,7 +663,7 @@ input[type=range]{accent-color:var(--accent)}
 
 /* ---------- корона и важность ---------- */
 :root{--gold:#B8860B;--gold-soft:#F7EDCF}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]):not([data-theme="sakura"]){--gold:#E8B84A;--gold-soft:#3A3016}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]):not([data-theme="sakura"]):not([data-theme="night"]){--gold:#E8B84A;--gold-soft:#3A3016}}
 :root[data-theme="dark"]{--gold:#E8B84A;--gold-soft:#3A3016}
 .daylist{display:grid;gap:10px}
 .crown-meter{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:12px;background:var(--paper);font-size:13.5px;color:var(--ink-2)}
@@ -760,3 +760,99 @@ input[type=range]{accent-color:var(--accent)}
 .fs-cols{display:grid;gap:16px}
 .fs-col{display:grid;gap:12px;align-content:start;min-width:0}
 @media (min-width:960px){.fs-cols{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px}.wgrid{grid-template-columns:repeat(5,1fr)}}
+
+/* ---------- дни без «закрытия»: по активности ---------- */
+.lgd.some{background:color-mix(in srgb,var(--accent) 40%,var(--paper-2))}.lgd.empty{background:#B28B62}
+.cday.r-some{background:color-mix(in srgb,var(--accent) 10%,var(--paper))}
+.cday.r-empty{background:color-mix(in srgb,#B28B62 14%,var(--paper))}
+.leaf.some{fill:#A8D5A0}.leaf.empty{fill:#A9774A;opacity:.9}
+.bar-col.r-some i{background:color-mix(in srgb,var(--accent) 45%,var(--paper));border-color:transparent}
+.bar-col.r-empty i{background:#B28B62;border-color:#B28B62}
+.tag.r-some{background:var(--accent-soft);color:var(--ink-2)}.tag.r-empty{background:var(--warn-soft);color:var(--warn)}
+/* прогресс и серии */
+.progress{gap:12px}
+.ptoday{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.ptoday>div{display:grid;gap:4px;padding:10px;border-radius:12px;background:var(--paper)}
+.ptoday b{font:600 22px/1 var(--f-mono);display:flex;align-items:center;gap:2px}
+.ptoday b small{font-size:13px;color:var(--ink-3)}
+.ptoday b.ok{color:var(--accent)}
+.ptoday b .ic{width:22px;height:22px;stroke-width:2.5}
+.ptoday span{font-size:12px;color:var(--ink-3)}
+.streaks{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.streaks li{display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px dashed var(--rule);font-size:14px}
+.streaks li:last-child{border-bottom:0}
+.streaks li>i{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--paper);color:var(--ink-3);flex:none}
+.streaks li>i .ic{width:16px;height:16px}
+.streaks li.today>i{background:var(--accent-soft);color:var(--accent)}
+.streaks .grow{display:grid;line-height:1.25}
+.streaks small{font-size:11.5px;color:var(--ink-3)}
+.streaks b{display:flex;align-items:center;gap:3px;font:600 16px var(--f-mono);color:var(--ink-3)}
+.streaks b .ic{width:16px;height:16px}
+.streaks b.on{color:var(--warn)}
+.streaks b.on .ic{fill:color-mix(in srgb,var(--warn) 25%,transparent)}
+.streaks b small{font-weight:400;margin-left:1px}
+.streaks em{font-style:normal;font-size:11.5px;color:var(--ink-3);min-width:62px;text-align:right}
+.crown-meter .bar{flex:0 0 90px}
+
+/* ---------- тема «Ночной бамбук»: глубокий лесной зелёный и золото ---------- */
+:root[data-theme="night"]{
+  --paper:#0B1A14; --paper-2:#102219; --sheet:#13281E; --ink:#EDE6CF; --ink-2:#BFB89F; --ink-3:#7F8A78;
+  --rule:#1F3A2C; --rule-2:#2A4A39;
+  --accent:#D9B65C; --accent-2:#E8C877; --accent-ink:#142017; --accent-soft:#2C3420;
+  --bad:#E58A6E; --bad-soft:#3A2119; --warn:#E8B84A; --warn-soft:#352B14; --cold:#8FC3D9; --cold-soft:#15303A;
+  --p1:#F07E66; --p2:#E8B84A; --p3:#8FC3D9; --p4:#5F6E5C;
+  --c-ink:#A9AC9F; --c-blue:#8FC3D9; --c-teal:#6FCDB8; --c-green:#8FD39A; --c-amber:#E8B84A; --c-red:#F07E66; --c-violet:#B9A0E8; --c-pink:#EC8DB4;
+  --m1:#8FB4FF; --gr:#6FCDB8; --in:#E8B84A; --m2:#CC9AE4;
+  --gold:#E8C35A; --gold-soft:#2F3218;
+  --s-deep:#020806; --s-space:#05110C; --s-strato:#0E2A20; --s-high:#1C4433; --s-sky:#2C5A44; --s-low:#1A3A2A;
+  --hill:#1F3D2B; --soil:#1B140D; --cul-a:#4F9A60; --cul-b:#62AE72; --node:#D9B65C; --mile:#E7DDB8; --mile-ok:#E8C877;
+  --shadow:0 1px 2px rgba(0,0,0,.35),0 10px 30px rgba(0,0,0,.35); --shadow-lg:0 18px 60px rgba(0,0,0,.65);
+  color-scheme:dark}
+:root[data-theme="night"] body{background-image:radial-gradient(circle at 1px 1px,rgba(217,182,92,.07) 1px,transparent 0)}
+:root[data-theme="night"] .lvl{background:linear-gradient(135deg,#1E3424,#13281E 70%)}
+:root[data-theme="night"] .h4 span,:root[data-theme="night"] .h4 b{color:#142017!important}
+
+.themes{flex-wrap:wrap}
+.themes button{flex:1 1 30%}
+/* перетаскивание */
+.grip{display:grid;place-items:center;width:18px;margin-right:-4px;color:var(--rule-2);cursor:grab;touch-action:none;flex:none}
+.grip .ic{width:16px;height:16px;fill:currentColor;stroke:none}
+.task:hover .grip{color:var(--ink-3)}
+.task.dragging{position:relative;z-index:5;background:var(--sheet);box-shadow:var(--shadow-lg);border-radius:12px;transition:none}
+.task.drop-before{box-shadow:inset 0 2px 0 var(--accent)}
+/* компактная главная */
+.mini-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.ms{display:grid;justify-items:center;gap:2px;padding:10px 4px;border-radius:14px;background:var(--sheet);border:1px solid var(--rule);color:var(--ink);box-shadow:var(--shadow)}
+.ms:hover{text-decoration:none;border-color:var(--accent)}
+.ms .ic{color:var(--accent);width:18px;height:18px}
+.ms b{font:600 16px var(--f-mono)}
+.ms span{font-size:11px;color:var(--ink-3)}
+.ms.ok{background:var(--accent-soft)}
+
+/* поиск */
+.tb-search{width:32px;height:32px;display:grid;place-items:center;color:var(--ink-2)}
+.search-line{padding:2px 4px 2px 12px;border:1.5px solid var(--rule-2);border-radius:12px;background:var(--paper)}
+.search-line .ic{color:var(--ink-3)}
+.search-line input{border:0!important;box-shadow:none!important;background:transparent!important;font-size:16px}
+.sr-list{display:grid}
+.sr{display:grid;gap:2px;width:100%;padding:9px 4px;border:0;border-bottom:1px solid var(--rule);background:none;text-align:left;color:var(--ink)}
+.sr:hover{background:var(--paper);text-decoration:none}
+.sr .muted{font-size:13px}
+mark{background:var(--gold-soft);color:inherit;border-radius:3px;padding:0 1px}
+
+/* шум */
+.noise{display:grid;gap:8px;padding:10px 12px;border-radius:12px;background:var(--paper)}
+.noise-row{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink-2)}
+.noise-row>.ic{color:var(--accent);width:16px;height:16px}
+.noise-row input[type=range]{min-width:60px}
+.chips.sm .chip{padding:4px 9px;font-size:12.5px}
+.chip.live{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.switch.sm{font-size:12.5px;color:var(--ink-3);gap:8px}
+.switch.sm span{width:32px;height:19px}
+.switch.sm span::after{width:13px;height:13px}
+.switch.sm input:checked + span::after{transform:translateX(13px)}
+
+.past{display:grid;gap:4px;padding:10px 12px;border-radius:12px;background:var(--paper);color:var(--ink);border-left:3px solid var(--accent)}
+.past:hover{text-decoration:none;background:var(--accent-soft)}
+.past p{font:500 14.5px/1.45 var(--f-display);white-space:pre-wrap}
+.past .eyebrow{margin:0;font-size:11px}

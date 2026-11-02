@@ -23,7 +23,7 @@ function summary(list){
   list.forEach(d => {
     const r = c.days[d]; if (!r) return;
     xp += r.xp;
-    if (d < t){ past++; if (r.result === 'good') good++; }
+    if (d <= t){ past++; if (r.review) good++; }
     pomoMin += (B.day(d).pomo || []).reduce((a, p) => a + (p.min || 0), 0);
     read += B.readMin(d);
     if (d <= t) hs.forEach(h => { if (h.created && d < h.created) return; hn++; hv += B.habitVal(h, d); });
@@ -44,7 +44,7 @@ function xpChart(list){
   return `<div class="bars ${pts.length > 10 ? 'dense' : ''}">${pts.map((p, i) => `<div class="bar-col r-${p.r}" title="${p.r === 'week' ? 'неделя с ' + p.l : B.fmtW(p.k)}: ${p.v > 0 ? '+' : ''}${p.v} XP">
     <span class="bv">${pts.length <= 10 && p.v ? p.v : ''}</span><span class="bw"><i style="height:${(Math.max(0, p.v) / max * 100).toFixed(1)}%"></i></span>
     <span class="bl">${pts.length <= 10 ? B.WD[B.wd(p.k)] : i % step === 0 ? p.l : ''}</span></div>`).join('')}</div>
-    <div class="legend"><span><i class="lgd good"></i>закрыт</span><span><i class="lgd fail"></i>провал</span><span><i class="lgd frozen"></i>заморозка</span></div>`;
+    <div class="legend"><span><i class="lgd good"></i>с разбором</span><span><i class="lgd some"></i>без разбора</span><span><i class="lgd empty"></i>пустой</span></div>`;
 }
 
 function weekReview(r){
@@ -120,7 +120,7 @@ B.views.stats = {
       <div class="cols">
         <div class="col">
           <section class="card"><div class="kpis">
-            <div class="kpi"><b>${s.good}/${s.past}</b><span>дней закрыто</span></div>
+            <div class="kpi"><b>${s.good}/${s.past}</b><span>дней с разбором</span></div>
             <div class="kpi"><b>${s.xp > 0 ? '+' : ''}${B.num(s.xp)}</b><span>XP</span></div>
             <div class="kpi"><b>${B.num(s.pomoMin / 60, 1)} ч</b><span>фокуса</span></div>
             <div class="kpi"><b>${B.mins(s.read)}</b><span>чтения</span></div>

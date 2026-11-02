@@ -34,7 +34,7 @@ function month(sel, c){
     </div>
     <div class="cgrid wd">${B.WD.map(w => `<span>${w}</span>`).join('')}</div>
     <div class="cgrid">${cells}</div>
-    <div class="legend"><span><i class="lgd good"></i>день закрыт</span><span><i class="lgd fail"></i>провал</span><span><i class="lgd frozen"></i>заморозка</span><span><i class="d t"></i>задача</span><span><i class="d c-m1"></i>ШАД</span><span><i class="d sport"></i>тренировка</span></div>
+    <div class="legend"><span><i class="lgd good"></i>с разбором</span><span><i class="lgd some"></i>без разбора</span><span><i class="lgd empty"></i>пустой</span><span><i class="d t"></i>задача</span><span><i class="d c-m1"></i>ШАД</span><span><i class="d sport"></i>тренировка</span></div>
     ${sel !== today ? `<a class="btn sm ghost" href="#/cal/${today}">К сегодня</a>` : ''}
   </section>`;
 }
@@ -46,7 +46,7 @@ function dayPanel(date, c){
   const shad = B.shadOn(date);
   const ws = B.workouts().filter(w => w.date === date);
   const rm = B.readMin(date), pomo = (d.pomo || []);
-  const res = r ? {good: 'День закрыт', fail: 'День не закрыт', frozen: 'Заморозка', open: 'Идёт', ready: 'Можно закрывать'}[r.result] : '';
+  const res = r ? {good: 'Разбор написан', some: 'Без разбора', empty: 'Пустой день', open: 'Идёт'}[r.result] : '';
   return `<section class="card day-panel">
     <div class="row between"><h2>${B.WDF[B.wd(date)]}, ${B.fmt(date)}</h2>${res ? `<span class="tag r-${r.result}">${res}${r.xp ? ` · ${r.xp > 0 ? '+' : ''}${r.xp} XP` : ''}</span>` : ''}</div>
     ${shad.length ? `<div class="sub-h">ШАД</div>${shad.map(it => B.shadRow(it, date)).join('')}` : ''}

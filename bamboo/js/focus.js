@@ -6,7 +6,12 @@ const {esc, icon} = B;
 const LS = 'bamboo-timer';
 let T = null;
 try { T = JSON.parse(localStorage.getItem(LS) || 'null'); } catch (e) { T = null; }
-const save = () => { try { T ? localStorage.setItem(LS, JSON.stringify(T)) : localStorage.removeItem(LS); } catch (e) {} };
+const save = () => { try { T ? localStorage.setItem(LS, JSON.stringify(T)) : localStorage.removeItem(LS); } catch (e) {} syncNoise(); };
+/* фоновый шум идёт, пока идёт фокус (если включено «вместе с таймером») */
+function syncNoise(){
+  if (!B.noise || !B.noise.state.auto) return;
+  if (T && T.running && T.mode === 'work' && !T.idle) B.noise.play(); else B.noise.stop();
+}
 const MODES = {work: 'Фокус', short: 'Перерыв', long: 'Длинный перерыв'};
 
 let actx = null;
@@ -299,6 +304,7 @@ B.views.focus = {
                 : `<button class="btn primary lg grow" data-act="tmResume">${icon('play')} Продолжить</button><button class="btn lg ghost" data-act="tmStop">${icon('stop')} Стоп</button>`}
             </div>
             ${tk && !tk.done && !isIdle && st.mode === 'work' ? `<button class="btn ghost" data-act="tmTaskDone">${icon('check')} ${sub ? 'Шаг сделан' : 'Задача сделана'}</button>` : ''}
+            ${B.noiseUi ? B.noiseUi() : ''}
             <p class="hint">${sw ? 'Идёт, пока не нажмёшь «Стоп».' : `Через ${cfg.work} мин сигнал, дальше время идёт в плюс до «Стопа».`} Отвлекающие мысли пиши в <a href="#/journal">дневник</a>.</p>
           </div>
         </section>

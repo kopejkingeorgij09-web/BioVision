@@ -64,14 +64,17 @@ window.BVHOST={host,root,
   /* «на всё окно» в новой оболочке не нужен: колонка конспекта и так без лишних панелей */
   full:()=>{}};
 
-/* ---------- тема: системная, светлая или тёмная ---------- */
+/* ---------- тема: системная, светлая или тёмная ----------
+   BG — фон страницы [светлый, тёмный], им же красится полоса браузера; должен совпадать с --bg в app.js и с index.html. */
+const BG=['#F2F3EE','#0D1410'];
 const mq=matchMedia('(prefers-color-scheme: dark)');
 function applyTheme(){
   const pref=store.get('theme','auto');
   const dark=pref==='dark'||(pref==='auto'&&mq.matches);
   host.dataset.theme=dark?'dark':'light';
   document.documentElement.dataset.theme=dark?'dark':'light';
-  const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=dark?'#101614':'#F5F6F2';
+  document.documentElement.style.background=BG[dark?1:0];
+  const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=BG[dark?1:0];
   themeFns.forEach(f=>{try{f()}catch(e){}})}
 try{mq.addEventListener('change',applyTheme)}catch(e){}
 BV.theme={get:()=>store.get('theme','auto'),set:v=>{store.set('theme',v);applyTheme()},apply:applyTheme};

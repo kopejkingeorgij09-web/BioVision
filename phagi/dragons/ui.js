@@ -7,7 +7,17 @@
 const G=window.DRG,W=window.DRAW,E=window.DECO,I=window.ISL;
 
 const docOf=uid=>(S.drag||{})[uid]||null;
-const on=uid=>{const d=docOf(uid);return !!d&&d.mode==='dragons'};
+/* Пауза острова (ноябрь 2026): пока готовится новая версия с новыми рисунками, ученицы на остров не заходят.
+   Карточки за паузу копятся в очки острова (pausePoints: 1 карточка = 1 очко, по счётчику серии srs/<uid>/meta/streak),
+   в новой версии они станут стартовым бонусом. Документ острова не трогается и не пишется.
+   Открыть остров: PAUSE.from = null. Учитель видит острова как раньше. */
+const PAUSE={from:'2026-11-02',to:null,until:'5–6 ноября'};
+const paused=()=>!!PAUSE.from&&!T();
+function pausePoints(uid){if(!PAUSE.from)return 0;const days=(S.streak[uid]||{}).days||{};
+  return Object.entries(days).reduce((x,[d,n])=>d>=PAUSE.from&&(!PAUSE.to||d<=PAUSE.to)?x+(+n||0):x,0)}
+function pauseHTML(){const n=pausePoints(meId());
+  return `<section class="sheet drg-pause" role="status"><h2>🐉 Остров драконов на обновлении</h2><p>Готовим новую версию острова с новыми драконами. Откроется примерно ${esc(PAUSE.until)}.</p><p>Карточки не пропадают: каждая повторённая карточка сейчас даёт очко острова, а при открытии очки станут стартовым бонусом. Уже накоплено: <b>${n} ${plural(n,'очко','очка','очков')}</b>.</p></section>`}
+const on=uid=>{if(paused())return false;const d=docOf(uid);return !!d&&d.mode==='dragons'};
 
 /* часы острова и доход за дни из счётчика карточек */
 function ctxOf(uid){
@@ -106,6 +116,7 @@ function topHTML(st){topLoad(false);const T0=S.drgTop||{rows:[],busy:true},me=me
 function onSnap(uid,srv){
   S.drag=S.drag||{};const st=storeOf(uid);
   if(st){st.snap(srv||null);S.drag[uid]=st.tip;
+    if(paused())return;   /* на паузе документ острова не переписывается: ни перевода часов, ни призов */
     const matches=(S.people||[]).filter(p=>p.label==='Георгий');
     if(st.status==='ok'&&!st.pending()&&uid===meId()&&st.tip&&st.tip.v===2&&st.tip.clockV!==1){const x=stateOf(uid);if(x)save(uid,x.st);return}
     if(st.status==='ok'&&!st.pending()&&matches.length===1&&matches[0].id===uid&&uid===meId()){
@@ -224,7 +235,7 @@ function battleHub(uid,bact){
   <p class="muted small drg-hubn">Боёв драконов между ученицами нет: в походе соперник — компьютер, а с соперницами сражаются бактерии в турнире.</p></section>`}
 
 function switchHTML(){
-  if(T())return '';const dr=on(meId());
+  if(T())return '';if(paused())return pauseHTML();const dr=on(meId());
   return `<div class="drg-sw"><span class="muted small">Мотивация</span><div class="cvs" role="group" aria-label="Мотивация"><button data-act="drgmode" data-v="petri" aria-pressed="${!dr}">🧫 Бактерии</button><button data-act="drgmode" data-v="dragons" aria-pressed="${dr}">🐉 Драконы</button></div></div>`}
 
 function reviewBadge(uid){const x=stateOf(uid);if(!x)return '';const info=x.c.info,rt=rateNow(x.st,info.todayN),day=rateAll(x.st)*(typeof x.st.evK==='number'?E.todayBonus(info.todayN,GOAL).goldW:info.todayN);
@@ -1067,6 +1078,7 @@ const navPut=(n,push)=>{const cur=navDs(),ds=n?(push?cur:cur.slice(0,-1)).concat
 let navSkip=false,navBoot=history.state&&history.state.drg?history.state:null,navT0=Date.now();
 function navSync(){try{navSync0()}catch(e){}}   /* до объявления S в странице наблюдатель уже работает */
 function navSync0(){
+  if(navBoot&&paused()&&S.mode&&S.mode!=='loading'){navBoot=null;S.view='cards';navPut(null,false);render();return}
   if(navBoot){const b=navBoot,ok=S.mode&&S.mode!=='loading'&&stateOf(b.uid||meId());
     /* после перезагрузки бой не восстанавливается: страница, с которой его открыли, без записи истории */
     if(ok&&b.v){navBoot=null;S.view=b.v;navPut(null,false);render();return}
@@ -1169,11 +1181,11 @@ const islandFail=()=>`<button class="back" data-act="go" data-v="cards">← К �
 const actGuard=fn=>function(){const err=e=>{console.error('драконы:',e);if(Date.now()-errShown>3000){errShown=Date.now();toast('Не получилось из-за ошибки на странице. Попробуйте ещё раз или обновите страницу')}};
   try{const r=fn.apply(this,arguments);if(r&&typeof r.catch==='function')return r.catch(err);return r}catch(e){err(e)}};
 window.DRGUI={on:guard(on,false),hero:guard(hero,''),switchHTML:guard(switchHTML,''),reviewBadge:guard(reviewBadge,''),dayDoneHTML:guard(dayDoneHTML,''),onSnap:guard(onSnap,undefined),
-  islandView:guard(islandView,islandFail),stateOf,founders,setMode,saveHTML,storeOf,classesOf,battleHub:guard(battleHub,'')};
+  islandView:guard(()=>paused()?`<button class="back" data-act="go" data-v="cards">← К карточкам</button>`+pauseHTML():islandView(),islandFail),pausePoints,paused,stateOf,founders,setMode,saveHTML,storeOf,classesOf,battleHub:guard(battleHub,'')};
 window.DRG_ACTIONS={
   drgquality:el=>{if(window.DRPERF)DRPERF.set(el.dataset.v)},
-  drgmode:async el=>{const v=el.dataset.v;await setMode(v);toast(v==='dragons'?'Включены драконы. Чашка Петри никуда не делась, вернуться можно в любой момент.':'Включены бактерии. Драконы ждут на острове.')},
-  drgopen:el=>{S.drgUid=el.dataset.uid||meId();S.view='island';S.drgSel=null;S.drgPanel=null;S.drgPlace=null;window.scrollTo(0,0);
+  drgmode:async el=>{if(paused()){toast('Остров драконов на обновлении, откроется примерно '+PAUSE.until);return}const v=el.dataset.v;await setMode(v);toast(v==='dragons'?'Включены драконы. Чашка Петри никуда не делась, вернуться можно в любой момент.':'Включены бактерии. Драконы ждут на острове.')},
+  drgopen:el=>{if(paused()){toast('Остров драконов на обновлении, откроется примерно '+PAUSE.until);return}S.drgUid=el.dataset.uid||meId();S.view='island';S.drgSel=null;S.drgPanel=null;S.drgPlace=null;window.scrollTo(0,0);
     S.drgScroll=null;S.drgFull=!!el.dataset.full;S.drgCam=null},
   drgfull:el=>{S.drgFull=el.dataset.v==='1';S.drgCam=null;S.drgPanel=null;S.drgSel=null;if(!S.drgFull)window.scrollTo(0,0)},
   drgzoom:el=>{const r=camBox();if(!r)return;const v=el.dataset.v;
@@ -1185,7 +1197,7 @@ window.DRG_ACTIONS={
   drgsel:el=>{if(S.drgPlace)return;S.drgSel=el.dataset.id||null;S.drgPanel=null;onIsleOf(S.drgSel);if(el.dataset.focusHome)requestAnimationFrame(()=>camShow(S.drgSel))},
   /* переход между островами: камера подгоняется заново */
   /* в гости: витрину берём из рейтинга (или грузим), остров открывается на весь экран только для просмотра */
-  drgvisit:async el=>{const u=el.dataset.v;S.drgPanel=null;S.drgSel=null;S.drgPlace=null;S.drgCam=null;S.drgIsle=0;
+  drgvisit:async el=>{if(paused()){toast('Остров драконов на обновлении, откроется примерно '+PAUSE.until);return}const u=el.dataset.v;S.drgPanel=null;S.drgSel=null;S.drgPlace=null;S.drgCam=null;S.drgIsle=0;
     if(!u){S.drgUid=null;S.view='island';render();return}
     let r=((S.drgTop||{}).rows||[]).find(x=>x.uid===u);if(!r){const x=await S.db.doc(`arena/${u}/isle/show`).get();r=x.exists?Object.assign({uid:u},x.data()):null}
     if(!r){toast('Этот остров ещё не открыт');return}

@@ -1,8 +1,28 @@
-/* Зов леса: дневник. Итоги дня собираются сами, вечерний разбор (что сделал, что не вышло и почему, главное на завтра),
+/* Зов леса: дневник. Итоги дня собираются сами, вечерний разбор (что сделал, что не вышло и почему),
    настроение и энергия, мысли с временем. Отсюда же «Разобрать неделю в Claude». */
 (function(){
 const {esc, icon} = B;
 const MOOD = ['', 'плохо', 'так себе', 'ровно', 'хорошо', 'отлично'];
+/* вопросы-подсказки для «Мыслей»: когда не знаешь, что писать, отвечаешь на один */
+const HINTS = [
+  'Что сегодня удивило или оказалось не таким, как ты думал?',
+  'Какую мысль из лекции или книги хочется не забыть? Перескажи её своими словами.',
+  'Что сегодня забрало больше всего сил и стоило ли оно того?',
+  'О чём ты сегодня думал чаще всего?',
+  'Что бы ты сказал себе утром, если бы мог?',
+  'Где сегодня застрял в задаче и что в итоге помогло (или помогло бы)?',
+  'Какой разговор запомнился и почему?',
+  'Что тревожит прямо сейчас? Назови это одной фразой.',
+  'За что сегодня можно себя похвалить, даже за мелочь?',
+  'Какая идея пришла сегодня: для учёбы, для занятий с учениками, для приложения?',
+  'Что ты понял про себя: когда работается лучше, что выбивает из колеи?',
+  'Чему научил сегодняшний ученик или урок, который ты вёл?',
+  'Что хочется изменить в этой неделе, пока она не кончилась?',
+  'Какой вопрос ты сегодня так и не задал, а стоило?'
+];
+const hintShift = {};
+const hintI = date => { let h = 0; for (const c of date) h = (h * 31 + c.charCodeAt(0)) % 997; return (h + (hintShift[date] || 0)) % HINTS.length; };
+B.acts.thHint = el => { const d = el.dataset.d, ta = B.$('#thNew'), v = ta ? ta.value : ''; hintShift[d] = (hintShift[d] || 0) + 1; B.render(true); const n = B.$('#thNew'); if (n && v) n.value = v; };
 
 function summary(date){
   const d = B.day(date);
@@ -48,8 +68,6 @@ B.views.journal = {
             <h2>${icon('pen')}Разбор</h2>
             <label class="field">Что сделал и чем доволен<textarea rows="3" data-in="rv" data-k="done" data-d="${date}" placeholder="Коротко, своими словами">${esc(rv.done || '')}</textarea></label>
             <label class="field">Что не вышло и почему<textarea rows="3" data-in="rv" data-k="why" data-d="${date}" placeholder="Честно: где отвлёкся, что отложил, что помешало">${esc(rv.why || '')}</textarea></label>
-            <div class="field">Дела на ${date === t ? 'завтра' : B.fmtS(B.add(date, 1))} <span class="muted">необязательно, корона — важное</span>
-              ${B.planPicker(B.add(date, 1), '')}</div>
             <div class="field">Настроение<div class="chips">${[1, 2, 3, 4, 5].map(i => `<button class="chip ${rv.mood === i ? 'on' : ''}" data-act="rvSet" data-k="mood" data-v="${i}" data-d="${date}">${MOOD[i]}</button>`).join('')}</div></div>
             <div class="field">Энергия<div class="chips">${[1, 2, 3, 4, 5].map(i => `<button class="chip ${rv.energy === i ? 'on' : ''}" data-act="rvSet" data-k="energy" data-v="${i}" data-d="${date}">${'●'.repeat(i)}</button>`).join('')}</div></div>
             <p class="hint" id="rvSaved">${date < t && !B.reviewDone(date) && B.hasReview(d) ? 'Разбор написан после окончания дня: он останется в дневнике, но в серию не попадёт.' : B.reviewDone(date) ? 'Разбор засчитан, серия дневника продолжается.' : 'Сохраняется само, пока пишешь.'}</p>
@@ -58,7 +76,8 @@ B.views.journal = {
         <div class="col">
           <section class="card thoughts">
             <h2>${icon('quote')}Мысли</h2>
-            <div class="add-line"><textarea id="thNew" rows="2" placeholder="Что крутится в голове. Идея, тревога, вывод, что угодно"></textarea></div>
+            <p class="th-hint"><span>${esc(HINTS[hintI(date)])}</span><button class="link" data-act="thHint" data-d="${date}">другой вопрос</button></p>
+            <div class="add-line"><textarea id="thNew" rows="2" placeholder="Можно ответить на вопрос выше или записать что угодно своё"></textarea></div>
             <div class="row end"><button class="btn sm primary" data-act="thAdd" data-d="${date}">Записать</button></div>
             <div class="notes">${(d.notes || []).slice().reverse().map(n => `<div class="bnote t"><p>${esc(n.t)}</p><span class="muted mono">${B.hm(n.at)}</span><button class="icon-btn sm" data-act="thDel" data-d="${date}" data-at="${n.at}">${icon('x')}</button></div>`).join('') || '<p class="muted">Мыслей за этот день нет.</p>'}</div>
           </section>

@@ -1,6 +1,6 @@
-/* Режим бамбука: «Итоги». Неделя, месяц или всё время: опыт по дням, закрытые дни, фокус, чтение, спорт, привычки.
+/* Зов леса: «Итоги». Неделя, месяц или всё время: опыт по дням, закрытые дни, чтение, спорт, привычки.
    Для недели ещё разбор: причины переносов и вопрос «что меняю на следующей неделе» (документ wk_<понедельник>).
-   Внизу перемотка: каким был бамбук в любой прошлый день. */
+   Внизу перемотка: каким был лес в любой прошлый день. */
 (function(){
 const {esc, icon} = B;
 let mode = 'week', anchor = null, replay = null, playT = null;
@@ -18,18 +18,17 @@ function days(r){ const out = []; for (let d = r.from; d <= r.to; d = B.add(d, 1
 
 function summary(list){
   const c = B.calc(), t = B.today();
-  let xp = 0, good = 0, past = 0, pomoMin = 0, read = 0, sport = 0, hv = 0, hn = 0;
+  let xp = 0, good = 0, past = 0, read = 0, sport = 0, hv = 0, hn = 0;
   const hs = B.habits().filter(h => h.kind !== 'weekly');
   list.forEach(d => {
     const r = c.days[d]; if (!r) return;
     xp += r.xp;
     if (d <= t){ past++; if (r.review) good++; }
-    pomoMin += (B.day(d).pomo || []).reduce((a, p) => a + (p.min || 0), 0);
     read += B.readMin(d);
     if (d <= t) hs.forEach(h => { if (h.created && d < h.created) return; hn++; hv += B.habitVal(h, d); });
   });
   sport = B.workouts().filter(w => list.includes(w.date)).length;
-  return {xp, good, past, pomoMin, read, sport, hab: hn ? hv / hn : 0};
+  return {xp, good, past, read, sport, hab: hn ? hv / hn : 0};
 }
 
 function xpChart(list){
@@ -49,7 +48,7 @@ function xpChart(list){
 
 function weekReview(r){
   const reasons = {};
-  B.tasks().forEach(t => (t.postpones || []).forEach(p => { const d = B.dayOf(p.at); if (d >= r.from && d <= r.to) reasons[p.why] = (reasons[p.why] || 0) + 1; }));
+  B.tasks().forEach(t => (t.postpones || []).forEach(p => { const d = B.dayOf(p.at); if (d >= r.from && d <= r.to) if (p.why) reasons[p.why] = (reasons[p.why] || 0) + 1; }));
   const top = Object.entries(reasons).sort((a, b) => b[1] - a[1]).slice(0, 3);
   const doc = B.get('wk_' + r.from) || {};
   const c = B.calc(), list = days(r).filter(d => c.days[d]);
@@ -62,39 +61,38 @@ function weekReview(r){
     ${B.habits().length ? `<div class="sub-h">Привычки</div><div class="hrates">${B.habits().map(h => { let v = 0, n = 0; days(r).forEach(d => { if (d > B.today() || (h.created && d < h.created)) return; n++; v += B.habitVal(h, d); });
       const rate = h.kind === 'weekly' ? Math.min(1, v / (h.target || 3)) : n ? v / n : 0;
       return `<div class="hrate"><span>${esc(h.name)}</span>${B.bar(rate)}<b class="mono">${Math.round(rate * 100)}%</b></div>`; }).join('')}</div>` : ''}
-    ${ended ? `<label class="field">Что меняю на следующей неделе<textarea rows="3" data-in="wkChange" data-w="${r.from}" placeholder="Одно-два конкретных изменения. Например: телефон в другой комнате во время помидоров">${esc(doc.change || '')}</textarea></label>
+    ${ended ? `<label class="field">Что меняю на следующей неделе<textarea rows="3" data-in="wkChange" data-w="${r.from}" placeholder="Одно-два конкретных изменения. Например: главные дела ставить на утро">${esc(doc.change || '')}</textarea></label>
       <p class="hint">Ответ будет висеть на главном экране всю следующую неделю.</p>` : '<p class="hint">Разбор недели откроется с субботы.</p>'}
     <button class="btn ghost" data-act="aiWeek">${icon('sparkle')} Разобрать неделю в Claude</button>
   </section>`;
 }
 B.inputs.wkChange = el => B.put('wk_' + el.dataset.w, {change: el.value, at: Date.now()}, true);
 
-/* бамбук на выбранный день */
+/* лес на выбранный день */
 function snapshot(date){
   const c = B.calc(), r = c.days[date];
   if (!r) return null;
   const lv = B.levelOf(r.total), ds = {};
   for (const k in c.days) if (k <= date) ds[k] = c.days[k];
-  return {height: lv.height, level: lv.L, days: ds};
+  return {level: lv.L, frac: lv.frac, trees: lv.trees, days: ds};
 }
 function replayCard(){
   const c = B.calc(), all = Object.keys(c.days).sort();
   if (all.length < 2) return '';
   const i = replay == null ? all.length - 1 : Math.min(replay, all.length - 1), d = all[i], s = snapshot(d);
   return `<section class="card">
-    <h2>${icon('bamboo')}Как рос бамбук</h2>
-    <div class="row between"><span id="rpDate">${B.fmtW(d)}</span><b class="mono" id="rpH">${B.fmtH(s.height)} · ур. ${s.level}</b></div>
+    <h2>${icon('tree')}Как рос лес</h2>
+    <div class="row between"><span id="rpDate">${B.fmtW(d)}</span><b class="mono" id="rpH">${B.fmtTrees(s.trees)} · ур. ${s.level}</b></div>
     <div class="row"><button class="icon-btn" data-act="rpPlay" aria-label="Проиграть">${icon(playT ? 'pause' : 'play')}</button>
       <input type="range" class="grow" min="0" max="${all.length - 1}" value="${i}" data-in="rpSlide" aria-label="День"></div>
-    <div class="scene-wrap mini" id="rpScene">${B.bambooScene(s)}</div>
+    <div class="scene-wrap mini" id="rpScene">${B.forestScene(s)}</div>
   </section>`;
 }
 function drawReplay(i){
   const c = B.calc(), all = Object.keys(c.days).sort(), d = all[i], s = snapshot(d);
   const box = B.$('#rpScene'); if (!box || !s) return;
-  box.innerHTML = B.bambooScene(s);
-  B.$('#rpDate').textContent = B.fmtW(d); B.$('#rpH').textContent = `${B.fmtH(s.height)} · ур. ${s.level}`;
-  const svg = box.querySelector('svg'); box.scrollTop = Math.max(0, B.bambooTopY(s.height, svg) - box.clientHeight * 0.4);
+  box.innerHTML = B.forestScene(s);
+  B.$('#rpDate').textContent = B.fmtW(d); B.$('#rpH').textContent = `${B.fmtTrees(s.trees)} · ур. ${s.level}`;
 }
 B.inputs.rpSlide = el => { replay = +el.value; drawReplay(replay); };
 B.acts.rpPlay = () => {
@@ -122,7 +120,6 @@ B.views.stats = {
           <section class="card"><div class="kpis">
             <div class="kpi"><b>${s.good}/${s.past}</b><span>дней с разбором</span></div>
             <div class="kpi"><b>${s.xp > 0 ? '+' : ''}${B.num(s.xp)}</b><span>XP</span></div>
-            <div class="kpi"><b>${B.num(s.pomoMin / 60, 1)} ч</b><span>фокуса</span></div>
             <div class="kpi"><b>${B.mins(s.read)}</b><span>чтения</span></div>
             <div class="kpi"><b>${s.sport}</b><span>тренировок</span></div>
             <div class="kpi"><b>${Math.round(s.hab * 100)}%</b><span>ежедневных привычек</span></div>

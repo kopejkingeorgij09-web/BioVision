@@ -1,6 +1,6 @@
-/* Режим бамбука: ядро.
+/* Зов леса: ядро.
    Даты, хранилище с синхронизацией (Supabase через ../bioviz/x/cloud.js, коллекция 'bamboo'),
-   отметки ШАДа (коллекция 'shad', общая с трекером shad/), расчёт опыта, уровня и высоты бамбука.
+   отметки ШАДа (коллекция 'shad', общая с трекером shad/), расчёт опыта, уровня и леса.
    Опыт не хранится: он каждый раз считается из записей, поэтому два устройства не могут разойтись. */
 (function(){
 const B = window.B = {};
@@ -53,7 +53,7 @@ B.mins = m => m < 60 ? `${m} мин` : `${Math.floor(m / 60)} ч${m % 60 ? ' ' +
 
 /* ---------- хранилище ----------
    Все записи лежат документами в одной коллекции: cfg, p_<id> проекты, t_<id> задачи, h_<id> привычки,
-   d_<дата> день (план, привычки, помидоры, чтение, разбор, мысли), b_<id> книги, w_<id> тренировки.
+   d_<дата> день (план, привычки, чтение, разбор, мысли), b_<id> книги, w_<id> тренировки.
    Копия всегда есть в localStorage. Изменения помечаются «грязными» и уходят в облако, пока не дойдут. */
 const LS_DOCS = 'bamboo-docs', LS_DIRTY = 'bamboo-dirty';
 let docs = {}, dirty = {}, db = null, firstSnap = false;
@@ -64,9 +64,11 @@ let lsT;
 function lsSave(){
   clearTimeout(lsT);
   lsT = setTimeout(() => {
-    try { localStorage.setItem(LS_DOCS, JSON.stringify(docs)); localStorage.setItem(LS_DIRTY, JSON.stringify(dirty)); } catch (e) {}
+    try { localStorage.setItem(LS_DOCS, JSON.stringify(docs)); localStorage.setItem(LS_DIRTY, JSON.stringify(dirty)); B.lsFull = false; }
+    catch (e) { if (!B.lsFull && B.toast) B.toast('Память браузера заполнена: последние изменения сохранены только до перезагрузки. Удали большие вложения или войди в облако.', 8000); B.lsFull = true; }
   }, 120);
 }
+B.lsSize = () => JSON.stringify(docs).length;
 B.sync = {mode: 'local', text: 'Только на этом устройстве'};
 function setSync(mode, text){ B.sync = {mode, text}; B.emit('sync'); }
 
@@ -80,7 +82,36 @@ B.changed = changed;
 B.get = id => docs[id];
 B.list = prefix => { const out = []; for (const k in docs) if (k.startsWith(prefix)) out.push(docs[k]); return out; };
 /* put(id, null) удаляет. quiet: не перерисовывать (для полей, куда сейчас печатают) */
+/* ---------- отмена и повтор (Cmd+Z / Cmd+Shift+Z) ----------
+   Каждая запись помнит, каким документ был до и после. Изменения, сделанные подряд за 0,8 с, отменяются одним шагом. */
+const undoSt = [], redoSt = [];
+let replaying = false, lastRec = 0;
+function record(key, before, after){
+  if (replaying) return;
+  const now = Date.now(), cl = v => v == null ? null : JSON.parse(JSON.stringify(v));
+  let e = undoSt[undoSt.length - 1];
+  if (!e || now - lastRec > 800){ e = {items: {}}; undoSt.push(e); if (undoSt.length > 100) undoSt.shift(); }
+  if (!(key in e.items)) e.items[key] = {before: cl(before)};
+  e.items[key].after = cl(after);
+  lastRec = now; redoSt.length = 0;
+}
+function replay(e, which){
+  replaying = true;
+  try {
+    for (const k in e.items){
+      const v = e.items[k][which];
+      if (k.startsWith('shad:')) B.shadRestore(+k.slice(5), v);
+      else B.put(k, v == null ? null : JSON.parse(JSON.stringify(v)));
+    }
+  } finally { replaying = false; }
+}
+B.undo = () => { const e = undoSt.pop(); if (!e) return false; replay(e, 'before'); redoSt.push(e); lastRec = 0; return true; };
+B.redo = () => { const e = redoSt.pop(); if (!e) return false; replay(e, 'after'); undoSt.push(e); lastRec = 0; return true; };
+B.recordShad = (n, before, after) => record('shad:' + n, before, after);
+B.clearUndo = () => { undoSt.length = 0; redoSt.length = 0; };
+
 B.put = (id, data, quiet) => {
+  if (id !== 'cfg') record(id, docs[id], data);
   if (data == null) delete docs[id];
   else { if (data._seed) delete data._seed; docs[id] = data; }
   dirty[id] = (dirty[id] || 0) + 1;
@@ -149,13 +180,64 @@ function seed(){
 
 /* ---------- ШАД: план из ../shad/plan.json и отметки из коллекции 'shad' ---------- */
 B.SHAD_STAGES = ['Не начат', 'Смотрю', 'Веб посмотрен', 'ДЗ решено', 'Закрыт'];
-B.shad = {plan: [], courses: {}, marks: {}, lms: ''};
+B.shad = {plan: [], base: [], courses: {}, marks: {}, lms: ''};
 const LS_SHADPLAN = 'bamboo-shadplan', LS_SHADMARKS = 'shad-track-progress';   // второй ключ общий с трекером shad/ на этом устройстве
 function usePlan(d){
-  B.shad.courses = d.courses || {}; B.shad.lms = d.lms || ''; B.shad.brk = d.break || null;
-  B.shad.plan = (d.webs || []).map(x => ({n: x.n, c: x.course, code: x.code, t: x.title, w: x.web, h: x.hw}));
-  changed();
+  B.shad.courses = d.courses || {}; B.shad.lms = d.lms || ''; B.shad.brk = d.break || null; B.shad.hours = d.hours || {web: 3.75, hw: 1.9};
+  B.shad.base = (d.webs || []).map(x => ({n: x.n, c: x.course, code: x.code, t: x.title, w: x.web, h: x.hw,
+    wk: x.web && x.web.date ? B.weekStart(x.web.date) : '', hk: x.hw && x.hw.date ? B.weekStart(x.hw.date) : ''}));
+  applyOver(); changed();
 }
+/* правки вебов (название, дата и время веба, срок ДЗ) лежат в той же записи 'shad/wNN', поле o: {t, w, h}.
+   Их видит и трекер shad/: перенёс веб в планере, он переехал и там.
+   План раздаёт вебы и ДЗ по неделям (wk, hk — понедельник недели из плана). Пока у веба или ДЗ нет своего дня
+   (o.w.date / o.h.date), он лежит в блоке «ШАД на неделю» планера; wp и hp — «поставлен на день». */
+function applyOver(){
+  B.shad.plan = B.shad.base.map(p => {
+    const o = (B.shad.marks[p.n] || {}).o; if (!o) return p;
+    return Object.assign({}, p, {t: o.t || p.t, w: o.w ? Object.assign({}, p.w, o.w) : p.w, h: o.h ? Object.assign({}, p.h, o.h) : p.h, edited: true,
+      wp: !!(o.w && o.w.date), hp: !!(o.h && o.h.date)});
+  });
+}
+B.shadBase = n => B.shad.base.find(p => p.n === n);
+const shadKeep = v => v.s || v.note || v.o;
+async function shadWrite(n, v){
+  if (db){
+    try {
+      if (!shadKeep(v)) await db.doc('shad/w' + pad(n)).delete();
+      else await db.doc('shad/w' + pad(n)).set(v);
+    } catch (e) { B.toast('Изменение ШАДа не сохранилось в облаке'); }
+  } else {
+    try { localStorage.setItem(LS_SHADMARKS, JSON.stringify(B.shad.marks)); } catch (e) {}
+  }
+}
+/* patch: {t, w: {date, from, to}, h: {date}}; null убирает все правки, веб снова как в плане */
+B.shadRestore = (n, v) => {
+  const m = Object.assign({}, B.shad.marks);
+  if (v) m[n] = v; else delete m[n];
+  B.shad.marks = m; applyOver(); changed(); shadWrite(n, v || {s: 0, note: ''});
+};
+B.setShadOver = (n, patch) => {
+  const cur = B.shad.marks[n] || {}, base = B.shadBase(n); if (!base) return;
+  let o = null;
+  if (patch){
+    o = JSON.parse(JSON.stringify(cur.o || {}));
+    if ('t' in patch) o.t = (patch.t || '').trim() && patch.t.trim() !== base.t ? patch.t.trim() : undefined;
+    ['w', 'h'].forEach(k => {
+      if (!patch[k]) return;
+      const m = Object.assign({}, o[k] || {}, patch[k]);
+      // свой день хранится, даже если совпал с днём из плана (это значит «поставлен»); пустой день убирает его
+      Object.keys(m).forEach(f => { if (f === 'date' ? !m.date : (m[f] || '') === (base[k][f] || '')) delete m[f]; });
+      o[k] = Object.keys(m).length ? m : undefined;
+    });
+    o = JSON.parse(JSON.stringify(o));
+    if (!Object.keys(o).length) o = null;
+  }
+  const v = {s: cur.s || 0, note: cur.note || '', at: Date.now()}; if (o) v.o = o;
+  B.recordShad(n, B.shad.marks[n], v);
+  B.shad.marks = Object.assign({}, B.shad.marks, {[n]: v});
+  applyOver(); changed(); shadWrite(n, v);
+};
 async function loadShadPlan(){
   try { const c = JSON.parse(localStorage.getItem(LS_SHADPLAN) || 'null'); if (c) usePlan(c); } catch (e) {}
   try {
@@ -165,39 +247,60 @@ async function loadShadPlan(){
 }
 function onShad(snap){
   const m = {};
-  snap.docs.forEach(d => { const n = parseInt(d.id.slice(1), 10); const v = d.data() || {}; if (n) m[n] = {s: v.s || 0, note: v.note || '', at: v.at || 0}; });
-  if (JSON.stringify(m) !== JSON.stringify(B.shad.marks)){ B.shad.marks = m; changed(); }
+  snap.docs.forEach(d => { const n = parseInt(d.id.slice(1), 10); const v = d.data() || {}; if (n){ m[n] = {s: v.s || 0, note: v.note || '', at: v.at || 0}; if (v.o) m[n].o = v.o; } });
+  if (JSON.stringify(m) !== JSON.stringify(B.shad.marks)){ B.shad.marks = m; applyOver(); changed(); }
 }
 B.shadStage = n => (B.shad.marks[n] && B.shad.marks[n].s) || 0;
 B.setShadStage = async (n, s) => {
   const cur = B.shad.marks[n] || {};
-  const v = {s, note: cur.note || '', at: Date.now()};
+  const v = {s, note: cur.note || '', at: Date.now()}; if (cur.o) v.o = cur.o;
+  B.recordShad(n, B.shad.marks[n], v);
   B.shad.marks = Object.assign({}, B.shad.marks, {[n]: v});
   changed();
-  if (db){
-    try {
-      if (!s && !v.note) await db.doc('shad/w' + pad(n)).delete();
-      else await db.doc('shad/w' + pad(n)).set(v);
-    } catch (e) { B.toast('Отметка ШАДа не сохранилась в облаке'); }
-  } else {
-    try { localStorage.setItem(LS_SHADMARKS, JSON.stringify(B.shad.marks)); } catch (e) {}
-  }
+  await shadWrite(n, v);
 };
-/* веб и ДЗ на конкретную дату */
+/* веб и ДЗ, поставленные на конкретный день */
 B.shadOn = date => {
   const out = [];
   B.shad.plan.forEach(p => {
-    if (p.w && p.w.date === date) out.push({p, kind: 'web', from: p.w.from || '', to: p.w.to || '', need: 2});
-    if (p.h && p.h.date === date) out.push({p, kind: 'hw', from: p.h.from || '', to: p.h.to || '', need: 3});
+    if (p.wp && p.w.date === date) out.push({p, kind: 'web', from: p.w.from || '', to: p.w.to || '', need: 2});
+    if (p.hp && p.h.date === date) out.push({p, kind: 'hw', from: p.h.from || '', to: p.h.to || '', need: 3});
   });
   return out.sort((a, b) => a.from.localeCompare(b.from));
 };
-B.shadLate = () => {
-  const t = B.today(), out = [];
+/* блок «ШАД на неделю»: вебы и ДЗ недели ws без своего дня; на текущей неделе туда же попадают хвосты прошлых недель */
+B.shadWeek = ws => {
+  const cur = ws === B.weekStart(B.today()), out = [];
   B.shad.plan.forEach(p => {
     const s = B.shadStage(p.n);
-    if (s < 2 && p.w && p.w.date < t) out.push({p, kind: 'web', need: 2});
-    else if (s < 3 && p.h && p.h.date < t) out.push({p, kind: 'hw', need: 3});
+    if (p.w && !p.wp && (p.wk === ws || (cur && p.wk < ws && s < 2))) out.push({p, kind: 'web', need: 2, old: p.wk < ws});
+    if (p.h && p.h.date && !p.hp && (p.hk === ws || (cur && p.hk < ws && s < 3))) out.push({p, kind: 'hw', need: 3, old: p.hk < ws});
+  });
+  return out.sort((a, b) => b.old - a.old || a.p.n - b.p.n || (a.kind === 'web' ? -1 : 1));
+};
+/* всё, что относится к неделе ws: поставленное на её дни и лежащее в блоке */
+B.shadWeekAll = ws => {
+  const we = B.add(ws, 6), out = B.shadWeek(ws);
+  B.shad.plan.forEach(p => {
+    if (p.wp && p.w.date >= ws && p.w.date <= we) out.push({p, kind: 'web', need: 2});
+    if (p.hp && p.h.date >= ws && p.h.date <= we) out.push({p, kind: 'hw', need: 3});
+  });
+  return out;
+};
+B.shadHoursLeft = list => list.reduce((m, it) => m + (B.shadStage(it.p.n) >= it.need ? 0 : (B.shad.hours || {})[it.kind] || 0), 0);
+/* убрать день у веба или ДЗ: карточка вернётся в блок своей недели */
+B.shadUnplace = (n, kind) => {
+  const base = B.shadBase(n), k = kind === 'web' ? 'w' : 'h'; if (!base || !base[k]) return;
+  B.setShadOver(n, {[k]: {date: '', from: '', to: ''}});
+};
+/* хвосты: поставленное на прошедший день или не поставленное, когда неделя уже кончилась */
+B.shadLate = () => {
+  const t = B.today(), ws = B.weekStart(t), out = [];
+  B.shad.plan.forEach(p => {
+    const s = B.shadStage(p.n);
+    const wl = p.w && (p.wp ? p.w.date < t : p.wk < ws), hl = p.h && p.h.date && (p.hp ? p.h.date < t : p.hk < ws);
+    if (s < 2 && wl) out.push({p, kind: 'web', need: 2});
+    else if (s < 3 && hl) out.push({p, kind: 'hw', need: 3});
   });
   return out;
 };
@@ -217,6 +320,7 @@ B.connect = async () => {
   } else {
     if (!docs.cfg) seed();
     try { B.shad.marks = JSON.parse(localStorage.getItem(LS_SHADMARKS) || '{}') || {}; } catch (e) {}
+    applyOver();
     let had = ''; try { had = localStorage.getItem('bv_code') || ''; } catch (e) {}
     setSync(had ? 'error' : 'local', had ? 'Нет связи с облаком, записи пока только здесь' : 'Только на этом устройстве · войди кодом для синхронизации');
     changed();
@@ -224,7 +328,7 @@ B.connect = async () => {
 };
 B.exportAll = () => ({app: 'bamboo', at: new Date().toISOString(), docs});
 B.importAll = obj => {
-  if (!obj || obj.app !== 'bamboo' || !obj.docs) throw new Error('Это не резервная копия Режима бамбука');
+  if (!obj || obj.app !== 'bamboo' || !obj.docs) throw new Error('Это не резервная копия «Зова леса»');
   for (const id in obj.docs) B.put(id, obj.docs[id], true);
   changed();
 };
@@ -258,31 +362,21 @@ B.setDone = (t, v) => {
 B.nextStep = t => (t.subs || []).find(s => !s.done);
 
 /* ---------- опыт, уровни, серии ----------
-   Опыт за день: задача +5 (важная или с короной +8), шаг большого дела +4,
-   фокус +10 за каждые полные 25 минут (от 20 минут засчитывается первый, 5–19 минут +3), привычка +10 (минимум +5),
-   чтение +1 за 3 минуты (до 40), тренировка +25, вечерний разбор +20, мысль в дневнике +5 (до трёх),
-   стадия веба ШАДа +15, перенос задачи −3.
-   Понятия «закрытого дня» нет: штрафов за день и заморозок тоже. Вместо одной серии считаются отдельные:
-   разборы в дневнике подряд, дни с хотя бы одним сделанным делом, серии привычек. */
-B.XP = {task: 5, taskP1: 8, sub: 4, pomo: 10, habit: 10, readPer: 3, readMax: 40, sport: 25, review: 20, note: 5, shad: 15, postpone: -3};
+   Опыт дают только дела и привычки: задача +5 (важная или с короной +8), подзадача +4,
+   привычка +10 (минимальная версия +5; чтение и тренировка тоже привычки и считаются здесь же).
+   Фокус, чтение минутами, разбор и ШАД опыта не дают: они видны в своих разделах и сериях.
+   Каждый новый уровень сажает в лесу новое дерево, растущее дерево показывает прогресс внутри уровня. */
+B.XP = {task: 5, taskP1: 8, sub: 4, habit: 10};
 B.need = L => 100 + 25 * L;           // опыта от уровня L до L+1
-B.GROW = 1.42;                         // каждый уровень бамбук выше в 1,42 раза
-B.BASE = 0.3;                          // росток, метры
-B.heightAt = lv => B.BASE * Math.pow(B.GROW, lv - 1);
 
 B.levelOf = total => {
   let L = 1, rem = total;
   while (rem >= B.need(L)) { rem -= B.need(L); L++; }
   const frac = rem / B.need(L);
-  return {L, rem, frac, height: B.heightAt(L + frac)};
+  return {L, rem, frac, trees: L - 1};
 };
-/* сколько всего опыта нужно, чтобы бамбук дорос до высоты h */
-B.xpForHeight = h => {
-  const lv = 1 + Math.log(h / B.BASE) / Math.log(B.GROW);
-  const L = Math.floor(lv); let xp = 0;
-  for (let k = 1; k < L; k++) xp += B.need(k);
-  return xp + (lv - L) * B.need(L);
-};
+/* сколько всего опыта нужно, чтобы дойти до уровня L */
+B.xpForLevel = L => { let xp = 0; for (let k = 1; k < L; k++) xp += B.need(k); return xp; };
 /* 1 — привычка выполнена, 0.5 — минимальная версия (держит серию, половина опыта), 0 — нет */
 B.habitVal = (h, date) => {
   if (h.auto === 'read'){
@@ -342,8 +436,6 @@ B.calc = () => {
     const dn = doneBy[date] || [];
     if (dn.length) p.tasks = dn.reduce((a, t) => a + (t.pri === 1 || crownSet.has(t.id) ? B.XP.taskP1 : B.XP.task), 0);
     if (subBy[date]) p.subs = subBy[date].length * B.XP.sub;
-    const pomo = (d.pomo || []).reduce((a, q) => { const m = q.min || 0; return a + (m >= 20 ? Math.max(1, Math.floor(m / 25)) * B.XP.pomo : m >= 5 ? 3 : 0); }, 0);
-    if (pomo) p.pomo = pomo;
     let hab = 0;
     habits.forEach(h => {
       if (h.created && date < h.created) return;
@@ -358,93 +450,52 @@ B.calc = () => {
     });
     if (hab) p.habits = Math.round(hab * B.XP.habit);
     const rm = (d.read || []).reduce((a, r) => a + (r.min || 0), 0);
-    if (rm) p.read = Math.min(B.XP.readMax, Math.floor(rm / B.XP.readPer));
-    if (sportBy[date]) p.sport = Math.min(2, sportBy[date].length) * B.XP.sport;
     const rvOk = B.reviewDone(date);
-    if (rvOk) p.review = B.XP.review;
-    if (d.notes && d.notes.length) p.notes = Math.min(3, d.notes.length) * B.XP.note;
-    if (shadBy[date]) p.shad = shadBy[date].reduce((a, s) => a + s, 0) * B.XP.shad;
-    if (postBy[date]) p.postpone = postBy[date].length * B.XP.postpone;
 
     let xp = 0; for (const k in p) xp += p[k];
-    // день: разбор есть — зелёный лист; что-то сделано без разбора — светлый; пусто — сухой
-    const active = dn.length || (d.pomo || []).length || hab || rm || sportBy[date] || subBy[date];
+    // день: разбор есть — «good»; что-то сделано без разбора — «some»; пусто — «empty»
+    const active = dn.length || hab || rm || sportBy[date] || subBy[date];
     const result = date >= today ? 'open' : rvOk ? 'good' : active ? 'some' : 'empty';
     xpAll += Math.max(0, xp);
     total = Math.max(0, total + xp);
     days[date] = {xp, p, result, total, done: dn.length, review: rvOk, reviewText: B.hasReview(d)};
   }
-  // уровень и высота
-  const {L, rem, frac, height} = B.levelOf(total);
+  // уровень и лес
+  const {L, rem, frac, trees} = B.levelOf(total);
   const doneDay = date => !!(days[date] && days[date].done);
   const rv = B.streakOf(date => !!(days[date] && days[date].review), start);
   const tk = B.streakOf(doneDay, start);
   const reviews = Object.values(days).filter(x => x.review).length, empty = Object.values(days).filter(x => x.result === 'empty').length;
-  memo = {days, total, level: L, into: rem, need: B.need(L), frac, height, xpAll, start, today,
+  memo = {days, total, level: L, into: rem, need: B.need(L), frac, trees, xpAll, start, today,
     live: rv.cur, best: rv.best, review: rv, tasks: tk, reviews, empty};
   memoKey = key;
   return memo;
 };
 
-/* ---------- вехи высоты ----------
-   Расстояния до планет даны при наибольшем сближении с Землёй, световой год 9,46·10¹⁵ м. */
-const LY = 9.461e15, AU = 1.496e11;
+/* ---------- вехи леса ----------
+   Уровень L: в лесу L − 1 взрослых деревьев и одно растущее. Вехи по уровню. */
 B.MILES = [
-  [0.3, 'Росток', 'с этого начинается каждый бамбук'],
-  [1.8, 'Человек', 'бамбук выше тебя'],
-  [5.5, 'Жираф', 'самое высокое животное'],
-  [15, 'Пятиэтажка', 'пять этажей по 3 метра'],
-  [30, 'Гигантский бамбук', 'Dendrocalamus giganteus, до 30 м в высоту'],
-  [93, 'Статуя Свободы', 'вместе с пьедесталом'],
-  [116, 'Гиперион', 'секвойя, самое высокое дерево на Земле'],
-  [330, 'Эйфелева башня', 'с антеннами'],
-  [540, 'Останкино', 'Останкинская телебашня'],
-  [828, 'Бурдж-Халифа', 'самый высокий небоскрёб'],
-  [5642, 'Эльбрус', 'высшая точка России и Европы'],
-  [8849, 'Эверест', 'высшая точка Земли'],
-  [10000, 'Авиалайнер', 'крейсерская высота около 10 км'],
-  [11000, 'Стратосфера', 'над тропосферой, облака остались внизу'],
-  [38969, 'Баумгартнер', 'прыжок со стратостата, рекорд 2012 года'],
-  [50000, 'Конец стратосферы', 'дальше мезосфера'],
-  [100000, 'Линия Кармана', 'граница космоса'],
-  [410000, 'МКС', 'орбита около 410 км'],
-  [20200000, 'Спутники GPS', 'орбита 20 200 км'],
-  [35786000, 'Геостационар', 'геостационарная орбита: спутник висит над одной точкой'],
-  [384400000, 'Луна', 'среднее расстояние 384 400 км'],
-  [1.5e9, '«Джеймс Уэбб»', 'телескоп в точке Лагранжа L2, 1,5 млн км'],
-  [3.8e10, 'Венера', '≈38 млн км'],
-  [5.5e10, 'Марс', '≈55 млн км'],
-  [7.7e10, 'Меркурий', '≈77 млн км'],
-  [AU, 'Солнце', '1 астрономическая единица, 150 млн км'],
-  [5.9e11, 'Юпитер', '≈590 млн км'],
-  [1.2e12, 'Сатурн', '≈1,2 млрд км'],
-  [2.6e12, 'Уран', '≈2,6 млрд км'],
-  [4.3e12, 'Нептун', '≈4,3 млрд км'],
-  [5.9e12, 'Плутон', '≈40 а. е.'],
-  [2.5e13, 'Вояджер-1', 'самый далёкий аппарат людей, ≈25 млрд км'],
-  [4.24 * LY, 'Проксима Центавра', 'ближайшая звезда, 4,24 св. года'],
-  [8.6 * LY, 'Сириус', 'самая яркая звезда ночного неба, 8,6 св. года'],
-  [2.6e4 * LY, 'Центр Галактики', '≈26 тыс. св. лет'],
-  [1e5 * LY, 'Млечный Путь', 'диаметр ≈100 тыс. св. лет'],
-  [2.5e6 * LY, 'Андромеда', 'соседняя галактика, ≈2,5 млн св. лет'],
-  [5.4e7 * LY, 'Скопление Девы', '≈54 млн св. лет'],
-  [4.65e10 * LY, 'Край Вселенной', 'граница наблюдаемой Вселенной, ≈46,5 млрд св. лет, дальше карты нет']
+  [1, 'Семечко', 'всё начинается с одного семечка'],
+  [2, 'Первое дерево', 'первое взрослое дерево на поляне'],
+  [3, 'Пара деревьев', 'уже не одинокое дерево'],
+  [5, 'Островок', 'маленький островок зелени'],
+  [8, 'Опушка', 'появились первые грибы и тропинка'],
+  [12, 'Рощица', 'деревья стоят кружком'],
+  [17, 'Роща', 'в роще поселились птицы'],
+  [23, 'Лесок', 'тень на всей поляне'],
+  [30, 'Лес', 'настоящий лес, можно заблудиться'],
+  [40, 'Бор', 'высокие сосны и мох под ногами'],
+  [52, 'Дубрава', 'вековые дубы'],
+  [66, 'Чаща', 'тропинки зарастают'],
+  [82, 'Тайга', 'лес до горизонта'],
+  [100, 'Заповедник', 'сюда приходят олени'],
+  [130, 'Древний лес', 'лесу больше, чем любому дереву в нём'],
+  [170, 'Лесной край', 'зелёный цвет на карте']
 ];
-B.mileFor = h => {
+B.mileFor = L => {
   let prev = null, next = null;
-  for (const m of B.MILES){ if (m[0] <= h) prev = m; else { next = m; break; } }
+  for (const m of B.MILES){ if (m[0] <= L) prev = m; else { next = m; break; } }
   return {prev, next};
 };
-B.fmtH = m => {
-  if (m < 10) return B.num(m, 2).replace(/(,\d)0$/, '$1') + ' м';
-  if (m < 1000) return B.num(m, m < 100 ? 1 : 0) + ' м';
-  if (m < 1e6) return B.num(m / 1000, m < 1e4 ? 2 : 1) + ' км';
-  if (m < 1e9) return B.num(m / 1000, 0) + ' км';
-  if (m < 1e12) return B.num(m / 1e9, 1) + ' млн км';
-  if (m < 1e14) return B.num(m / 1e12, 1) + ' млрд км';
-  if (m < 1e3 * LY) return B.num(m / LY, 2) + ' св. года';
-  if (m < 1e6 * LY) return B.num(m / LY / 1e3, 1) + ' тыс. св. лет';
-  if (m < 1e9 * LY) return B.num(m / LY / 1e6, 1) + ' млн св. лет';
-  return B.num(m / LY / 1e9, 1) + ' млрд св. лет';
-};
+B.fmtTrees = n => `${n} ${B.plural(n, 'дерево', 'дерева', 'деревьев')}`;
 })();

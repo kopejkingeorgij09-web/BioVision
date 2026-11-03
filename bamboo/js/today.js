@@ -1,5 +1,5 @@
-/* Режим бамбука: экран «Сегодня».
-   Утренний план из трёх главных дел, задачи на сегодня, вебы ШАДа, шаг большого дела, привычки, фокус и вечерний разбор. */
+/* Зов леса: экран «Сегодня».
+   Дела на сегодня, привычки, вебы ШАДа, дедлайны, шаг большого дела и вечерний разбор. */
 (function(){
 const {esc, icon} = B;
 B.views = B.views || {};
@@ -12,42 +12,17 @@ function greet(){
   return 'Добрый вечер';
 }
 B.levelCard = (c, compact) => {
-  const {next} = B.mileFor(c.height);
-  return `<a class="lvl ${compact ? 'compact' : ''}" href="#/bamboo">
+  const {next} = B.mileFor(c.level);
+  return `<a class="lvl ${compact ? 'compact' : ''}" href="#/forest">
     <div class="lvl-ring">${B.ring(c.frac, 58)}<b>${c.level}</b></div>
     <div class="lvl-body">
       <div class="lvl-top"><span>Уровень ${c.level}</span><span class="mono">${c.into}/${c.need} XP</span></div>
       ${B.bar(c.frac, 'xp')}
-      <div class="lvl-sub">${icon('bamboo')} бамбук <b>${B.fmtH(c.height)}</b>${next ? ` · до «${esc(next[1])}» ${B.fmtH(next[0] - c.height)}` : ''}</div>
+      <div class="lvl-sub">${icon('tree')} лес <b>${c.trees ? B.fmtTrees(c.trees) : 'поляна'}</b>${next ? ` · до «${esc(next[1])}» ${next[0] - c.level} ${B.plural(next[0] - c.level, 'уровень', 'уровня', 'уровней')}` : ''}</div>
     </div>
     <div class="streak ${c.live ? 'on' : ''}" title="Разборов в дневнике подряд">${icon('flame')}<b>${c.live}</b></div>
   </a>`;
 };
-
-/* прогресс вместо «закрытого дня»: что сделано сегодня и серии — дневник, дела, привычки */
-function progressCard(c, d){
-  const r = c.days[c.today] || {};
-  const t = c.today, ids = new Set(d.top || []);
-  const todays = B.tasks().filter(x => (x.due && x.due <= t && !x.done) || (x.done && x.doneAt && B.dayOf(x.doneAt) === t) || ids.has(x.id));
-  const dn = todays.filter(x => x.done).length;
-  const daily = B.habits().filter(h => h.kind !== 'weekly'), hd = daily.filter(h => B.habitDone(h, t)).length;
-  const rv = B.reviewDone(t);
-  const rows = [
-    {ic: 'pen', name: 'Дневник', cur: c.review.cur, best: c.review.best, unit: 'дн', today: rv},
-    {ic: 'list', name: 'Дела', cur: c.tasks.cur, best: c.tasks.best, unit: 'дн', today: !!r.done}
-  ].concat(B.habits().map(h => { const s = B.habitStreak(h); return {ic: h.icon || 'habit', name: h.name, cur: s.cur, best: s.best, unit: s.unit, today: h.kind === 'weekly' ? s.thisWeek >= s.target : B.habitDone(h, t), sub: h.kind === 'weekly' ? `${s.thisWeek}/${s.target} на неделе` : ''}; }));
-  return `<section class="card progress">
-    <div class="row between"><h2>${icon('flame')}Прогресс</h2><span class="muted mono">${r.xp > 0 ? '+' : ''}${r.xp || 0} XP сегодня</span></div>
-    <div class="ptoday">
-      <div><b>${dn}<small>/${todays.length}</small></b><span>дел</span>${B.bar(todays.length ? dn / todays.length : 0)}</div>
-      <div><b>${hd}<small>/${daily.length}</small></b><span>ежедневных</span>${B.bar(daily.length ? hd / daily.length : 0)}</div>
-      <div><b class="${rv ? 'ok' : ''}">${rv ? icon('check') : '—'}</b><span>разбор</span>${B.bar(rv ? 1 : 0)}</div>
-    </div>
-    <div class="sub-h">Серии</div>
-    <ul class="streaks">${rows.map(x => `<li class="${x.today ? 'today' : ''}"><i>${icon(x.ic)}</i><span class="grow">${esc(x.name)}${x.sub ? `<small>${x.sub}</small>` : ''}</span>
-      <b class="${x.cur ? 'on' : ''}">${icon('flame')}${x.cur}<small>${x.unit}</small></b><em>рекорд ${x.best}</em></li>`).join('')}</ul>
-  </section>`;
-}
 
 /* редактор плана на любой день: до трёх главных дел и «если-то» к каждому (когда и где) */
 /* список дел на день с коронами: коронованные (главные, до трёх) наверху, остальные ниже, по важности.
@@ -90,7 +65,7 @@ B.shadRow = (it, date) => {
   const p = it.p, s = B.shadStage(p.n), course = B.shad.courses[p.c] || {};
   const ok = s >= it.need, late = !ok && date < B.today();
   return `<div class="shad-row ${ok ? 'ok' : ''} ${late ? 'late' : ''}">
-    <div class="shad-top"><span class="cchip c-${p.c}">${esc(course.name || p.c)}</span><span class="mono">${it.kind === 'web' ? '' : 'ДЗ · '}${esc(p.code)}</span>${it.from ? `<span class="mono muted">${it.from}–${it.to}</span>` : `<span class="muted">${it.kind === 'hw' ? 'до ' : ''}${B.fmtS(it.kind === 'web' ? p.w.date : p.h.date)}</span>`}</div>
+    <div class="shad-top"><span class="cchip c-${p.c}">${esc(course.name || p.c)}</span><span class="mono">${it.kind === 'web' ? '' : 'ДЗ · '}${esc(p.code)}</span>${it.from ? `<span class="mono muted">${it.from}–${it.to}</span>` : `<span class="muted">${(it.kind === 'web' ? p.wp : p.hp) ? (it.kind === 'hw' ? 'до ' : '') + B.fmtS(it.kind === 'web' ? p.w.date : p.h.date) : 'неделя ' + B.fmtS(it.kind === 'web' ? p.wk : p.hk)}</span>`}</div>
     <div class="shad-title">${esc(p.t)}</div>
     <div class="seg" role="group" aria-label="Стадия">${B.SHAD_STAGES.map((l, i) => `<button class="${s === i ? 'on' : ''} ${i <= s ? 'fill' : ''}" data-act="shadSet" data-n="${p.n}" data-s="${i}" title="${l}">${SHORT[i]}</button>`).join('')}</div>
   </div>`;
@@ -101,10 +76,12 @@ B.acts.shadSet = el => {
 };
 function shadCard(c){
   const items = B.shadOn(c.today), late = B.shadLate().filter(x => !items.some(y => y.p.n === x.p.n)).slice(0, 3);
-  if (!items.length && !late.length) return '';
+  const free = B.shadWeek(B.weekStart(c.today)).filter(it => !it.old && B.shadStage(it.p.n) < it.need).length;
+  if (!items.length && !late.length && !free) return '';
   return `<section class="card">
     <div class="row between"><h2>${icon('chart')}ШАД</h2><a class="muted" href="../shad/">трекер →</a></div>
     ${items.map(it => B.shadRow(it, c.today)).join('')}
+    ${free ? `<a class="muted shad-free" href="#/tasks/week">На этой неделе без дня: ${free}. Расставь в планере →</a>` : ''}
     ${late.length ? `<div class="sub-h">Хвосты</div>${late.map(it => B.shadRow(it, '0')).join('')}` : ''}
   </section>`;
 }
@@ -125,14 +102,13 @@ function bigCard(){
   const big = B.tasks().filter(t => t.big && !t.done);
   if (!big.length) return '';
   return `<section class="card big-card">
-    <h2>${icon('steps')}Большие дела: шаг на сегодня</h2>
-    <p class="hint">Не надо делать всё. Один шаг в день, и через месяц семестровая домашка закрыта.</p>
+    <h2>${icon('steps')}Шаг большого дела</h2>
     ${big.slice(0, 3).map(t => {
       const st = B.nextStep(t), subs = t.subs || [], d = subs.filter(s => s.done).length;
       return `<div class="big-row">
         <button class="big-title" data-act="openTask" data-id="${t.id}">${esc(t.title)}<span class="muted mono">${d}/${subs.length}</span></button>
         ${B.bar(subs.length ? d / subs.length : 0)}
-        ${st ? `<div class="step"><button class="chk sm" data-act="stepDone" data-id="${t.id}" data-sid="${st.id}">${icon('check')}</button><span class="grow">${esc(st.t)}</span><button class="btn sm primary" data-act="subFocus" data-id="${t.id}" data-sid="${st.id}">${icon('play')}25 мин</button></div>`
+        ${st ? `<div class="step"><button class="chk sm" data-act="stepDone" data-id="${t.id}" data-sid="${st.id}">${icon('check')}</button><span class="grow">${esc(st.t)}</span></div>`
           : `<button class="btn sm" data-act="openTask" data-id="${t.id}">${icon('plus')} Разбить на шаги</button>`}
       </div>`;
     }).join('')}
@@ -153,7 +129,7 @@ B.habitChip = (h, date) => {
   const act = h.auto === 'read' ? 'data-act="readQuick"' : h.auto === 'sport' ? 'data-act="sportQuick"' : '';
   if (val === 0.5) sub = 'минимум' + (h.mini ? ': ' + esc(h.mini) : '');
   else if (!done && h.mini && !h.auto) sub = 'хотя бы: ' + esc(h.mini);
-  return `<${act.startsWith('href') ? 'a' : 'button'} class="hchip ${done ? 'on' : ''} ${val === 0.5 ? 'half' : ''}" ${act || `data-act="habitToggle" data-id="${h.id}" data-d="${date}"`}>
+  return `<${act.startsWith('href') ? 'a' : 'button'} class="hchip ${done ? 'on' : ''} ${val === 0.5 ? 'half' : ''}" style="--hc:var(--c-${B.habitColor ? B.habitColor(h) : 'green'})" ${act || `data-act="habitToggle" data-id="${h.id}" data-d="${date}"`}>
     <i>${done ? icon('check') : icon(h.icon || 'habit')}</i><span><b>${esc(h.name)}</b>${sub ? `<small>${sub}</small>` : ''}</span></${act.startsWith('href') ? 'a' : 'button'}>`;
 };
 /* чтение одним нажатием: дописывает минуты до цели дня (по умолчанию 30) к книге, которую читаешь */
@@ -181,6 +157,8 @@ B.acts.readQuick = async () => {
 B.acts.readPick = el => B.closeDialog(el.dataset.id);
 /* тренировка одним нажатием, второе нажатие снимает */
 B.acts.sportQuick = () => B.toggleSport(B.today());
+/* старый адрес раздела «Спорт» ведёт в «Привычки» */
+if (location.hash.startsWith('#/sport')) location.replace('#/habits');
 /* нажатие: нет ↔ сделано; долгое нажатие ставит минимальную версию (если она задана) */
 let lpT = 0, lpDone = false;
 document.addEventListener('pointerdown', e => {
@@ -212,24 +190,11 @@ function habitsCard(c){
   </section>`;
 }
 
-function focusCard(c, d){
-  const pomo = d.pomo || [], min = pomo.reduce((a, p) => a + (p.min || 0), 0);
-  const tm = B.timerState && B.timerState();
-  return `<section class="card focus-mini">
-    <div class="grow"><h2>${icon('timer')}Фокус</h2><p class="muted">${min ? `Сегодня ${B.mins(min)} фокуса` : 'Сегодня фокуса ещё не было'}</p></div>
-    ${tm && tm.running ? `<a class="btn primary" href="#/focus">${icon('timer')} Идёт таймер</a>` : `<button class="btn" data-act="five">5 минут</button><a class="btn primary" href="#/focus">${icon('play')} Начать</a>`}
-  </section>`;
-}
-B.acts.five = () => B.startFocus(null, null, 5);
-
 function reviewCard(c, d){
-  const has = B.reviewDone(c.today), h = new Date().getHours();
-  if (has) return `<section class="card review done"><h2>${icon('pen')}Разбор дня написан</h2><p class="muted">${d.review.mood ? 'Настроение ' + '●'.repeat(d.review.mood) + ' · ' : ''}<a href="#/journal">открыть дневник</a></p></section>`;
-  return `<section class="card review ${h >= 19 || h < 4 ? 'hot' : ''}">
-    <h2>${icon('pen')}Вечерний разбор</h2>
-    <p class="hint">Пять минут перед сном: что сделал, что не вышло и почему, что на завтра. Продлевает серию дневника.</p>
-    <a class="btn ${h >= 19 || h < 4 ? 'primary' : ''}" href="#/journal">Написать разбор</a>
-  </section>`;
+  const has = B.reviewDone(c.today), h = new Date().getHours(), hot = h >= 19 || h < 4;
+  return `<a class="card review-line ${has ? 'done' : hot ? 'hot' : ''}" href="#/journal">
+    ${icon(has ? 'check' : 'pen')}<span class="grow"><b>${has ? 'Разбор дня написан' : 'Вечерний разбор'}</b><small>${has ? (d.review.mood ? 'настроение ' + '●'.repeat(d.review.mood) : 'открыть дневник') : 'пять минут: что сделал, что не вышло, что на завтра'}</small></span>${icon('right')}
+  </a>`;
 }
 
 function weekCard(c){
@@ -240,58 +205,34 @@ function weekCard(c){
   return html;
 }
 
-function insightsCard(){
-  const tips = (B.insights ? B.insights() : []).slice(0, 2);
-  if (!tips.length) return '';
-  return `<section class="card insights"><h2>${icon('sparkle')}Подсказки</h2>
-    <ul>${tips.map(t => `<li>${t}</li>`).join('')}</ul>
-    <button class="btn sm ghost" data-act="aiWeek">${icon('sparkle')} Разобрать неделю в Claude</button></section>`;
-}
-
 B.views.today = {
   title: 'Сегодня',
   render(){
     const c = B.calc(), d = B.day(c.today);
-    const date = B.parse(c.today);
-    const r = c.days[c.today] || {}, rv = B.reviewDone(c.today);
-    const head = `<header class="page-h">
-        <div><div class="eyebrow">${B.WDF[B.wd(c.today)]}, ${date.getDate()} ${B.MONG[date.getMonth()]}</div><h1>${greet()}</h1></div>
-        <button class="btn sm ghost" data-act="compact" title="${compact ? 'Показать всё' : 'Оставить только дела и привычки'}">${icon(compact ? 'board' : 'list')} ${compact ? 'Полный вид' : 'Компактно'}</button>
-      </header>`;
-    if (compact) return `<div class="page today compact-today">${head}
-      <div class="mini-strip">
-        <a href="#/bamboo" class="ms">${icon('bamboo')}<b>${c.level}</b><span>ур.</span></a>
-        <a href="#/journal" class="ms ${rv ? 'ok' : ''}">${icon('pen')}<b>${c.live}</b><span>${rv ? 'разбор есть' : 'разбор'}</span></a>
-        <a href="#/focus" class="ms">${icon('timer')}<b>${B.mins((d.pomo || []).reduce((a, p) => a + (p.min || 0), 0))}</b><span>фокус</span></a>
-        <span class="ms">${icon('sparkle')}<b>${r.xp > 0 ? '+' : ''}${r.xp || 0}</b><span>XP</span></span>
-      </div>
-      <div class="cols"><div class="col">${dayCard(c, d)}</div><div class="col">${habitsCard(c)}${deadlineCard(c)}</div></div>
-    </div>`;
+    const date = B.parse(c.today), r = c.days[c.today] || {};
     return `<div class="page today">
-      ${head}
-      ${B.levelCard(c)}
+      <header class="page-h today-h">
+        <div><div class="eyebrow">${B.WDF[B.wd(c.today)]}, ${date.getDate()} ${B.MONG[date.getMonth()]}</div><h1>${greet()}</h1></div>
+        <a class="today-stat" href="#/forest" title="Уровень, серия разборов и опыт за сегодня">
+          <span>${icon('tree')}<b>${c.level}</b> ур.</span><span>${icon('flame')}<b>${c.live}</b></span><span><b>${r.xp > 0 ? '+' : ''}${r.xp || 0}</b> XP</span>
+        </a>
+      </header>
       ${weekCard(c)}
       <div class="cols">
         <div class="col">
           ${dayCard(c, d)}
-          ${focusCard(c, d)}
           ${reviewCard(c, d)}
         </div>
         <div class="col">
-          ${progressCard(c, d)}
           ${habitsCard(c)}
-          ${deadlineCard(c)}
           ${shadCard(c)}
+          ${deadlineCard(c)}
           ${bigCard()}
-          ${insightsCard()}
         </div>
       </div>
     </div>`;
   }
 };
-let compact = false;
-try { compact = localStorage.getItem('bamboo-compact') === '1'; } catch (e) {}
-B.acts.compact = () => { compact = !compact; try { localStorage.setItem('bamboo-compact', compact ? '1' : '0'); } catch (e) {} B.render(); };
 
 /* перетаскивание дел за ручку: порядок хранится в дне (d.order) */
 let drag = null;
@@ -335,7 +276,6 @@ B.acts.crown = async el => {
   if (!tk.done && tk.due && tk.due < B.today() && t > tk.due){
     const why = await B.askReason(tk, t); if (!why) return;
     B.updTask(tk.id, {due: t, postpones: (tk.postpones || []).concat({from: tk.due, to: t, why, at: Date.now()})}, true);
-    B.xpToast(B.XP.postpone, 'за перенос');
   }
   B.editDay(t, x => { x.top = (x.top || []).filter(i => { const k = B.task(i); return k && !k.deleted; }).concat(id); x.planAt = x.planAt || Date.now(); });
   const k = B.task(id); if (k && (!k.due || k.due > t)) B.updTask(id, {due: t});

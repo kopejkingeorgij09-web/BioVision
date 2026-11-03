@@ -1,4 +1,4 @@
-/* Режим бамбука: общие кусочки интерфейса.
+/* Зов леса: общие кусочки интерфейса.
    Иконки, лист снизу (sheet), диалог, всплывашки, быстрый ввод задач, строка задачи, редактор задачи, перенос с причиной. */
 (function(){
 const {esc} = B;
@@ -22,6 +22,24 @@ const P = {
   run: '<circle cx="14" cy="4.5" r="2"/><path d="M5 21l4-6 3 2 1-5 3 3h3M9 11l3-3 3 1"/>',
   dumbbell: '<path d="M6 7v10M3 9v6M18 7v10M21 9v6M6 12h12"/>',
   pen: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+  bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  repeat: '<path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/>',
+  drop: '<path d="M12 3c3.5 4.5 6 7.8 6 11a6 6 0 0 1-12 0c0-3.2 2.5-6.5 6-11z"/>',
+  clip: '<path d="M20 11.5l-8.2 8.2a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.4 8.4a1.7 1.7 0 0 1-2.4-2.4l7.7-7.7"/>',
+  share: '<path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  note: '<path d="M5 6h14M5 11h14M5 16h9"/>',
+  expand: '<path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/>',
+  shrink: '<path d="M4 14h6v6M20 10h-6V4M10 14l-7 7M14 10l7-7"/>',
+  dots: '<circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>',
+  arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  arrow2: '<path d="M4 12h9M9 7l5 5-5 5M13 7l5 5-5 5"/>',
+  down: '<path d="M12 4v13M7 12l5 5 5-5M5 21h14"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  grid: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9.5h18M3 15h18M9 4v17M15 4v17"/>',
+  week: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 9v12M13 9v12M18 9v12"/>',
+  img: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
+  tree: '<path d="M12 22v-5"/><path d="M12 3 6 11h3l-4 6h14l-4-6h3z"/>',
   bamboo: '<path d="M12 22V2"/><path d="M10 7h4M10 13h4M10 18h4"/><path d="M12 9c2.5-.5 4.5-2 5.5-4.5M12 15c-2.5-.5-4.5-2-5.5-4.5"/>',
   moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
@@ -45,6 +63,9 @@ const P = {
   steps: '<path d="M4 20h4v-4h4v-4h4V8h4V4"/>',
   frog: '<circle cx="8" cy="7" r="2.5"/><circle cx="16" cy="7" r="2.5"/><path d="M4 13c0 4 3.6 7 8 7s8-3 8-7c0-2-1-3.5-2.5-4.5M6.5 8.5C5 9.5 4 11 4 13M9 15c1.8 1 4.2 1 6 0"/>',
   cloud: '<path d="M7 18a5 5 0 1 1 .9-9.9A6 6 0 0 1 19 10a4 4 0 0 1-1 8z"/>',
+  music: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+  skip: '<path d="M6 5.5v13l9-6.5z"/><path d="M18 5v14"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l2 2"/>',
   out: '<path d="M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
@@ -124,6 +145,18 @@ const onField = e => {
 };
 document.addEventListener('input', onField);
 document.addEventListener('change', onField);
+/* Cmd+Z отменяет, Cmd+Shift+Z (и Ctrl+Y) повторяет. В полях ввода работает обычная отмена текста. */
+document.addEventListener('keydown', e => {
+  if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+  const z = e.code === 'KeyZ' || e.key === 'z' || e.key === 'Z', y = e.code === 'KeyY' && e.ctrlKey && !e.metaKey;
+  if (!z && !y) return;
+  const a = document.activeElement;
+  if (a && (a.matches('input:not([type=checkbox]):not([type=radio]),textarea,select') || a.isContentEditable)) return;
+  e.preventDefault();
+  const redo = y || e.shiftKey;
+  if (redo ? B.redo() : B.undo()) B.toast(redo ? 'Повторено' : 'Отменено', 1100);
+  else B.toast(redo ? 'Нечего повторять' : 'Нечего отменять', 1100);
+});
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape'){ if (!$('#dlgScrim').hidden) B.closeDialog(false); else if (B.sheetOpen()) B.closeSheet(); }
   if (e.key === 'Enter' && !e.shiftKey && e.target.matches('[data-enter]')){
@@ -200,7 +233,6 @@ B.taskRow = (t, o = {}) => {
   if (t.dl && !t.done && t.due) meta.push(`<span class="tag dl">дедлайн</span>`);
   if (t.big) meta.push(`<span class="tag big">большое</span>`);
   if (subs.length) meta.push(`<span class="subs">${icon('steps')}${sd}/${subs.length}</span>`);
-  if (t.est) meta.push(`<span class="est" title="Оценка в помидорах">${'●'.repeat(Math.min(t.est, 6))}${t.est > 6 ? '+' : ''}</span>`);
   const pp = (t.postpones || []).length;
   if (pp) meta.push(`<span class="pp ${pp >= 3 ? 'hot' : ''}" title="Сколько раз переносилась">${icon('later')}${pp}</span>`);
   const late = !t.done && t.due && t.due < B.today();
@@ -215,7 +247,6 @@ B.taskRow = (t, o = {}) => {
     ${!t.done && o.flag !== false ? `<button class="icon-btn sm flag p${t.pri || 4}" data-act="prio" data-id="${t.id}" title="Важность: ${PRI[t.pri || 4]}. Нажми, чтобы поменять" aria-label="Важность">${icon('flag')}</button>` : ''}
     ${o.crownDate && (!t.done || crowned) ? `<button class="icon-btn sm crown ${crowned ? 'on' : ''}" data-act="crown" data-d="${o.crownDate}" data-id="${t.id}" title="${crowned ? 'Снять корону' : 'Сделать главным делом дня'}" aria-label="Главное">${icon('crown')}</button>` : ''}
     ${late && o.postpone !== false ? `<button class="icon-btn" data-act="postpone" data-id="${t.id}" title="Перенести с причиной">${icon('later')}</button>` : ''}
-    ${!t.done && o.play !== false ? `<button class="icon-btn play" data-act="focusTask" data-id="${t.id}" title="Фокус на задаче">${icon('play')}</button>` : ''}
   </div>`;
 };
 /* важность по кругу: без флага → обычно → важно → срочно → без флага */
@@ -246,13 +277,12 @@ B.openTask = id => {
       <button class="chk big ${t.done ? 'on' : ''}" data-act="edDone" data-id="${t.id}">${icon('check')}</button>
       <textarea class="ed-title" rows="1" data-in="edTitle" data-id="${t.id}" placeholder="Что сделать">${esc(t.title)}</textarea>
     </div>
-    ${pp.length >= 3 && !t.done ? `<div class="warn-box">${icon('later')}<div><b>Переносилась ${pp.length} ${B.plural(pp.length, 'раз', 'раза', 'раз')}.</b> Так бывает, когда задача слишком большая или непонятно, с чего начать. Разбей её на шаги по 25 минут и сделай первый прямо сейчас.</div></div>` : ''}
+    ${pp.length >= 3 && !t.done ? `<div class="warn-box">${icon('later')}<div><b>Переносилась ${pp.length} ${B.plural(pp.length, 'раз', 'раза', 'раз')}.</b> Так бывает, когда задача слишком большая или непонятно, с чего начать. Разбей её на маленькие шаги и сделай первый прямо сейчас.</div></div>` : ''}
     <div class="ed-grid">
       <label>Проект<select data-in="edField" data-k="proj" data-id="${t.id}">${projOpts}</select></label>
       <div class="ed-pri">Важность<div class="pri-seg">${[1, 2, 3, 4].map(p => `<button class="p${p} ${+(t.pri || 4) === p ? 'on' : ''}" data-act="edPri" data-id="${t.id}" data-p="${p}">${icon('flag')}<span>${PRI[p]}</span></button>`).join('')}</div></div>
       <label>Срок<input type="date" value="${t.due || ''}" data-in="edDue" data-id="${t.id}"></label>
       <label>Время<input type="time" value="${t.time || ''}" data-in="edField" data-k="time" data-id="${t.id}"></label>
-      <label>Помидоров<input type="number" min="0" max="99" inputmode="numeric" value="${t.est || ''}" placeholder="0" data-in="edField" data-k="est" data-id="${t.id}"></label>
       <label>Статус<select data-in="edField" data-k="status" data-id="${t.id}">${[['todo', 'Надо'], ['doing', 'В работе'], ['done', 'Готово']].map(([v, l]) => `<option value="${v}" ${t.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
     </div>
     <label class="switch"><input type="checkbox" ${t.big ? 'checked' : ''} data-in="edBig" data-id="${t.id}"><span></span>Большое дело: разбить на шаги и делать по одному каждый день</label>
@@ -262,7 +292,6 @@ B.openTask = id => {
       <div class="subs-list">${(t.subs || []).map(s => `<div class="sub ${s.done ? 'is-done' : ''}">
         <button class="chk sm" data-act="subToggle" data-id="${t.id}" data-sid="${s.id}">${icon('check')}</button>
         <input value="${esc(s.t)}" data-in="subText" data-id="${t.id}" data-sid="${s.id}">
-        <button class="icon-btn sm" data-act="subFocus" data-id="${t.id}" data-sid="${s.id}" title="Фокус на шаге">${icon('play')}</button>
         <button class="icon-btn sm" data-act="subDel" data-id="${t.id}" data-sid="${s.id}" title="Удалить">${icon('x')}</button></div>`).join('')}</div>
       <div class="add-line"><input id="subNew" placeholder="Новый шаг: «прочитать § 4.1», «решить задачи 1–5»" data-enter="subAdd" data-id="${t.id}"><button class="btn sm" data-act="subAdd" data-id="${t.id}">${icon('plus')}</button></div>
     </div>
@@ -270,7 +299,7 @@ B.openTask = id => {
     ${pp.length ? `<div class="ed-sec"><div class="sec-h">${icon('later')} Переносы</div><ul class="pp-list">${pp.map(p => `<li><span class="mono">${p.from ? B.fmtS(p.from) : '—'} → ${p.to ? B.fmtS(p.to) : 'без срока'}</span> ${esc(p.why)}</li>`).join('')}</ul></div>` : ''}
     <div class="row between ed-foot">
       <button class="btn ghost danger" data-act="taskDel" data-id="${t.id}">${icon('trash')} Удалить</button>
-      <button class="btn primary" data-act="focusTask" data-id="${t.id}">${icon('play')} Начать 25 минут</button>
+      <button class="btn primary" data-act="closeSheet">Готово</button>
     </div>
   </div>`);
   const ta = $('.ed-title'); if (ta) autoGrow(ta);
@@ -303,13 +332,19 @@ B.inputs.edDue = async (el, e) => {
   } else upd(t.id, {due: v}, true);
 };
 B.acts.edDone = el => { const t = B.task(el.dataset.id); B.setDone(t, !t.done); B.openTask(t.id); };
+/* удаление без вопроса; возвращает функцию, которая всё вернёт обратно */
+B.delTask = id => {
+  const t = B.task(id); if (!t) return null;
+  // в планах прошлых дней задача остаётся скрытой, иначе удаление невыполненного дела задним числом закрыло бы день
+  const today = B.today(), tops = {}; let past = false;
+  B.datesWith(t.id).forEach(date => { if (date < today) past = true; else { tops[date] = (B.day(date).top || []).slice(); B.editDay(date, d => { d.top = (d.top || []).filter(x => x !== t.id); }, true); } });
+  B.put('t_' + t.id, past ? Object.assign({}, t, {deleted: true}) : null);
+  return () => { Object.keys(tops).forEach(date => B.editDay(date, d => { d.top = tops[date]; }, true)); B.put('t_' + t.id, t); };
+};
 B.acts.taskDel = async el => {
   const t = B.task(el.dataset.id);
   if (!(await B.confirm(`Удалить задачу «${esc(t.title)}»?`, 'Удалить', true))) return;
-  // в планах прошлых дней задача остаётся скрытой, иначе удаление невыполненного дела задним числом закрыло бы день
-  const today = B.today(); let past = false;
-  B.datesWith(t.id).forEach(date => { if (date < today) past = true; else B.editDay(date, d => { d.top = (d.top || []).filter(id => id !== t.id); }, true); });
-  B.put('t_' + t.id, past ? Object.assign({}, t, {deleted: true}) : null); B.closeSheet();
+  B.delTask(t.id); B.closeSheet();
 };
 const subUpd = (id, fn) => { const t = B.task(id); const subs = JSON.parse(JSON.stringify(t.subs || [])); fn(subs); return upd(id, {subs}, true); };
 B.acts.subAdd = el => {
@@ -325,8 +360,6 @@ B.acts.subToggle = el => {
 };
 B.acts.subDel = el => { subUpd(el.dataset.id, s => { const i = s.findIndex(q => q.id === el.dataset.sid); if (i >= 0) s.splice(i, 1); }); B.openTask(el.dataset.id); };
 B.inputs.subText = el => subUpd(el.dataset.id, s => { const x = s.find(q => q.id === el.dataset.sid); if (x) x.t = el.value; });
-B.acts.subFocus = el => { B.closeSheet(); B.startFocus(el.dataset.id, el.dataset.sid); };
-B.acts.focusTask = el => { if (B.sheetOpen()) B.closeSheet(); B.startFocus(el.dataset.id); };
 
 /* ---------- перенос с причиной ---------- */
 const REASONS = ['Не рассчитал время', 'Страшно или лень начинать', 'Непонятно, с чего начать', 'Появилось срочное', 'Плохо себя чувствовал', 'Задача оказалась больше'];
@@ -359,7 +392,7 @@ B.acts.postpone = async el => {
 B.acts.ppPick = el => B.closeDialog(el.dataset.d);
 B.acts.ppDate = () => { const v = $('#ppDate').value; if (v) B.closeDialog(v); };
 
-/* ---------- выбор задачи из списка (для плана дня и фокуса) ---------- */
+/* ---------- выбор задачи из списка (для плана дня) ---------- */
 B.candidates = (date) => {
   const t = date || B.today();
   return B.tasks().filter(x => !x.done).sort((a, b) => {

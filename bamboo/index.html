@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Зов леса</title>
-<meta name="description" content="Зов леса: неделя дел, календарь, фокус, привычки, чтение, тренировки и дневник. За дела и привычки растёт лес.">
+<meta name="description" content="Зов леса: неделя дел, календарь, привычки, чтение, тренировки и дневник. За дела и привычки растёт лес.">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#F4EFE4">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Lora:ital,wght@0,500;0,600;1,500&family=JetBrains+Mono:wght@400;500&display=swap">
 <!-- Поднимай v= у всех файлов при каждом изменении, иначе телефон возьмёт старые из кеша -->
-<link rel="stylesheet" href="style.css?v=13">
+<link rel="stylesheet" href="style.css?v=14">
 <!-- облако и вход по коду общие с БиоВизом и трекером ШАДа -->
 <script src="../bioviz/x/cloud.js"></script>
 </head>
@@ -24,8 +24,8 @@
 <aside class="side" id="side"></aside>
 <header class="topbar" id="topbar">
   <a class="tb-brand" href="#/today"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22v-5"/><path d="M12 3 6 11h3l-4 6h14l-4-6h3z"/></svg><b>Зов леса</b></a>
-  <a class="mini-timer" id="miniTimer" href="#/focus" hidden><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg><b>25:00</b></a>
   <a class="tb-search" href="#/search" aria-label="Поиск"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></a>
+  <button class="tb-theme" data-act="themeNext" aria-label="Сменить тему" title="Сменить тему"></button>
   <a class="tb-lvl" href="#/forest"></a>
   <a class="tb-sync sync" href="#/settings" aria-label="Синхронизация"><i></i></a>
 </header>
@@ -36,21 +36,19 @@
 <div class="scrim dlg-scrim" id="dlgScrim" hidden><div class="dlg" id="dlg" role="dialog" aria-modal="true"></div></div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="js/core.js?v=12"></script>
-<script src="js/ui.js?v=9"></script>
-<script src="js/today.js?v=13"></script>
-<script src="js/tasks.js?v=4"></script>
-<script src="js/shadplan.js?v=2"></script>
-<script src="js/cal.js?v=4"></script>
-<script src="js/focus.js?v=8"></script>
-<script src="js/noise.js?v=2"></script>
-<script src="js/habits.js?v=10"></script>
+<script src="js/core.js?v=13"></script>
+<script src="js/ui.js?v=10"></script>
+<script src="js/today.js?v=14"></script>
+<script src="js/tasks.js?v=5"></script>
+<script src="js/shadplan.js?v=3"></script>
+<script src="js/cal.js?v=5"></script>
+<script src="js/habits.js?v=11"></script>
 <script src="js/read.js?v=4"></script>
 <script src="js/sport.js?v=7"></script>
-<script src="js/journal.js?v=9"></script>
+<script src="js/journal.js?v=10"></script>
 <script src="js/forest.js?v=1"></script>
-<script src="js/stats.js?v=4"></script>
+<script src="js/stats.js?v=5"></script>
 <script src="js/search.js?v=2"></script>
-<script src="js/app.js?v=10"></script>
+<script src="js/app.js?v=11"></script>
 </body>
 </html>

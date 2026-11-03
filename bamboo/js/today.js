@@ -1,5 +1,5 @@
 /* Зов леса: экран «Сегодня».
-   Утренний план из трёх главных дел, задачи на сегодня, вебы ШАДа, шаг большого дела, привычки, фокус и вечерний разбор. */
+   Дела на сегодня, привычки, вебы ШАДа, дедлайны, шаг большого дела и вечерний разбор. */
 (function(){
 const {esc, icon} = B;
 B.views = B.views || {};
@@ -23,31 +23,6 @@ B.levelCard = (c, compact) => {
     <div class="streak ${c.live ? 'on' : ''}" title="Разборов в дневнике подряд">${icon('flame')}<b>${c.live}</b></div>
   </a>`;
 };
-
-/* прогресс вместо «закрытого дня»: что сделано сегодня и серии — дневник, дела, привычки */
-function progressCard(c, d){
-  const r = c.days[c.today] || {};
-  const t = c.today, ids = new Set(d.top || []);
-  const todays = B.tasks().filter(x => (x.due && x.due <= t && !x.done) || (x.done && x.doneAt && B.dayOf(x.doneAt) === t) || ids.has(x.id));
-  const dn = todays.filter(x => x.done).length;
-  const daily = B.habits().filter(h => h.kind !== 'weekly'), hd = daily.filter(h => B.habitDone(h, t)).length;
-  const rv = B.reviewDone(t);
-  const rows = [
-    {ic: 'pen', name: 'Дневник', cur: c.review.cur, best: c.review.best, unit: 'дн', today: rv},
-    {ic: 'list', name: 'Дела', cur: c.tasks.cur, best: c.tasks.best, unit: 'дн', today: !!r.done}
-  ].concat(B.habits().map(h => { const s = B.habitStreak(h); return {ic: h.icon || 'habit', name: h.name, cur: s.cur, best: s.best, unit: s.unit, today: h.kind === 'weekly' ? s.thisWeek >= s.target : B.habitDone(h, t), sub: h.kind === 'weekly' ? `${s.thisWeek}/${s.target} на неделе` : ''}; }));
-  return `<section class="card progress">
-    <div class="row between"><h2>${icon('flame')}Прогресс</h2><span class="muted mono">${r.xp > 0 ? '+' : ''}${r.xp || 0} XP сегодня</span></div>
-    <div class="ptoday">
-      <div><b>${dn}<small>/${todays.length}</small></b><span>дел</span>${B.bar(todays.length ? dn / todays.length : 0)}</div>
-      <div><b>${hd}<small>/${daily.length}</small></b><span>ежедневных</span>${B.bar(daily.length ? hd / daily.length : 0)}</div>
-      <div><b class="${rv ? 'ok' : ''}">${rv ? icon('check') : '—'}</b><span>разбор</span>${B.bar(rv ? 1 : 0)}</div>
-    </div>
-    <div class="sub-h">Серии</div>
-    <ul class="streaks">${rows.map(x => `<li class="${x.today ? 'today' : ''}"><i>${icon(x.ic)}</i><span class="grow">${esc(x.name)}${x.sub ? `<small>${x.sub}</small>` : ''}</span>
-      <b class="${x.cur ? 'on' : ''}">${icon('flame')}${x.cur}<small>${x.unit}</small></b><em>рекорд ${x.best}</em></li>`).join('')}</ul>
-  </section>`;
-}
 
 /* редактор плана на любой день: до трёх главных дел и «если-то» к каждому (когда и где) */
 /* список дел на день с коронами: коронованные (главные, до трёх) наверху, остальные ниже, по важности.
@@ -125,14 +100,13 @@ function bigCard(){
   const big = B.tasks().filter(t => t.big && !t.done);
   if (!big.length) return '';
   return `<section class="card big-card">
-    <h2>${icon('steps')}Большие дела: шаг на сегодня</h2>
-    <p class="hint">Не надо делать всё. Один шаг в день, и через месяц семестровая домашка закрыта.</p>
+    <h2>${icon('steps')}Шаг большого дела</h2>
     ${big.slice(0, 3).map(t => {
       const st = B.nextStep(t), subs = t.subs || [], d = subs.filter(s => s.done).length;
       return `<div class="big-row">
         <button class="big-title" data-act="openTask" data-id="${t.id}">${esc(t.title)}<span class="muted mono">${d}/${subs.length}</span></button>
         ${B.bar(subs.length ? d / subs.length : 0)}
-        ${st ? `<div class="step"><button class="chk sm" data-act="stepDone" data-id="${t.id}" data-sid="${st.id}">${icon('check')}</button><span class="grow">${esc(st.t)}</span><button class="btn sm primary" data-act="subFocus" data-id="${t.id}" data-sid="${st.id}">${icon('play')}25 мин</button></div>`
+        ${st ? `<div class="step"><button class="chk sm" data-act="stepDone" data-id="${t.id}" data-sid="${st.id}">${icon('check')}</button><span class="grow">${esc(st.t)}</span></div>`
           : `<button class="btn sm" data-act="openTask" data-id="${t.id}">${icon('plus')} Разбить на шаги</button>`}
       </div>`;
     }).join('')}
@@ -212,24 +186,11 @@ function habitsCard(c){
   </section>`;
 }
 
-function focusCard(c, d){
-  const pomo = d.pomo || [], min = pomo.reduce((a, p) => a + (p.min || 0), 0);
-  const tm = B.timerState && B.timerState();
-  return `<section class="card focus-mini">
-    <div class="grow"><h2>${icon('timer')}Фокус</h2><p class="muted">${min ? `Сегодня ${B.mins(min)} фокуса` : 'Сегодня фокуса ещё не было'}</p></div>
-    ${tm && tm.running ? `<a class="btn primary" href="#/focus">${icon('timer')} Идёт таймер</a>` : `<button class="btn" data-act="five">5 минут</button><a class="btn primary" href="#/focus">${icon('play')} Начать</a>`}
-  </section>`;
-}
-B.acts.five = () => B.startFocus(null, null, 5);
-
 function reviewCard(c, d){
-  const has = B.reviewDone(c.today), h = new Date().getHours();
-  if (has) return `<section class="card review done"><h2>${icon('pen')}Разбор дня написан</h2><p class="muted">${d.review.mood ? 'Настроение ' + '●'.repeat(d.review.mood) + ' · ' : ''}<a href="#/journal">открыть дневник</a></p></section>`;
-  return `<section class="card review ${h >= 19 || h < 4 ? 'hot' : ''}">
-    <h2>${icon('pen')}Вечерний разбор</h2>
-    <p class="hint">Пять минут перед сном: что сделал, что не вышло и почему, что на завтра. Продлевает серию дневника.</p>
-    <a class="btn ${h >= 19 || h < 4 ? 'primary' : ''}" href="#/journal">Написать разбор</a>
-  </section>`;
+  const has = B.reviewDone(c.today), h = new Date().getHours(), hot = h >= 19 || h < 4;
+  return `<a class="card review-line ${has ? 'done' : hot ? 'hot' : ''}" href="#/journal">
+    ${icon(has ? 'check' : 'pen')}<span class="grow"><b>${has ? 'Разбор дня написан' : 'Вечерний разбор'}</b><small>${has ? (d.review.mood ? 'настроение ' + '●'.repeat(d.review.mood) : 'открыть дневник') : 'пять минут: что сделал, что не вышло, что на завтра'}</small></span>${icon('right')}
+  </a>`;
 }
 
 function weekCard(c){
@@ -240,58 +201,34 @@ function weekCard(c){
   return html;
 }
 
-function insightsCard(){
-  const tips = (B.insights ? B.insights() : []).slice(0, 2);
-  if (!tips.length) return '';
-  return `<section class="card insights"><h2>${icon('sparkle')}Подсказки</h2>
-    <ul>${tips.map(t => `<li>${t}</li>`).join('')}</ul>
-    <button class="btn sm ghost" data-act="aiWeek">${icon('sparkle')} Разобрать неделю в Claude</button></section>`;
-}
-
 B.views.today = {
   title: 'Сегодня',
   render(){
     const c = B.calc(), d = B.day(c.today);
-    const date = B.parse(c.today);
-    const r = c.days[c.today] || {}, rv = B.reviewDone(c.today);
-    const head = `<header class="page-h">
-        <div><div class="eyebrow">${B.WDF[B.wd(c.today)]}, ${date.getDate()} ${B.MONG[date.getMonth()]}</div><h1>${greet()}</h1></div>
-        <button class="btn sm ghost" data-act="compact" title="${compact ? 'Показать всё' : 'Оставить только дела и привычки'}">${icon(compact ? 'board' : 'list')} ${compact ? 'Полный вид' : 'Компактно'}</button>
-      </header>`;
-    if (compact) return `<div class="page today compact-today">${head}
-      <div class="mini-strip">
-        <a href="#/forest" class="ms">${icon('tree')}<b>${c.level}</b><span>ур.</span></a>
-        <a href="#/journal" class="ms ${rv ? 'ok' : ''}">${icon('pen')}<b>${c.live}</b><span>${rv ? 'разбор есть' : 'разбор'}</span></a>
-        <a href="#/focus" class="ms">${icon('timer')}<b>${B.mins((d.pomo || []).reduce((a, p) => a + (p.min || 0), 0))}</b><span>фокус</span></a>
-        <span class="ms">${icon('sparkle')}<b>${r.xp > 0 ? '+' : ''}${r.xp || 0}</b><span>XP</span></span>
-      </div>
-      <div class="cols"><div class="col">${dayCard(c, d)}</div><div class="col">${habitsCard(c)}${deadlineCard(c)}</div></div>
-    </div>`;
+    const date = B.parse(c.today), r = c.days[c.today] || {};
     return `<div class="page today">
-      ${head}
-      ${B.levelCard(c)}
+      <header class="page-h today-h">
+        <div><div class="eyebrow">${B.WDF[B.wd(c.today)]}, ${date.getDate()} ${B.MONG[date.getMonth()]}</div><h1>${greet()}</h1></div>
+        <a class="today-stat" href="#/forest" title="Уровень, серия разборов и опыт за сегодня">
+          <span>${icon('tree')}<b>${c.level}</b> ур.</span><span>${icon('flame')}<b>${c.live}</b></span><span><b>${r.xp > 0 ? '+' : ''}${r.xp || 0}</b> XP</span>
+        </a>
+      </header>
       ${weekCard(c)}
       <div class="cols">
         <div class="col">
           ${dayCard(c, d)}
-          ${focusCard(c, d)}
           ${reviewCard(c, d)}
         </div>
         <div class="col">
-          ${progressCard(c, d)}
           ${habitsCard(c)}
-          ${deadlineCard(c)}
           ${shadCard(c)}
+          ${deadlineCard(c)}
           ${bigCard()}
-          ${insightsCard()}
         </div>
       </div>
     </div>`;
   }
 };
-let compact = false;
-try { compact = localStorage.getItem('bamboo-compact') === '1'; } catch (e) {}
-B.acts.compact = () => { compact = !compact; try { localStorage.setItem('bamboo-compact', compact ? '1' : '0'); } catch (e) {} B.render(); };
 
 /* перетаскивание дел за ручку: порядок хранится в дне (d.order) */
 let drag = null;

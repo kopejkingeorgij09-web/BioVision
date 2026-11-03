@@ -8,11 +8,10 @@ function summary(date){
   const d = B.day(date);
   const done = B.tasks().filter(t => t.done && t.doneAt && B.dayOf(t.doneAt) === date);
   const subs = []; B.tasks().forEach(t => (t.subs || []).forEach(s => { if (s.done && s.doneAt && B.dayOf(s.doneAt) === date) subs.push({t, s}); }));
-  const pomo = d.pomo || [], pm = pomo.reduce((a, p) => a + (p.min || 0), 0);
   const ws = B.workouts().filter(w => w.date === date);
   const shad = []; for (const n in B.shad.marks){ const m = B.shad.marks[n]; if (m.at && B.dayOf(m.at) === date){ const p = B.shad.plan.find(x => x.n === +n); if (p) shad.push(`${p.code} «${p.t}»: ${B.SHAD_STAGES[m.s]}`); } }
   const hs = B.habits().filter(h => B.habitDone(h, date)).map(h => h.name);
-  return {done, subs, pomo, pm, ws, rm: B.readMin(date), shad, hs};
+  return {done, subs, ws, rm: B.readMin(date), shad, hs};
 }
 
 function summaryHtml(date){
@@ -21,7 +20,6 @@ function summaryHtml(date){
   s.done.forEach(t => li.push(`${icon('check')}${esc(t.title)}`));
   s.subs.forEach(({t, s: x}) => li.push(`${icon('steps')}${esc(x.t)} <span class="muted">(${esc(t.title)})</span>`));
   s.shad.forEach(x => li.push(`${icon('chart')}ШАД ${esc(x)}`));
-  if (s.pomo.length) li.push(`${icon('timer')}${B.mins(s.pm)} фокуса`);
   if (s.rm) li.push(`${icon('book')}${B.mins(s.rm)} чтения`);
   s.ws.forEach(w => li.push(`${icon('dumbbell')}${esc(B.SPORT_TYPES[w.type] || w.type)}${w.min ? ', ' + B.mins(+w.min) : ''}`));
   if (s.hs.length) li.push(`${icon('habit')}Привычки: ${s.hs.map(esc).join(', ')}`);
@@ -122,7 +120,7 @@ function weekPrompt(){
     lines.push(`## ${B.WDF[B.wd(date)]}, ${B.fmt(date)}: ${({good: 'разбор есть', some: 'без разбора', empty: 'пустой день'})[r.result] || ''}`);
     if (top.length) lines.push(`Важные (с короной): ${top.map(x => (x.done ? '[x] ' : '[ ] ') + x.title).join('; ')}`);
     if (s.done.length) lines.push(`Сделано: ${s.done.map(x => x.title).join('; ')}`);
-    lines.push(`Помидоров ${s.pomo.length} (${s.pm} мин), чтение ${s.rm} мин, тренировка: ${s.ws.length ? s.ws.map(w => B.SPORT_TYPES[w.type]).join(', ') : 'нет'}, привычки: ${s.hs.join(', ') || 'нет'}`);
+    lines.push(`Чтение ${s.rm} мин, тренировка: ${s.ws.length ? s.ws.map(w => B.SPORT_TYPES[w.type]).join(', ') : 'нет'}, привычки: ${s.hs.join(', ') || 'нет'}`);
     if (rv.done) lines.push(`Что сделал: ${rv.done}`);
     if (rv.why) lines.push(`Что не вышло и почему: ${rv.why}`);
     if (rv.mood) lines.push(`Настроение ${rv.mood}/5, энергия ${rv.energy || '?'}/5`);

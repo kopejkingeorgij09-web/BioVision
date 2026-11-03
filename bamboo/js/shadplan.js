@@ -60,16 +60,23 @@ B.shadPlanView = () => {
       <div class="sp-list">${items.map(row).join('')}</div></div>`;
   });
   if (!html) html = `<p class="empty">${filter === 'late' ? 'Хвостов нет, идёшь по плану.' : filter === 'done' ? 'Закрытых вебов пока нет.' : 'Всё закрыто.'}</p>`;
-  return `<section class="sp">
-    <div class="card sp-head">
-      <div class="row between"><h2>${icon('chart')}План ШАДа</h2><a class="muted" href="../shad/">трекер →</a></div>
-      <div class="sp-sum"><div><b>${done}</b><small>из ${plan.length} закрыто</small></div><div class="${lateN ? 'bad' : ''}"><b>${lateN}</b><small>отстаю</small></div>
-        ${next ? `<button class="sp-next" data-act="shadOpen" data-n="${next.n}"><small>${lateOf(next) ? 'Догнать' : 'Дальше'}</small><span>${esc(next.code || '')} · ${esc(next.t)}</span><small>${B.fmtW(next.w.date)}</small></button>` : ''}</div>
-      ${B.bar(done / plan.length)}
+  const pct = Math.round(plan.reduce((a, p) => a + B.shadStage(p.n), 0) / (plan.length * 4) * 100);
+  const tape = plan.map(p => { const s = B.shadStage(p.n);
+    return `<button class="cell ${lateOf(p) ? 'late' : ''} ${next && p.n === next.n ? 'now' : ''}" style="--cc:var(--${p.c})" data-s="${s}" data-act="shadOpen" data-n="${p.n}" title="${p.n}. ${esc(p.t)} · ${B.SHAD_STAGES[s]}" aria-label="Веб ${p.n}: ${esc(p.t)}, ${B.SHAD_STAGES[s]}"></button>`; }).join('');
+  const legend = Object.entries(B.shad.courses).map(([k, c]) => `<span style="--cc:var(--${k})"><i></i>${esc(c.name)}</span>`).join('') + '<span><i class="lt"></i>отстаю</span>';
+  return `<div class="sp-wrap">
+    <aside class="card sp-side">
+      <div class="sp-big">${done}<small>/ ${plan.length}</small></div>
+      <p class="sp-cap">вебов закрыто полностью: веб, ДЗ и разбор ошибок</p>
+      <div class="sp-kpis"><div><b>${pct}%</b><span>пройдено</span></div><div class="${lateN ? 'bad' : ''}"><b>${lateN}</b><span>отстаю</span></div><div><b>${plan.length - done}</b><span>впереди</span></div></div>
+      <div class="sp-tape" aria-label="Все ${plan.length} вебов по порядку">${tape}</div>
+      <div class="sp-legend">${legend}</div>
+      ${next ? `<button class="sp-next" data-act="shadOpen" data-n="${next.n}" style="--cc:var(--${next.c})"><small>${lateOf(next) ? 'Догнать' : 'Дальше'}</small><span>${next.n}. ${esc(next.t)}</span><small>${esc(next.code || '')} · ${B.fmtW(next.w.date)}</small></button>` : '<p class="muted">Все вебы закрыты.</p>'}
       <div class="chips sm">${FILTERS.map(([k, l]) => `<button class="chip ${filter === k ? 'on' : ''}" data-act="shadFilter" data-f="${k}">${l} <span class="muted">${counts[k]}</span></button>`).join('')}</div>
-    </div>
-    ${html}
-  </section>`;
+      <a class="muted sm-link" href="../shad/">Открыть трекер ШАДа →</a>
+    </aside>
+    <section class="sp">${html}</section>
+  </div>`;
 };
 B.acts.shadFilter = el => { filter = el.dataset.f; try { localStorage.setItem(LS_F, filter); } catch (e) {} B.render(true); };
 

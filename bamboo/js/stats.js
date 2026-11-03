@@ -1,6 +1,6 @@
-/* Режим бамбука: «Итоги». Неделя, месяц или всё время: опыт по дням, закрытые дни, фокус, чтение, спорт, привычки.
+/* Зов леса: «Итоги». Неделя, месяц или всё время: опыт по дням, закрытые дни, фокус, чтение, спорт, привычки.
    Для недели ещё разбор: причины переносов и вопрос «что меняю на следующей неделе» (документ wk_<понедельник>).
-   Внизу перемотка: каким был бамбук в любой прошлый день. */
+   Внизу перемотка: каким был лес в любой прошлый день. */
 (function(){
 const {esc, icon} = B;
 let mode = 'week', anchor = null, replay = null, playT = null;
@@ -49,7 +49,7 @@ function xpChart(list){
 
 function weekReview(r){
   const reasons = {};
-  B.tasks().forEach(t => (t.postpones || []).forEach(p => { const d = B.dayOf(p.at); if (d >= r.from && d <= r.to) reasons[p.why] = (reasons[p.why] || 0) + 1; }));
+  B.tasks().forEach(t => (t.postpones || []).forEach(p => { const d = B.dayOf(p.at); if (d >= r.from && d <= r.to) if (p.why) reasons[p.why] = (reasons[p.why] || 0) + 1; }));
   const top = Object.entries(reasons).sort((a, b) => b[1] - a[1]).slice(0, 3);
   const doc = B.get('wk_' + r.from) || {};
   const c = B.calc(), list = days(r).filter(d => c.days[d]);
@@ -69,32 +69,31 @@ function weekReview(r){
 }
 B.inputs.wkChange = el => B.put('wk_' + el.dataset.w, {change: el.value, at: Date.now()}, true);
 
-/* бамбук на выбранный день */
+/* лес на выбранный день */
 function snapshot(date){
   const c = B.calc(), r = c.days[date];
   if (!r) return null;
   const lv = B.levelOf(r.total), ds = {};
   for (const k in c.days) if (k <= date) ds[k] = c.days[k];
-  return {height: lv.height, level: lv.L, days: ds};
+  return {level: lv.L, frac: lv.frac, trees: lv.trees, days: ds};
 }
 function replayCard(){
   const c = B.calc(), all = Object.keys(c.days).sort();
   if (all.length < 2) return '';
   const i = replay == null ? all.length - 1 : Math.min(replay, all.length - 1), d = all[i], s = snapshot(d);
   return `<section class="card">
-    <h2>${icon('bamboo')}Как рос бамбук</h2>
-    <div class="row between"><span id="rpDate">${B.fmtW(d)}</span><b class="mono" id="rpH">${B.fmtH(s.height)} · ур. ${s.level}</b></div>
+    <h2>${icon('tree')}Как рос лес</h2>
+    <div class="row between"><span id="rpDate">${B.fmtW(d)}</span><b class="mono" id="rpH">${B.fmtTrees(s.trees)} · ур. ${s.level}</b></div>
     <div class="row"><button class="icon-btn" data-act="rpPlay" aria-label="Проиграть">${icon(playT ? 'pause' : 'play')}</button>
       <input type="range" class="grow" min="0" max="${all.length - 1}" value="${i}" data-in="rpSlide" aria-label="День"></div>
-    <div class="scene-wrap mini" id="rpScene">${B.bambooScene(s)}</div>
+    <div class="scene-wrap mini" id="rpScene">${B.forestScene(s)}</div>
   </section>`;
 }
 function drawReplay(i){
   const c = B.calc(), all = Object.keys(c.days).sort(), d = all[i], s = snapshot(d);
   const box = B.$('#rpScene'); if (!box || !s) return;
-  box.innerHTML = B.bambooScene(s);
-  B.$('#rpDate').textContent = B.fmtW(d); B.$('#rpH').textContent = `${B.fmtH(s.height)} · ур. ${s.level}`;
-  const svg = box.querySelector('svg'); box.scrollTop = Math.max(0, B.bambooTopY(s.height, svg) - box.clientHeight * 0.4);
+  box.innerHTML = B.forestScene(s);
+  B.$('#rpDate').textContent = B.fmtW(d); B.$('#rpH').textContent = `${B.fmtTrees(s.trees)} · ур. ${s.level}`;
 }
 B.inputs.rpSlide = el => { replay = +el.value; drawReplay(replay); };
 B.acts.rpPlay = () => {

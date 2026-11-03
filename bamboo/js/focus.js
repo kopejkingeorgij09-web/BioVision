@@ -1,6 +1,6 @@
-/* Режим бамбука: помодоро-таймер.
+/* Зов леса: помодоро-таймер.
    Состояние таймера хранится в localStorage, поэтому перезагрузка страницы его не сбрасывает.
-   Законченный помидор записывается в день (d.pomo) и даёт опыт; бамбук растёт от уровня. */
+   Законченный помидор записывается в день (d.pomo); опыт дают только дела и привычки. */
 (function(){
 const {esc, icon} = B;
 const LS = 'bamboo-timer';
@@ -89,7 +89,7 @@ function tick(){
     if (T && !T.idle && (T.running || elapsed() > 0)){ mini.hidden = false; mini.querySelector('b').textContent = mmss(shown()); mini.className = 'mini-timer ' + T.mode + (T.running ? '' : ' paused'); }
     else mini.hidden = true;
   }
-  document.title = T && T.running ? `${mmss(shown())} · ${MODES[T.mode]}` : 'Режим бамбука';
+  document.title = T && T.running ? `${mmss(shown())} · ${MODES[T.mode]}` : 'Зов леса';
 }
 setInterval(tick, 500);
 document.addEventListener('visibilitychange', tick);

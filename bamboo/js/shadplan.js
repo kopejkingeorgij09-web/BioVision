@@ -1,4 +1,4 @@
-/* Режим бамбука: весь план ШАДа в «Задачи → ШАД», как на трекере shad/.
+/* Зов леса: весь план ШАДа, подраздел «Задачи → ШАД» (кнопка рядом с «Неделя» и «Месяц»), как на трекере shad/.
    По месяцам и неделям, у каждого веба дата, код, ДЗ и стадия; нажатие открывает выбор стадии. */
 (function(){
 const {esc, icon} = B;
@@ -87,8 +87,7 @@ function sheetHTML(n){
 B.acts.shadOpen = el => B.sheet(sheetHTML(+el.dataset.n));
 B.acts.shadPick = el => {
   const n = +el.dataset.n, s = +el.dataset.s, cur = B.shadStage(n);
-  B.setShadStage(n, s);
-  if (s > cur) B.xpToast && B.xpToast(B.XP.shad * (s - cur), B.SHAD_STAGES[s].toLowerCase());
+  B.setShadStage(n, s); void cur;
   B.sheet(sheetHTML(n));
 };
 })();

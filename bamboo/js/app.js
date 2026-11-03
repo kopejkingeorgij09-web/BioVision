@@ -1,10 +1,10 @@
-/* Режим бамбука: оболочка. Навигация, адреса #/раздел[/параметр], тема, вход по коду, настройки, перерисовка. */
+/* Зов леса: оболочка. Навигация, адреса #/раздел[/параметр], тема, вход по коду, настройки, перерисовка. */
 (function(){
 const {esc, icon} = B;
 const NAV = [
   ['today', 'Сегодня', 'today'], ['journal', 'Дневник', 'pen'], ['tasks', 'Задачи', 'list'], ['cal', 'Календарь', 'cal'], ['focus', 'Фокус', 'timer'],
   ['habits', 'Привычки', 'habit'], ['read', 'Чтение', 'book'], ['sport', 'Спорт', 'dumbbell'],
-  ['bamboo', 'Бамбук', 'bamboo'], ['stats', 'Итоги', 'chart'], ['search', 'Поиск', 'search'], ['settings', 'Настройки', 'gear']
+  ['forest', 'Лес', 'tree'], ['stats', 'Итоги', 'chart'], ['search', 'Поиск', 'search'], ['settings', 'Настройки', 'gear']
 ];
 const BOTTOM = ['today', 'journal', 'tasks', 'cal'];
 
@@ -78,7 +78,7 @@ B.on('sync', () => shell(route()));
 function shell(r){
   const c = B.calc();
   const side = document.getElementById('side');
-  side.innerHTML = `<a class="brand" href="#/today">${icon('bamboo')}<span><b>Режим бамбука</b><small>уровень ${c.level} · ${B.fmtH(c.height)}</small></span></a>
+  side.innerHTML = `<a class="brand" href="#/today">${icon('tree')}<span><b>Зов леса</b><small>уровень ${c.level} · ${c.trees ? B.fmtTrees(c.trees) : 'поляна'}</small></span></a>
     <nav>${NAV.map(([k, l, ic]) => `<a class="nav-i ${r.v === k ? 'on' : ''}" href="#/${k}">${icon(ic)}<span>${l}</span>${k === 'today' && c.live ? `<em>${icon('flame')}${c.live}</em>` : ''}</a>`).join('')}</nav>
     <div class="side-foot"><span class="sync ${B.sync.mode}"><i></i>${esc(B.sync.text)}</span></div>`;
   const more = !BOTTOM.includes(r.v);
@@ -98,7 +98,7 @@ B.views.settings = {
     const cfg = B.cfg(), me = window.BVAUTH && BVAUTH.me;
     let theme = 'auto'; try { theme = localStorage.getItem(LS_THEME) || 'auto'; } catch (e) {}
     return `<div class="page settings-page">
-      <header class="page-h"><div><div class="eyebrow">Настройки</div><h1>Режим бамбука</h1></div></header>
+      <header class="page-h"><div><div class="eyebrow">Настройки</div><h1>Зов леса</h1></div></header>
       <div class="cols">
         <div class="col">
           <section class="card">
@@ -112,7 +112,7 @@ B.views.settings = {
           </section>
           <section class="card">
             <h2>${icon('sun')}Тема</h2>
-            <div class="toggle wide themes">${[['auto', 'Как в системе'], ['light', 'Бумага'], ['sakura', 'Сакура'], ['dark', 'Тёмная'], ['night', 'Ночной бамбук']].map(([k, l]) => `<button class="${theme === k ? 'on' : ''}" data-act="theme" data-v="${k}">${l}</button>`).join('')}</div>
+            <div class="toggle wide themes">${[['auto', 'Как в системе'], ['light', 'Бумага'], ['sakura', 'Сакура'], ['dark', 'Тёмная'], ['night', 'Ночной лес']].map(([k, l]) => `<button class="${theme === k ? 'on' : ''}" data-act="theme" data-v="${k}">${l}</button>`).join('')}</div>
           </section>
           <section class="card">
             <h2>${icon('star')}Цели</h2>
@@ -136,7 +136,7 @@ B.views.settings = {
           </section>
           <section class="card">
             <h2>${icon('leaf')}На телефон</h2>
-            <p class="muted">Открой сайт в Safari или Chrome и выбери «На экран Домой» (iPhone) или «Установить приложение» (Android). Режим бамбука откроется как отдельное приложение.</p>
+            <p class="muted">Открой сайт в Safari или Chrome и выбери «На экран Домой» (iPhone) или «Установить приложение» (Android). Зов леса откроется как отдельное приложение.</p>
           </section>
         </div>
       </div>
@@ -166,7 +166,7 @@ B.acts.logout = async () => {
 B.acts.export = async () => {
   const data = JSON.stringify(B.exportAll(), null, 1);
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], {type: 'application/json'}));
-  a.download = `bamboo-${B.today()}.json`; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  a.download = `zov-lesa-${B.today()}.json`; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
 };
 B.inputs.import = async (el, e) => {
   if (e.type !== 'change' || !el.files[0]) return;

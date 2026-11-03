@@ -1,4 +1,4 @@
-/* Режим бамбука: экран «Сегодня».
+/* Зов леса: экран «Сегодня».
    Утренний план из трёх главных дел, задачи на сегодня, вебы ШАДа, шаг большого дела, привычки, фокус и вечерний разбор. */
 (function(){
 const {esc, icon} = B;
@@ -12,13 +12,13 @@ function greet(){
   return 'Добрый вечер';
 }
 B.levelCard = (c, compact) => {
-  const {next} = B.mileFor(c.height);
-  return `<a class="lvl ${compact ? 'compact' : ''}" href="#/bamboo">
+  const {next} = B.mileFor(c.level);
+  return `<a class="lvl ${compact ? 'compact' : ''}" href="#/forest">
     <div class="lvl-ring">${B.ring(c.frac, 58)}<b>${c.level}</b></div>
     <div class="lvl-body">
       <div class="lvl-top"><span>Уровень ${c.level}</span><span class="mono">${c.into}/${c.need} XP</span></div>
       ${B.bar(c.frac, 'xp')}
-      <div class="lvl-sub">${icon('bamboo')} бамбук <b>${B.fmtH(c.height)}</b>${next ? ` · до «${esc(next[1])}» ${B.fmtH(next[0] - c.height)}` : ''}</div>
+      <div class="lvl-sub">${icon('tree')} лес <b>${c.trees ? B.fmtTrees(c.trees) : 'поляна'}</b>${next ? ` · до «${esc(next[1])}» ${next[0] - c.level} ${B.plural(next[0] - c.level, 'уровень', 'уровня', 'уровней')}` : ''}</div>
     </div>
     <div class="streak ${c.live ? 'on' : ''}" title="Разборов в дневнике подряд">${icon('flame')}<b>${c.live}</b></div>
   </a>`;
@@ -260,7 +260,7 @@ B.views.today = {
       </header>`;
     if (compact) return `<div class="page today compact-today">${head}
       <div class="mini-strip">
-        <a href="#/bamboo" class="ms">${icon('bamboo')}<b>${c.level}</b><span>ур.</span></a>
+        <a href="#/forest" class="ms">${icon('tree')}<b>${c.level}</b><span>ур.</span></a>
         <a href="#/journal" class="ms ${rv ? 'ok' : ''}">${icon('pen')}<b>${c.live}</b><span>${rv ? 'разбор есть' : 'разбор'}</span></a>
         <a href="#/focus" class="ms">${icon('timer')}<b>${B.mins((d.pomo || []).reduce((a, p) => a + (p.min || 0), 0))}</b><span>фокус</span></a>
         <span class="ms">${icon('sparkle')}<b>${r.xp > 0 ? '+' : ''}${r.xp || 0}</b><span>XP</span></span>
@@ -335,7 +335,6 @@ B.acts.crown = async el => {
   if (!tk.done && tk.due && tk.due < B.today() && t > tk.due){
     const why = await B.askReason(tk, t); if (!why) return;
     B.updTask(tk.id, {due: t, postpones: (tk.postpones || []).concat({from: tk.due, to: t, why, at: Date.now()})}, true);
-    B.xpToast(B.XP.postpone, 'за перенос');
   }
   B.editDay(t, x => { x.top = (x.top || []).filter(i => { const k = B.task(i); return k && !k.deleted; }).concat(id); x.planAt = x.planAt || Date.now(); });
   const k = B.task(id); if (k && (!k.due || k.due > t)) B.updTask(id, {due: t});

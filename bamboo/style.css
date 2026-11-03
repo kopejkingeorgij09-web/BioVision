@@ -1259,3 +1259,23 @@ mark{background:var(--gold-soft);color:inherit;border-radius:3px;padding:0 1px}
 .scene.rich .fw{animation:sway 5s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 100%}
 .scene.rich .glint{animation:twinkle 5s ease-in-out infinite}
 @media (prefers-reduced-motion:reduce){.scene.rich *{animation:none!important}}
+/* дневник компактнее: день целиком в один экран */
+.journal-page{padding-top:12px}
+.journal-page .page-h{margin:0 0 6px;align-items:center}
+.journal-page .page-h .eyebrow{display:none}
+.journal-page .page-h h1{font-size:30px;line-height:1.15}
+.journal-page .jt{margin:0 0 10px}
+.journal-page .jt-scroll{padding:2px 2px 4px}
+.journal-page .jt-day{padding:4px 0;gap:2px;width:40px;border-radius:10px}
+.journal-page .jt-day b{font-size:15px}
+.journal-page .cols{gap:12px}
+.journal-page .col{gap:12px}
+.journal-page .card{padding:13px 15px;gap:8px}
+.journal-page .card h2{margin:0}
+.journal-page .review-form textarea{font-size:14.5px;min-height:0}
+.journal-page .field{gap:3px}
+.journal-page .chip{padding:4px 10px}
+.rv-row{display:grid;gap:8px}
+@media (min-width:760px){.rv-row .field{grid-template-columns:96px 1fr;align-items:center}}
+.journal-page .th-hint{margin:0}
+.journal-page .hint{margin:0}

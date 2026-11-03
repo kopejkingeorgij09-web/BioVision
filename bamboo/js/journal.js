@@ -66,10 +66,10 @@ B.views.journal = {
           </section>
           <section class="card review-form">
             <h2>${icon('pen')}Разбор</h2>
-            <label class="field">Что сделал и чем доволен<textarea rows="3" data-in="rv" data-k="done" data-d="${date}" placeholder="Коротко, своими словами">${esc(rv.done || '')}</textarea></label>
-            <label class="field">Что не вышло и почему<textarea rows="3" data-in="rv" data-k="why" data-d="${date}" placeholder="Честно: где отвлёкся, что отложил, что помешало">${esc(rv.why || '')}</textarea></label>
-            <div class="field">Настроение<div class="chips">${[1, 2, 3, 4, 5].map(i => `<button class="chip ${rv.mood === i ? 'on' : ''}" data-act="rvSet" data-k="mood" data-v="${i}" data-d="${date}">${MOOD[i]}</button>`).join('')}</div></div>
-            <div class="field">Энергия<div class="chips">${[1, 2, 3, 4, 5].map(i => `<button class="chip ${rv.energy === i ? 'on' : ''}" data-act="rvSet" data-k="energy" data-v="${i}" data-d="${date}">${'●'.repeat(i)}</button>`).join('')}</div></div>
+            <label class="field">Что сделал и чем доволен<textarea rows="2" data-in="rv" data-k="done" data-d="${date}" placeholder="Коротко, своими словами">${esc(rv.done || '')}</textarea></label>
+            <label class="field">Что не вышло и почему<textarea rows="2" data-in="rv" data-k="why" data-d="${date}" placeholder="Честно: где отвлёкся, что отложил, что помешало">${esc(rv.why || '')}</textarea></label>
+            <div class="rv-row"><div class="field">Настроение<div class="chips">${[1, 2, 3, 4, 5].map(i => `<button class="chip ${rv.mood === i ? 'on' : ''}" data-act="rvSet" data-k="mood" data-v="${i}" data-d="${date}">${MOOD[i]}</button>`).join('')}</div></div>
+            <div class="field">Энергия<div class="chips">${[1, 2, 3, 4, 5].map(i => `<button class="chip ${rv.energy === i ? 'on' : ''}" data-act="rvSet" data-k="energy" data-v="${i}" data-d="${date}">${'●'.repeat(i)}</button>`).join('')}</div></div></div>
             <p class="hint" id="rvSaved">${date < t && !B.reviewDone(date) && B.hasReview(d) ? 'Разбор написан после окончания дня: он останется в дневнике, но в серию не попадёт.' : B.reviewDone(date) ? 'Разбор засчитан, серия дневника продолжается.' : 'Сохраняется само, пока пишешь.'}</p>
           </section>
         </div>
@@ -94,6 +94,7 @@ B.views.journal = {
 };
 /* лента дней: от первого дня с записями (не дальше 120 дней назад) до сегодня; цвет полоски = итог дня,
    точка = есть мысли; настроение видно во всплывающей подсказке */
+const RES = {good: 'с разбором', some: 'без разбора', empty: 'пустой день', open: 'идёт'};
 function timeline(date, c){
   const t = B.today(), keys = Object.keys(c.days).concat(B.dayDates()).filter(k => k <= t).sort();
   let from = keys[0] || t; const lim = B.add(t, -120), min = B.add(t, -13);
@@ -102,11 +103,11 @@ function timeline(date, c){
   for (let k = from; k <= t; k = B.add(k, 1)){
     const p = B.parse(k), x = c.days[k], dd = B.day(k), rv = dd.review || {}, notes = (dd.notes || []).length;
     if (p.getMonth() !== mon){ mon = p.getMonth(); html += `<span class="jt-mon">${B.MONF[mon]}</span>`; }
-    html += `<a class="jt-day ${k === date ? 'on' : ''} ${k === t ? 'now' : ''} ${B.wd(k) > 4 ? 'we' : ''}" href="#/journal/${k}" title="${B.fmtW(k)}${rv.mood ? ' · ' + MOOD[rv.mood] : ''}${notes ? ' · мыслей: ' + notes : ''}">
+    html += `<a class="jt-day ${k === date ? 'on' : ''} ${k === t ? 'now' : ''} ${B.wd(k) > 4 ? 'we' : ''}" href="#/journal/${k}" title="${B.fmtW(k)}${x && RES[x.result] ? ' · ' + RES[x.result] : ''}${rv.mood ? ' · ' + MOOD[rv.mood] : ''}${notes ? ' · мыслей: ' + notes : ''}">
       <small>${B.WD[B.wd(k)]}</small><b>${p.getDate()}</b><i class="jt-bar ${x ? 'r-' + x.result : ''}"></i><span class="jt-meta">${notes ? '<i class="jt-dot"></i>' : ''}</span></a>`;
   }
   return `<nav class="jt" aria-label="Дни дневника"><div class="jt-scroll">${html}</div>
-    <div class="jt-lgd"><span><i class="jt-bar r-good"></i>с разбором</span><span><i class="jt-bar r-some"></i>без разбора</span><span><i class="jt-bar r-empty"></i>пустой</span><span><i class="jt-dot"></i>есть мысли</span></div></nav>`;
+</nav>`;
 }
 /* «Месяц назад» и «Год назад»: что было в этот же день */
 function sameDay(date, months){

@@ -24,7 +24,8 @@ const I={
  auto:'<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/>',
  arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>',
  back:'<path d="M19 12H5M11 6l-6 6 6 6"/>',
- toc:'<path d="M4 6h16M4 12h10M4 18h13"/>'};
+ toc:'<path d="M4 6h16M4 12h10M4 18h13"/>',
+ set:'<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/>'};
 const ic=(k,c='')=>`<svg class="i ${c}" viewBox="0 0 24 24" aria-hidden="true">${I[k]}</svg>`;
 BV.icon=ic;
 
@@ -327,12 +328,27 @@ main{flex:1;width:100%;max-width:1240px;margin:0 auto;padding:34px max(20px,env(
 .seg button{border-radius:calc(var(--rb) - 3px)}
 .rows,.locus,.askcard,.after a,.k-sheet,.k-toc,.el-card,.card,.cont{box-shadow:var(--csh)}
 
-/* ---------- меню «Оформление» ---------- */
+/* ---------- меню «Настройки»: оформление, лёгкий режим, работа без интернета ---------- */
 .thm{position:fixed;z-index:70;width:min(340px,calc(100vw - 16px));max-height:calc(100dvh - var(--barh) - 24px);overflow:auto;overscroll-behavior:contain;background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:0 18px 44px -14px rgba(0,0,0,.35);padding:14px;display:flex;flex-direction:column;gap:12px}
 .thm>b{font:500 11.5px/1.3 var(--font-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
 .thm .seg{display:flex;width:100%}
 .thm .seg button{flex:1 1 0;display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 6px}
 .thm .seg .i{width:16px;height:16px}
+.thm .sw{display:flex;gap:12px;align-items:flex-start;cursor:pointer;padding:2px 0}
+.thm .sw input{appearance:none;-webkit-appearance:none;flex:none;margin:2px 0 0;width:40px;height:24px;border-radius:12px;background:var(--line);position:relative;cursor:pointer;transition:background .2s}
+.thm .sw input:after{content:"";position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
+.thm .sw input:checked{background:var(--ui)}
+.thm .sw input:checked:after{transform:translateX(16px)}
+.thm .sw input:focus-visible{outline:2px solid var(--cut);outline-offset:2px}
+.thm .sw span{display:flex;flex-direction:column;gap:3px;font-size:14.5px;font-weight:600}
+.thm .sw small,.thm p{font-size:13px;line-height:1.45;font-weight:400;color:var(--muted)}
+.thm p{margin:0}
+.thm .tip{padding:8px 10px;border-radius:var(--rs);background:var(--ui-soft);color:var(--ink)}
+.thm hr{border:0;border-top:1px solid var(--line);margin:2px 0}
+/* лёгкий режим: без переходов, анимаций, размытия под шапкой и неподвижного фона */
+:host(.lite) *,:host(.lite) *:before,:host(.lite) *:after{animation-duration:0s!important;animation-delay:0s!important;transition-duration:0s!important;transition-delay:0s!important;scroll-behavior:auto!important}
+:host(.lite) .bar{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--bg)}
+:host(.lite) .app{background-attachment:scroll}
 `;
 {const st=document.createElement('style');st.textContent=CSS;R.appendChild(st)}
 
@@ -366,7 +382,7 @@ app.innerHTML=`<header class="bar">
     <a href="#/labs" data-nav="labs">Лабораторные работы</a>
   </nav>
   <div class="bar-r">
-    <button type="button" class="icb" data-theme-btn aria-label="Оформление" aria-haspopup="true" aria-expanded="false"></button>
+    <button type="button" class="icb" data-theme-btn aria-label="Настройки" aria-haspopup="true" aria-expanded="false"></button>
     <a class="who" href="#/me" data-nav="me">${ic('me')}<span>Войти</span></a>
   </div>
 </header>
@@ -497,7 +513,9 @@ function show(r){
   const nav=r.kind==='lecture'?'home':r.kind==='x'?r.x.nav:r.kind;
   $$('[data-nav]').forEach(a=>{if(a.tagName==='A')a.dataset.nav===nav?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current')});
   if(!same)target.focus({preventScroll:true});
-  lastSec=null}
+  lastSec=null;
+  /* другие файлы (нижняя навигация по лекции) узнают о смене страницы */
+  dispatchEvent(new Event('bv-route'))}
 function route(){show(parse(location.hash))}
 addEventListener('hashchange',route);
 BV.app={go:h=>{if(location.hash===h)route();else location.hash=h},get route(){return cur},refresh:route,
@@ -520,7 +538,10 @@ function tocLine(page){const toc=$('.k-toc',page);if(!toc||!toc.offsetParent)ret
   const a0=links[0],aN=links[links.length-1],top=a0.offsetTop+6,bot=aN.offsetTop+aN.offsetHeight-6;
   line.style.top=top+'px';line.style.height=Math.max(0,bot-top)+'px';
   line.firstChild.style.height=Math.max(0,on.offsetTop+on.offsetHeight/2-top)+'px';
-  let past=true;all.forEach(a=>{if(a===on0)past=false;a.classList.toggle('past',past);a.classList.toggle('cur',a===on)})}
+  let past=true;all.forEach(a=>{if(a===on0)past=false;a.classList.toggle('past',past);a.classList.toggle('cur',a===on)});
+  /* подразделы текущего раздела: их показывает раскрытая узкая полоса содержания */
+  let par=null,cp=null;all.forEach(a=>{if(!a.classList.contains('sub'))par=a;if(a===on0)cp=par});
+  par=null;all.forEach(a=>{if(!a.classList.contains('sub'))par=a;else a.classList.toggle('here',par===cp)})}
 let tlRaf=0;
 addEventListener('scroll',()=>{if(tlRaf||!cur||cur.kind!=='lecture')return;tlRaf=requestAnimationFrame(()=>{tlRaf=0;tocLine(pages['l'+cur.L.n])})},{passive:true});
 addEventListener('resize',()=>{if(cur&&cur.kind==='lecture')tocLine(pages['l'+cur.L.n])});
@@ -548,14 +569,19 @@ addEventListener('scroll',()=>{if(tm)return;tm=setTimeout(()=>{tm=0;if(!cur||cur
 
 /* ---------- тема ---------- */
 const tb=$('[data-theme-btn]');
-const drawTb=()=>{const v=BV.theme.get();tb.innerHTML=ic(v==='dark'?'moon':v==='light'?'sun':'auto');tb.title='Оформление: '+({auto:'как в системе',light:'светлое',dark:'тёмное'})[v]};
+const drawTb=()=>{tb.innerHTML=ic('set');tb.title='Настройки: оформление, лёгкий режим, работа без интернета'};
 drawTb();
 const MODES=[['auto','Система'],['light','Светлое'],['dark','Тёмное']];
-function drawThm(m){const v=BV.theme.get();
-  m.innerHTML=`<b>Оформление</b><div class="seg" role="radiogroup" aria-label="Оформление">${MODES.map(([k,t])=>`<button type="button" role="radio" aria-pressed="${k===v}" aria-checked="${k===v}" data-v="${k}">${ic(k==='dark'?'moon':k==='light'?'sun':'auto')}${t}</button>`).join('')}</div>`}
+BV.settings={open:()=>{if(!$('.thm'))tb.click()}};
+function drawThm(m){const v=BV.theme.get(),low=BV.mol&&BV.mol.low;
+  m.innerHTML=`<b>Оформление</b><div class="seg" role="radiogroup" aria-label="Оформление">${MODES.map(([k,t])=>`<button type="button" role="radio" aria-pressed="${k===v}" aria-checked="${k===v}" data-v="${k}">${ic(k==='dark'?'moon':k==='light'?'sun':'auto')}${t}</button>`).join('')}</div>
+    <hr><label class="sw"><input type="checkbox" data-lite${BV.lite?' checked':''}><span>Лёгкий режим<small>Без анимаций и заставки, 3D-модели выключены. Сайт работает быстрее на слабом телефоне или планшете и меньше тратит батарею. Страница перезагрузится.</small></span></label>
+    ${low&&!BV.lite?'<p class="tip">Похоже, это устройство не из быстрых. С лёгким режимом сайт будет листаться плавнее.</p>':''}
+    <hr><b>Без интернета</b><p data-off>${BV.offline?BV.offline.text():'Лекции, которые ты открывал, сохраняются на этом устройстве.'}</p>`;
+  $('[data-lite]',m).addEventListener('change',e=>{store.set('lite',e.target.checked);location.reload()})}
 function closeThm(focus){const m=$('.thm');if(!m)return;m.remove();tb.setAttribute('aria-expanded','false');if(focus)tb.focus()}
 tb.addEventListener('click',()=>{if($('.thm')){closeThm();return}
-  const m=document.createElement('div');m.className='thm';m.setAttribute('role','dialog');m.setAttribute('aria-label','Оформление');drawThm(m);
+  const m=document.createElement('div');m.className='thm';m.setAttribute('role','dialog');m.setAttribute('aria-label','Настройки');drawThm(m);
   R.appendChild(m);const r=tb.getBoundingClientRect();m.style.top=(r.bottom+8)+'px';m.style.right=Math.max(8,innerWidth-r.right)+'px';
   tb.setAttribute('aria-expanded','true');(m.querySelector('[aria-checked="true"]')||m.querySelector('button')).focus();
   m.addEventListener('click',e=>{const b=BV_ET(e).closest('[data-v]');if(!b)return;BV.theme.set(b.dataset.v);drawTb();closeThm(true)})});

@@ -15,9 +15,13 @@ const store={
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let reduced=false;try{reduced=matchMedia('(prefers-reduced-motion: reduce)').matches}catch(e){}
+/* лёгкий режим (переключатель в настройках): без анимаций, заставки и 3D-моделей, для слабых устройств.
+   Движок конспекта читает BV.reduced при загрузке, поэтому переключатель перезагружает страницу */
+const lite=store.get('lite',false)===true;
+if(lite){reduced=true;host.classList.add('lite')}
 const themeFns=[];
 
-window.BV={$,$$,store,clamp,esc,reduced,themeFns,hooks:{},
+window.BV={$,$$,store,clamp,esc,reduced,lite,themeFns,hooks:{},
   ease:t=>(t=clamp(t,0,1))*t*(3-2*t),
   lerp:(a,b,t)=>a+(b-a)*t,
   cssVar:n=>getComputedStyle(host).getPropertyValue(n).trim(),

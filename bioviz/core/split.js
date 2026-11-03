@@ -44,8 +44,22 @@ main.kd-wide{max-width:1680px}
 .k-wrap.split .k-toc a.sub{display:grid;grid-template-rows:0fr;min-height:0;padding:0 0 0 54px;opacity:0;font-size:12.5px;
   transition:grid-template-rows .42s cubic-bezier(.22,.8,.24,1),padding .42s cubic-bezier(.22,.8,.24,1),opacity .16s}
 .k-wrap.split .k-toc a.sub .tl{display:block;min-height:0;overflow:hidden;width:222px;color:var(--muted)}
-.k-wrap.split .k-toc.open a.sub{grid-template-rows:1fr;padding:3px 0 3px 54px;opacity:1;transition-delay:0s,0s,.14s}
+.k-wrap.split .k-toc.open a.sub.here{grid-template-rows:1fr;padding:3px 0 3px 54px;opacity:1;transition-delay:0s,0s,.14s}
 .k-wrap.split .k-toc .toc-line{left:27px}
+/* кнопка «Содержание» над номерами: раскрывает полосу нажатием (на планшете наведения нет) и закрепляет её открытой */
+.k-wrap.split .k-toc>b{display:none}
+.k-wrap.split .k-toc .rt{all:unset;box-sizing:border-box;cursor:pointer;position:relative;display:flex;align-items:center;width:100%;height:40px;padding:0 0 0 14px;margin-bottom:4px;color:var(--muted);-webkit-tap-highlight-color:transparent}
+.k-wrap.split .k-toc .rt>i{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;flex:none;transition:background .2s,color .2s}
+.k-wrap.split .k-toc .rt svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.k-wrap.split .k-toc .rt:hover>i,.k-wrap.split .k-toc.open .rt>i{background:var(--surface-2);color:var(--ink)}
+.k-wrap.split .k-toc .rt span{position:absolute;left:54px;top:50%;transform:translate(-10px,-50%);opacity:0;white-space:nowrap;font:600 11px/1 var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);transition:opacity .2s,transform .38s cubic-bezier(.22,.8,.24,1)}
+.k-wrap.split .k-toc.open .rt span{opacity:1;transform:translate(0,-50%);transition-delay:.1s,.06s}
+.k-wrap.split .k-toc .rt em{position:absolute;right:12px;top:50%;transform:translateY(-50%);opacity:0;font:500 11px/1 var(--font-mono);font-style:normal;color:var(--muted);transition:opacity .2s}
+.k-wrap.split .k-toc.open.pin .rt em{opacity:1}
+.k-wrap.split .k-toc .rt:focus-visible{outline:2px solid var(--cut);outline-offset:-2px;border-radius:var(--rx)}
+.k-wrap.split .k-toc .rk{display:block;white-space:nowrap;overflow:hidden;max-height:0;opacity:0;padding:0 0 0 18px;font:500 11px/1.4 var(--font-mono);color:var(--muted);transition:max-height .42s cubic-bezier(.22,.8,.24,1),opacity .18s,padding .42s}
+.k-wrap.split .k-toc.open .rk{max-height:40px;opacity:1;padding:12px 0 4px 18px;transition-delay:0s,.14s,0s}
+@media (hover:none){.k-wrap.split .k-toc .rk,.k-wrap.split .k-toc .rt em{display:none}}
 .k-wrap.split .k-toc .toc-line b:after{display:none}
 @media (prefers-reduced-motion:reduce){.k-wrap.split .k-toc,.k-wrap.split .k-toc *{transition-duration:0s!important;transition-delay:0s!important}}
 :host(.full) .k-wrap.split{max-width:none}
@@ -112,6 +126,7 @@ main.kd-wide{max-width:1680px}
 {const st=document.createElement('style');st.textContent=STYLE;R.appendChild(st)}
 
 const ICO={
+ list:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><circle cx="4.6" cy="6.5" r="1.1"/><circle cx="4.6" cy="12" r="1.1"/><circle cx="4.6" cy="17.5" r="1.1"/></svg>',
  prev:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>',
  next:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>',
  side:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
@@ -179,11 +194,29 @@ function railToc(){const toc=$('.k-toc',S.wrap);if(!toc)return;
       a.innerHTML=`<span class="tl">${m?`<span class="tn">${esc(m[0])}</span>`:''}${esc(m?tx.slice(m[0].length):tx)}</span>`});
     /* пока подразделы разворачиваются, линия прогресса следует за кружками */
     let lr=0;const follow=()=>{cancelAnimationFrame(lr);const t0=performance.now();const f=()=>{BV.app.tocLine&&BV.app.tocLine();if(performance.now()-t0<520)lr=requestAnimationFrame(f)};f()};
-    let t=0;const set=o=>{clearTimeout(t);t=setTimeout(()=>{if(!S||S.mode!=='split'){toc.classList.remove('open');return}
-      if(toc.classList.contains('open')===o)return;toc.classList.toggle('open',o);if(!o)toc.scrollTop=0;follow()},o?90:220)};
-    toc.addEventListener('mouseenter',()=>set(true));toc.addEventListener('mouseleave',()=>set(false));
-    toc.addEventListener('focusin',()=>set(true));toc.addEventListener('focusout',e=>{if(!toc.contains(e.relatedTarget))set(false)});
-    toc.addEventListener('click',e=>{if(BV_ET(e).closest('a'))set(false)})}
+    const tg=document.createElement('button');tg.type='button';tg.className='rt';tg.setAttribute('aria-expanded','false');tg.setAttribute('aria-label','Развернуть содержание');
+    tg.innerHTML=`<i>${ICO.list}</i><span>Содержание</span><em>Esc</em>`;toc.insertBefore(tg,toc.firstChild);
+    const hint=document.createElement('span');hint.className='rk';hint.textContent='← → листают разделы';toc.appendChild(hint);
+    /* мышь: раскрытие при наведении. Палец и кнопка: раскрытие нажатием, полоса остаётся открытой (pin),
+       пока не выберешь раздел, не нажмёшь мимо, на кнопку ещё раз или Esc */
+    let t=0,pin=false,pt='mouse';
+    const apply=o=>{if(!S||S.mode!=='split')o=false;if(!o)pin=false;toc.classList.toggle('pin',pin);
+      tg.setAttribute('aria-expanded',String(o));tg.setAttribute('aria-label',o?'Свернуть содержание':'Развернуть содержание');
+      if(toc.classList.contains('open')===o)return;toc.classList.toggle('open',o);if(!o)toc.scrollTop=0;follow()};
+    const set=(o,now)=>{clearTimeout(t);if(now){apply(o);return}t=setTimeout(()=>apply(o),o?90:220)};
+    toc._rail={close:()=>set(false,true)};
+    toc.addEventListener('pointerdown',e=>{pt=e.pointerType||'mouse'},true);
+    toc.addEventListener('pointerenter',e=>{if(e.pointerType==='mouse'&&!pin)set(true)});
+    toc.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse'&&!pin)set(false)});
+    toc.addEventListener('focusin',()=>{if(!pin)set(true)});toc.addEventListener('focusout',e=>{if(!pin&&!toc.contains(e.relatedTarget))set(false)});
+    toc.addEventListener('click',e=>{const el=BV_ET(e);
+      if(el.closest('.rt')){e.stopPropagation();const o=!(toc.classList.contains('open')&&pin);pin=o;set(o,true);return}
+      const a=el.closest('a');if(!a)return;
+      /* касание по свёрнутой полосе сначала раскрывает её, раздел выбирается вторым касанием */
+      if(pt!=='mouse'&&!toc.classList.contains('open')){e.preventDefault();e.stopPropagation();pin=true;set(true,true);return}
+      set(false,true)},true);
+    R.addEventListener('pointerdown',e=>{if(pin&&!toc.contains(BV_ET(e)))set(false,true)},true);
+    R.addEventListener('keydown',e=>{if(e.key==='Escape'&&toc.classList.contains('open')){set(false,true);if(toc.contains(R.activeElement))tg.focus({preventScroll:true})}})}
   toc.classList.remove('open');BV.app.tocLine&&requestAnimationFrame(()=>BV.app.tocLine())}
 
 /* точки привязки в порядке текста: строки-ссылки (или сами рисунки) и абзацы с data-hl */

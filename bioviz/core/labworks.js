@@ -73,8 +73,9 @@ const PARTS=[
 const st={list:null,err:null,loading:null};
 const sortL=l=>l.sort((a,b)=>(a.data.n||0)-(b.data.n||0)||String(a.data.date||'').localeCompare(String(b.data.date||'')));
 async function load(force){if(st.list&&!force)return st.list;if(st.loading)return st.loading;
-  st.loading=(async()=>{try{const D=await APP.db();st.list=sortL(await D.collection('labworks').list());st.err=null}
-    catch(e){st.err=e;if(!st.list)st.list=null}finally{st.loading=null}return st.list})();
+  /* последняя загруженная копия списка хранится в браузере: без интернета работы всё равно видны (без фотографий) */
+  st.loading=(async()=>{try{const D=await APP.db();st.list=sortL(await D.collection('labworks').list());st.err=null;BV.store.set('lw-copy',st.list)}
+    catch(e){st.err=e;if(!st.list)st.list=BV.store.get('lw-copy',null)}finally{st.loading=null}return st.list})();
   return st.loading}
 const visible=()=>(st.list||[]).filter(w=>APP.isAdmin()||!w.data.draft);
 const byId=id=>(st.list||[]).find(w=>w.id===id);

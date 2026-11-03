@@ -15,7 +15,9 @@ async function loadPlan(){
 function applyOver(){
   PLAN = BASE.map(x => {
     const o = (progress[x.n] && progress[x.n].o) || {}, w = Object.assign({}, x.web, o.w), h = Object.assign({}, x.hw, o.h);
-    return {n:x.n, c:x.c, code:x.code, t:o.t || x.t, w:[w.date,w.from||"",w.to||"23:59"], h:[h.date,h.from||"",h.to||"23:59"]};
+    // пока в «Зове леса» не выбран день (o.w.date / o.h.date), веб и ДЗ просто стоят на своей неделе: отставать начинаем после её воскресенья
+    const wEnd = (o.w && o.w.date) ? null : weekEnd(x.web.date), hEnd = (o.h && o.h.date) || !x.hw ? null : weekEnd(x.hw.date);
+    return {n:x.n, c:x.c, code:x.code, t:o.t || x.t, w:[w.date,w.from||"",w.to||"23:59"], h:[h.date,h.from||"",h.to||"23:59"], wEnd, hEnd};
   });
 }
 // время у веба и ДЗ необязательно: без него показываем только день
@@ -46,14 +48,15 @@ let openN = null;
 const st = n => (progress[n] && progress[n].s) || 0;
 function lateness(p, now = Date.now()){
   const s = st(p.n);
-  if (s < 2 && now > at(p.w[0], p.w[2])) return "веб";
-  if (s < 3 && now > at(p.h[0], p.h[2])) return "ДЗ";
+  if (s < 2 && now > (p.wEnd ? at(p.wEnd, "23:59") : at(p.w[0], p.w[2]))) return "веб";
+  if (s < 3 && now > (p.hEnd ? at(p.hEnd, "23:59") : at(p.h[0], p.h[2]))) return "ДЗ";
   return null;
 }
 function moscowToday(){
   const d = new Date(Date.now() + 3*3600e3);
   return d.toISOString().slice(0,10);
 }
+function weekEnd(d){ return new Date(Date.parse(weekStart(d)) + 6*864e5).toISOString().slice(0,10); }
 function weekStart(d){
   const p = dparts(d); const t = Date.UTC(p.y,p.m-1,p.dd); const shift = (p.wd + 6) % 7;
   return new Date(t - shift*864e5).toISOString().slice(0,10);

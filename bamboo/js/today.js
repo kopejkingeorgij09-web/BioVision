@@ -65,7 +65,7 @@ B.shadRow = (it, date) => {
   const p = it.p, s = B.shadStage(p.n), course = B.shad.courses[p.c] || {};
   const ok = s >= it.need, late = !ok && date < B.today();
   return `<div class="shad-row ${ok ? 'ok' : ''} ${late ? 'late' : ''}">
-    <div class="shad-top"><span class="cchip c-${p.c}">${esc(course.name || p.c)}</span><span class="mono">${it.kind === 'web' ? '' : 'ДЗ · '}${esc(p.code)}</span>${it.from ? `<span class="mono muted">${it.from}–${it.to}</span>` : `<span class="muted">${it.kind === 'hw' ? 'до ' : ''}${B.fmtS(it.kind === 'web' ? p.w.date : p.h.date)}</span>`}</div>
+    <div class="shad-top"><span class="cchip c-${p.c}">${esc(course.name || p.c)}</span><span class="mono">${it.kind === 'web' ? '' : 'ДЗ · '}${esc(p.code)}</span>${it.from ? `<span class="mono muted">${it.from}–${it.to}</span>` : `<span class="muted">${(it.kind === 'web' ? p.wp : p.hp) ? (it.kind === 'hw' ? 'до ' : '') + B.fmtS(it.kind === 'web' ? p.w.date : p.h.date) : 'неделя ' + B.fmtS(it.kind === 'web' ? p.wk : p.hk)}</span>`}</div>
     <div class="shad-title">${esc(p.t)}</div>
     <div class="seg" role="group" aria-label="Стадия">${B.SHAD_STAGES.map((l, i) => `<button class="${s === i ? 'on' : ''} ${i <= s ? 'fill' : ''}" data-act="shadSet" data-n="${p.n}" data-s="${i}" title="${l}">${SHORT[i]}</button>`).join('')}</div>
   </div>`;
@@ -76,10 +76,12 @@ B.acts.shadSet = el => {
 };
 function shadCard(c){
   const items = B.shadOn(c.today), late = B.shadLate().filter(x => !items.some(y => y.p.n === x.p.n)).slice(0, 3);
-  if (!items.length && !late.length) return '';
+  const free = B.shadWeek(B.weekStart(c.today)).filter(it => !it.old && B.shadStage(it.p.n) < it.need).length;
+  if (!items.length && !late.length && !free) return '';
   return `<section class="card">
     <div class="row between"><h2>${icon('chart')}ШАД</h2><a class="muted" href="../shad/">трекер →</a></div>
     ${items.map(it => B.shadRow(it, c.today)).join('')}
+    ${free ? `<a class="muted shad-free" href="#/tasks/week">На этой неделе без дня: ${free}. Расставь в планере →</a>` : ''}
     ${late.length ? `<div class="sub-h">Хвосты</div>${late.map(it => B.shadRow(it, '0')).join('')}` : ''}
   </section>`;
 }

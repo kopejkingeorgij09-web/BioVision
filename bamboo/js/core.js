@@ -183,16 +183,20 @@ B.SHAD_STAGES = ['Не начат', 'Смотрю', 'Веб посмотрен',
 B.shad = {plan: [], base: [], courses: {}, marks: {}, lms: ''};
 const LS_SHADPLAN = 'bamboo-shadplan', LS_SHADMARKS = 'shad-track-progress';   // второй ключ общий с трекером shad/ на этом устройстве
 function usePlan(d){
-  B.shad.courses = d.courses || {}; B.shad.lms = d.lms || ''; B.shad.brk = d.break || null;
-  B.shad.base = (d.webs || []).map(x => ({n: x.n, c: x.course, code: x.code, t: x.title, w: x.web, h: x.hw}));
+  B.shad.courses = d.courses || {}; B.shad.lms = d.lms || ''; B.shad.brk = d.break || null; B.shad.hours = d.hours || {web: 3.75, hw: 1.9};
+  B.shad.base = (d.webs || []).map(x => ({n: x.n, c: x.course, code: x.code, t: x.title, w: x.web, h: x.hw,
+    wk: x.web && x.web.date ? B.weekStart(x.web.date) : '', hk: x.hw && x.hw.date ? B.weekStart(x.hw.date) : ''}));
   applyOver(); changed();
 }
 /* правки вебов (название, дата и время веба, срок ДЗ) лежат в той же записи 'shad/wNN', поле o: {t, w, h}.
-   Их видит и трекер shad/: перенёс веб в планере, он переехал и там. */
+   Их видит и трекер shad/: перенёс веб в планере, он переехал и там.
+   План раздаёт вебы и ДЗ по неделям (wk, hk — понедельник недели из плана). Пока у веба или ДЗ нет своего дня
+   (o.w.date / o.h.date), он лежит в блоке «ШАД на неделю» планера; wp и hp — «поставлен на день». */
 function applyOver(){
   B.shad.plan = B.shad.base.map(p => {
     const o = (B.shad.marks[p.n] || {}).o; if (!o) return p;
-    return Object.assign({}, p, {t: o.t || p.t, w: o.w ? Object.assign({}, p.w, o.w) : p.w, h: o.h ? Object.assign({}, p.h, o.h) : p.h, edited: true});
+    return Object.assign({}, p, {t: o.t || p.t, w: o.w ? Object.assign({}, p.w, o.w) : p.w, h: o.h ? Object.assign({}, p.h, o.h) : p.h, edited: true,
+      wp: !!(o.w && o.w.date), hp: !!(o.h && o.h.date)});
   });
 }
 B.shadBase = n => B.shad.base.find(p => p.n === n);
@@ -222,7 +226,8 @@ B.setShadOver = (n, patch) => {
     ['w', 'h'].forEach(k => {
       if (!patch[k]) return;
       const m = Object.assign({}, o[k] || {}, patch[k]);
-      Object.keys(m).forEach(f => { if ((m[f] || '') === (base[k][f] || '')) delete m[f]; });
+      // свой день хранится, даже если совпал с днём из плана (это значит «поставлен»); пустой день убирает его
+      Object.keys(m).forEach(f => { if (f === 'date' ? !m.date : (m[f] || '') === (base[k][f] || '')) delete m[f]; });
       o[k] = Object.keys(m).length ? m : undefined;
     });
     o = JSON.parse(JSON.stringify(o));
@@ -254,21 +259,48 @@ B.setShadStage = async (n, s) => {
   changed();
   await shadWrite(n, v);
 };
-/* веб и ДЗ на конкретную дату */
+/* веб и ДЗ, поставленные на конкретный день */
 B.shadOn = date => {
   const out = [];
   B.shad.plan.forEach(p => {
-    if (p.w && p.w.date === date) out.push({p, kind: 'web', from: p.w.from || '', to: p.w.to || '', need: 2});
-    if (p.h && p.h.date === date) out.push({p, kind: 'hw', from: p.h.from || '', to: p.h.to || '', need: 3});
+    if (p.wp && p.w.date === date) out.push({p, kind: 'web', from: p.w.from || '', to: p.w.to || '', need: 2});
+    if (p.hp && p.h.date === date) out.push({p, kind: 'hw', from: p.h.from || '', to: p.h.to || '', need: 3});
   });
   return out.sort((a, b) => a.from.localeCompare(b.from));
 };
-B.shadLate = () => {
-  const t = B.today(), out = [];
+/* блок «ШАД на неделю»: вебы и ДЗ недели ws без своего дня; на текущей неделе туда же попадают хвосты прошлых недель */
+B.shadWeek = ws => {
+  const cur = ws === B.weekStart(B.today()), out = [];
   B.shad.plan.forEach(p => {
     const s = B.shadStage(p.n);
-    if (s < 2 && p.w && p.w.date < t) out.push({p, kind: 'web', need: 2});
-    else if (s < 3 && p.h && p.h.date < t) out.push({p, kind: 'hw', need: 3});
+    if (p.w && !p.wp && (p.wk === ws || (cur && p.wk < ws && s < 2))) out.push({p, kind: 'web', need: 2, old: p.wk < ws});
+    if (p.h && p.h.date && !p.hp && (p.hk === ws || (cur && p.hk < ws && s < 3))) out.push({p, kind: 'hw', need: 3, old: p.hk < ws});
+  });
+  return out.sort((a, b) => b.old - a.old || a.p.n - b.p.n || (a.kind === 'web' ? -1 : 1));
+};
+/* всё, что относится к неделе ws: поставленное на её дни и лежащее в блоке */
+B.shadWeekAll = ws => {
+  const we = B.add(ws, 6), out = B.shadWeek(ws);
+  B.shad.plan.forEach(p => {
+    if (p.wp && p.w.date >= ws && p.w.date <= we) out.push({p, kind: 'web', need: 2});
+    if (p.hp && p.h.date >= ws && p.h.date <= we) out.push({p, kind: 'hw', need: 3});
+  });
+  return out;
+};
+B.shadHoursLeft = list => list.reduce((m, it) => m + (B.shadStage(it.p.n) >= it.need ? 0 : (B.shad.hours || {})[it.kind] || 0), 0);
+/* убрать день у веба или ДЗ: карточка вернётся в блок своей недели */
+B.shadUnplace = (n, kind) => {
+  const base = B.shadBase(n), k = kind === 'web' ? 'w' : 'h'; if (!base || !base[k]) return;
+  B.setShadOver(n, {[k]: {date: '', from: '', to: ''}});
+};
+/* хвосты: поставленное на прошедший день или не поставленное, когда неделя уже кончилась */
+B.shadLate = () => {
+  const t = B.today(), ws = B.weekStart(t), out = [];
+  B.shad.plan.forEach(p => {
+    const s = B.shadStage(p.n);
+    const wl = p.w && (p.wp ? p.w.date < t : p.wk < ws), hl = p.h && p.h.date && (p.hp ? p.h.date < t : p.hk < ws);
+    if (s < 2 && wl) out.push({p, kind: 'web', need: 2});
+    else if (s < 3 && hl) out.push({p, kind: 'hw', need: 3});
   });
   return out;
 };

@@ -155,6 +155,8 @@ B.acts.readQuick = async () => {
 B.acts.readPick = el => B.closeDialog(el.dataset.id);
 /* тренировка одним нажатием, второе нажатие снимает */
 B.acts.sportQuick = () => B.toggleSport(B.today());
+/* старый адрес раздела «Спорт» ведёт в «Привычки» */
+if (location.hash.startsWith('#/sport')) location.replace('#/habits');
 /* нажатие: нет ↔ сделано; долгое нажатие ставит минимальную версию (если она задана) */
 let lpT = 0, lpDone = false;
 document.addEventListener('pointerdown', e => {

@@ -44,11 +44,37 @@ function heat(h){
   }
   return `<div class="heat">${cells}</div>`;
 }
+/* что делает нажатие на день: обычная привычка ставит отметку, чтение спрашивает минуты, тренировка отмечается */
+const dayAct = (h, d) => h.auto === 'read' ? `data-act="readDay" data-d="${d}"` : h.auto === 'sport' ? `data-act="sportDay" data-d="${d}"` : `data-act="habitToggle" data-id="${h.id}" data-d="${d}"`;
+/* чтение за день: сколько минут всего. Больше — дописывается запись к книге, которую читаешь; меньше — лишнее срезается с конца */
+B.acts.readDay = async el => {
+  const d = el.dataset.d || B.today(), cur = B.readMin(d), goal = (B.get('h_read') || {}).min || B.cfg().readGoal || 30;
+  const reading = B.books().filter(b => b.status === 'reading');
+  const v = await B.dialog(`<h3>${icon('book')} Чтение · ${B.fmtW(d)}</h3>
+    <p class="dlg-text">${cur ? `Сейчас записано ${B.mins(cur)}.` : 'Пока ничего не записано.'} Цель ${goal} мин.</p>
+    <label class="field">Сколько минут читал за день<input id="rdMin" type="number" min="0" max="900" inputmode="numeric" value="${cur || ''}" placeholder="${goal}" autofocus data-enter="rdOk"></label>
+    <div class="chips">${[10, 15, 20, 30, 45, 60, 90].map(m => `<button class="chip" data-act="rdChip" data-m="${m}">${m} мин</button>`).join('')}</div>
+    ${reading.length > 1 ? `<label class="field">Книга<select id="rdBook">${reading.map(b => `<option value="${b.id}">${esc(b.title)}</option>`).join('')}<option value="">Другое</option></select></label>` : ''}
+    <div class="row end"><button class="btn ghost" data-act="dlgNo">Отмена</button><button class="btn primary" data-act="rdOk">Сохранить</button></div>`);
+  if (v === false || v == null) return;
+  const total = B.clamp(Math.round(+v.m || 0), 0, 900), book = v.b != null ? v.b : (reading[0] ? reading[0].id : null);
+  if (total === cur) return;
+  B.editDay(d, x => {
+    let r = (x.read || []).slice();
+    if (total > cur) r.push({book: book || null, min: total - cur, at: Date.now()});
+    else { let cut = cur - total; while (cut > 0 && r.length){ const last = r[r.length - 1]; if ((last.min || 0) <= cut){ cut -= last.min || 0; r.pop(); } else { r[r.length - 1] = Object.assign({}, last, {min: last.min - cut}); cut = 0; } } }
+    x.read = r;
+  });
+  B.toast(total ? `<b class="pos">Чтение: ${B.mins(total)}</b>${total >= goal ? ' · цель дня есть' : ` · до цели ${goal - total} мин`}` : 'Чтение за день стёрто');
+};
+B.acts.rdChip = el => { const i = B.$('#rdMin'); i.value = el.dataset.m; i.focus(); };
+B.acts.rdOk = () => { const b = B.$('#rdBook'); B.closeDialog({m: B.$('#rdMin').value, b: b ? b.value : null}); };
 function last7(h){
   const t = B.today();
   return `<div class="week7">${Array.from({length: 7}, (_, i) => B.add(t, i - 6)).map(d => {
-    const hv = B.habitVal(h, d), on = hv > 0, can = !h.auto && B.diff(d, t) <= 2 && d >= (h.created || '');
-    return `<button class="d7 ${on ? 'on' : ''} ${hv === 0.5 ? 'half' : ''} ${d === t ? 'now' : ''}" ${can ? `data-act="habitToggle" data-id="${h.id}" data-d="${d}"` : 'disabled'} title="${B.fmtW(d)}"><span>${B.WD[B.wd(d)]}</span><i>${on ? icon('check') : ''}</i></button>`;
+    const hv = B.habitVal(h, d), on = hv > 0, can = B.diff(d, t) <= 2 && d >= (h.created || '');
+    const rm = h.auto === 'read' ? B.readMin(d) : 0;
+    return `<button class="d7 ${on ? 'on' : ''} ${hv === 0.5 ? 'half' : ''} ${d === t ? 'now' : ''}" ${can ? dayAct(h, d) : 'disabled'} title="${B.fmtW(d)}${rm ? ': ' + B.mins(rm) : ''}"><span>${B.WD[B.wd(d)]}</span><i>${on ? icon('check') : rm ? `<small>${rm}</small>` : ''}</i></button>`;
   }).join('')}</div>`;
 }
 
@@ -86,11 +112,16 @@ function habitCal(hs){
 B.acts.hcShift = el => { const a = B.parse(calM || B.today().slice(0, 8) + '01'); calM = B.ymd(new Date(a.getFullYear(), a.getMonth() + +el.dataset.k, 1, 12)); B.render(true); };
 B.acts.hcNow = () => { calM = null; B.render(true); };
 B.acts.hcOnly = el => { only = only === el.dataset.id ? null : el.dataset.id; B.render(true); };
+function dayChip(h, d){
+  if (!h.auto) return B.habitChip(h, d);
+  const on = B.habitDone(h, d), rm = h.auto === 'read' ? B.readMin(d) : 0;
+  return `<button class="hchip ${on ? 'on' : ''}" style="--hc:var(--c-${B.habitColor(h)})" ${dayAct(h, d)}><i>${on ? icon('check') : icon(h.icon || 'habit')}</i><span><b>${esc(h.name)}</b>${h.auto === 'read' ? `<small>${rm}/${h.min || 30} мин · указать время</small>` : `<small>${on ? 'есть · заметка' : 'отметить'}</small>`}</span></button>`;
+}
 function daySheet(d){
   const t = B.today(), can = B.diff(d, t) <= 2;
   return `<h2>${B.WDF[B.wd(d)]}, ${B.fmt(d)}</h2>
-    <div class="hchips">${B.habits().filter(h => d >= (h.created || '')).map(h => can && !h.auto ? B.habitChip(h, d) : `<span class="hchip ${B.habitDone(h, d) ? 'on' : ''}"><i>${B.habitDone(h, d) ? icon('check') : icon(h.icon || 'habit')}</i><span><b>${esc(h.name)}</b></span></span>`).join('')}</div>
-    <p class="hint">${can ? 'Нажми на привычку, чтобы поставить или снять отметку.' : 'Отмечать можно сегодня и два прошлых дня, раньше история не правится.'}</p>
+    <div class="hchips">${B.habits().filter(h => d >= (h.created || '')).map(h => can ? dayChip(h, d) : `<span class="hchip ${B.habitDone(h, d) ? 'on' : ''}"><i>${B.habitDone(h, d) ? icon('check') : icon(h.icon || 'habit')}</i><span><b>${esc(h.name)}</b></span></span>`).join('')}</div>
+    <p class="hint">${can ? 'Нажми на привычку, чтобы поставить или снять отметку. У чтения указываешь минуты.' : 'Отмечать можно сегодня и два прошлых дня, раньше история не правится.'}</p>
     <div class="row end"><button class="btn primary" data-act="closeSheet">Готово</button></div>`;
 }
 let sheetDay = null;
@@ -115,6 +146,8 @@ B.views.habits = {
                 <div class="streak ${s.cur ? 'on' : ''}">${icon('flame')}<b>${s.cur}</b><small>${s.unit}</small></div>
               </div>
               ${last7(h)}
+              ${h.auto === 'read' ? `<div class="row wrap h-quick"><span class="muted">Сегодня ${B.mins(B.readMin(B.today()))} из ${h.min || 30} мин</span><button class="btn sm" data-act="readDay" data-d="${B.today()}">${icon('book')} Указать время</button><a class="btn sm ghost" href="#/read">Книги и таймер</a></div>`
+                : h.auto === 'sport' ? `<div class="row wrap h-quick"><button class="btn sm ${B.habitDone(h, B.today()) ? '' : 'primary'}" data-act="sportDay" data-d="${B.today()}">${icon('run')} ${B.habitDone(h, B.today()) ? 'Тренировка есть · заметка' : 'Отметить тренировку'}</button></div>` : ''}
               <div class="habit-stats"><span>за 30 дней <b>${Math.round(rate * 100)}%</b></span><span>рекорд <b>${s.best} ${s.unit}</b></span>${h.kind === 'weekly' ? `<span>на этой неделе <b>${s.thisWeek}/${s.target}</b></span>` : ''}</div>
               ${B.bar(rate)}
               ${heat(h)}
@@ -130,7 +163,7 @@ B.views.habits = {
           <section class="card"><h2>${icon('leaf')}Как это работает</h2>
             <ul class="plain dots">
               <li>Отметить можно сегодня и два прошлых дня. Дальше история не правится, чтобы статистика была честной.</li>
-              <li>Чтение отмечается само, когда за день набралось нужное число минут. Тренировка, когда она отмечена. Остальные, в том числе сон, отмечаешь сам нажатием.</li>
+              <li>Чтение засчитывается, когда за день набралось нужное число минут: нажми на день и укажи, сколько читал, или запиши время в «Чтении». Тренировку отмечаешь нажатием на день, повторное нажатие открывает заметку. Остальные, в том числе сон, отмечаешь сам.</li>
               <li>Каждая выполненная привычка даёт ${B.XP.habit} XP, минимальная версия вдвое меньше. Для недельной считаются только первые N раз.</li>
             </ul>
           </section>
@@ -161,7 +194,7 @@ function formHtml(){
     </div>
     ${!h.auto ? `<label class="field">Минимальная версия на плохой день<input id="hMini" value="${esc(h.mini || '')}" placeholder="Например: 5 отжиманий или лечь до 00:30"></label>` : ''}
     <p class="hint">${read ? 'Отмечается сама, когда за день набралась цель. Если прочитал меньше цели, но не меньше минимума, засчитывается минимум: серия держится, опыт вдвое меньше.'
-      : sport ? 'Отмечается сама в день, когда отмечена тренировка: на главной или в разделе «Спорт».'
+      : sport ? 'Отмечается нажатием на день здесь, в «Привычках», или на главной. К тренировке можно написать заметку.'
       : 'Нажатие на привычку ставит и снимает отметку. Если задан минимум, его ставит долгое нажатие: серия держится, опыт вдвое меньше.'}</p>
     <div class="row between">${h.id ? `<button class="btn ghost danger" data-act="habitDel" data-id="${h.id}">${icon('trash')} В архив</button>` : '<span></span>'}
       <button class="btn primary" data-act="habitSave" data-id="${h.id || ''}">Сохранить</button></div>`;

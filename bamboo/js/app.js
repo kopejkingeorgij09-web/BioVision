@@ -3,7 +3,7 @@
 const {esc, icon} = B;
 const NAV = [
   ['today', 'Сегодня', 'today'], ['tasks', 'Задачи', 'list'], ['cal', 'Календарь', 'cal'], ['habits', 'Привычки', 'habit'], ['journal', 'Дневник', 'pen'],
-  ['read', 'Чтение', 'book'], ['sport', 'Спорт', 'dumbbell'], ['forest', 'Лес', 'tree'], ['stats', 'Итоги', 'chart'],
+  ['read', 'Чтение', 'book'], ['forest', 'Лес', 'tree'], ['stats', 'Итоги', 'chart'],
   ['search', 'Поиск', 'search'], ['settings', 'Настройки', 'gear']
 ];
 const FOOT = ['search', 'settings'];

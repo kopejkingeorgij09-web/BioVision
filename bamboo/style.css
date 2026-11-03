@@ -1179,3 +1179,11 @@ mark{background:var(--gold-soft);color:inherit;border-radius:3px;padding:0 1px}
 .sp-pick button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .sp-pick button.on small{color:var(--accent-ink)}
 .sp-pick .sp-unpl{min-width:0;padding:8px 10px;font-size:12.5px}
+/* стадия веба на карточке в планере */
+.pl-shad .pl-open{flex:1;min-width:0}
+.pl-st{display:flex;gap:2px;flex:none;align-items:center}
+.pl-st i{width:4px;height:12px;border-radius:2px;background:color-mix(in srgb,currentColor 22%,transparent)}
+.pl-st i.on{background:currentColor}
+.pl-shad.ok .pl-st{opacity:.6}
+.pl-mc .pl-st,.pl-mw .pl-st{gap:1.5px;margin-right:2px}
+.pl-mc .pl-st i,.pl-mw .pl-st i{width:3px;height:9px}

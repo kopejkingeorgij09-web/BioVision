@@ -151,13 +151,53 @@ function seed(){
 
 /* ---------- ШАД: план из ../shad/plan.json и отметки из коллекции 'shad' ---------- */
 B.SHAD_STAGES = ['Не начат', 'Смотрю', 'Веб посмотрен', 'ДЗ решено', 'Закрыт'];
-B.shad = {plan: [], courses: {}, marks: {}, lms: ''};
+B.shad = {plan: [], base: [], courses: {}, marks: {}, lms: ''};
 const LS_SHADPLAN = 'bamboo-shadplan', LS_SHADMARKS = 'shad-track-progress';   // второй ключ общий с трекером shad/ на этом устройстве
 function usePlan(d){
   B.shad.courses = d.courses || {}; B.shad.lms = d.lms || ''; B.shad.brk = d.break || null;
-  B.shad.plan = (d.webs || []).map(x => ({n: x.n, c: x.course, code: x.code, t: x.title, w: x.web, h: x.hw}));
-  changed();
+  B.shad.base = (d.webs || []).map(x => ({n: x.n, c: x.course, code: x.code, t: x.title, w: x.web, h: x.hw}));
+  applyOver(); changed();
 }
+/* правки вебов (название, дата и время веба, срок ДЗ) лежат в той же записи 'shad/wNN', поле o: {t, w, h}.
+   Их видит и трекер shad/: перенёс веб в планере, он переехал и там. */
+function applyOver(){
+  B.shad.plan = B.shad.base.map(p => {
+    const o = (B.shad.marks[p.n] || {}).o; if (!o) return p;
+    return Object.assign({}, p, {t: o.t || p.t, w: o.w ? Object.assign({}, p.w, o.w) : p.w, h: o.h ? Object.assign({}, p.h, o.h) : p.h, edited: true});
+  });
+}
+B.shadBase = n => B.shad.base.find(p => p.n === n);
+const shadKeep = v => v.s || v.note || v.o;
+async function shadWrite(n, v){
+  if (db){
+    try {
+      if (!shadKeep(v)) await db.doc('shad/w' + pad(n)).delete();
+      else await db.doc('shad/w' + pad(n)).set(v);
+    } catch (e) { B.toast('Изменение ШАДа не сохранилось в облаке'); }
+  } else {
+    try { localStorage.setItem(LS_SHADMARKS, JSON.stringify(B.shad.marks)); } catch (e) {}
+  }
+}
+/* patch: {t, w: {date, from, to}, h: {date}}; null убирает все правки, веб снова как в плане */
+B.setShadOver = (n, patch) => {
+  const cur = B.shad.marks[n] || {}, base = B.shadBase(n); if (!base) return;
+  let o = null;
+  if (patch){
+    o = JSON.parse(JSON.stringify(cur.o || {}));
+    if ('t' in patch) o.t = (patch.t || '').trim() && patch.t.trim() !== base.t ? patch.t.trim() : undefined;
+    ['w', 'h'].forEach(k => {
+      if (!patch[k]) return;
+      const m = Object.assign({}, o[k] || {}, patch[k]);
+      Object.keys(m).forEach(f => { if ((m[f] || '') === (base[k][f] || '')) delete m[f]; });
+      o[k] = Object.keys(m).length ? m : undefined;
+    });
+    o = JSON.parse(JSON.stringify(o));
+    if (!Object.keys(o).length) o = null;
+  }
+  const v = {s: cur.s || 0, note: cur.note || '', at: Date.now()}; if (o) v.o = o;
+  B.shad.marks = Object.assign({}, B.shad.marks, {[n]: v});
+  applyOver(); changed(); shadWrite(n, v);
+};
 async function loadShadPlan(){
   try { const c = JSON.parse(localStorage.getItem(LS_SHADPLAN) || 'null'); if (c) usePlan(c); } catch (e) {}
   try {
@@ -167,23 +207,16 @@ async function loadShadPlan(){
 }
 function onShad(snap){
   const m = {};
-  snap.docs.forEach(d => { const n = parseInt(d.id.slice(1), 10); const v = d.data() || {}; if (n) m[n] = {s: v.s || 0, note: v.note || '', at: v.at || 0}; });
-  if (JSON.stringify(m) !== JSON.stringify(B.shad.marks)){ B.shad.marks = m; changed(); }
+  snap.docs.forEach(d => { const n = parseInt(d.id.slice(1), 10); const v = d.data() || {}; if (n){ m[n] = {s: v.s || 0, note: v.note || '', at: v.at || 0}; if (v.o) m[n].o = v.o; } });
+  if (JSON.stringify(m) !== JSON.stringify(B.shad.marks)){ B.shad.marks = m; applyOver(); changed(); }
 }
 B.shadStage = n => (B.shad.marks[n] && B.shad.marks[n].s) || 0;
 B.setShadStage = async (n, s) => {
   const cur = B.shad.marks[n] || {};
-  const v = {s, note: cur.note || '', at: Date.now()};
+  const v = {s, note: cur.note || '', at: Date.now()}; if (cur.o) v.o = cur.o;
   B.shad.marks = Object.assign({}, B.shad.marks, {[n]: v});
   changed();
-  if (db){
-    try {
-      if (!s && !v.note) await db.doc('shad/w' + pad(n)).delete();
-      else await db.doc('shad/w' + pad(n)).set(v);
-    } catch (e) { B.toast('Отметка ШАДа не сохранилась в облаке'); }
-  } else {
-    try { localStorage.setItem(LS_SHADMARKS, JSON.stringify(B.shad.marks)); } catch (e) {}
-  }
+  await shadWrite(n, v);
 };
 /* веб и ДЗ на конкретную дату */
 B.shadOn = date => {
@@ -219,6 +252,7 @@ B.connect = async () => {
   } else {
     if (!docs.cfg) seed();
     try { B.shad.marks = JSON.parse(localStorage.getItem(LS_SHADMARKS) || '{}') || {}; } catch (e) {}
+    applyOver();
     let had = ''; try { had = localStorage.getItem('bv_code') || ''; } catch (e) {}
     setSync(had ? 'error' : 'local', had ? 'Нет связи с облаком, записи пока только здесь' : 'Только на этом устройстве · войди кодом для синхронизации');
     changed();

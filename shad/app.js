@@ -1,14 +1,22 @@
 
 /* Данные плана (вебы, курсы, часы, перерыв) лежат в plan.json и грузятся при старте.
    Здесь только логика: стадии, отрисовка, сохранение отметок. */
-let PLAN = [], COURSES = {}, HOURS = {web:3.75, hw:1.9}, BREAK = {after:"", label:"", range:""}, LMS = "";
+let PLAN = [], BASE = [], COURSES = {}, HOURS = {web:3.75, hw:1.9}, BREAK = {after:"", label:"", range:""}, LMS = "";
 async function loadPlan(){
   const r = await fetch("plan.json", {cache:"no-cache"});
   if (!r.ok) throw new Error("plan.json не загрузился");
   const d = await r.json();
   COURSES = d.courses; HOURS = d.hours || HOURS; BREAK = d.break || BREAK; LMS = d.lms || "";
   // внутренний короткий формат: c — курс, t — название, w и h — [дата, начало, конец]
-  PLAN = d.webs.map(x => ({n:x.n, c:x.course, code:x.code, t:x.title, w:[x.web.date,x.web.from||"",x.web.to||"23:59"], h:[x.hw.date,x.hw.from||"",x.hw.to||"23:59"]}));
+  BASE = d.webs.map(x => ({n:x.n, c:x.course, code:x.code, t:x.title, web:x.web, hw:x.hw}));
+  applyOver();
+}
+/* правки из «Зова леса» (перенос веба, новое название) лежат в отметке веба, поле o: {t, w:{date,from,to}, h:{date,from,to}} */
+function applyOver(){
+  PLAN = BASE.map(x => {
+    const o = (progress[x.n] && progress[x.n].o) || {}, w = Object.assign({}, x.web, o.w), h = Object.assign({}, x.hw, o.h);
+    return {n:x.n, c:x.c, code:x.code, t:o.t || x.t, w:[w.date,w.from||"",w.to||"23:59"], h:[h.date,h.from||"",h.to||"23:59"]};
+  });
 }
 // время у веба и ДЗ необязательно: без него показываем только день
 function tm(a){ return a[1] ? `${a[1]}–${a[2]}` : ""; }
@@ -78,8 +86,8 @@ async function persist(n){
   writing[n] = true;
   try {
     const v = progress[n];
-    if (!v || (!v.s && !v.note)) await db.doc("shad/w" + pad(n)).delete();
-    else await db.doc("shad/w" + pad(n)).set({s:v.s||0, note:v.note||"", at:v.at||Date.now()});
+    if (!v || (!v.s && !v.note && !v.o)) await db.doc("shad/w" + pad(n)).delete();
+    else { const doc = {s:v.s||0, note:v.note||"", at:v.at||Date.now()}; if (v.o) doc.o = v.o; await db.doc("shad/w" + pad(n)).set(doc); }
     setSync("cloud","Сохранено в облаке");
   } catch(e){
     setSync("local","Не сохранилось в облаке, копия на устройстве");
@@ -113,7 +121,7 @@ async function initStore(){
   setSync("cloud","Синхронизирую…");
   db.collection("shad").onSnapshot(snap => {
     const next = {};
-    snap.docs.forEach(d => { const n = parseInt(d.id.slice(1),10); const v = d.data(); if (n) next[n] = {s:v.s||0, note:v.note||"", at:v.at||0}; });
+    snap.docs.forEach(d => { const n = parseInt(d.id.slice(1),10); const v = d.data(); if (n){ next[n] = {s:v.s||0, note:v.note||"", at:v.at||0}; if (v.o) next[n].o = v.o; } });
     // keep a note the viewer is typing right now
     if (openN && noteTimers[openN] && progress[openN]) next[openN] = Object.assign({}, next[openN], {note:progress[openN].note});
     progress = next;
@@ -219,13 +227,13 @@ function renderWeeks(){
   const now = Date.now(), todayStr = moscowToday(), curWs = weekStart(todayStr);
   const groups = new Map();
   PLAN.forEach(p => { if (!passes(p, now)) return; const ws = weekStart(p.w[0]); if (!groups.has(ws)) groups.set(ws, []); groups.get(ws).push(p); });
-  const allWeeks = [...new Set(PLAN.map(p => weekStart(p.w[0])))];
+  const allWeeks = [...new Set(PLAN.map(p => weekStart(p.w[0])))].sort();
   let html = `<p class="strip-key"><i class="k-web"></i>день веба<i class="k-hw"></i>день ДЗ<i class="k-today"></i>сегодня</p>`, breakDone = false, lastMonth = "";
   if (!groups.size){
     const msg = filterS === "late" ? "Ты идёшь по плану, догонять нечего." : filterS === "done" ? "Пока ни один веб не закрыт полностью. Нажми на веб и отметь, сколько сделано." : "По этому фильтру вебов нет.";
     $("#weeks").innerHTML = `<div class="empty">${msg}</div>`; return;
   }
-  for (const [ws, items] of groups){
+  for (const [ws, items] of [...groups].sort((a, b) => a[0].localeCompare(b[0]))){
     if (!breakDone && ws > BREAK.after){ html += `<div class="break"><b>${BREAK.label}</b><span class="mono">${BREAK.range}</span></div>`; breakDone = true; }
     const mk = items[0].w[0].slice(0,7);
     if (mk !== lastMonth){ const m = dparts(items[0].w[0]); html += `<h2 class="month">${MONTHS_FULL[m.m-1]}<span>${m.y}</span></h2>`; lastMonth = mk; }
@@ -259,6 +267,7 @@ function renderStats(){
 }
 
 function renderAll(fromSnap){
+  applyOver();
   renderSummary(); renderFilters(); renderWeeks();
   if (!$("#view-stats").hidden) renderStats();
   if (openN) renderSheet(openN, true);
@@ -266,7 +275,8 @@ function renderAll(fromSnap){
 
 /* ---------- sheet ---------- */
 function renderSheet(n, keepNote){
-  const p = PLAN[n-1], s = st(n), now = Date.now(), l = lateness(p, now);
+  applyOver();
+  const p = PLAN.find(x => x.n === n), s = st(n), now = Date.now(), l = lateness(p, now);
   const sh = $("#sheet");
   const ta = sh.querySelector("textarea");
   const typed = keepNote && ta ? ta.value : null;

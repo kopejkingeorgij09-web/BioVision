@@ -317,13 +317,19 @@ B.inputs.edDue = async (el, e) => {
   } else upd(t.id, {due: v}, true);
 };
 B.acts.edDone = el => { const t = B.task(el.dataset.id); B.setDone(t, !t.done); B.openTask(t.id); };
+/* удаление без вопроса; возвращает функцию, которая всё вернёт обратно */
+B.delTask = id => {
+  const t = B.task(id); if (!t) return null;
+  // в планах прошлых дней задача остаётся скрытой, иначе удаление невыполненного дела задним числом закрыло бы день
+  const today = B.today(), tops = {}; let past = false;
+  B.datesWith(t.id).forEach(date => { if (date < today) past = true; else { tops[date] = (B.day(date).top || []).slice(); B.editDay(date, d => { d.top = (d.top || []).filter(x => x !== t.id); }, true); } });
+  B.put('t_' + t.id, past ? Object.assign({}, t, {deleted: true}) : null);
+  return () => { Object.keys(tops).forEach(date => B.editDay(date, d => { d.top = tops[date]; }, true)); B.put('t_' + t.id, t); };
+};
 B.acts.taskDel = async el => {
   const t = B.task(el.dataset.id);
   if (!(await B.confirm(`Удалить задачу «${esc(t.title)}»?`, 'Удалить', true))) return;
-  // в планах прошлых дней задача остаётся скрытой, иначе удаление невыполненного дела задним числом закрыло бы день
-  const today = B.today(); let past = false;
-  B.datesWith(t.id).forEach(date => { if (date < today) past = true; else B.editDay(date, d => { d.top = (d.top || []).filter(id => id !== t.id); }, true); });
-  B.put('t_' + t.id, past ? Object.assign({}, t, {deleted: true}) : null); B.closeSheet();
+  B.delTask(t.id); B.closeSheet();
 };
 const subUpd = (id, fn) => { const t = B.task(id); const subs = JSON.parse(JSON.stringify(t.subs || [])); fn(subs); return upd(id, {subs}, true); };
 B.acts.subAdd = el => {

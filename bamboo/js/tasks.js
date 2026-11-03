@@ -101,9 +101,11 @@ function row(t, o = {}){
   </div>`;
 }
 /* веб или ДЗ ШАДа в планере: открывается, отмечается галочкой и перетаскивается на другой день, как задача */
-const shadRow = it => { const ok = B.shadStage(it.p.n) >= it.need;
+/* шкала стадии: 4 деления цвета курса (смотрю, веб посмотрен, ДЗ решено, закрыт) */
+const shadMeter = s => `<span class="pl-st" title="${B.SHAD_STAGES[s]}" aria-label="${B.SHAD_STAGES[s]}">${[1, 2, 3, 4].map(i => `<i class="${s >= i ? 'on' : ''}"></i>`).join('')}</span>`;
+const shadRow = it => { const s = B.shadStage(it.p.n), ok = s >= it.need;
   return `<div class="pl-shad c-${it.p.c} ${ok ? 'ok' : ''} ${it.old ? 'old' : ''}" data-shn="${it.p.n}" data-kind="${it.kind}">
-    <button class="pl-open" data-act="shadOpen" data-n="${it.p.n}" title="${esc(it.p.t)}">${it.old ? '<span class="pl-old">хвост</span>' : ''}${it.from ? `<span class="pl-time">${it.from}</span>` : ''}<b>${it.kind === 'web' ? '' : 'ДЗ · '}${esc(it.p.code || '')}</b> ${esc(it.p.t)}</button>
+    <button class="pl-open" data-act="shadOpen" data-n="${it.p.n}" title="${esc(it.p.t)}">${it.old ? '<span class="pl-old">хвост</span>' : ''}${it.from ? `<span class="pl-time">${it.from}</span>` : ''}<b>${it.kind === 'web' ? '' : 'ДЗ · '}${esc(it.p.code || '')}</b> ${esc(it.p.t)}</button>${shadMeter(s)}
     <button class="pl-chk" data-act="shadChk" data-n="${it.p.n}" data-need="${it.need}" aria-label="${ok ? 'Вернуть' : 'Готово'}" title="${it.kind === 'web' ? 'Веб посмотрен' : 'ДЗ решено'}">${icon('check')}</button>
   </div>`; };
 B.acts.shadChk = el => { const n = +el.dataset.n, need = +el.dataset.need, s = B.shadStage(n); B.setShadStage(n, s >= need ? need - 1 : need); };

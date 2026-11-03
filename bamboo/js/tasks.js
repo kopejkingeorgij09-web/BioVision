@@ -154,7 +154,8 @@ function monthView(){
       <button class="pl-md" data-act="plGoWeek" data-d="${d}" title="Открыть неделю">${B.parse(d).getDate()}</button>
       <div class="pl-list" data-d="${d}">${list.slice(0, show).map(x => row(x, {dot: false})).join('')}${g.slice(0, Math.max(0, show - list.length)).map(x => row(x, {ghost: true, dot: false})).join('')}${all <= show ? shad.slice(0, show - list.length - g.length).map(shadRow).join('') : ''}
         ${all > show ? `<button class="pl-more" data-act="plGoWeek" data-d="${d}">ещё ${all - show}</button>` : ''}
-        <button class="pl-empty sm" data-act="plAddDay" data-d="${d}" aria-label="Добавить задачу на ${B.fmt(d)}"></button></div>
+        ${adding === d ? `<div class="pl-add"><input class="pl-in" data-d="${d}" placeholder="Новая задача" autocomplete="off" enterkeyhint="done"></div>`
+          : `<button class="pl-empty sm" data-act="plAdd" data-d="${d}" aria-label="Добавить задачу на ${B.fmt(d)}" title="Добавить задачу"><span>${icon('plus')}</span></button>`}</div>
     </div>`;
   }
   return `<div class="pl-month"><div class="pl-mh">${WDS.map(w => `<span>${w}</span>`).join('')}</div><div class="pl-mg">${cells}</div></div>`;
@@ -179,12 +180,13 @@ B.views.tasks = {
     const ref = B.parse(month ? (anchor || t.slice(0, 8) + '01') : B.add(anchor || B.weekStart(t), 3));
     const p = S.cal !== 'all' ? B.proj(S.cal) : null;
     const isNow = month ? !anchor || anchor.slice(0, 7) === t.slice(0, 7) : !anchor || anchor === B.weekStart(t);
-    return `<div class="page planner ${month ? 'is-month' : 'is-week'}">
+    return `<div class="page planner ${month ? 'is-month' : 'is-week'}" style="--plfs:${FS[fsI]}">
       <header class="pl-h">
         <h1>${B.MONF[ref.getMonth()]} ${ref.getFullYear()}${month ? '' : ` <span class="pl-wn">№${isoWeek(B.add(anchor || B.weekStart(t), 3))}</span>`}</h1>
         <div class="pl-tools">
           <button class="pl-cal" data-act="plCals">${p ? `<i class="pdot c-${p.color || 'ink'}"></i>` : icon('cal')}<span>${esc(calName())}</span>${icon('down')}</button>
           ${viewToggle()}
+          <div class="pl-fs" role="group" aria-label="Размер текста"><button data-act="plFs" data-k="-1" title="Текст мельче" ${fsI === 0 ? 'disabled' : ''}>A</button><button data-act="plFs" data-k="1" title="Текст крупнее" ${fsI === FS.length - 1 ? 'disabled' : ''}>A</button></div>
           <a class="icon-btn" href="#/search" title="Поиск" aria-label="Поиск">${icon('search')}</a>
           ${isNow ? '' : `<button class="btn sm ghost" data-act="plToday">Сегодня</button>`}
           <button class="icon-btn dark" data-act="plShift" data-k="-1" aria-label="Назад">${icon('left')}</button>
@@ -223,6 +225,10 @@ function addFrom(inp, again){
   if (adding != null){ const i = B.$('.pl-in'); if (i) i.focus({preventScroll: true}); }
 }
 B.acts.plAdd = el => { adding = el.dataset.d; B.render(true); };
+/* размер текста только в планере (неделя и месяц), страница не масштабируется */
+const FS = [0.85, 0.92, 1, 1.1, 1.22, 1.36, 1.5], LS_FS = 'bamboo-planner-fs';
+let fsI = 2; try { const v = +localStorage.getItem(LS_FS); if (FS.includes(v)) fsI = FS.indexOf(v); } catch (e) {}
+B.acts.plFs = el => { fsI = B.clamp(fsI + +el.dataset.k, 0, FS.length - 1); try { localStorage.setItem(LS_FS, FS[fsI]); } catch (e) {} B.render(true); B.toast(`Текст ${Math.round(FS[fsI] * 100)}%`, 900); };
 B.acts.plAddDay = el => { anchor = B.weekStart(el.dataset.d); S.view = 'week'; saveS(); adding = el.dataset.d; B.render(true); };
 B.acts.plGoWeek = el => { anchor = B.weekStart(el.dataset.d); S.view = 'week'; saveS(); B.render(true); };
 B.acts.plView = el => { S.view = el.dataset.v; saveS(); const t = B.today(); if (S.view === 'shad'){ B.render(true); return; } anchor = S.view === 'month' ? (anchor || t).slice(0, 8) + '01' : (anchor && anchor.slice(0, 7) !== t.slice(0, 7) ? B.weekStart(anchor) : null); B.render(true); };

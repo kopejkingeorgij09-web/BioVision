@@ -127,7 +127,7 @@ B.habitChip = (h, date) => {
   const act = h.auto === 'read' ? 'data-act="readQuick"' : h.auto === 'sport' ? 'data-act="sportQuick"' : '';
   if (val === 0.5) sub = 'минимум' + (h.mini ? ': ' + esc(h.mini) : '');
   else if (!done && h.mini && !h.auto) sub = 'хотя бы: ' + esc(h.mini);
-  return `<${act.startsWith('href') ? 'a' : 'button'} class="hchip ${done ? 'on' : ''} ${val === 0.5 ? 'half' : ''}" ${act || `data-act="habitToggle" data-id="${h.id}" data-d="${date}"`}>
+  return `<${act.startsWith('href') ? 'a' : 'button'} class="hchip ${done ? 'on' : ''} ${val === 0.5 ? 'half' : ''}" style="--hc:var(--c-${B.habitColor ? B.habitColor(h) : 'green'})" ${act || `data-act="habitToggle" data-id="${h.id}" data-d="${date}"`}>
     <i>${done ? icon('check') : icon(h.icon || 'habit')}</i><span><b>${esc(h.name)}</b>${sub ? `<small>${sub}</small>` : ''}</span></${act.startsWith('href') ? 'a' : 'button'}>`;
 };
 /* чтение одним нажатием: дописывает минуты до цели дня (по умолчанию 30) к книге, которую читаешь */

@@ -2,6 +2,9 @@
 (function(){
 const {esc, icon} = B;
 const ICONS = ['habit', 'book', 'run', 'dumbbell', 'moon', 'leaf', 'pen', 'timer', 'sun', 'star', 'flame', 'frog'];
+/* цвет привычки: свой или по порядку из палитры, чтобы в календаре у каждой был свой */
+const HPAL = ['green', 'blue', 'violet', 'amber', 'pink', 'teal', 'red', 'ink'];
+B.habitColor = h => h.color || HPAL[Math.max(0, B.habits().findIndex(x => x.id === h.id)) % HPAL.length];
 
 /* серия: для ежедневной в днях, для недельной в неделях; сегодняшний пропуск серию пока не рвёт */
 B.habitStreak = h => {
@@ -49,6 +52,51 @@ function last7(h){
   }).join('')}</div>`;
 }
 
+/* общий календарь привычек за месяц: в каждом дне цветные отметки выполненных привычек.
+   Нажатие на привычку в легенде оставляет в календаре только её, нажатие на день открывает отметки этого дня. */
+let calM = null, only = null;
+function habitCal(hs){
+  const t = B.today(), m = calM || t.slice(0, 8) + '01', a = B.parse(m);
+  const first = m, last = B.ymd(new Date(a.getFullYear(), a.getMonth() + 1, 0, 12));
+  const from = B.weekStart(first), to = B.add(B.weekStart(last), 6);
+  const show = only ? hs.filter(h => h.id === only) : hs;
+  let cells = '', doneN = 0, possible = 0;
+  for (let d = from; d <= to; d = B.add(d, 1)){
+    const out = d.slice(0, 7) !== m.slice(0, 7), fut = d > t;
+    const marks = fut ? [] : show.map(h => ({h, v: d >= (h.created || '') ? B.habitVal(h, d) : 0})).filter(x => x.v > 0);
+    if (!out && !fut){ possible += show.filter(h => h.kind !== 'weekly' && d >= (h.created || '')).length; doneN += marks.filter(x => x.h.kind !== 'weekly').length; }
+    const solo = only && marks.length ? B.habitColor(marks[0].h) : '';
+    cells += `<button class="hc-d ${out ? 'out' : ''} ${fut ? 'fut' : ''} ${d === t ? 'now' : ''} ${solo ? 'solo' : ''}" ${solo ? `style="--hc:var(--c-${solo})"` : ''} ${fut ? 'disabled' : `data-act="hcDay" data-d="${d}"`} title="${B.fmtW(d)}${marks.length ? ': ' + marks.map(x => esc(x.h.name)).join(', ') : ''}">
+      <span class="hc-n">${B.parse(d).getDate()}</span>
+      ${only ? '' : `<span class="hc-dots">${marks.map(x => `<i class="c-${B.habitColor(x.h)} ${x.v < 1 ? 'half' : ''}"></i>`).join('')}</span>`}
+    </button>`;
+  }
+  const isNow = m === t.slice(0, 8) + '01';
+  return `<section class="card hcal">
+    <div class="row between wrap"><h2>${icon('cal')}Календарь привычек</h2>
+      <div class="row"><span class="muted mono">${possible ? Math.round(doneN / possible * 100) + '% ежедневных' : ''}</span>
+        ${isNow ? '' : '<button class="btn sm ghost" data-act="hcNow">Сегодня</button>'}
+        <button class="icon-btn" data-act="hcShift" data-k="-1" aria-label="Прошлый месяц">${icon('left')}</button>
+        <b class="hc-m">${B.MONF[a.getMonth()]} ${a.getFullYear()}</b>
+        <button class="icon-btn" data-act="hcShift" data-k="1" aria-label="Следующий месяц">${icon('right')}</button></div></div>
+    <div class="hc-legend">${hs.map(h => `<button class="hc-l c-${B.habitColor(h)} ${only === h.id ? 'on' : ''} ${only && only !== h.id ? 'dim' : ''}" data-act="hcOnly" data-id="${h.id}"><i></i>${esc(h.name)}</button>`).join('')}</div>
+    <div class="hc-grid"><div class="hc-wd">${['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(w => `<span>${w}</span>`).join('')}</div>${cells}</div>
+  </section>`;
+}
+B.acts.hcShift = el => { const a = B.parse(calM || B.today().slice(0, 8) + '01'); calM = B.ymd(new Date(a.getFullYear(), a.getMonth() + +el.dataset.k, 1, 12)); B.render(true); };
+B.acts.hcNow = () => { calM = null; B.render(true); };
+B.acts.hcOnly = el => { only = only === el.dataset.id ? null : el.dataset.id; B.render(true); };
+function daySheet(d){
+  const t = B.today(), can = B.diff(d, t) <= 2;
+  return `<h2>${B.WDF[B.wd(d)]}, ${B.fmt(d)}</h2>
+    <div class="hchips">${B.habits().filter(h => d >= (h.created || '')).map(h => can && !h.auto ? B.habitChip(h, d) : `<span class="hchip ${B.habitDone(h, d) ? 'on' : ''}"><i>${B.habitDone(h, d) ? icon('check') : icon(h.icon || 'habit')}</i><span><b>${esc(h.name)}</b></span></span>`).join('')}</div>
+    <p class="hint">${can ? 'Нажми на привычку, чтобы поставить или снять отметку.' : 'Отмечать можно сегодня и два прошлых дня, раньше история не правится.'}</p>
+    <div class="row end"><button class="btn primary" data-act="closeSheet">Готово</button></div>`;
+}
+let sheetDay = null;
+B.acts.hcDay = el => { sheetDay = el.dataset.d; B.sheet(daySheet(sheetDay), () => { sheetDay = null; }); };
+B.on('change', () => { if (sheetDay && B.sheetOpen()) B.sheet(daySheet(sheetDay), () => { sheetDay = null; }); });
+
 B.views.habits = {
   title: 'Привычки',
   render(){
@@ -56,11 +104,12 @@ B.views.habits = {
     return `<div class="page habits-page">
       <header class="page-h"><div><div class="eyebrow">Привычки</div><h1>Режим складывается из мелочей</h1></div>
         <button class="btn primary" data-act="habitNew">${icon('plus')} Привычка</button></header>
+      ${hs.length ? habitCal(hs) : ''}
       <div class="cols">
         <div class="col">
           ${hs.map(h => {
             const s = B.habitStreak(h), rate = B.habitRate(h);
-            return `<section class="card habit">
+            return `<section class="card habit" style="--hc:var(--c-${B.habitColor(h)})">
               <div class="row between">
                 <button class="habit-name" data-act="habitEdit" data-id="${h.id}"><i class="hic">${icon(h.icon || 'habit')}</i><span><b>${esc(h.name)}</b><small>${h.kind === 'weekly' ? `${h.target || 3} раза в неделю` : 'каждый день'}${h.auto === 'read' ? ` · от ${h.min || 30} мин чтения, отмечается само` : h.auto === 'sport' ? ' · по записи тренировки' : ''}</small></span></button>
                 <div class="streak ${s.cur ? 'on' : ''}">${icon('flame')}<b>${s.cur}</b><small>${s.unit}</small></div>
@@ -101,6 +150,7 @@ function formHtml(){
   const h = HF, read = h.auto === 'read', sport = h.auto === 'sport';
   return `<h2>${h.id ? 'Привычка' : 'Новая привычка'}</h2>
     <label class="field">Название<input id="hName" value="${esc(h.name)}" placeholder="Например, Зарядка 10 минут" ${h.id ? '' : 'autofocus'}></label>
+    <div class="field">Цвет<div class="colors">${B.COLORS.map(c => `<label class="cpick c-${c}"><input type="radio" name="hColor" value="${c}" ${(h.color || (h.id ? B.habitColor(h) : HPAL[B.habits().length % HPAL.length])) === c ? 'checked' : ''}><i></i><span>${B.COLOR_NAMES[c]}</span></label>`).join('')}</div></div>
     <div class="field">Иконка<div class="icons">${ICONS.map(i => `<label class="ipick"><input type="radio" name="hIcon" value="${i}" ${h.icon === i ? 'checked' : ''}><i>${icon(i)}</i></label>`).join('')}</div></div>
     <div class="ed-grid">
       <label>Отмечать<select id="hAuto" data-in="hfRedraw"><option value="">Вручную</option><option value="read" ${read ? 'selected' : ''}>По минутам чтения</option><option value="sport" ${sport ? 'selected' : ''}>По отметке тренировки</option></select></label>
@@ -121,6 +171,7 @@ function hfRead(){
   const v = id => { const el = B.$('#' + id); return el ? el.value : null; };
   if (v('hName') != null) HF.name = v('hName');
   HF.icon = (B.$('input[name=hIcon]:checked') || {}).value || HF.icon;
+  HF.color = (B.$('input[name=hColor]:checked') || {}).value || HF.color;
   HF.auto = v('hAuto') || ''; HF.kind = v('hKind') || 'daily';
   if (v('hTarget') != null) HF.target = B.clamp(+v('hTarget') || 3, 1, 7);
   if (v('hMin') != null) HF.min = B.clamp(+v('hMin') || 30, 1, 600);
@@ -139,7 +190,7 @@ B.acts.habitSave = el => {
   hfRead();
   const name = (HF.name || '').trim(); if (!name){ B.$('#hName').focus(); return; }
   const id = el.dataset.id || B.uid(), old = B.get('h_' + id) || {id, created: B.today(), order: B.habits().length};
-  const h = Object.assign({}, old, {name, icon: HF.icon, kind: HF.kind, target: HF.target, auto: HF.auto || undefined, min: HF.min, miniMin: HF.miniMin,
+  const h = Object.assign({}, old, {name, icon: HF.icon, color: HF.color || undefined, kind: HF.kind, target: HF.target, auto: HF.auto || undefined, min: HF.min, miniMin: HF.miniMin,
     mini: !HF.auto && HF.mini ? HF.mini : undefined});
   B.put('h_' + id, h);
   // одна цель на всё приложение: чтение и тренировки в настройках совпадают с привычкой

@@ -82,7 +82,36 @@ B.changed = changed;
 B.get = id => docs[id];
 B.list = prefix => { const out = []; for (const k in docs) if (k.startsWith(prefix)) out.push(docs[k]); return out; };
 /* put(id, null) удаляет. quiet: не перерисовывать (для полей, куда сейчас печатают) */
+/* ---------- отмена и повтор (Cmd+Z / Cmd+Shift+Z) ----------
+   Каждая запись помнит, каким документ был до и после. Изменения, сделанные подряд за 0,8 с, отменяются одним шагом. */
+const undoSt = [], redoSt = [];
+let replaying = false, lastRec = 0;
+function record(key, before, after){
+  if (replaying) return;
+  const now = Date.now(), cl = v => v == null ? null : JSON.parse(JSON.stringify(v));
+  let e = undoSt[undoSt.length - 1];
+  if (!e || now - lastRec > 800){ e = {items: {}}; undoSt.push(e); if (undoSt.length > 100) undoSt.shift(); }
+  if (!(key in e.items)) e.items[key] = {before: cl(before)};
+  e.items[key].after = cl(after);
+  lastRec = now; redoSt.length = 0;
+}
+function replay(e, which){
+  replaying = true;
+  try {
+    for (const k in e.items){
+      const v = e.items[k][which];
+      if (k.startsWith('shad:')) B.shadRestore(+k.slice(5), v);
+      else B.put(k, v == null ? null : JSON.parse(JSON.stringify(v)));
+    }
+  } finally { replaying = false; }
+}
+B.undo = () => { const e = undoSt.pop(); if (!e) return false; replay(e, 'before'); redoSt.push(e); lastRec = 0; return true; };
+B.redo = () => { const e = redoSt.pop(); if (!e) return false; replay(e, 'after'); undoSt.push(e); lastRec = 0; return true; };
+B.recordShad = (n, before, after) => record('shad:' + n, before, after);
+B.clearUndo = () => { undoSt.length = 0; redoSt.length = 0; };
+
 B.put = (id, data, quiet) => {
+  if (id !== 'cfg') record(id, docs[id], data);
   if (data == null) delete docs[id];
   else { if (data._seed) delete data._seed; docs[id] = data; }
   dirty[id] = (dirty[id] || 0) + 1;
@@ -179,6 +208,11 @@ async function shadWrite(n, v){
   }
 }
 /* patch: {t, w: {date, from, to}, h: {date}}; null убирает все правки, веб снова как в плане */
+B.shadRestore = (n, v) => {
+  const m = Object.assign({}, B.shad.marks);
+  if (v) m[n] = v; else delete m[n];
+  B.shad.marks = m; applyOver(); changed(); shadWrite(n, v || {s: 0, note: ''});
+};
 B.setShadOver = (n, patch) => {
   const cur = B.shad.marks[n] || {}, base = B.shadBase(n); if (!base) return;
   let o = null;
@@ -195,6 +229,7 @@ B.setShadOver = (n, patch) => {
     if (!Object.keys(o).length) o = null;
   }
   const v = {s: cur.s || 0, note: cur.note || '', at: Date.now()}; if (o) v.o = o;
+  B.recordShad(n, B.shad.marks[n], v);
   B.shad.marks = Object.assign({}, B.shad.marks, {[n]: v});
   applyOver(); changed(); shadWrite(n, v);
 };
@@ -214,6 +249,7 @@ B.shadStage = n => (B.shad.marks[n] && B.shad.marks[n].s) || 0;
 B.setShadStage = async (n, s) => {
   const cur = B.shad.marks[n] || {};
   const v = {s, note: cur.note || '', at: Date.now()}; if (cur.o) v.o = cur.o;
+  B.recordShad(n, B.shad.marks[n], v);
   B.shad.marks = Object.assign({}, B.shad.marks, {[n]: v});
   changed();
   await shadWrite(n, v);

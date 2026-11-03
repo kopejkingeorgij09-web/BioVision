@@ -13,18 +13,19 @@ const BOTTOM = ['today', 'journal', 'tasks', 'cal'];
 const LS_THEME = 'bamboo-theme';
 function applyTheme(){
   let t = 'auto'; try { t = localStorage.getItem(LS_THEME) || 'auto'; } catch (e) {}
+  if (t === 'sakura'){ t = 'light'; try { localStorage.setItem(LS_THEME, t); } catch (e) {} }
   if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t);
   const dark = t === 'dark' || t === 'night' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
-  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = t === 'sakura' ? '#FBF1F1' : t === 'night' ? '#0B1A14' : dark ? '#151A14' : '#F4EFE4';
+  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = t === 'night' ? '#0B1A14' : dark ? '#151A14' : '#F4EFE4';
 }
 applyTheme();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { applyTheme(); if (B.render) B.render(); });
-const THEMES = [['light', 'Бумага', '#F4EFE4'], ['sakura', 'Сакура', '#F6D9DF'], ['dark', 'Тёмная', '#1B211A'], ['night', 'Ночной лес', '#123024'], ['auto', 'Как в системе', '']];
+const THEMES = [['light', 'Бумага', '#F4EFE4'], ['dark', 'Тёмная', '#1B211A'], ['night', 'Ночной лес', '#123024'], ['auto', 'Как в системе', '']];
 const curTheme = () => { try { return localStorage.getItem(LS_THEME) || 'auto'; } catch (e) { return 'auto'; } };
 const isDark = () => { const t = curTheme(); return t === 'dark' || t === 'night' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches); };
 const setTheme = v => { try { localStorage.setItem(LS_THEME, v); } catch (e) {} applyTheme(); B.render(); };
 B.acts.theme = el => { setTheme(el.dataset.v); B.$$('.swatches .sw').forEach(x => x.classList.toggle('on', x.dataset.v === el.dataset.v)); };
-/* кнопка в шапке: по кругу Бумага → Сакура → Тёмная → Ночной лес → как в системе */
+/* кнопка в шапке: по кругу Бумага → Тёмная → Ночной лес → как в системе */
 B.acts.themeNext = () => {
   const i = THEMES.findIndex(x => x[0] === curTheme()), n = THEMES[(i + 1) % THEMES.length];
   setTheme(n[0]); B.toast(`Тема: ${n[1]}`, 1200);
@@ -199,12 +200,14 @@ B.connect().then(() => {
   // один раз: привычки «по разбору до 01:00» (сон, карточки) становятся ручными, их старые серии обнуляются
   setTimeout(() => {
     const cfg = B.get('cfg') || {};
-    if (cfg.migManual) return;
+    if (cfg.migManual){ B.clearUndo(); return; }
     const ids = B.list('h_').filter(h => h.auto === 'night').map(h => h.id);
     ids.forEach(id => { const h = B.get('h_' + id); const x = Object.assign({}, h); delete x.auto; B.put('h_' + id, x, true); });
     if (ids.length) B.dayDates().forEach(d => { const h = B.day(d).h; if (h && ids.some(id => id in h)) B.editDay(d, x => { ids.forEach(id => { delete x.h[id]; }); }, true); });
     B.setCfg({migManual: 1, migNight: 1});
+    B.clearUndo();
   }, B.cloud ? 2500 : 0);
+  B.clearUndo();
   B.render(); if (!special()) shared();
 });
 if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));

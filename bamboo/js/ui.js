@@ -142,6 +142,18 @@ const onField = e => {
 };
 document.addEventListener('input', onField);
 document.addEventListener('change', onField);
+/* Cmd+Z отменяет, Cmd+Shift+Z (и Ctrl+Y) повторяет. В полях ввода работает обычная отмена текста. */
+document.addEventListener('keydown', e => {
+  if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+  const z = e.code === 'KeyZ' || e.key === 'z' || e.key === 'Z', y = e.code === 'KeyY' && e.ctrlKey && !e.metaKey;
+  if (!z && !y) return;
+  const a = document.activeElement;
+  if (a && (a.matches('input:not([type=checkbox]):not([type=radio]),textarea,select') || a.isContentEditable)) return;
+  e.preventDefault();
+  const redo = y || e.shiftKey;
+  if (redo ? B.redo() : B.undo()) B.toast(redo ? 'Повторено' : 'Отменено', 1100);
+  else B.toast(redo ? 'Нечего повторять' : 'Нечего отменять', 1100);
+});
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape'){ if (!$('#dlgScrim').hidden) B.closeDialog(false); else if (B.sheetOpen()) B.closeSheet(); }
   if (e.key === 'Enter' && !e.shiftKey && e.target.matches('[data-enter]')){

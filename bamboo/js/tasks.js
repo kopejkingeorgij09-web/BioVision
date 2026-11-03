@@ -162,22 +162,38 @@ function shadBox(ws){
 function monthView(){
   const a = B.parse(anchor || B.today().slice(0, 8) + '01'), first = B.ymd(new Date(a.getFullYear(), a.getMonth(), 1, 12));
   const last = B.ymd(new Date(a.getFullYear(), a.getMonth() + 1, 0, 12));
-  const from = B.weekStart(first), to = B.add(B.weekStart(last), 6), t = B.today();
-  const gh = ghosts(from, to);
+  const from = B.weekStart(first), to = B.add(B.weekStart(last), 6), t = B.today(), cw = B.weekStart(t);
+  const gh = ghosts(from, to), withShad = (S.cal === 'all' || S.cal === 'shad') && B.shad.plan.length;
   let cells = '';
   for (let d = from; d <= to; d = B.add(d, 1)){
-    const list = onDate(d), g = gh[d] || [], shad = S.cal === 'all' || S.cal === 'shad' ? B.shadOn(d) : [];
+    // в прошедших днях сделанные задачи сворачиваются в «✓ N», чтобы зачёркнутое не занимало клетку
+    const all0 = onDate(d), past = d < t, list = past ? all0.filter(x => !x.done) : all0, doneN = all0.length - list.length;
+    const g = gh[d] || [], shad = S.cal === 'all' || S.cal === 'shad' ? B.shadOn(d) : [];
     const all = list.length + g.length + shad.length, show = 4;
-    const out = d.slice(0, 7) !== first.slice(0, 7);
-    cells += `<div class="pl-mc ${d === t ? 'now' : ''} ${out ? 'out' : ''} ${B.wd(d) > 4 ? 'we' : ''}">
+    const out = d.slice(0, 7) !== first.slice(0, 7), ws = B.weekStart(d);
+    cells += `<div class="pl-mc ${d === t ? 'now' : ''} ${out ? 'out' : ''} ${past ? 'was' : ''} ${ws === cw ? 'cw' : ''} ${B.wd(d) > 4 ? 'we' : ''}">
       <button class="pl-md" data-act="plGoWeek" data-d="${d}" title="Открыть неделю">${B.parse(d).getDate()}</button>
       <div class="pl-list" data-d="${d}">${list.slice(0, show).map(x => row(x, {dot: false})).join('')}${g.slice(0, Math.max(0, show - list.length)).map(x => row(x, {ghost: true, dot: false})).join('')}${all <= show ? shad.slice(0, show - list.length - g.length).map(shadRow).join('') : ''}
         ${all > show ? `<button class="pl-more" data-act="plGoWeek" data-d="${d}">ещё ${all - show}</button>` : ''}
+        ${doneN ? `<button class="pl-more pl-donen" data-act="plGoWeek" data-d="${d}" title="Сделано за день">✓ ${doneN}</button>` : ''}
         ${adding === d ? `<div class="pl-add"><input class="pl-in" data-d="${d}" placeholder="Новая задача" autocomplete="off" enterkeyhint="done"></div>`
           : `<button class="pl-empty sm" data-act="plAdd" data-d="${d}" aria-label="Добавить задачу на ${B.fmt(d)}" title="Добавить задачу"><span>${icon('plus')}</span></button>`}</div>
     </div>`;
+    if (B.wd(d) === 6) cells += monthWeekCell(ws, withShad, ws === cw);
   }
-  return `<div class="pl-month"><div class="pl-mh">${WDS.map(w => `<span>${w}</span>`).join('')}</div><div class="pl-mg">${cells}</div></div>`;
+  return `<div class="pl-month ${withShad ? 'with-shad' : ''}"><div class="pl-mh">${WDS.map(w => `<span>${w}</span>`).join('')}<span class="pl-mhw">Неделя</span></div><div class="pl-mg">${cells}</div></div>`;
+}
+/* восьмая колонка месяца: номер недели и её карточки ШАДа без дня; их можно тащить на дни месяца */
+function monthWeekCell(ws, withShad, cur){
+  const head = `<button class="pl-mwn" data-act="plGoWeek" data-d="${ws}" title="Открыть неделю">№${isoWeek(B.add(ws, 3))}</button>`;
+  if (!withShad) return `<div class="pl-mw ${cur ? 'cw' : ''}">${head}</div>`;
+  const list = B.shadWeek(ws), left = B.shadHoursLeft(B.shadWeekAll(ws)), show = 4;
+  const h = (Math.round(left * 2) / 2).toString().replace('.', ',');
+  return `<div class="pl-mw ${cur ? 'cw' : ''}">
+    <div class="pl-mwh">${head}${left ? `<span>≈${h} ч</span>` : ''}</div>
+    <div class="pl-list" data-d="" data-shbox="1">${list.slice(0, show).map(shadRow).join('')}
+      ${list.length > show ? `<button class="pl-more" data-act="plGoWeek" data-d="${ws}">ещё ${list.length - show} без дня</button>` : ''}</div>
+  </div>`;
 }
 
 const viewToggle = () => `<div class="toggle pl-views">${[['week', 'week', 'Неделя'], ['month', 'grid', 'Месяц'], ['shad', 'chart', 'ШАД']].map(([v, ic, l]) => `<button class="${S.view === v ? 'on' : ''}" data-act="plView" data-v="${v}" title="${v === 'shad' ? 'Темы и расписание ШАДа' : l}">${icon(ic)}<span>${l}</span></button>`).join('')}</div>`;

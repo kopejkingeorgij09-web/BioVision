@@ -916,7 +916,32 @@ mark{background:var(--gold-soft);color:inherit;border-radius:3px;padding:0 1px}
 .pl-mh span{padding:8px 10px;font-size:12px;font-weight:600;color:var(--ink-3)}
 .pl-mg{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
 .pl-mc{min-height:118px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:4px 5px;display:grid;align-content:start;gap:2px;min-width:0}
-.pl-mc:nth-child(7n){border-right:0}
+.pl-mc:nth-child(8n+7){border-right:0}   /* в строке 7 дней и скрытая на телефоне колонка недели */
+/* колонка недели справа: номер и ШАД без дня */
+.pl-mw{display:none}
+@media (min-width:760px){
+  .pl-month .pl-mh,.pl-month .pl-mg{grid-template-columns:repeat(7,minmax(0,1fr)) minmax(0,.62fr)}
+  .pl-month.with-shad .pl-mh,.pl-month.with-shad .pl-mg{grid-template-columns:repeat(7,minmax(0,1fr)) minmax(0,1.15fr)}
+  .pl-mc:nth-child(8n+7){border-right:1px solid var(--rule)}
+  .pl-mw{display:flex;flex-direction:column;gap:2px;min-width:0;padding:4px 6px;border-bottom:1px solid var(--rule);border-left:1px solid var(--rule-2);background:color-mix(in srgb,var(--paper) 35%,transparent)}
+}
+.pl-mhw{display:none}
+@media (min-width:760px){.pl-mhw{display:block}}
+.pl-mwh{display:flex;align-items:baseline;justify-content:space-between;gap:6px}
+.pl-mwh span{font-size:12px;color:var(--ink-3)}
+.pl-mwn{border:0;background:none;font:700 13px var(--f-body);color:var(--ink-3);padding:2px 0;text-align:left}
+.pl-mwn:hover{color:var(--ink)}
+.pl-mw.cw .pl-mwn{color:var(--accent)}
+.pl-mw .pl-list{flex:1;min-height:40px}
+.pl-mw .pl-shad{min-height:24px;border-bottom:0;padding:0 0 0 7px}
+.pl-mw .pl-shad .pl-open{font-size:calc(12px * var(--plfs,1));padding:3px 0}
+.pl-mw .pl-shad::before{top:4px;bottom:4px}
+.pl-mw .pl-chk,.pl-mw .pl-time{display:none}
+/* прошедшие дни тише, текущая неделя чуть подсвечена */
+.pl-mc.was:not(.now) .pl-md{color:var(--ink-3)}
+.pl-mc.was .pl-list{opacity:.72}
+.pl-mc.cw,.pl-mc.cw.we{background:color-mix(in srgb,var(--accent) 5%,transparent)}
+.pl-donen{color:var(--accent)}
 .pl-mc.we{background:color-mix(in srgb,var(--paper) 50%,transparent)}
 .pl-mc.out .pl-md{color:var(--rule-2)}
 .pl-md{justify-self:start;border:0;background:none;font:700 14px var(--f-body);color:var(--ink);padding:2px 6px;border-radius:99px}

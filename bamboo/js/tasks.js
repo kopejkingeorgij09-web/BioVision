@@ -1,5 +1,6 @@
 /* Зов леса: задачи в виде недельного планера.
-   Неделя по дням (суббота и воскресенье делят последнюю колонку), под ней «Когда-нибудь» — задачи без даты.
+   Неделя по дням (суббота и воскресенье делят последнюю колонку), под ней «Когда-нибудь» — задачи без даты,
+   а справа от него «ШАД на неделю»: вебы и ДЗ этой недели, которым ещё не выбран день.
    Вид на месяц, свои календари (это проекты), цвета, подзадачи, повтор, напоминания, заметки, вложения,
    перенос на завтра, на следующую неделю или в «Когда-нибудь», дублирование, «Поделиться».
    Задачи перетаскиваются между днями и внутри дня (мышью или долгим нажатием пальцем). */
@@ -101,8 +102,8 @@ function row(t, o = {}){
 }
 /* веб или ДЗ ШАДа в планере: открывается, отмечается галочкой и перетаскивается на другой день, как задача */
 const shadRow = it => { const ok = B.shadStage(it.p.n) >= it.need;
-  return `<div class="pl-shad c-${it.p.c} ${ok ? 'ok' : ''}" data-shn="${it.p.n}" data-kind="${it.kind}">
-    <button class="pl-open" data-act="shadOpen" data-n="${it.p.n}" title="${esc(it.p.t)}">${it.from ? `<span class="pl-time">${it.from}</span>` : ''}<b>${it.kind === 'web' ? '' : 'ДЗ · '}${esc(it.p.code || '')}</b> ${esc(it.p.t)}</button>
+  return `<div class="pl-shad c-${it.p.c} ${ok ? 'ok' : ''} ${it.old ? 'old' : ''}" data-shn="${it.p.n}" data-kind="${it.kind}">
+    <button class="pl-open" data-act="shadOpen" data-n="${it.p.n}" title="${esc(it.p.t)}">${it.old ? '<span class="pl-old">хвост</span>' : ''}${it.from ? `<span class="pl-time">${it.from}</span>` : ''}<b>${it.kind === 'web' ? '' : 'ДЗ · '}${esc(it.p.code || '')}</b> ${esc(it.p.t)}</button>
     <button class="pl-chk" data-act="shadChk" data-n="${it.p.n}" data-need="${it.need}" aria-label="${ok ? 'Вернуть' : 'Готово'}" title="${it.kind === 'web' ? 'Веб посмотрен' : 'ДЗ решено'}">${icon('check')}</button>
   </div>`; };
 B.acts.shadChk = el => { const n = +el.dataset.n, need = +el.dataset.need, s = B.shadStage(n); B.setShadStage(n, s >= need ? need - 1 : need); };
@@ -129,15 +130,33 @@ function dayCol(date, min, gh){
 function weekView(){
   const ws = anchor || B.weekStart(B.today()), days = Array.from({length: 7}, (_, i) => B.add(ws, i));
   const gh = ghosts(days[0], days[6]);
-  const sd = someday(), rows = innerWidth < 760 ? sd.length + 2 : Math.max(4, Math.ceil((sd.length + 1) / 3) + 1);
+  const withShad = (S.cal === 'all' || S.cal === 'shad') && B.shad.plan.length, cols = withShad ? 2 : 3;
+  const sd = someday(), rows = innerWidth < 760 ? sd.length + 2 : Math.max(4, Math.ceil((sd.length + 1) / cols) + 1);
   return `<div class="pl-week">
       ${days.slice(0, 5).map(d => dayCol(d, 9, gh)).join('')}
       <div class="pl-wkend">${dayCol(days[5], 4, gh)}${dayCol(days[6], 4, gh)}</div>
     </div>
-    <section class="pl-some">
-      <h2>Когда-нибудь</h2>
-      <div class="pl-somebox" style="--rows:${rows}">${dayList('', sd, innerWidth < 760 ? rows : rows * 3, null)}</div>
-    </section>`;
+    <div class="pl-bottom ${withShad ? 'two' : ''}">
+      <section class="pl-some">
+        <h2>Когда-нибудь</h2>
+        <div class="pl-somebox" style="--rows:${rows};--cols:${cols}">${dayList('', sd, innerWidth < 760 ? rows : rows * cols, null)}</div>
+      </section>
+      ${withShad ? shadBox(days[0]) : ''}
+    </div>`;
+}
+/* «ШАД на неделю»: карточки без дня; перетащи на день, чтобы поставить, или обратно сюда, чтобы снять день */
+function shadBox(ws){
+  const list = B.shadWeek(ws), all = B.shadWeekAll(ws);
+  const left = B.shadHoursLeft(all), open = list.filter(it => B.shadStage(it.p.n) < it.need).length;
+  const h = x => (Math.round(x * 2) / 2).toString().replace('.', ',');
+  const sub = !all.length ? 'на этой неделе вебов нет' : left ? `осталось ≈${h(left)} ч${open ? ` · без дня ${open}` : ' · всё расставлено'}` : 'неделя закрыта';
+  return `<section class="pl-shbox">
+    <h2>ШАД на неделю <span>${sub}</span></h2>
+    <div class="pl-list" data-d="" data-shbox="1">
+      ${list.map(shadRow).join('')}
+      ${list.length ? '' : `<div class="pl-shempty">${all.length ? 'Всё стоит по дням. Перетащи карточку сюда, чтобы снять день.' : 'Свободная неделя.'}</div>`}
+    </div>
+  </section>`;
 }
 
 function monthView(){
@@ -296,7 +315,9 @@ function over(st, x, y){
   const rows = [...list.querySelectorAll(':scope > .pl-t[data-tid]')].filter(r => r !== st.el);
   let before = null;
   for (const r of rows){ const b = r.getBoundingClientRect(); if (y < b.top + b.height / 2 && (Math.abs(x - (b.left + b.width / 2)) < b.width / 2 + 20 || list.closest('.pl-day,.pl-mc'))){ before = r; break; } }
-  st.target = {date: list.dataset.d, before: before ? before.dataset.tid : null};
+  const box = !!list.dataset.shbox;
+  if (box !== !!st.shn && !(st.shn && list.dataset.d)){ list.classList.remove('over'); return; }   // задачи не кладутся в блок ШАДа, вебы не кладутся в «Когда-нибудь»
+  st.target = {date: list.dataset.d, before: before ? before.dataset.tid : null, box};
   const mk = document.createElement('div'); mk.className = 'pl-mark';
   if (before) list.insertBefore(mk, before);
   else { const lastRow = rows[rows.length - 1]; if (lastRow) lastRow.after(mk); else list.prepend(mk); }
@@ -304,7 +325,12 @@ function over(st, x, y){
 function drop(st){
   justDragged = Date.now();
   if (!st.target) return;
-  if (st.shn){ if (st.target.date) moveShad(st.shn, st.kind, st.target.date); return; }
+  if (st.shn){
+    const p = B.shad.plan.find(x => x.n === st.shn);
+    if (st.target.box){ if (p && (st.kind === 'web' ? p.wp : p.hp)){ B.shadUnplace(st.shn, st.kind); B.toast(`${st.kind === 'web' ? '' : 'ДЗ '}${esc(p.code || '')}: день снят, карточка в блоке недели`); } }
+    else if (st.target.date) moveShad(st.shn, st.kind, st.target.date);
+    return;
+  }
   const t = B.task(st.id); if (!t) return;
   const to = st.target.date || '';
   const ids = (to ? onDate(to) : someday()).map(x => x.id).filter(i => i !== t.id);
@@ -316,13 +342,13 @@ function drop(st){
 function moveShad(n, kind, to){
   const p = B.shad.plan.find(x => x.n === n); if (!p) return;
   if (kind === 'web'){
-    if (p.w.date === to) return;
+    if (p.wp && p.w.date === to) return;
     const k = B.diff(p.w.date, to), patch = {w: {date: to}};
-    if (p.h && p.h.date) patch.h = {date: B.add(p.h.date, k)};
+    if (p.wp && p.hp) patch.h = {date: B.add(p.h.date, k)};   // ДЗ едет за вебом, только если ему уже выбран день
     B.setShadOver(n, patch);
     B.toast(`${esc(p.code || 'Веб')} перенесён на ${B.fmtW(to)}${patch.h ? `, ДЗ до ${B.fmtW(patch.h.date)}` : ''}`);
   } else {
-    if (p.h.date === to) return;
+    if (p.hp && p.h.date === to) return;
     B.setShadOver(n, {h: {date: to}});
     B.toast(`ДЗ ${esc(p.code || '')}: до ${B.fmtW(to)}`);
   }

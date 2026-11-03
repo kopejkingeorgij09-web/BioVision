@@ -1215,15 +1215,15 @@ mark{background:var(--gold-soft);color:inherit;border-radius:3px;padding:0 1px}
 .jt-lgd span{display:flex;align-items:center;gap:6px}
 .jt-lgd .jt-bar{width:14px}
 /* большой лес на компьютере */
-.rich-forest{display:none}
+.rich-forest{display:block;margin:0 0 16px}
+/* большая сцена теперь везде; маленькая сцена и карточка уровня не нужны, уровень есть на сцене */
+.forest-page .fr-small{display:none}
+.forest-page .cols > .col:last-child > :first-child{display:none}
 @media (min-width:1000px){
-  .rich-forest{display:block;margin:0 0 20px}
-  .forest-page .fr-small .scene-card,.forest-page .fr-small > .hint{display:none}
+  .rich-forest{margin:0 0 20px}
   .forest-page .cols{display:block}
-  .forest-page .fr-small{display:none}
   .forest-page .cols > .col:last-child{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
   .forest-page .cols > .col:last-child > *{margin:0}
-  .forest-page .cols > .col:last-child > :first-child{display:none}   /* уровень уже есть на сцене */
 }
 .rf-scene{position:relative;border-radius:22px;overflow:hidden;box-shadow:var(--shadow-lg);aspect-ratio:7/3;min-height:420px;max-height:640px}
 .rf-scene .scene.rich{display:block;width:100%;height:100%}
@@ -1284,3 +1284,13 @@ mark{background:var(--gold-soft);color:inherit;border-radius:3px;padding:0 1px}
 .scene.rich .front{animation:sway 7s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 100%}
 .scene.rich .rt{cursor:default}
 .scene.rich .rt:hover .tree{filter:brightness(1.12)}
+/* большой лес на телефоне: кадр выше, плашки компактнее */
+@media (max-width:999px){
+  .rf-scene{aspect-ratio:auto;height:min(118vw,560px);min-height:0;border-radius:18px}
+  .rf-hud{left:10px;top:10px;right:10px;max-width:none;gap:10px;padding:8px 10px 8px 8px;border-radius:13px}
+  .rf-lvl{width:46px;height:46px}.rf-lvl b{font-size:18px}.rf-lvl span{font-size:7.5px}
+  .rf-name{font-size:15px}.rf-sub{font-size:11.5px}
+  .rf-fog{left:10px;right:10px;top:auto;bottom:10px;max-width:none;font-size:13px;padding:8px 12px}
+  .rf-feats{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:10px -16px 0;padding:0 16px}
+  .rf-feats span{flex:none;font-size:12.5px}
+}

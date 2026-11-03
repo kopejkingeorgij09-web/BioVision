@@ -101,6 +101,12 @@ function idleDays(c){
   const today = c.days[t]; if (today && (today.result === 'good' || today.result === 'some')) return 0;
   return Math.max(0, B.diff(last, t) - 1);
 }
+/* в какой день был достигнут каждый уровень: копим опыт по дням */
+function levelDates(c){
+  const out = {}; let sum = 0, L = 1;
+  Object.keys(c.days || {}).sort().forEach(k => { sum += (c.days[k] || {}).xp || 0; while (sum >= B.xpForLevel(L + 1)){ L++; out[L] = k; } });
+  return out;
+}
 function richScene(c){
   const now = new Date(), h = now.getHours() + now.getMinutes() / 60, ph = phase(h), [s0, s1] = SKIES[ph];
   const night = ph === 'night' || ph === 'dusk', L = c.level, idle = idleDays(c);
@@ -124,6 +130,12 @@ function richScene(c){
     <rect class="mist" y="${RG - 70}" width="${RW}" height="60" fill="${s1}" opacity=".35"/>
     <path fill="${m2}" d="M0 ${RG - 30} C180 ${RG - 80} 320 ${RG - 20} 520 ${RG - 50} S880 ${RG - 90} 1060 ${RG - 40} S1300 ${RG - 60} ${RW} ${RG - 30} V${RG + 20} H0Z"/>
     <path fill="${m3}" d="M0 ${RG - 4} C220 ${RG - 36} 420 ${RG + 6} 640 ${RG - 16} S1060 ${RG - 30} ${RW} ${RG - 6} V${RH} H0Z"/>`;
+  // кромка леса на дальнем холме густеет с каждым уровнем
+  const rl = rnd(31337), tl = Math.min(c.level * 3, 240), tcol = mix(m3, night ? '#0E2016' : '#1F3B27', 0.45);
+  let edge = '';
+  for (let i = 0; i < tl; i++){ const x = rl() * RW, hh = 14 + rl() * 22, y = RG - 6 - Math.sin(x / RW * Math.PI * 3) * 8 + rl() * 6;
+    edge += `<path d="M${x.toFixed(0)} ${(y - hh).toFixed(0)} l${(hh * 0.32).toFixed(1)} ${hh.toFixed(0)} h-${(hh * 0.64).toFixed(1)}Z"/>`; }
+  hills += `<g fill="${tcol}" opacity=".9">${edge}</g>`;
   const g0 = night ? '#26472F' : mix(gDay, '#8DBF5E', 0.25), g1 = night ? '#152C1C' : mix(gDay, '#2F5E2A', 0.55);
   const water = mix('#3F7FB0', s1, night ? 0.15 : 0.3);
   let ground = `<rect y="${RG}" width="${RW}" height="${RH - RG}" fill="url(#rgr)"/>`;
@@ -147,7 +159,9 @@ function richScene(c){
   for (let i = 0; i < grown; i++){ const p = spot(i); list.push(Object.assign(p, {x: p.x / W * RW, y: ryAt(p.depth), i})); }
   if (L >= 52) list.push({kind: 'oak', x: 560, y: RH - 60, depth: 0.95, hue: 0.2, big: true});
   list.sort((a, b) => a.y - b.y);
-  const trees = list.map(p => tree(p.kind, p.x, p.y, (p.big ? 2.1 : (0.5 + p.depth * 0.95) * shrink), p.hue, p.depth < 0.3 ? 'dist' : '')).join('');
+  const when = levelDates(c), KN = {pine: 'сосна', spruce: 'ель', birch: 'берёза', oak: 'дуб', maple: 'клён', linden: 'липа'};
+  const trees = list.map(p => { const sc = p.big ? 2.1 : (0.5 + p.depth * 0.95) * shrink, dt = p.big ? '' : when[p.i + 2];
+    return `<g class="rt"><title>${p.big ? 'Вековой дуб: веха «Дубрава»' : `Дерево ${p.i + 1}, ${KN[p.kind] || 'дерево'}${dt ? `: выросло ${B.fmtS(dt)}` : ''}`}</title><ellipse cx="${p.x.toFixed(0)}" cy="${(p.y + 2).toFixed(0)}" rx="${(26 * sc).toFixed(1)}" ry="${(5 * sc).toFixed(1)}" fill="#000" opacity=".16"/>${tree(p.kind, p.x, p.y, sc, p.hue, p.depth < 0.3 ? 'dist' : '')}</g>`; }).join('');
   const f = Math.max(0, Math.min(1, c.frac || 0)), gy = RH - 18, nk = spot(grown).kind;
   const growing = f < 0.25 ? sprout(RW / 2, gy, 2 + f * 4) : tree(nk, RW / 2, gy, 0.6 + f * 1.1, 0.3, 'grow');
   // живность
@@ -156,6 +170,17 @@ function richScene(c){
   if (L >= 12 && !night){ const r3 = rnd(55); for (let i = 0; i < 5; i++){ const col = ['#F2B84B', '#E58FB4', '#FFFFFF', '#9FB8F5', '#F2B84B'][i]; life += `<g class="bf" style="animation-delay:-${(r3() * 10).toFixed(1)}s"><g transform="translate(${(200 + r3() * 1000).toFixed(0)} ${(RG + 60 + r3() * 160).toFixed(0)})"><path class="wing" d="M0 0 C-6 -8 -10 -2 -6 2Z M0 0 C6 -8 10 -2 6 2Z" fill="${col}"/></g></g>`; } }
   if (L >= 17 && ph !== 'night'){ for (let i = 0; i < 4; i++) life += `<g class="bird" style="animation-delay:-${i * 9}s;animation-duration:${38 + i * 6}s"><path d="M0 ${110 + i * 26} q8 -8 16 0 q8 -8 16 0" fill="none" stroke="${night ? '#C9D3E8' : '#2B3440'}" stroke-width="2" stroke-linecap="round"/></g>`; }
   if (L >= 100) life += `<g transform="translate(1250 ${RH - 90}) scale(1.4)" fill="#7A5232"><ellipse cx="0" cy="-20" rx="18" ry="9"/><rect x="-14" y="-14" width="3" height="16"/><rect x="10" y="-14" width="3" height="16"/><path d="M14 -24 l8 -14 l4 2 l-6 14Z"/><circle cx="23" cy="-38" r="5"/><path d="M22 -42 l-4 -10 M24 -42 l4 -10" stroke="#5A3A22" stroke-width="1.5"/></g>`;
+  // лучи от солнца днём и на закате
+  let rays = '';
+  if (ph === 'sunset' || ph === 'dawn'){ for (let i = 0; i < 5; i++){ const a = -0.5 + i * 0.28, len = 900; const x2 = sx + Math.sin(a) * len, x3 = sx + Math.sin(a + 0.07) * len;
+    rays += `<path class="ray" d="M${sx.toFixed(0)} ${sy.toFixed(0)} L${x2.toFixed(0)} ${(sy + len).toFixed(0)} L${x3.toFixed(0)} ${(sy + len).toFixed(0)}Z" style="animation-delay:-${i * 2}s"/>`; } }
+  // передний край: густая трава и папоротники по углам, мягко качаются
+  const rg = rnd(2024), gcol = night ? '#0F2416' : mix(g1, '#1D3B1E', 0.35);
+  let blades = '';
+  for (let i = 0; i < 170; i++){ const x = rg() * RW, hb = 14 + rg() * 26 + (x < 200 || x > RW - 200 ? 18 : 0), lean = (rg() - 0.5) * 14;
+    blades += `<path d="M${x.toFixed(0)} ${RH + 2} q${(lean / 2).toFixed(1)} -${(hb / 2).toFixed(0)} ${lean.toFixed(1)} -${hb.toFixed(0)} q${(-lean / 4).toFixed(1)} ${(hb / 2).toFixed(0)} ${(3 - lean / 3).toFixed(1)} ${hb.toFixed(0)}Z"/>`; }
+  const fern = (x, flip) => `<g transform="translate(${x} ${RH + 4}) scale(${flip ? -1 : 1} 1)">${[[-60, 1], [-35, 1.15], [-10, 1.25], [15, 1.1], [40, 0.95]].map(([ang, k]) => `<path transform="rotate(${ang}) scale(${k})" d="M0 0 C-6 -40 -4 -80 0 -110 C4 -80 6 -40 0 0Z M0 -20 l-14 -8 M0 -36 l-13 -9 M0 -52 l-11 -9 M0 -68 l-9 -8 M0 -84 l-6 -7 M0 -20 l14 -8 M0 -36 l13 -9 M0 -52 l11 -9 M0 -68 l9 -8 M0 -84 l6 -7" stroke="${gcol}" stroke-width="3" stroke-linecap="round"/>`).join('')}</g>`;
+  const front = `<g class="front" fill="${gcol}">${blades}</g>${fern(40, false)}${fern(RW - 40, true)}`;
   // ночь затемняет землю и деревья, туман приходит, когда дел нет несколько дней
   const shade = night ? `<rect width="${RW}" height="${RH}" fill="#0A1330" opacity="${ph === 'night' ? .38 : .22}" style="mix-blend-mode:multiply"/>` : ph === 'sunset' || ph === 'dawn' ? `<rect width="${RW}" height="${RH}" fill="#F28C5E" opacity=".1"/>` : '';
   const fog = idle >= 2 ? `<rect class="fog" width="${RW}" height="${RH}" fill="url(#rfog)" opacity="${Math.min(0.85, 0.3 + idle * 0.1).toFixed(2)}"/>` : '';
@@ -166,7 +191,7 @@ function richScene(c){
       <radialGradient id="rglow"><stop offset="0" stop-color="#FFF6C8" stop-opacity=".55"/><stop offset="1" stop-color="#FFF6C8" stop-opacity="0"/></radialGradient></defs>
     <rect width="${RW}" height="${RH}" fill="url(#rsky)"/>${sky}${hills}${ground}${flowers}${trees}
     <ellipse cx="${RW / 2}" cy="${gy - 40}" rx="${110 + f * 60}" ry="${110 + f * 60}" fill="url(#rglow)"/>
-    <ellipse cx="${RW / 2}" cy="${gy + 3}" rx="${30 + f * 50}" ry="6" fill="#000" opacity=".18"/>${growing}${shade}${life}${fog}
+    <ellipse cx="${RW / 2}" cy="${gy + 3}" rx="${30 + f * 50}" ry="6" fill="#000" opacity=".18"/><g class="rt"><title>Растёт дерево ${L}-го уровня: ${Math.round(f * 100)}% пути до взрослого</title>${growing}</g>${rays}${front}${shade}${life}${fog}
   </svg>`, ph, idle};
 }
 function richBlock(c){

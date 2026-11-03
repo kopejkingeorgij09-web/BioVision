@@ -1294,3 +1294,26 @@ mark{background:var(--gold-soft);color:inherit;border-radius:3px;padding:0 1px}
   .rf-feats{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:10px -16px 0;padding:0 16px}
   .rf-feats span{flex:none;font-size:12.5px}
 }
+
+/* музыка в лесу */
+.rf-music{position:absolute;right:20px;bottom:20px;display:flex;align-items:center;gap:6px;padding:6px 8px 6px 6px;border-radius:999px;background:color-mix(in srgb,#0B1420 46%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:#F4F1E6;max-width:min(380px,calc(100% - 40px))}
+.rf-music .rf-mb{width:40px;height:40px;flex:none;border-radius:50%;border:0;display:grid;place-items:center;background:#F4F1E6;color:#16241C;cursor:pointer}
+.rf-music .rf-mb.sm{width:32px;height:32px;background:transparent;color:#F4F1E6}
+.rf-music .rf-mb.sm:hover{background:rgba(255,255,255,.14)}
+.rf-music .rf-mb .ic{width:18px;height:18px}
+.rf-music .ic{fill:currentColor}
+.rf-music .ic.mi{fill:none}.rf-music .ic.mi circle{fill:currentColor}
+.rf-mt{display:flex;flex-direction:column;min-width:0;padding:0 4px;color:inherit;text-decoration:none;line-height:1.25}
+.rf-mt b{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rf-mt span{font-size:12px;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+a.rf-mt,a.rf-mt:hover,a.rf-mt span{text-decoration:none}
+a.rf-mt:hover b{text-decoration:underline}
+.rf-music.on .rf-mb:not(.sm){box-shadow:0 0 0 0 rgba(244,241,230,.5);animation:rfPulse 2.4s ease-out infinite}
+@keyframes rfPulse{0%{box-shadow:0 0 0 0 rgba(244,241,230,.45)}100%{box-shadow:0 0 0 14px rgba(244,241,230,0)}}
+@media (prefers-reduced-motion:reduce){.rf-music.on .rf-mb:not(.sm){animation:none}}
+@media (max-width:999px){
+  .rf-music{right:10px;bottom:10px;max-width:calc(100% - 20px);padding:5px 6px 5px 5px}
+  .rf-music .rf-mb{width:36px;height:36px}
+  .rf-mt b{font-size:13px}.rf-mt span{font-size:11px}
+  .rf-scene .rf-fog{bottom:58px}
+}

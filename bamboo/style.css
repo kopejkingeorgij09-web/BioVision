@@ -1133,3 +1133,5 @@ mark{background:var(--gold-soft);color:inherit;border-radius:3px;padding:0 1px}
 .pl-shad .pl-chk{color:transparent}
 .pl-shad:hover .pl-chk{border-color:currentColor}
 @media (max-width:600px){.hcal .muted.mono{display:none}.hc-m{min-width:0}}
+.h-quick{gap:8px;font-size:13px}
+.d7 i small{font:600 10.5px var(--f-mono);color:var(--ink-2)}

@@ -37,7 +37,7 @@ function results(){
   });
   if (bk.length) groups.push(['Книги', 'book', bk.slice(0, 30)]);
   const ws = B.workouts().filter(w => has(B.workoutText ? B.workoutText(w) : w.note)).slice(0, 20);
-  if (ws.length) groups.push(['Тренировки', 'run', ws.map(w => `<a class="sr" href="#/sport"><b>${B.fmtW(w.date)}</b><span class="muted">${hl(snip(B.workoutText(w), words[0]), words)}</span></a>`)]);
+  if (ws.length) groups.push(['Тренировки', 'run', ws.map(w => `<a class="sr" href="#/habits"><b>${B.fmtW(w.date)}</b><span class="muted">${hl(snip(B.workoutText(w), words[0]), words)}</span></a>`)]);
   if (!groups.length) return '<p class="empty">Ничего не нашлось.</p>';
   return groups.map(([t, ic, rows]) => `<div class="sub-h">${t} <span class="muted">${rows.length}</span></div><div class="sr-list">${rows.join('')}</div>`).join('');
 }

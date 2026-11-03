@@ -1,4 +1,4 @@
-/* Режим бамбука: тренировки. Только отметка «тренировка сделана» и заметка, куда пишешь что угодно.
+/* Зов леса: тренировки. Только отметка «тренировка сделана» и заметка, куда пишешь что угодно.
    Запись — документ w_<id> {date, note}. Старые записи с упражнениями показываются текстом. */
 (function(){
 const {esc, icon} = B;
@@ -25,7 +25,7 @@ B.unmarkSport = async date => {
 B.toggleSport = async date => {
   if (onDay(date).length){ if (await B.unmarkSport(date)) B.toast('Отметка тренировки снята'); return; }
   markDay(date);
-  B.xpToast(B.XP.sport, 'тренировка');
+  B.toast('Тренировка отмечена');
 };
 
 B.views.sport = {
@@ -43,7 +43,7 @@ B.views.sport = {
           <section class="card sport-today ${todayW ? 'on' : ''}">
             <button class="sport-btn" data-act="sportDay" data-d="${t}">
               <i>${todayW ? icon('check') : icon('run')}</i>
-              <span><b>${todayW ? 'Тренировка сегодня есть' : 'Отметить тренировку'}</b><small>${todayW ? 'нажми ещё раз, чтобы снять' : `+${B.XP.sport} XP`}</small></span>
+              <span><b>${todayW ? 'Тренировка сегодня есть' : 'Отметить тренировку'}</b><small>${todayW ? 'нажми ещё раз, чтобы снять' : 'идёт в привычку «Тренировка»'}</small></span>
             </button>
             <label class="field">Заметка
               <textarea rows="4" data-in="sportNote" data-d="${t}" placeholder="Что делал: подтягивания 4 × 8, отжимания +10 кг 3 × 12, дорожка 20 минут. Как себя чувствовал.">${esc(todayW ? (todayW.note || '') : '')}</textarea></label>
@@ -80,7 +80,7 @@ B.inputs.sportNote = el => {
   clearTimeout(noteT);
   noteT = setTimeout(() => {
     let w = onDay(d)[0];
-    if (!w){ if (!v.trim()) return; const id = markDay(d); w = B.get('w_' + id); B.xpToast(B.XP.sport, 'тренировка'); }
+    if (!w){ if (!v.trim()) return; const id = markDay(d); w = B.get('w_' + id); B.toast('Тренировка отмечена'); }
     B.put('w_' + w.id, Object.assign({}, w, {note: v}), true);
   }, 500);
 };

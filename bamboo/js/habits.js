@@ -1,4 +1,4 @@
-/* Режим бамбука: привычки (ежедневные и «N раз в неделю»), серии, карта за 12 недель и подсказки по правилам. */
+/* Зов леса: привычки (ежедневные и «N раз в неделю»), серии, карта за 12 недель и подсказки по правилам. */
 (function(){
 const {esc, icon} = B;
 const ICONS = ['habit', 'book', 'run', 'dumbbell', 'moon', 'leaf', 'pen', 'timer', 'sun', 'star', 'flame', 'frog'];
@@ -190,7 +190,7 @@ B.insights = () => {
   }
   // причины переносов за 14 дней
   const reasons = {}; let pc = 0;
-  B.tasks().forEach(tk => (tk.postpones || []).forEach(p => { if (Date.now() - p.at < 14 * 864e5){ reasons[p.why] = (reasons[p.why] || 0) + 1; pc++; } }));
+  B.tasks().forEach(tk => (tk.postpones || []).forEach(p => { if (Date.now() - p.at < 14 * 864e5){ if (p.why) reasons[p.why] = (reasons[p.why] || 0) + 1; pc++; } }));
   const topR = Object.entries(reasons).sort((a, b) => b[1] - a[1])[0];
   if (topR && topR[1] >= 3) out.push(`За две недели ${pc} ${B.plural(pc, 'перенос', 'переноса', 'переносов')}, чаще всего: «${esc(topR[0])}». ${ADVICE[topR[0]] || ''}`);
   // хронически переносимые

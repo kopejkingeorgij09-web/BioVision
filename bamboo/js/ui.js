@@ -1,4 +1,4 @@
-/* Режим бамбука: общие кусочки интерфейса.
+/* Зов леса: общие кусочки интерфейса.
    Иконки, лист снизу (sheet), диалог, всплывашки, быстрый ввод задач, строка задачи, редактор задачи, перенос с причиной. */
 (function(){
 const {esc} = B;
@@ -22,6 +22,24 @@ const P = {
   run: '<circle cx="14" cy="4.5" r="2"/><path d="M5 21l4-6 3 2 1-5 3 3h3M9 11l3-3 3 1"/>',
   dumbbell: '<path d="M6 7v10M3 9v6M18 7v10M21 9v6M6 12h12"/>',
   pen: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+  bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  repeat: '<path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/>',
+  drop: '<path d="M12 3c3.5 4.5 6 7.8 6 11a6 6 0 0 1-12 0c0-3.2 2.5-6.5 6-11z"/>',
+  clip: '<path d="M20 11.5l-8.2 8.2a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.4 8.4a1.7 1.7 0 0 1-2.4-2.4l7.7-7.7"/>',
+  share: '<path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  note: '<path d="M5 6h14M5 11h14M5 16h9"/>',
+  expand: '<path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/>',
+  shrink: '<path d="M4 14h6v6M20 10h-6V4M10 14l-7 7M14 10l7-7"/>',
+  dots: '<circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>',
+  arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  arrow2: '<path d="M4 12h9M9 7l5 5-5 5M13 7l5 5-5 5"/>',
+  down: '<path d="M12 4v13M7 12l5 5 5-5M5 21h14"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  grid: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9.5h18M3 15h18M9 4v17M15 4v17"/>',
+  week: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 9v12M13 9v12M18 9v12"/>',
+  img: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
+  tree: '<path d="M12 22v-5"/><path d="M12 3 6 11h3l-4 6h14l-4-6h3z"/>',
   bamboo: '<path d="M12 22V2"/><path d="M10 7h4M10 13h4M10 18h4"/><path d="M12 9c2.5-.5 4.5-2 5.5-4.5M12 15c-2.5-.5-4.5-2-5.5-4.5"/>',
   moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',

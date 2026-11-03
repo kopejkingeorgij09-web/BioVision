@@ -63,6 +63,7 @@ const P = {
   steps: '<path d="M4 20h4v-4h4v-4h4V8h4V4"/>',
   frog: '<circle cx="8" cy="7" r="2.5"/><circle cx="16" cy="7" r="2.5"/><path d="M4 13c0 4 3.6 7 8 7s8-3 8-7c0-2-1-3.5-2.5-4.5M6.5 8.5C5 9.5 4 11 4 13M9 15c1.8 1 4.2 1 6 0"/>',
   cloud: '<path d="M7 18a5 5 0 1 1 .9-9.9A6 6 0 0 1 19 10a4 4 0 0 1-1 8z"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l2 2"/>',
   out: '<path d="M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',

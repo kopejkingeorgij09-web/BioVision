@@ -355,11 +355,9 @@ B.openTask = (id, keep) => {
     ${wide ? `<div class="tw-ext">
       <label>Календарь<select data-in="edField" data-k="proj" data-id="${t.id}">${B.projects().map(p => `<option value="${p.id}" ${p.id === (t.proj || 'inbox') ? 'selected' : ''}>${esc(B.projName(p.id))}</option>`).join('')}</select></label>
       <div class="ed-pri">Важность<div class="pri-seg">${[1, 2, 3, 4].map(p => `<button class="p${p} ${+(t.pri || 4) === p ? 'on' : ''}" data-act="twPri" data-id="${t.id}" data-p="${p}">${icon('flag')}<span>${B.PRI[p]}</span></button>`).join('')}</div></div>
-      <label>Помидоров<input type="number" min="0" max="99" inputmode="numeric" value="${t.est || ''}" placeholder="0" data-in="edField" data-k="est" data-id="${t.id}"></label>
       <label class="switch"><input type="checkbox" ${t.big ? 'checked' : ''} data-in="edBig" data-id="${t.id}"><span></span>Большое дело: разбить на шаги и делать по одному</label>
       <label class="switch"><input type="checkbox" ${t.dl ? 'checked' : ''} data-in="edDl" data-id="${t.id}"><span></span>Дедлайн: обратный отсчёт на главном экране</label>
       ${pp.length ? `<div class="sub-h">Переносы: ${pp.length}</div><ul class="pp-list">${pp.slice(-6).map(p => `<li><span class="mono">${p.from ? B.fmtS(p.from) : '—'} → ${p.to ? B.fmtS(p.to) : 'когда-нибудь'}</span> ${esc(p.why || '')}</li>`).join('')}</ul>` : ''}
-      <button class="btn primary" data-act="focusTask" data-id="${t.id}">${icon('play')} Фокус 25 минут</button>
     </div>` : ''}
   </div>`);
   const ta = B.$('.tw-title'); if (ta){ ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }

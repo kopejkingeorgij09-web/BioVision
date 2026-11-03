@@ -53,7 +53,7 @@ B.mins = m => m < 60 ? `${m} мин` : `${Math.floor(m / 60)} ч${m % 60 ? ' ' +
 
 /* ---------- хранилище ----------
    Все записи лежат документами в одной коллекции: cfg, p_<id> проекты, t_<id> задачи, h_<id> привычки,
-   d_<дата> день (план, привычки, помидоры, чтение, разбор, мысли), b_<id> книги, w_<id> тренировки.
+   d_<дата> день (план, привычки, чтение, разбор, мысли), b_<id> книги, w_<id> тренировки.
    Копия всегда есть в localStorage. Изменения помечаются «грязными» и уходят в облако, пока не дойдут. */
 const LS_DOCS = 'bamboo-docs', LS_DIRTY = 'bamboo-dirty';
 let docs = {}, dirty = {}, db = null, firstSnap = false;
@@ -352,7 +352,7 @@ B.calc = () => {
 
     let xp = 0; for (const k in p) xp += p[k];
     // день: разбор есть — «good»; что-то сделано без разбора — «some»; пусто — «empty»
-    const active = dn.length || (d.pomo || []).length || hab || rm || sportBy[date] || subBy[date];
+    const active = dn.length || hab || rm || sportBy[date] || subBy[date];
     const result = date >= today ? 'open' : rvOk ? 'good' : active ? 'some' : 'empty';
     xpAll += Math.max(0, xp);
     total = Math.max(0, total + xp);

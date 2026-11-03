@@ -2,10 +2,11 @@
 (function(){
 const {esc, icon} = B;
 const NAV = [
-  ['today', 'Сегодня', 'today'], ['journal', 'Дневник', 'pen'], ['tasks', 'Задачи', 'list'], ['cal', 'Календарь', 'cal'], ['focus', 'Фокус', 'timer'],
-  ['habits', 'Привычки', 'habit'], ['read', 'Чтение', 'book'], ['sport', 'Спорт', 'dumbbell'],
-  ['forest', 'Лес', 'tree'], ['stats', 'Итоги', 'chart'], ['search', 'Поиск', 'search'], ['settings', 'Настройки', 'gear']
+  ['today', 'Сегодня', 'today'], ['tasks', 'Задачи', 'list'], ['cal', 'Календарь', 'cal'], ['habits', 'Привычки', 'habit'], ['journal', 'Дневник', 'pen'],
+  ['read', 'Чтение', 'book'], ['sport', 'Спорт', 'dumbbell'], ['forest', 'Лес', 'tree'], ['stats', 'Итоги', 'chart'],
+  ['search', 'Поиск', 'search'], ['settings', 'Настройки', 'gear']
 ];
+const FOOT = ['search', 'settings'];
 const BOTTOM = ['today', 'journal', 'tasks', 'cal'];
 
 /* ---------- тема ---------- */
@@ -17,8 +18,18 @@ function applyTheme(){
   const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = t === 'sakura' ? '#FBF1F1' : t === 'night' ? '#0B1A14' : dark ? '#151A14' : '#F4EFE4';
 }
 applyTheme();
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
-B.acts.theme = el => { try { localStorage.setItem(LS_THEME, el.dataset.v); } catch (e) {} applyTheme(); B.render(); };
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { applyTheme(); if (B.render) B.render(); });
+const THEMES = [['light', 'Бумага', '#F4EFE4'], ['sakura', 'Сакура', '#F6D9DF'], ['dark', 'Тёмная', '#1B211A'], ['night', 'Ночной лес', '#123024'], ['auto', 'Как в системе', '']];
+const curTheme = () => { try { return localStorage.getItem(LS_THEME) || 'auto'; } catch (e) { return 'auto'; } };
+const isDark = () => { const t = curTheme(); return t === 'dark' || t === 'night' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches); };
+const setTheme = v => { try { localStorage.setItem(LS_THEME, v); } catch (e) {} applyTheme(); B.render(); };
+B.acts.theme = el => { setTheme(el.dataset.v); B.$$('.swatches .sw').forEach(x => x.classList.toggle('on', x.dataset.v === el.dataset.v)); };
+/* кнопка в шапке: по кругу Бумага → Сакура → Тёмная → Ночной лес → как в системе */
+B.acts.themeNext = () => {
+  const i = THEMES.findIndex(x => x[0] === curTheme()), n = THEMES[(i + 1) % THEMES.length];
+  setTheme(n[0]); B.toast(`Тема: ${n[1]}`, 1200);
+};
+const swatches = () => `<div class="swatches" role="group" aria-label="Тема">${THEMES.map(([k, l, c]) => `<button class="sw ${curTheme() === k ? 'on' : ''} ${k === 'auto' ? 'auto' : ''}" data-act="theme" data-v="${k}" title="${l}" aria-label="${l}" style="${c ? '--sw:' + c : ''}"></button>`).join('')}</div>`;
 
 /* ---------- маршрут ---------- */
 /* ярлыки Android (долгое нажатие на иконку) и «Поделиться»: открывают быстрый ввод поверх «Сегодня» */
@@ -34,7 +45,6 @@ B.acts.capThink = () => { const v = B.$('#capText').value.trim(); if (!v) return
 function special(){
   const h = location.hash;
   if (h === '#/new' || h === '#/think'){ history.replaceState(null, '', '#/today'); B.render(true); capture('', h === '#/think' ? 'think' : 'task'); return true; }
-  if (h === '#/focus/start'){ history.replaceState(null, '', '#/focus'); B.startFocus(null, null); return true; }
   return false;
 }
 function shared(){
@@ -64,7 +74,6 @@ B.render = force => {
   if (view.mount) try { view.mount(r.arg); } catch (e) { console.error(e); }
   if (same) scrollTo(0, y); else { scrollTo(0, 0); lastKey = key; }
   shell(r);
-  if (B.timerTick) B.timerTick();
 };
 document.getElementById('main').addEventListener('focusout', () => setTimeout(() => {
   const a = document.activeElement, main = document.getElementById('main');
@@ -79,8 +88,12 @@ function shell(r){
   const c = B.calc();
   const side = document.getElementById('side');
   side.innerHTML = `<a class="brand" href="#/today">${icon('tree')}<span><b>Зов леса</b><small>уровень ${c.level} · ${c.trees ? B.fmtTrees(c.trees) : 'поляна'}</small></span></a>
-    <nav>${NAV.map(([k, l, ic]) => `<a class="nav-i ${r.v === k ? 'on' : ''}" href="#/${k}">${icon(ic)}<span>${l}</span>${k === 'today' && c.live ? `<em>${icon('flame')}${c.live}</em>` : ''}</a>`).join('')}</nav>
-    <div class="side-foot"><span class="sync ${B.sync.mode}"><i></i>${esc(B.sync.text)}</span></div>`;
+    <nav>${NAV.filter(n => !FOOT.includes(n[0])).map(([k, l, ic]) => `<a class="nav-i ${r.v === k ? 'on' : ''}" href="#/${k}">${icon(ic)}<span>${l}</span>${k === 'today' && c.live ? `<em>${icon('flame')}${c.live}</em>` : ''}</a>`).join('')}</nav>
+    <div class="side-foot">
+      ${swatches()}
+      <div class="row">${FOOT.map(k => { const n = NAV.find(x => x[0] === k); return `<a class="nav-i sm ${r.v === k ? 'on' : ''}" href="#/${k}" title="${n[1]}">${icon(n[2])}<span>${n[1]}</span></a>`; }).join('')}</div>
+      <span class="sync ${B.sync.mode}"><i></i>${esc(B.sync.text)}</span>
+    </div>`;
   const more = !BOTTOM.includes(r.v);
   document.getElementById('bottom').innerHTML = BOTTOM.map(k => { const n = NAV.find(x => x[0] === k); return `<a class="bn ${r.v === k ? 'on' : ''}" href="#/${k}">${icon(n[2])}<span>${n[1]}</span></a>`; }).join('')
     + `<button class="bn ${more ? 'on' : ''}" data-act="more">${icon('more')}<span>${more ? (NAV.find(x => x[0] === r.v) || [0, 'Ещё'])[1] : 'Ещё'}</span></button>`;
@@ -88,8 +101,10 @@ function shell(r){
   tb.querySelector('.tb-lvl').innerHTML = `${icon('flame')}<b>${c.live}</b><span class="tb-sep"></span><b>${c.level}</b><small>ур.</small>`;
   tb.querySelector('.tb-sync').className = 'tb-sync sync ' + B.sync.mode;
   tb.querySelector('.tb-sync').title = B.sync.text;
+  const th = tb.querySelector('.tb-theme'); if (th) th.innerHTML = icon(isDark() ? 'sun' : 'moon');
 }
-B.acts.more = () => B.sheet(`<h2>Разделы</h2><div class="more-grid">${NAV.filter(n => !BOTTOM.includes(n[0])).map(([k, l, ic]) => `<a class="more-i" href="#/${k}">${icon(ic)}<span>${l}</span></a>`).join('')}</div>`);
+B.acts.more = () => B.sheet(`<h2>Разделы</h2><div class="more-grid">${NAV.filter(n => !BOTTOM.includes(n[0])).map(([k, l, ic]) => `<a class="more-i" href="#/${k}">${icon(ic)}<span>${l}</span></a>`).join('')}</div>
+  <div class="sub-h">Тема</div>${swatches()}`);
 
 /* ---------- настройки ---------- */
 B.views.settings = {
@@ -112,7 +127,8 @@ B.views.settings = {
           </section>
           <section class="card">
             <h2>${icon('sun')}Тема</h2>
-            <div class="toggle wide themes">${[['auto', 'Как в системе'], ['light', 'Бумага'], ['sakura', 'Сакура'], ['dark', 'Тёмная'], ['night', 'Ночной лес']].map(([k, l]) => `<button class="${theme === k ? 'on' : ''}" data-act="theme" data-v="${k}">${l}</button>`).join('')}</div>
+            <div class="toggle wide themes">${THEMES.map(([k, l]) => `<button class="${theme === k ? 'on' : ''}" data-act="theme" data-v="${k}">${l}</button>`).join('')}</div>
+            <p class="hint">Быстро сменить тему можно кнопкой ${isDark() ? 'с солнцем' : 'с луной'} в шапке на телефоне или кружками внизу боковой панели на компьютере.</p>
           </section>
           <section class="card">
             <h2>${icon('star')}Цели</h2>

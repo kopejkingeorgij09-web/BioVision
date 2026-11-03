@@ -1,4 +1,4 @@
-/* Зов леса: «Итоги». Неделя, месяц или всё время: опыт по дням, закрытые дни, фокус, чтение, спорт, привычки.
+/* Зов леса: «Итоги». Неделя, месяц или всё время: опыт по дням, закрытые дни, чтение, спорт, привычки.
    Для недели ещё разбор: причины переносов и вопрос «что меняю на следующей неделе» (документ wk_<понедельник>).
    Внизу перемотка: каким был лес в любой прошлый день. */
 (function(){
@@ -18,18 +18,17 @@ function days(r){ const out = []; for (let d = r.from; d <= r.to; d = B.add(d, 1
 
 function summary(list){
   const c = B.calc(), t = B.today();
-  let xp = 0, good = 0, past = 0, pomoMin = 0, read = 0, sport = 0, hv = 0, hn = 0;
+  let xp = 0, good = 0, past = 0, read = 0, sport = 0, hv = 0, hn = 0;
   const hs = B.habits().filter(h => h.kind !== 'weekly');
   list.forEach(d => {
     const r = c.days[d]; if (!r) return;
     xp += r.xp;
     if (d <= t){ past++; if (r.review) good++; }
-    pomoMin += (B.day(d).pomo || []).reduce((a, p) => a + (p.min || 0), 0);
     read += B.readMin(d);
     if (d <= t) hs.forEach(h => { if (h.created && d < h.created) return; hn++; hv += B.habitVal(h, d); });
   });
   sport = B.workouts().filter(w => list.includes(w.date)).length;
-  return {xp, good, past, pomoMin, read, sport, hab: hn ? hv / hn : 0};
+  return {xp, good, past, read, sport, hab: hn ? hv / hn : 0};
 }
 
 function xpChart(list){
@@ -62,7 +61,7 @@ function weekReview(r){
     ${B.habits().length ? `<div class="sub-h">Привычки</div><div class="hrates">${B.habits().map(h => { let v = 0, n = 0; days(r).forEach(d => { if (d > B.today() || (h.created && d < h.created)) return; n++; v += B.habitVal(h, d); });
       const rate = h.kind === 'weekly' ? Math.min(1, v / (h.target || 3)) : n ? v / n : 0;
       return `<div class="hrate"><span>${esc(h.name)}</span>${B.bar(rate)}<b class="mono">${Math.round(rate * 100)}%</b></div>`; }).join('')}</div>` : ''}
-    ${ended ? `<label class="field">Что меняю на следующей неделе<textarea rows="3" data-in="wkChange" data-w="${r.from}" placeholder="Одно-два конкретных изменения. Например: телефон в другой комнате во время помидоров">${esc(doc.change || '')}</textarea></label>
+    ${ended ? `<label class="field">Что меняю на следующей неделе<textarea rows="3" data-in="wkChange" data-w="${r.from}" placeholder="Одно-два конкретных изменения. Например: главные дела ставить на утро">${esc(doc.change || '')}</textarea></label>
       <p class="hint">Ответ будет висеть на главном экране всю следующую неделю.</p>` : '<p class="hint">Разбор недели откроется с субботы.</p>'}
     <button class="btn ghost" data-act="aiWeek">${icon('sparkle')} Разобрать неделю в Claude</button>
   </section>`;
@@ -121,7 +120,6 @@ B.views.stats = {
           <section class="card"><div class="kpis">
             <div class="kpi"><b>${s.good}/${s.past}</b><span>дней с разбором</span></div>
             <div class="kpi"><b>${s.xp > 0 ? '+' : ''}${B.num(s.xp)}</b><span>XP</span></div>
-            <div class="kpi"><b>${B.num(s.pomoMin / 60, 1)} ч</b><span>фокуса</span></div>
             <div class="kpi"><b>${B.mins(s.read)}</b><span>чтения</span></div>
             <div class="kpi"><b>${s.sport}</b><span>тренировок</span></div>
             <div class="kpi"><b>${Math.round(s.hab * 100)}%</b><span>ежедневных привычек</span></div>

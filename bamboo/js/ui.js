@@ -218,7 +218,6 @@ B.taskRow = (t, o = {}) => {
   if (t.dl && !t.done && t.due) meta.push(`<span class="tag dl">дедлайн</span>`);
   if (t.big) meta.push(`<span class="tag big">большое</span>`);
   if (subs.length) meta.push(`<span class="subs">${icon('steps')}${sd}/${subs.length}</span>`);
-  if (t.est) meta.push(`<span class="est" title="Оценка в помидорах">${'●'.repeat(Math.min(t.est, 6))}${t.est > 6 ? '+' : ''}</span>`);
   const pp = (t.postpones || []).length;
   if (pp) meta.push(`<span class="pp ${pp >= 3 ? 'hot' : ''}" title="Сколько раз переносилась">${icon('later')}${pp}</span>`);
   const late = !t.done && t.due && t.due < B.today();
@@ -233,7 +232,6 @@ B.taskRow = (t, o = {}) => {
     ${!t.done && o.flag !== false ? `<button class="icon-btn sm flag p${t.pri || 4}" data-act="prio" data-id="${t.id}" title="Важность: ${PRI[t.pri || 4]}. Нажми, чтобы поменять" aria-label="Важность">${icon('flag')}</button>` : ''}
     ${o.crownDate && (!t.done || crowned) ? `<button class="icon-btn sm crown ${crowned ? 'on' : ''}" data-act="crown" data-d="${o.crownDate}" data-id="${t.id}" title="${crowned ? 'Снять корону' : 'Сделать главным делом дня'}" aria-label="Главное">${icon('crown')}</button>` : ''}
     ${late && o.postpone !== false ? `<button class="icon-btn" data-act="postpone" data-id="${t.id}" title="Перенести с причиной">${icon('later')}</button>` : ''}
-    ${!t.done && o.play !== false ? `<button class="icon-btn play" data-act="focusTask" data-id="${t.id}" title="Фокус на задаче">${icon('play')}</button>` : ''}
   </div>`;
 };
 /* важность по кругу: без флага → обычно → важно → срочно → без флага */
@@ -264,13 +262,12 @@ B.openTask = id => {
       <button class="chk big ${t.done ? 'on' : ''}" data-act="edDone" data-id="${t.id}">${icon('check')}</button>
       <textarea class="ed-title" rows="1" data-in="edTitle" data-id="${t.id}" placeholder="Что сделать">${esc(t.title)}</textarea>
     </div>
-    ${pp.length >= 3 && !t.done ? `<div class="warn-box">${icon('later')}<div><b>Переносилась ${pp.length} ${B.plural(pp.length, 'раз', 'раза', 'раз')}.</b> Так бывает, когда задача слишком большая или непонятно, с чего начать. Разбей её на шаги по 25 минут и сделай первый прямо сейчас.</div></div>` : ''}
+    ${pp.length >= 3 && !t.done ? `<div class="warn-box">${icon('later')}<div><b>Переносилась ${pp.length} ${B.plural(pp.length, 'раз', 'раза', 'раз')}.</b> Так бывает, когда задача слишком большая или непонятно, с чего начать. Разбей её на маленькие шаги и сделай первый прямо сейчас.</div></div>` : ''}
     <div class="ed-grid">
       <label>Проект<select data-in="edField" data-k="proj" data-id="${t.id}">${projOpts}</select></label>
       <div class="ed-pri">Важность<div class="pri-seg">${[1, 2, 3, 4].map(p => `<button class="p${p} ${+(t.pri || 4) === p ? 'on' : ''}" data-act="edPri" data-id="${t.id}" data-p="${p}">${icon('flag')}<span>${PRI[p]}</span></button>`).join('')}</div></div>
       <label>Срок<input type="date" value="${t.due || ''}" data-in="edDue" data-id="${t.id}"></label>
       <label>Время<input type="time" value="${t.time || ''}" data-in="edField" data-k="time" data-id="${t.id}"></label>
-      <label>Помидоров<input type="number" min="0" max="99" inputmode="numeric" value="${t.est || ''}" placeholder="0" data-in="edField" data-k="est" data-id="${t.id}"></label>
       <label>Статус<select data-in="edField" data-k="status" data-id="${t.id}">${[['todo', 'Надо'], ['doing', 'В работе'], ['done', 'Готово']].map(([v, l]) => `<option value="${v}" ${t.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
     </div>
     <label class="switch"><input type="checkbox" ${t.big ? 'checked' : ''} data-in="edBig" data-id="${t.id}"><span></span>Большое дело: разбить на шаги и делать по одному каждый день</label>
@@ -280,7 +277,6 @@ B.openTask = id => {
       <div class="subs-list">${(t.subs || []).map(s => `<div class="sub ${s.done ? 'is-done' : ''}">
         <button class="chk sm" data-act="subToggle" data-id="${t.id}" data-sid="${s.id}">${icon('check')}</button>
         <input value="${esc(s.t)}" data-in="subText" data-id="${t.id}" data-sid="${s.id}">
-        <button class="icon-btn sm" data-act="subFocus" data-id="${t.id}" data-sid="${s.id}" title="Фокус на шаге">${icon('play')}</button>
         <button class="icon-btn sm" data-act="subDel" data-id="${t.id}" data-sid="${s.id}" title="Удалить">${icon('x')}</button></div>`).join('')}</div>
       <div class="add-line"><input id="subNew" placeholder="Новый шаг: «прочитать § 4.1», «решить задачи 1–5»" data-enter="subAdd" data-id="${t.id}"><button class="btn sm" data-act="subAdd" data-id="${t.id}">${icon('plus')}</button></div>
     </div>
@@ -288,7 +284,7 @@ B.openTask = id => {
     ${pp.length ? `<div class="ed-sec"><div class="sec-h">${icon('later')} Переносы</div><ul class="pp-list">${pp.map(p => `<li><span class="mono">${p.from ? B.fmtS(p.from) : '—'} → ${p.to ? B.fmtS(p.to) : 'без срока'}</span> ${esc(p.why)}</li>`).join('')}</ul></div>` : ''}
     <div class="row between ed-foot">
       <button class="btn ghost danger" data-act="taskDel" data-id="${t.id}">${icon('trash')} Удалить</button>
-      <button class="btn primary" data-act="focusTask" data-id="${t.id}">${icon('play')} Начать 25 минут</button>
+      <button class="btn primary" data-act="closeSheet">Готово</button>
     </div>
   </div>`);
   const ta = $('.ed-title'); if (ta) autoGrow(ta);
@@ -343,8 +339,6 @@ B.acts.subToggle = el => {
 };
 B.acts.subDel = el => { subUpd(el.dataset.id, s => { const i = s.findIndex(q => q.id === el.dataset.sid); if (i >= 0) s.splice(i, 1); }); B.openTask(el.dataset.id); };
 B.inputs.subText = el => subUpd(el.dataset.id, s => { const x = s.find(q => q.id === el.dataset.sid); if (x) x.t = el.value; });
-B.acts.subFocus = el => { B.closeSheet(); B.startFocus(el.dataset.id, el.dataset.sid); };
-B.acts.focusTask = el => { if (B.sheetOpen()) B.closeSheet(); B.startFocus(el.dataset.id); };
 
 /* ---------- перенос с причиной ---------- */
 const REASONS = ['Не рассчитал время', 'Страшно или лень начинать', 'Непонятно, с чего начать', 'Появилось срочное', 'Плохо себя чувствовал', 'Задача оказалась больше'];
@@ -377,7 +371,7 @@ B.acts.postpone = async el => {
 B.acts.ppPick = el => B.closeDialog(el.dataset.d);
 B.acts.ppDate = () => { const v = $('#ppDate').value; if (v) B.closeDialog(v); };
 
-/* ---------- выбор задачи из списка (для плана дня и фокуса) ---------- */
+/* ---------- выбор задачи из списка (для плана дня) ---------- */
 B.candidates = (date) => {
   const t = date || B.today();
   return B.tasks().filter(x => !x.done).sort((a, b) => {

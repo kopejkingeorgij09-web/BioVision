@@ -1192,3 +1192,25 @@ mark{background:var(--gold-soft);color:inherit;border-radius:3px;padding:0 1px}
 .th-hint .ic{width:14px;height:14px;color:var(--accent);flex:none;align-self:center}
 .th-hint span{flex:1 1 220px}
 .th-hint .link{border:0;background:none;padding:0;font-size:13px;color:var(--accent);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+/* лента дней в дневнике */
+.jt{margin:-4px 0 16px}
+.jt-scroll{display:flex;align-items:stretch;gap:4px;overflow-x:auto;padding:4px 2px 8px;scrollbar-width:thin;scroll-snap-type:x proximity}
+.jt-mon{writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);padding:4px 2px;margin:0 2px 0 6px;flex:none}
+.jt-mon:first-child{margin-left:0}
+.jt-day{flex:none;width:44px;display:grid;justify-items:center;gap:3px;padding:7px 0 6px;border-radius:12px;color:var(--ink-2);text-decoration:none;border:1.5px solid transparent;scroll-snap-align:center}
+.jt-day:hover{background:var(--paper-2)}
+.jt-day small{font-size:11px;color:var(--ink-3)}
+.jt-day.we small{color:var(--bad)}
+.jt-day b{font:700 16px var(--f-body);color:var(--ink)}
+.jt-day.now{border-color:var(--rule-2)}
+.jt-day.on{background:var(--accent);border-color:var(--accent)}
+.jt-day.on small,.jt-day.on b{color:var(--accent-ink)}
+.jt-bar{width:22px;height:4px;border-radius:2px;background:var(--rule)}
+.jt-bar.r-good{background:var(--accent)}.jt-bar.r-some{background:color-mix(in srgb,var(--accent) 40%,var(--paper-2))}.jt-bar.r-empty{background:#B28B62}.jt-bar.r-fail{background:var(--bad)}.jt-bar.r-frozen{background:var(--cold)}.jt-bar.r-open{background:var(--rule-2)}
+.jt-day.on .jt-bar{box-shadow:0 0 0 1.5px var(--accent-ink)}
+.jt-meta{height:6px;display:flex;align-items:center}
+.jt-dot{width:5px;height:5px;border-radius:50%;background:var(--ink-3);display:inline-block}
+.jt-day.on .jt-dot{background:var(--accent-ink)}
+.jt-lgd{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--ink-3)}
+.jt-lgd span{display:flex;align-items:center;gap:6px}
+.jt-lgd .jt-bar{width:14px}

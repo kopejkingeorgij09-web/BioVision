@@ -52,11 +52,11 @@ B.views.journal = {
     const t = B.today(), date = /^\d{4}-\d\d-\d\d$/.test(arg || '') && arg <= t ? arg : t;
     const d = B.day(date), rv = d.review || {}, c = B.calc(), r = c.days[date];
     const top = (d.top || []).map(B.task).filter(Boolean);
-    const dates = Object.keys(c.days).filter(k => k <= t).sort().reverse().slice(0, 60);
     const res = r ? {good: 'разбор', some: 'без разбора', empty: 'пустой', open: 'идёт'}[r.result] : '';
     return `<div class="page journal-page">
       <header class="page-h"><div><div class="eyebrow">Дневник</div><h1>${date === t ? 'Сегодня' : B.WDF[B.wd(date)] + ', ' + B.fmt(date)}</h1></div>
         <div class="row"><a class="icon-btn" href="#/journal/${B.add(date, -1)}" aria-label="Предыдущий день">${icon('left')}</a>${date < t ? `<a class="icon-btn" href="#/journal/${B.add(date, 1)}" aria-label="Следующий день">${icon('right')}</a>` : ''}</div></header>
+      ${timeline(date, c)}
       <div class="cols">
         <div class="col">
           <section class="card">
@@ -82,15 +82,32 @@ B.views.journal = {
             <div class="notes">${(d.notes || []).slice().reverse().map(n => `<div class="bnote t"><p>${esc(n.t)}</p><span class="muted mono">${B.hm(n.at)}</span><button class="icon-btn sm" data-act="thDel" data-d="${date}" data-at="${n.at}">${icon('x')}</button></div>`).join('') || '<p class="muted">Мыслей за этот день нет.</p>'}</div>
           </section>
           ${pastCard(date)}
-          <section class="card">
-            <h2>${icon('cal')}Архив</h2>
-            <div class="jlist">${dates.map(k => { const x = c.days[k], dd = B.day(k); return `<a class="jrow ${k === date ? 'on' : ''}" href="#/journal/${k}"><i class="lgd ${x.result}"></i><span class="grow">${B.fmtW(k)}</span><span class="muted">${dd.review && dd.review.mood ? MOOD[dd.review.mood] : ''}</span>${(dd.notes || []).length ? `<span class="muted">${icon('quote')}${dd.notes.length}</span>` : ''}</a>`; }).join('')}</div>
-          </section>
         </div>
       </div>
     </div>`;
+  },
+  mount(){
+    // выбранный день в ленте сразу виден, лента прокручена к нему
+    const sel = B.$('.jt-day.on'), box = B.$('.jt-scroll');
+    if (sel && box) box.scrollLeft = sel.offsetLeft - box.clientWidth + sel.offsetWidth * 3;
   }
 };
+/* лента дней: от первого дня с записями (не дальше 120 дней назад) до сегодня; цвет полоски = итог дня,
+   точка = есть мысли; настроение видно во всплывающей подсказке */
+function timeline(date, c){
+  const t = B.today(), keys = Object.keys(c.days).concat(B.dayDates()).filter(k => k <= t).sort();
+  let from = keys[0] || t; const lim = B.add(t, -120), min = B.add(t, -13);
+  if (from < lim) from = lim; if (from > min) from = min; if (date < from) from = date;
+  let html = '', mon = -1;
+  for (let k = from; k <= t; k = B.add(k, 1)){
+    const p = B.parse(k), x = c.days[k], dd = B.day(k), rv = dd.review || {}, notes = (dd.notes || []).length;
+    if (p.getMonth() !== mon){ mon = p.getMonth(); html += `<span class="jt-mon">${B.MONF[mon]}</span>`; }
+    html += `<a class="jt-day ${k === date ? 'on' : ''} ${k === t ? 'now' : ''} ${B.wd(k) > 4 ? 'we' : ''}" href="#/journal/${k}" title="${B.fmtW(k)}${rv.mood ? ' · ' + MOOD[rv.mood] : ''}${notes ? ' · мыслей: ' + notes : ''}">
+      <small>${B.WD[B.wd(k)]}</small><b>${p.getDate()}</b><i class="jt-bar ${x ? 'r-' + x.result : ''}"></i><span class="jt-meta">${notes ? '<i class="jt-dot"></i>' : ''}</span></a>`;
+  }
+  return `<nav class="jt" aria-label="Дни дневника"><div class="jt-scroll">${html}</div>
+    <div class="jt-lgd"><span><i class="jt-bar r-good"></i>с разбором</span><span><i class="jt-bar r-some"></i>без разбора</span><span><i class="jt-bar r-empty"></i>пустой</span><span><i class="jt-dot"></i>есть мысли</span></div></nav>`;
+}
 /* «Месяц назад» и «Год назад»: что было в этот же день */
 function sameDay(date, months){
   const p = B.parse(date), d = new Date(p.getFullYear(), p.getMonth() - months, 1, 12);

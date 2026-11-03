@@ -204,6 +204,7 @@ function richBlock(c){
         <div class="rf-txt"><div class="rf-name">${c.trees ? B.fmtTrees(c.trees) : 'Поляна'} · ${SKIES[ph][2].toLowerCase()}</div>
           ${B.bar(c.frac, 'xp')}<div class="rf-sub">ещё ${B.num(Math.max(0, toTree))} XP, и дерево в центре станет взрослым${next ? ` · до вехи «${esc(next[1])}» ${next[0] - c.level} ${B.plural(next[0] - c.level, 'уровень', 'уровня', 'уровней')}` : ''}</div></div>
       </div>
+      ${B.music ? B.music.pill() : ''}
       ${idle >= 2 ? `<div class="rf-fog">Лес затянуло туманом: ${idle} ${B.plural(idle, 'день', 'дня', 'дней')} без дел. Одно сделанное дело, и он рассеется.</div>` : ''}
     </div>
     <div class="rf-feats">${open.map(x => `<span class="on">✓ ${esc(x[1])}</span>`).join('')}${soon.map(x => `<span>${icon('lock')}<b>ур. ${x[0]}</b> ${esc(x[1])}</span>`).join('')}</div>

@@ -2,12 +2,12 @@
 (function(){
 const {esc, icon} = B;
 const NAV = [
-  ['today', 'Сегодня', 'today'], ['tasks', 'Задачи', 'list'], ['cal', 'Календарь', 'cal'], ['habits', 'Привычки', 'habit'], ['journal', 'Дневник', 'pen'],
+  ['today', 'Сегодня', 'today'], ['tasks', 'Задачи', 'list'], ['habits', 'Привычки', 'habit'], ['journal', 'Дневник', 'pen'],
   ['read', 'Чтение', 'book'], ['forest', 'Лес', 'tree'], ['stats', 'Итоги', 'chart'],
   ['search', 'Поиск', 'search'], ['settings', 'Настройки', 'gear']
 ];
 const FOOT = ['search', 'settings'];
-const BOTTOM = ['today', 'journal', 'tasks', 'cal'];
+const BOTTOM = ['today', 'journal', 'tasks', 'habits'];
 
 /* ---------- тема ---------- */
 const LS_THEME = 'bamboo-theme';
@@ -58,6 +58,8 @@ function shared(){
 
 function route(){
   const h = (location.hash || '#/today').replace(/^#\/?/, '').split('/');
+  // раздела «Календарь» больше нет: месяц живёт в «Задачах», итоги дня в «Дневнике»; старые ссылки ведут туда
+  if (h[0] === 'cal'){ h.splice(0, 2, ...(/^\d{4}-\d\d-\d\d$/.test(h[1] || '') ? ['journal', h[1]] : ['tasks', 'month'])); history.replaceState(null, '', location.pathname + '#/' + h.join('/')); }
   const v = B.views[h[0]] ? h[0] : 'today';
   return {v, arg: h[1] ? decodeURIComponent(h[1]) : ''};
 }

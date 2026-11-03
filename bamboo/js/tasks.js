@@ -99,7 +99,13 @@ function row(t, o = {}){
     ${o.ghost ? '' : `<button class="pl-chk" data-act="toggleTask" data-id="${t.id}" aria-label="${t.done ? 'Вернуть' : 'Готово'}" title="${t.done ? 'Вернуть' : 'Готово'}">${icon('check')}</button>`}
   </div>`;
 }
-const shadRow = it => `<button class="pl-shad c-${it.p.c} ${B.shadStage(it.p.n) >= it.need ? 'ok' : ''}" data-act="shadOpen" data-n="${it.p.n}"><b>${it.kind === 'web' ? '' : 'ДЗ · '}${esc(it.p.code || '')}</b> ${esc(it.p.t)}</button>`;
+/* веб или ДЗ ШАДа в планере: открывается, отмечается галочкой и перетаскивается на другой день, как задача */
+const shadRow = it => { const ok = B.shadStage(it.p.n) >= it.need;
+  return `<div class="pl-shad c-${it.p.c} ${ok ? 'ok' : ''}" data-shn="${it.p.n}" data-kind="${it.kind}">
+    <button class="pl-open" data-act="shadOpen" data-n="${it.p.n}" title="${esc(it.p.t)}">${it.from ? `<span class="pl-time">${it.from}</span>` : ''}<b>${it.kind === 'web' ? '' : 'ДЗ · '}${esc(it.p.code || '')}</b> ${esc(it.p.t)}</button>
+    <button class="pl-chk" data-act="shadChk" data-n="${it.p.n}" data-need="${it.need}" aria-label="${ok ? 'Вернуть' : 'Готово'}" title="${it.kind === 'web' ? 'Веб посмотрен' : 'ДЗ решено'}">${icon('check')}</button>
+  </div>`; };
+B.acts.shadChk = el => { const n = +el.dataset.n, need = +el.dataset.need, s = B.shadStage(n); B.setShadStage(n, s >= need ? need - 1 : need); };
 
 function dayList(date, list, min, gh){
   const shad = S.cal === 'all' || S.cal === 'shad' ? B.shadOn(date) : [];
@@ -198,7 +204,7 @@ B.views.tasks = {
       });
       inp.addEventListener('blur', () => setTimeout(() => { if (!inp.isConnected) return; addFrom(inp, false); }, 120));
     }
-    B.$$('.pl-t[data-tid]').forEach(el => el.addEventListener('pointerdown', dragStart));
+    B.$$('.pl-t[data-tid],.pl-shad[data-shn]').forEach(el => el.addEventListener('pointerdown', dragStart));
   }
 };
 function addFrom(inp, again){
@@ -246,7 +252,7 @@ let drag = null, justDragged = 0;
 function dragStart(e){
   if (e.button !== 0 || e.target.closest('.pl-chk')) return;
   const el = e.currentTarget, touch = e.pointerType !== 'mouse';
-  const st = {el, id: el.dataset.tid, x0: e.clientX, y0: e.clientY, on: false, touch, timer: null};
+  const st = {el, id: el.dataset.tid, shn: +el.dataset.shn || 0, kind: el.dataset.kind, x0: e.clientX, y0: e.clientY, on: false, touch, timer: null};
   if (touch) st.timer = setTimeout(() => begin(st, e.clientX, e.clientY), 380);
   const move = ev => {
     if (!st.on){
@@ -292,12 +298,28 @@ function over(st, x, y){
 function drop(st){
   justDragged = Date.now();
   if (!st.target) return;
+  if (st.shn){ if (st.target.date) moveShad(st.shn, st.kind, st.target.date); return; }
   const t = B.task(st.id); if (!t) return;
   const to = st.target.date || '';
   const ids = (to ? onDate(to) : someday()).map(x => x.id).filter(i => i !== t.id);
   const at = st.target.before ? ids.indexOf(st.target.before) : -1;
   ids.splice(at < 0 ? ids.length : at, 0, t.id);
   moveTask(t, to, ids);
+}
+/* перенос веба (вместе с ним сдвигается срок ДЗ) или только срока ДЗ */
+function moveShad(n, kind, to){
+  const p = B.shad.plan.find(x => x.n === n); if (!p) return;
+  if (kind === 'web'){
+    if (p.w.date === to) return;
+    const k = B.diff(p.w.date, to), patch = {w: {date: to}};
+    if (p.h && p.h.date) patch.h = {date: B.add(p.h.date, k)};
+    B.setShadOver(n, patch);
+    B.toast(`${esc(p.code || 'Веб')} перенесён на ${B.fmtW(to)}${patch.h ? `, ДЗ до ${B.fmtW(patch.h.date)}` : ''}`);
+  } else {
+    if (p.h.date === to) return;
+    B.setShadOver(n, {h: {date: to}});
+    B.toast(`ДЗ ${esc(p.code || '')}: до ${B.fmtW(to)}`);
+  }
 }
 /* перенос с записью в историю: дело, переехавшее на более поздний день, считается переносом (без штрафа) */
 function moveTask(t, to, order){
@@ -310,7 +332,7 @@ function moveTask(t, to, order){
   else B.updTask(t.id, {ord: (to ? onDate(to) : someday()).reduce((m, x) => Math.max(m, x.ord ?? 0), 0) + 10}, true);
   B.changed();
 }
-document.addEventListener('click', e => { if (Date.now() - justDragged < 350 && e.target.closest('.pl-t')){ e.stopPropagation(); e.preventDefault(); } }, true);
+document.addEventListener('click', e => { if (Date.now() - justDragged < 350 && e.target.closest('.pl-t,.pl-shad')){ e.stopPropagation(); e.preventDefault(); } }, true);
 
 /* ---------- карточка задачи ---------- */
 let pop = '', wide = false;

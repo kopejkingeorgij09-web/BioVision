@@ -900,10 +900,16 @@ mark{background:var(--gold-soft);color:inherit;border-radius:3px;padding:0 1px}
 .pl-mark{height:3px;border-radius:2px;background:var(--accent);margin:-1.5px 0}
 .pl-add{display:flex;align-items:center}
 .pl-in{width:100%;border:0!important;background:transparent!important;padding:8px 2px!important;font-size:14.5px;outline:none;box-shadow:none!important}
-.pl-shad{display:block;width:100%;text-align:left;background:none;border-top:0;border-left:0;border-right:0;padding:9px 2px 9px 10px;font-size:13.5px;color:var(--ink-2);position:relative;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl-shad{display:flex;align-items:center;gap:4px;width:100%;padding:0 0 0 10px;color:var(--ink-2);position:relative;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+.pl-shad .pl-open{display:block;font-size:13.5px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:9px 2px}
+.pl-shad .pl-time{margin-right:5px}
+.pl-shad:hover .pl-chk{opacity:1}
+.pl-shad.ok .pl-chk{opacity:1;background:currentColor;border-color:currentColor}
+.pl-shad.ok .pl-chk .ic{color:var(--sheet)}
+.pl-shad.dragging{opacity:.3}
 .pl-shad::before{content:"";position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:2px;background:currentColor}
 .pl-shad b{color:currentColor;font-weight:600}
-.pl-shad.ok{text-decoration:line-through;opacity:.6}
+.pl-shad.ok .pl-open{text-decoration:line-through;opacity:.6}
 .pl-some{margin-top:10px}
 .pl-some h2{font:800 22px var(--f-body);color:var(--rule-2);margin:0 0 6px;letter-spacing:-.01em}
 .pl-somebox .pl-list{grid-auto-flow:row}
@@ -923,7 +929,8 @@ mark{background:var(--gold-soft);color:inherit;border-radius:3px;padding:0 1px}
 .pl-mc .pl-t,.pl-mc .pl-shad{min-height:24px;border-bottom:0}
 .pl-mc .pl-open{font-size:12.5px;padding:2px 0}
 .pl-mc .pl-chk,.pl-mc .pl-ic{display:none}
-.pl-mc .pl-shad{padding:3px 0 3px 7px;font-size:12px}
+.pl-mc .pl-shad{padding:0 0 0 7px}
+.pl-mc .pl-shad .pl-open{font-size:12px;padding:3px 0}
 .pl-mc .pl-shad::before{top:4px;bottom:4px}
 .pl-more{border:0;background:none;text-align:left;font-size:12px;color:var(--ink-3);padding:2px 0}
 @media (max-width:699px){
@@ -1069,3 +1076,6 @@ mark{background:var(--gold-soft);color:inherit;border-radius:3px;padding:0 1px}
 }
 @media (max-width:959px){.today-stat{display:none}}
 .toast-btn{margin-left:10px;border:0;background:none;color:#9BE0A8;font-weight:600;padding:0;text-decoration:underline}
+.sp-edit{display:grid;gap:10px;margin:4px 0 12px;padding:10px 12px;border:1px solid var(--rule);border-radius:12px}
+.sp-edit summary{cursor:pointer;display:flex;align-items:center;gap:8px;font-weight:500;color:var(--ink-2)}
+.sp-edit[open] summary{margin-bottom:8px}

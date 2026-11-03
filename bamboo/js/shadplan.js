@@ -39,7 +39,7 @@ function row(p){
 }
 
 B.shadPlanView = () => {
-  const plan = B.shad.plan.filter(p => p.w && p.w.date);
+  const plan = B.shad.plan.filter(p => p.w && p.w.date).slice().sort((a, b) => a.w.date.localeCompare(b.w.date) || a.n - b.n);
   if (!plan.length) return `<section class="card sp"><h2>${icon('chart')}План ШАДа</h2><p class="muted">План ещё не загрузился. Он берётся из трекера ШАДа, нужен интернет при первом открытии.</p></section>`;
   const done = plan.filter(p => B.shadStage(p.n) >= 4).length, lateN = plan.filter(p => lateOf(p)).length;
   const t = B.today(), next = plan.find(p => B.shadStage(p.n) < 4);
@@ -89,9 +89,32 @@ function sheetHTML(n){
     <p class="muted">Веб: ${B.fmtW(p.w.date)}${p.w.from ? ' · ' + p.w.from + '–' + p.w.to : ''}${late === 'веб' ? ' · <b class="neg">отстаю</b>' : ''}<br>ДЗ: до ${p.h ? B.fmtW(p.h.date) : '—'}${late === 'ДЗ' ? ' · <b class="neg">отстаю</b>' : ''}</p>
     <div class="sp-opts">${B.SHAD_STAGES.map((l, i) => `<button class="sp-opt ${s === i ? 'on' : ''}" data-act="shadPick" data-n="${n}" data-s="${i}"><i>${i === 4 ? '✓' : i}</i><span><b>${l}</b><small>${DESC[i]}</small></span></button>`).join('')}</div>
     ${note ? `<p class="hint">Заметка: ${esc(note)}</p>` : ''}
+    <details class="sp-edit" ${editOpen ? 'open' : ''}><summary>${icon('pen')} Изменить название и даты${p.edited ? ' <span class="tag">изменено</span>' : ''}</summary>
+      <label class="field">Название<input value="${esc(p.t)}" data-in="shEd" data-n="${n}" data-k="t"></label>
+      <div class="ed-grid">
+        <label>Веб<input type="date" value="${p.w.date || ''}" data-in="shEd" data-n="${n}" data-k="wd"></label>
+        <label>С<input type="time" value="${p.w.from || ''}" data-in="shEd" data-n="${n}" data-k="wf"></label>
+        <label>До<input type="time" value="${p.w.to || ''}" data-in="shEd" data-n="${n}" data-k="wt"></label>
+        <label>ДЗ до<input type="date" value="${p.h ? p.h.date || '' : ''}" data-in="shEd" data-n="${n}" data-k="hd"></label>
+      </div>
+      <p class="hint">Перенести можно и мышью: перетащи веб на другой день в «Неделе» или «Месяце». Срок ДЗ едет вместе с вебом. Изменения видны и в трекере ШАДа.</p>
+      ${p.edited ? `<button class="btn sm ghost" data-act="shReset" data-n="${n}">Вернуть как в плане</button>` : ''}
+    </details>
     <div class="row between">${B.shad.lms ? `<a class="btn ghost" href="${esc(B.shad.lms)}" target="_blank" rel="noopener">Платформа ↗</a>` : '<span></span>'}<button class="btn primary" data-act="closeSheet">Готово</button></div>`;
 }
-B.acts.shadOpen = el => B.sheet(sheetHTML(+el.dataset.n));
+let editOpen = false;
+B.acts.shadOpen = el => { editOpen = false; B.sheet(sheetHTML(+el.dataset.n)); };
+B.inputs.shEd = (el, e) => {
+  if (e.type !== 'change') return;
+  const n = +el.dataset.n, k = el.dataset.k, v = el.value, p = B.shad.plan.find(x => x.n === n); if (!p) return;
+  if (k === 't'){ if (!v.trim()) return; B.setShadOver(n, {t: v}); }
+  else if (k === 'wd'){ if (!v) return; const patch = {w: {date: v}}; if (p.h && p.h.date) patch.h = {date: B.add(p.h.date, B.diff(p.w.date, v))}; B.setShadOver(n, patch); }
+  else if (k === 'wf') B.setShadOver(n, {w: {from: v}});
+  else if (k === 'wt') B.setShadOver(n, {w: {to: v}});
+  else if (k === 'hd'){ if (!v) return; B.setShadOver(n, {h: {date: v}}); }
+  editOpen = true; B.sheet(sheetHTML(n));
+};
+B.acts.shReset = el => { const n = +el.dataset.n; B.setShadOver(n, null); editOpen = true; B.sheet(sheetHTML(n)); B.toast('Веб снова как в плане'); };
 B.acts.shadPick = el => {
   const n = +el.dataset.n, s = +el.dataset.s, cur = B.shadStage(n);
   B.setShadStage(n, s); void cur;

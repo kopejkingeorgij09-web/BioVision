@@ -498,6 +498,27 @@ B.acts.taskDel = async el => {
   const t = B.task(id); if (!t || t.deleted) B.list('f_').filter(f => f.task === id).forEach(f => B.put('f_' + f.id, null, true));
   B.changed();
 };
+/* наведи курсор на задачу и нажми Delete (на Mac клавиша delete = Backspace): удаляется сразу, в подсказке можно вернуть.
+   Вложения стираются, только когда подсказка ушла и задачу не вернули. */
+let hoverId = null, undoFn = null, undoT = 0;
+document.addEventListener('mouseover', e => { const r = e.target.closest('[data-tid]'); hoverId = r && !r.closest('.sheet,.dlg') ? r.dataset.tid : null; });
+document.addEventListener('mouseleave', () => { hoverId = null; });
+document.addEventListener('keydown', e => {
+  if ((e.key !== 'Delete' && e.key !== 'Backspace') || !hoverId || e.metaKey || e.ctrlKey || e.altKey) return;
+  const a = document.activeElement;
+  if (a && (a.matches('input,textarea,select') || a.isContentEditable)) return;
+  if (B.sheetOpen() || !B.$('#dlgScrim').hidden) return;
+  const id = hoverId, t = B.task(id); if (!t || t.deleted) return;
+  e.preventDefault();
+  const undo = B.delTask(id); if (!undo) return;
+  hoverId = null;
+  if (undoFn) undoFn.commit();
+  const commit = () => { B.list('f_').filter(f => f.task === id).forEach(f => B.put('f_' + f.id, null, true)); };
+  undoFn = {undo, commit}; clearTimeout(undoT);
+  undoT = setTimeout(() => { if (undoFn && undoFn.commit === commit){ commit(); undoFn = null; } }, 6000);
+  B.toast(`Удалено: ${B.esc(t.title || 'без названия')} <button class="toast-btn" data-act="undoDel">Вернуть</button>`, 6000);
+});
+B.acts.undoDel = () => { if (!undoFn) return; clearTimeout(undoT); undoFn.undo(); undoFn = null; B.toast('Задача вернулась', 1400); };
 /* закрытие карточки: пустую задачу без названия не держим */
 B.acts.edDone = el => { const t = B.task(el.dataset.id); if (!t) return; const before = B.calc().total; B.setDone(t, !t.done); const gain = B.calc().total - before; if (!t.done && gain > 0) B.toast(`<b class="pos">Готово</b> · <b class="pos">+${gain} XP</b>`); B.openTask(t.id, true); };
 

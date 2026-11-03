@@ -1068,3 +1068,4 @@ mark{background:var(--gold-soft);color:inherit;border-radius:3px;padding:0 1px}
   .sp-tape{grid-template-columns:repeat(11,1fr);gap:4px}
 }
 @media (max-width:959px){.today-stat{display:none}}
+.toast-btn{margin-left:10px;border:0;background:none;color:#9BE0A8;font-weight:600;padding:0;text-decoration:underline}

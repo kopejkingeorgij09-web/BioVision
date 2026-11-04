@@ -16,11 +16,20 @@ const KEYS = [
     ['W  ·  M  ·  S', 'Неделя, Месяц, ШАД'],
     ['N', 'Новая задача на сегодня']
   ]],
-  ['Курсор на задаче', [
+  ['Выбранная задача (стрелками или курсором)', [
+    ['↑  ·  ↓', 'Выбрать задачу выше или ниже, Esc снимает выбор'],
     ['Пробел', 'Отметить сделанной или снять отметку'],
     ['Enter', 'Открыть карточку'],
+    ['⌥ ↑  ·  ⌥ ↓', 'Поднять или опустить внутри дня'],
     ['⇧ ←  ·  ⇧ →', 'Перенести на день раньше или позже'],
     ['Delete', 'Удалить (в подсказке можно вернуть)']
+  ]],
+  ['Карточка задачи', [
+    ['⌘ Enter', 'Сохранить и закрыть'],
+    ['D', 'Выбрать срок'],
+    ['C', 'Цвет'],
+    ['K', 'Календарь'],
+    ['1 … 9', 'Когда открыт цвет или календарь: выбрать по номеру']
   ]]
 ];
 const SECTIONS = ['today', 'tasks', 'habits', 'journal', 'read', 'forest'];
@@ -51,19 +60,43 @@ document.addEventListener('keyup', e => {
 }, true);
 addEventListener('blur', () => { combo = false; });
 
+/* карточка задачи: ⌘Enter закрывает (всё и так сохраняется на лету), D срок, C цвет, K календарь, цифры выбирают в открытой панели */
 document.addEventListener('keydown', e => {
+  const tw = B.sheetOpen() && B.$('.sheet .tw[data-tid]'); if (!tw) return;
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)){ e.preventDefault(); e.stopPropagation(); if (document.activeElement) document.activeElement.blur(); B.closeSheet(); return; }
+  if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || typing() || e.repeat) return;
+  const c = e.code;
+  if (c === 'KeyD'){ e.preventDefault(); const i = tw.querySelector('input[data-in=twDue]'); if (i){ try { i.showPicker(); } catch (er) { i.focus(); i.click(); } } return; }
+  if (c === 'KeyC' || c === 'KeyK'){ e.preventDefault(); B.twToggle(c === 'KeyC' ? 'color' : 'cal'); return; }
+  const m = /^Digit([1-9])$/.exec(c), p = B.twPopNow();
+  if (m && (p === 'cal' || p === 'color')){
+    const opts = [...tw.querySelectorAll(p === 'cal' ? '[data-act=twProj]' : '.tw-colors button[data-act=twColor]')];
+    const el = opts[+m[1] - 1]; if (el){ e.preventDefault(); B.acts[el.dataset.act](el); }
+  }
+}, true);
+
+document.addEventListener('keydown', e => {
+  /* ⌥↑ ⌥↓ в планере: задача едет вверх или вниз внутри дня */
+  if (e.altKey && !e.metaKey && !e.ctrlKey && !e.shiftKey && (e.code === 'ArrowUp' || e.code === 'ArrowDown') && route() === 'tasks' && B.pl && !typing() && !modal()){
+    const id = B.pl.target(), t = id && B.task(id);
+    if (t && !t.deleted){ e.preventDefault(); if (!B.pl.reorder(t, e.code === 'ArrowUp' ? -1 : 1)) B.toast(e.code === 'ArrowUp' ? 'Уже первая в дне' : 'Уже последняя в дне', 900); }
+    return;
+  }
   if (e.metaKey || e.ctrlKey || e.altKey || e.repeat && !e.code.startsWith('Arrow')) return;
   if (e.defaultPrevented || typing()) return;
   const c = e.code, v = route();
   if (e.key === 'Escape'){
-    if (!modal() && v === 'tasks' && B.plWide){ e.preventDefault(); B.acts.plFull(); }
+    if (modal() || v !== 'tasks' || !B.pl) return;
+    if (B.pl.clearSel()) e.preventDefault();
+    else if (B.plWide){ e.preventDefault(); B.acts.plFull(); }
     return;
   }
   if (modal()) return;
   if (c === 'Slash'){ e.preventDefault(); if (e.shiftKey) B.acts.keysHelp(); else location.hash = '#/search'; return; }
   if (/^Digit[1-6]$/.test(c) && !e.shiftKey){ e.preventDefault(); location.hash = '#/' + SECTIONS[+c.slice(5) - 1]; return; }
   if (v !== 'tasks' || !B.pl) return;
-  const t = B.pl.hover() && B.task(B.pl.hover());
+  if (!e.shiftKey && (c === 'ArrowUp' || c === 'ArrowDown')){ if (B.pl.view() === 'shad') return; e.preventDefault(); B.pl.step(c === 'ArrowUp' ? -1 : 1); return; }
+  const t = B.pl.target() && B.task(B.pl.target());
   if (t && !t.deleted){
     if (c === 'Space'){ e.preventDefault(); const before = B.calc().total; B.setDone(t, !t.done); const gain = B.calc().total - before; B.toast(!t.done && gain > 0 ? `<b class="pos">Готово</b> · <b class="pos">+${gain} XP</b>` : t.done ? 'Отметка снята' : 'Готово', 1200); return; }
     if (c === 'Enter'){ e.preventDefault(); B.openTask(t.id); return; }

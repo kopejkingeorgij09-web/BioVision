@@ -1330,3 +1330,13 @@ a.rf-mt:hover b{text-decoration:underline}
 .jr-tabs a:hover{text-decoration:none;color:var(--ink)}
 .jr-tabs a.on{background:var(--sheet);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .jr-tabs a .ic{width:15px;height:15px}
+
+/* ---------- планер во весь экран (только компьютер) ---------- */
+.pl-full{display:none}
+@media (min-width:960px){
+  .pl-full{display:inline-flex}
+  .pl-full.on{background:var(--paper-2);color:var(--ink)}
+  body.pl-wide .side{display:none}
+  body.pl-wide main{margin-left:0}
+  body.pl-wide .page.planner{max-width:none;padding-left:20px;padding-right:20px}
+}

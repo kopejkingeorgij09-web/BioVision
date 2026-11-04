@@ -234,6 +234,7 @@ B.views.tasks = {
           ${viewToggle()}
           <div class="pl-fs" role="group" aria-label="Размер текста"><button data-act="plFs" data-k="-1" title="Текст мельче" ${fsI === 0 ? 'disabled' : ''}>A</button><button data-act="plFs" data-k="1" title="Текст крупнее" ${fsI === FS.length - 1 ? 'disabled' : ''}>A</button></div>
           <a class="icon-btn" href="#/search" title="Поиск" aria-label="Поиск">${icon('search')}</a>
+          <button class="icon-btn pl-full ${B.plWide ? 'on' : ''}" data-act="plFull" title="${B.plWide ? 'Показать меню' : 'Во весь экран: спрятать меню'}" aria-label="${B.plWide ? 'Показать меню' : 'Во весь экран'}" aria-pressed="${B.plWide}">${icon(B.plWide ? 'shrink' : 'expand')}</button>
           ${isNow ? '' : `<button class="btn sm ghost" data-act="plToday">Сегодня</button>`}
           <button class="icon-btn dark" data-act="plShift" data-k="-1" aria-label="Назад">${icon('left')}</button>
           <button class="icon-btn dark" data-act="plShift" data-k="1" aria-label="Вперёд">${icon('right')}</button>
@@ -271,6 +272,10 @@ function addFrom(inp, again){
   if (adding != null){ const i = B.$('.pl-in'); if (i) i.focus({preventScroll: true}); }
 }
 B.acts.plAdd = el => { adding = el.dataset.d; B.render(true); };
+/* полноэкранный планер на компьютере: левое меню прячется, неделя и месяц занимают всю ширину */
+const LS_FULL = 'bamboo-planner-full';
+try { B.plWide = localStorage.getItem(LS_FULL) === '1'; } catch (e) { B.plWide = false; }
+B.acts.plFull = () => { B.plWide = !B.plWide; try { localStorage.setItem(LS_FULL, B.plWide ? '1' : '0'); } catch (e) {} B.render(true); };
 /* размер текста только в планере (неделя и месяц), страница не масштабируется */
 const FS = [0.85, 0.92, 1, 1.1, 1.22, 1.36, 1.5], LS_FS = 'bamboo-planner-fs';
 let fsI = 2; try { const v = +localStorage.getItem(LS_FS); if (FS.includes(v)) fsI = FS.indexOf(v); } catch (e) {}

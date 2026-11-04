@@ -257,6 +257,7 @@ B.views.tasks = {
       inp.addEventListener('blur', () => setTimeout(() => { if (!inp.isConnected) return; addFrom(inp, false); }, 120));
     }
     B.$$('.pl-t[data-tid],.pl-shad[data-shn]').forEach(el => el.addEventListener('pointerdown', dragStart));
+    if (sel) paintSel();
   }
 };
 function addFrom(inp, again){
@@ -555,6 +556,9 @@ function fileChip(f){
   if ((f.type || '').startsWith('image/')) return `<div class="tw-file img"><a href="${f.data}" download="${esc(f.name)}" title="${esc(f.name)}"><img src="${f.data}" alt="${esc(f.name)}"></a>${x}</div>`;
   return `<div class="tw-file">${icon('clip')}<a href="${f.data}" download="${esc(f.name)}">${esc(f.name)}</a><span class="muted">${Math.round((f.size || 0) / 1024)} КБ</span>${x}</div>`;
 }
+/* для keys.js: открыть или закрыть панель карточки (cal, color) и id открытой карточки */
+B.twToggle = p => { const tw = B.$('.sheet .tw[data-tid]'); if (!tw) return false; pop = pop === p ? '' : p; B.openTask(tw.dataset.tid, true); return true; };
+B.twPopNow = () => pop;
 B.acts.twPop = el => { pop = pop === el.dataset.p ? '' : el.dataset.p; B.openTask(el.dataset.id, true); };
 B.acts.twWide = el => { wide = !wide; B.openTask(el.dataset.id, true); };
 B.acts.twPri = el => { B.updTask(el.dataset.id, {pri: +el.dataset.p}, true); B.openTask(el.dataset.id, true); };
@@ -657,14 +661,19 @@ B.acts.taskDel = async el => {
 /* наведи курсор на задачу и нажми Delete (на Mac клавиша delete = Backspace): удаляется сразу, в подсказке можно вернуть.
    Вложения стираются, только когда подсказка ушла и задачу не вернули. */
 let hoverId = null, undoFn = null, undoT = 0;
+/* задача, выбранная стрелками ↑ ↓ (рамка .pl-sel); клавиши действуют на неё, а без выбора на задачу под курсором */
+let sel = null;
+const target = () => (sel && B.task(sel) ? sel : hoverId);
+document.addEventListener('pointerdown', e => { if (sel && !e.target.closest('.sheet,.dlg,#scrim')){ sel = null; B.$$('.pl-sel').forEach(x => x.classList.remove('pl-sel')); } }, true);
 document.addEventListener('mouseover', e => { const r = e.target.closest('[data-tid]'); hoverId = r && !r.closest('.sheet,.dlg') ? r.dataset.tid : null; });
 document.addEventListener('mouseleave', () => { hoverId = null; });
 document.addEventListener('keydown', e => {
-  if ((e.key !== 'Delete' && e.key !== 'Backspace') || !hoverId || e.metaKey || e.ctrlKey || e.altKey) return;
+  if ((e.key !== 'Delete' && e.key !== 'Backspace') || !target() || e.metaKey || e.ctrlKey || e.altKey) return;
   const a = document.activeElement;
   if (a && (a.matches('input,textarea,select') || a.isContentEditable)) return;
   if (B.sheetOpen() || !B.$('#dlgScrim').hidden) return;
-  const id = hoverId, t = B.task(id); if (!t || t.deleted) return;
+  const id = target(), t = B.task(id); if (!t || t.deleted) return;
+  if (sel === id){ const rows = selRows(), i = rows.indexOf(id); sel = rows[i + 1] || rows[i - 1] || null; }
   e.preventDefault();
   const undo = B.delTask(id); if (!undo) return;
   hoverId = null;
@@ -675,7 +684,31 @@ document.addEventListener('keydown', e => {
   B.toast(`Удалено: ${B.esc(t.title || 'без названия')} <button class="toast-btn" data-act="undoDel">Вернуть</button>`, 6000);
 });
 /* для клавиш в keys.js: какая задача под курсором, перенос, текущий вид */
-B.pl = {hover: () => hoverId, move: (t, to) => moveTask(t, to), view: () => S.view};
+const selRows = () => B.$$('.planner .pl-t[data-tid]:not(.ghost)').map(r => r.dataset.tid);
+function paintSel(scroll){
+  B.$$('.pl-sel').forEach(x => x.classList.remove('pl-sel'));
+  const r = sel && B.$(`.planner .pl-t[data-tid="${sel}"]`);
+  if (r){ r.classList.add('pl-sel'); if (scroll) r.scrollIntoView({block: 'nearest'}); }
+}
+B.pl = {
+  target, view: () => S.view, move: (t, to) => moveTask(t, to),
+  sel: () => sel, clearSel: () => { const had = !!sel; sel = null; paintSel(); return had; },
+  /* ↑ ↓: соседняя задача по порядку на странице; без выбора начинаем с задачи под курсором или с первой задачи сегодня */
+  step(k){
+    const rows = selRows(); if (!rows.length) return;
+    let i = rows.indexOf(sel || hoverId);
+    if (i < 0){ const today = B.$(`.planner .pl-list[data-d="${B.today()}"] .pl-t[data-tid]:not(.ghost)`); i = today ? rows.indexOf(today.dataset.tid) : 0; sel = rows[Math.max(0, i)]; }
+    else sel = rows[B.clamp(i + k, 0, rows.length - 1)];
+    paintSel(true);
+  },
+  /* ⌥↑ ⌥↓: поднять или опустить задачу внутри её дня */
+  reorder(t, k){
+    const due = t.due || '', ids = (due ? onDate(due) : someday()).map(x => x.id), i = ids.indexOf(t.id), j = i + k;
+    if (i < 0 || j < 0 || j >= ids.length) return false;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    moveTask(t, due, ids); return true;
+  }
+};
 B.acts.undoDel = () => { if (!undoFn) return; clearTimeout(undoT); undoFn.undo(); undoFn = null; B.toast('Задача вернулась', 1400); };
 /* закрытие карточки: пустую задачу без названия не держим */
 B.acts.edDone = el => { const t = B.task(el.dataset.id); if (!t) return; const before = B.calc().total; B.setDone(t, !t.done); const gain = B.calc().total - before; if (!t.done && gain > 0) B.toast(`<b class="pos">Готово</b> · <b class="pos">+${gain} XP</b>`); B.openTask(t.id, true); };

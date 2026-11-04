@@ -301,11 +301,87 @@ B.shadLate = () => {
 };
 
 /* ---------- подключение ---------- */
-/* публичная версия: задачи живут только в этом браузере, облака нет (вход по коду можно добавить позже) */
+/* ---------- синхронизация по коду ----------
+   Отдельный проект Supabase «nedelya», функции wk_check, wk_pull, wk_push (week/sync.sql). Ключ публичный,
+   права проверяются на сервере: записи лежат под хешем кода, сам код на сервере не хранится.
+   Код придумывает пользователь (от 8 символов) и хранит только у себя. Вложения (f_…) в облако не уходят. */
+const SB = 'https://crwxdjlucycsfbdarsvp.supabase.co/rest/v1/rpc/', SB_KEY = 'sb_publishable_ke-vcjjf4F9IoaV5_VXenw_HYp4MPMZ';
+const LS_CODE = 'week-code', LS_SINCE = 'week-since';
+let code = '', since = 0;
+try { code = localStorage.getItem(LS_CODE) || ''; since = +localStorage.getItem(LS_SINCE) || 0; } catch (e) {}
+async function rpc(fn, body){
+  const r = await fetch(SB + fn, {method: 'POST', headers: {apikey: SB_KEY, 'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  const j = await r.json().catch(() => null);
+  if (!r.ok) throw new Error((j && j.message) || 'Сервер не ответил');
+  return j;
+}
+const local = id => id.startsWith('f_');
+async function pushItems(items){
+  items = items.filter(x => !local(x.id));
+  for (let i = 0; i < items.length; i += 300) await rpc('wk_push', {code, items: items.slice(i, i + 300)});
+}
+const adapter = {doc: path => { const id = path.split('/')[1]; return {
+  set: data => local(id) ? Promise.resolve() : pushItems([{id, data}]),
+  delete: () => local(id) ? Promise.resolve() : pushItems([{id, data: null}])
+}; }};
+async function pull(){
+  if (!code) return;
+  let rows;
+  try { rows = await rpc('wk_pull', {code, since}); }
+  catch (e) { setSync('error', navigator.onLine ? 'Облако не ответило, копия на устройстве' : 'Нет интернета, копия на устройстве'); return; }
+  let ch = false;
+  for (const r of rows){
+    since = Math.max(since, +r.at || 0);
+    if (dirty[r.id]) continue;
+    if (r.data == null){ if (r.id in docs){ delete docs[r.id]; ch = true; } }
+    else if (JSON.stringify(docs[r.id]) !== JSON.stringify(r.data)){ docs[r.id] = r.data; ch = true; }
+  }
+  try { localStorage.setItem(LS_SINCE, since); } catch (e) {}
+  if (!Object.keys(dirty).length) setSync('cloud', 'Синхронизировано по коду');
+  if (ch){ lsSave(); changed(); }
+  if (rows.length >= 5000) pull();
+}
+let pullT = 0;
+function startSync(){
+  db = adapter; B.cloud = true;
+  setSync('cloud', 'Синхронизирую…');
+  pull().then(flushAll);
+  clearInterval(pullT); pullT = setInterval(pull, 30000);
+  addEventListener('focus', pull);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) pull(); });
+}
+B.syncCode = () => code;
+/* вход: если под кодом уже есть записи, облако главнее, а задачи с этого устройства добавляются к ним */
+B.syncLogin = async c => {
+  c = String(c || '').trim();
+  if (c.length < 8) throw new Error('Код должен быть не короче 8 символов');
+  const prev = code; code = c;
+  let n;
+  try { n = (await rpc('wk_check', {code})).docs; } catch (e) { code = prev; throw e; }
+  return {n, go: async () => {
+    if (n){
+      for (const id of Object.keys(docs)) if (docs[id] && docs[id]._seed) delete docs[id];
+      dirty = {}; since = 0;
+      const rows = await rpc('wk_pull', {code, since: 0}), remote = new Set();
+      for (const r of rows){ remote.add(r.id); since = Math.max(since, +r.at || 0); if (r.data == null) delete docs[r.id]; else docs[r.id] = r.data; }
+      await pushItems(Object.keys(docs).filter(id => !remote.has(id)).map(id => ({id, data: docs[id]})));
+    } else {
+      await pushItems(Object.keys(docs).map(id => ({id, data: docs[id]})));
+      since = 0; dirty = {};
+    }
+    try { localStorage.setItem(LS_CODE, code); localStorage.setItem(LS_SINCE, since); } catch (e) {}
+    lsSave(); changed(); startSync();
+  }, cancel: () => { code = prev; }};
+};
+B.syncLogout = () => {
+  code = ''; db = null; B.cloud = false; clearInterval(pullT);
+  try { localStorage.removeItem(LS_CODE); localStorage.removeItem(LS_SINCE); } catch (e) {}
+  setSync('local', 'Хранится на этом устройстве'); changed();
+};
 B.connect = async () => {
-  B.cloud = false;
   if (!docs.cfg) seed();
-  setSync('local', 'Хранится на этом устройстве');
+  if (code) startSync();
+  else { B.cloud = false; setSync('local', 'Хранится на этом устройстве'); }
   changed();
 };
 B.exportAll = () => ({app: 'week', at: new Date().toISOString(), docs});

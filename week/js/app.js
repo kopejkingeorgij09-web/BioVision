@@ -122,8 +122,15 @@ B.views.settings = {
             <p class="hint">Быстро сменить тему можно кнопкой ${isDark() ? 'с солнцем' : 'с луной'} в шапке на телефоне или кружками внизу боковой панели на компьютере.</p>
           </section>
           <section class="card">
-            <h2>${icon('key')}Где хранятся задачи</h2>
-            <p class="muted">Только в этом браузере на этом устройстве. Никуда не отправляются, регистрация не нужна. Чтобы перенести задачи на другое устройство или не потерять их при очистке браузера, скачай резервную копию.</p>
+            <h2>${icon('cloud')}Синхронизация по коду</h2>
+            <p><span class="sync ${B.sync.mode}"><i></i>${esc(B.sync.text)}</span></p>
+            ${B.cloud ? `<p class="muted">Задачи синхронизируются между всеми устройствами, где введён этот код. Запиши его: восстановить код нельзя.</p>
+              <div class="add-line"><input id="myCode" type="password" value="${esc(B.syncCode())}" readonly><button class="btn ghost" data-act="codeShow">Показать</button><button class="btn ghost" data-act="codeCopy">Копировать</button></div>
+              <button class="btn ghost" data-act="syncOut">${icon('out')} Выйти на этом устройстве</button>`
+            : `<p class="muted">Сейчас задачи лежат только в этом браузере. Придумай код от 8 символов, лучше фразу из нескольких слов, и введи его на всех своих устройствах. Если код новый, задачи отсюда станут первыми в облаке. Если код уже есть, задачи с этого устройства добавятся к облачным.</p>
+              <div class="add-line"><input id="code" type="password" autocomplete="off" spellcheck="false" placeholder="например, синий кит ест кашу" data-enter="syncIn"><button class="btn primary" data-act="syncIn">${icon('key')} Войти</button></div>
+              <p class="hint" id="loginMsg" aria-live="polite"></p>
+              <p class="hint">Код никто, кроме тебя, не знает: на сервере хранится только его отпечаток. Вложения (файлы и фото) остаются на устройстве.</p>`}
           </section>
         </div>
         <div class="col">
@@ -145,6 +152,21 @@ B.views.settings = {
       </div>
     </div>`;
   }
+};
+B.acts.syncIn = async () => {
+  const msg = B.$('#loginMsg'), v = B.$('#code').value; msg.textContent = 'Проверяю код…';
+  try {
+    const r = await B.syncLogin(v);
+    const ok = await B.confirm(r.n ? `Под этим кодом уже есть ${r.n} записей. Подключиться? Задачи с этого устройства добавятся к ним.` : 'Код новый. Создать синхронизацию? Запомни код: восстановить его нельзя.', r.n ? 'Подключиться' : 'Создать');
+    if (!ok){ r.cancel(); msg.textContent = ''; return; }
+    msg.textContent = 'Синхронизирую…'; await r.go(); B.toast('Синхронизация включена'); B.render(true);
+  } catch (e) { msg.textContent = e.message; }
+};
+B.acts.codeShow = () => { const i = B.$('#myCode'); if (i) i.type = i.type === 'password' ? 'text' : 'password'; };
+B.acts.codeCopy = async () => { try { await navigator.clipboard.writeText(B.syncCode()); B.toast('Код скопирован', 1200); } catch (e) { B.toast('Не вышло скопировать', 1200); } };
+B.acts.syncOut = async () => {
+  if (!(await B.confirm('Выйти на этом устройстве? Задачи останутся и здесь, и в облаке, но перестанут синхронизироваться.', 'Выйти'))) return;
+  B.syncLogout(); B.render(true);
 };
 B.acts.export = async () => {
   const data = JSON.stringify(B.exportAll(), null, 1);

@@ -91,6 +91,7 @@ B.on('sync', () => shell(route()));
 const navKey = v => v === 'stats' ? 'journal' : v;
 function shell(r){
   r = Object.assign({}, r, {v: navKey(r.v)});
+  document.body.classList.toggle('pl-wide', r.v === 'tasks' && !!B.plWide);
   const c = B.calc();
   const side = document.getElementById('side');
   side.innerHTML = `<a class="brand" href="#/today">${icon('tree')}<span><b>Зов леса</b><small>уровень ${c.level} · ${c.trees ? B.fmtTrees(c.trees) : 'поляна'}</small></span></a>

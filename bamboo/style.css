@@ -1340,3 +1340,6 @@ a.rf-mt:hover b{text-decoration:underline}
   body.pl-wide main{margin-left:0}
   body.pl-wide .page.planner{max-width:none;padding-left:20px;padding-right:20px}
 }
+
+/* колонка «Неделя» в месяце: карточки ШАДа плотнее, чтобы длинный список не растягивал строку */
+.planner .pl-mw .pl-shad{min-height:calc(24px * var(--plfs,1))}

@@ -170,6 +170,9 @@ function shadBox(ws){
   </section>`;
 }
 
+/* на компьютере клетки месяца растут по высоте и показывают все дела, на телефоне до 4 и «ещё N» */
+const monthCap = () => matchMedia('(min-width:960px)').matches ? Infinity : 4;
+matchMedia('(min-width:960px)').addEventListener('change', e => { if (S.view === 'month' && location.hash.startsWith('#/tasks')) B.render(); });
 function monthView(){
   const a = B.parse(anchor || B.today().slice(0, 8) + '01'), first = B.ymd(new Date(a.getFullYear(), a.getMonth(), 1, 12));
   const last = B.ymd(new Date(a.getFullYear(), a.getMonth() + 1, 0, 12));
@@ -180,7 +183,7 @@ function monthView(){
     // в прошедших днях сделанные задачи сворачиваются в «✓ N», чтобы зачёркнутое не занимало клетку
     const all0 = onDate(d), past = d < t, list = past ? all0.filter(x => !x.done) : all0, doneN = all0.length - list.length;
     const g = gh[d] || [], shad = S.cal === 'all' || S.cal === 'shad' ? B.shadOn(d) : [];
-    const all = list.length + g.length + shad.length, show = 4;
+    const all = list.length + g.length + shad.length, show = monthCap();
     const out = d.slice(0, 7) !== first.slice(0, 7), ws = B.weekStart(d);
     cells += `<div class="pl-mc ${d === t ? 'now' : ''} ${out ? 'out' : ''} ${past ? 'was' : ''} ${ws === cw ? 'cw' : ''} ${B.wd(d) > 4 ? 'we' : ''}">
       ${(() => { const ld = loadOf(d, gh); return `<button class="pl-md ${ld.cls}" data-act="plGoWeek" data-d="${d}" title="Открыть неделю${ld.cls ? ` · ${ld.n} ${B.plural(ld.n, 'дело', 'дела', 'дел')}` : ''}">${B.parse(d).getDate()}</button>`; })()}
@@ -198,7 +201,7 @@ function monthView(){
 function monthWeekCell(ws, withShad, cur){
   const head = `<button class="pl-mwn" data-act="plGoWeek" data-d="${ws}" title="Открыть неделю">№${isoWeek(B.add(ws, 3))}</button>`;
   if (!withShad) return `<div class="pl-mw ${cur ? 'cw' : ''}">${head}</div>`;
-  const list = B.shadWeek(ws), left = B.shadHoursLeft(B.shadWeekAll(ws)), show = 4;
+  const list = B.shadWeek(ws), left = B.shadHoursLeft(B.shadWeekAll(ws)), show = monthCap();
   const h = (Math.round(left * 2) / 2).toString().replace('.', ',');
   return `<div class="pl-mw ${cur ? 'cw' : ''}">
     <div class="pl-mwh">${head}${left ? `<span>≈${h} ч</span>` : ''}</div>

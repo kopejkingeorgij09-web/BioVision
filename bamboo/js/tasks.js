@@ -307,71 +307,138 @@ B.acts.plCals = () => {
 };
 B.acts.plCal = el => { S.cal = el.dataset.c; saveS(); B.closeSheet(); B.render(true); };
 
-/* ---------- перетаскивание ---------- */
+/* ---------- перетаскивание ----------
+   Задача поднимается карточкой и едет за курсором, а на её месте появляется пустое место нужной высоты:
+   соседние задачи плавно расступаются там, куда она ляжет. Подсвечивается день, на карточке написано, куда она попадёт.
+   Мышь: потянуть дальше 5 px. Палец: подержать 0,3 с. Esc отменяет, у края экрана страница сама прокручивается. */
 let drag = null, justDragged = 0;
+const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 function dragStart(e){
   if (e.button !== 0 || e.target.closest('.pl-chk')) return;
   const el = e.currentTarget, touch = e.pointerType !== 'mouse';
-  const st = {el, id: el.dataset.tid, shn: +el.dataset.shn || 0, kind: el.dataset.kind, x0: e.clientX, y0: e.clientY, on: false, touch, timer: null};
-  if (touch) st.timer = setTimeout(() => begin(st, e.clientX, e.clientY), 380);
+  const st = {el, id: el.dataset.tid, shn: +el.dataset.shn || 0, kind: el.dataset.kind, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, on: false, touch, timer: null};
+  if (touch){ st.timer = setTimeout(() => begin(st, st.x, st.y), 300); el.classList.add('pl-press'); }
   const move = ev => {
+    st.x = ev.clientX; st.y = ev.clientY;
     if (!st.on){
       if (Math.hypot(ev.clientX - st.x0, ev.clientY - st.y0) > (touch ? 10 : 5)){ if (touch){ cleanup(); return; } begin(st, ev.clientX, ev.clientY); }
       else return;
     }
     ev.preventDefault(); over(st, ev.clientX, ev.clientY);
   };
-  const up = ev => { if (st.on){ ev.preventDefault(); drop(st); } cleanup(); };
+  const up = ev => { if (st.on){ ev.preventDefault(); finish(st, true); } cleanup(); };
+  const key = ev => { if (ev.key === 'Escape' && st.on){ ev.preventDefault(); ev.stopPropagation(); finish(st, false); cleanup(); } };
   const noScroll = ev => { if (st.on) ev.preventDefault(); };
-  function cleanup(){ clearTimeout(st.timer); removeEventListener('pointermove', move); removeEventListener('pointerup', up); removeEventListener('pointercancel', up); removeEventListener('touchmove', noScroll); if (st.ghost) st.ghost.remove(); B.$$('.pl-list.over').forEach(x => x.classList.remove('over')); B.$$('.pl-mark').forEach(x => x.remove()); if (st.el) st.el.classList.remove('dragging'); drag = null; }
+  function cleanup(){
+    clearTimeout(st.timer); cancelAnimationFrame(st.raf || 0);
+    removeEventListener('pointermove', move); removeEventListener('pointerup', up); removeEventListener('pointercancel', up);
+    removeEventListener('touchmove', noScroll); removeEventListener('keydown', key, true);
+    el.classList.remove('pl-press'); document.body.classList.remove('pl-dragging');
+    drag = null;
+  }
   addEventListener('pointermove', move, {passive: false}); addEventListener('pointerup', up); addEventListener('pointercancel', up);
-  addEventListener('touchmove', noScroll, {passive: false});
+  addEventListener('touchmove', noScroll, {passive: false}); addEventListener('keydown', key, true);
 }
 function begin(st, x, y){
+  if (st.on) return;
   st.on = true; drag = st;
   const r = st.el.getBoundingClientRect();
-  st.dx = x - r.left; st.dy = y - r.top;
-  st.ghost = st.el.cloneNode(true); st.ghost.classList.add('pl-ghost'); st.ghost.style.width = r.width + 'px';
-  document.body.appendChild(st.ghost); st.el.classList.add('dragging');
+  st.dx = x - r.left; st.dy = y - r.top; st.h = r.height;
+  st.home = {list: st.el.parentNode, next: st.el.nextSibling};
+  st.ghost = st.el.cloneNode(true); st.ghost.classList.add('pl-ghost'); st.ghost.classList.remove('pl-press'); st.ghost.style.width = r.width + 'px';
+  st.tag = document.createElement('span'); st.tag.className = 'pl-gtag'; st.ghost.appendChild(st.tag);
+  document.body.appendChild(st.ghost);
+  st.ph = document.createElement('div'); st.ph.className = 'pl-ph'; st.ph.style.height = r.height + 'px';
+  st.el.before(st.ph); st.el.classList.add('dragging');
+  document.body.classList.add('pl-dragging');
   if (navigator.vibrate && st.touch) navigator.vibrate(12);
   over(st, x, y);
+  const tick = () => { autoScroll(st); st.raf = requestAnimationFrame(tick); };
+  st.raf = requestAnimationFrame(tick);
+}
+/* у верхнего и нижнего края окна страница прокручивается, тем быстрее, чем ближе курсор к краю */
+function autoScroll(st){
+  const edge = 70, y = st.y;
+  let v = 0;
+  if (y < edge) v = -Math.ceil((edge - y) / 4);
+  else if (y > innerHeight - edge) v = Math.ceil((y - (innerHeight - edge)) / 4);
+  if (v){ scrollBy(0, v); over(st, st.x, st.y); }
+}
+/* FLIP: запомнить, где стояли строки, переставить место вставки и плавно довести строки до новых мест */
+function shiftRows(lists, change){
+  const rows = [...new Set(lists)].filter(Boolean).flatMap(l => [...l.children].filter(c => c.matches('.pl-t,.pl-shad,.pl-ph')));
+  const was = new Map(rows.map(r => [r, r.getBoundingClientRect().top]));
+  change();
+  if (reduceMotion()) return;
+  rows.forEach(r => {
+    if (!r.isConnected) return;
+    const d = was.get(r) - r.getBoundingClientRect().top;
+    if (Math.abs(d) < 1) return;
+    r.style.transition = 'none'; r.style.transform = `translateY(${d}px)`;
+    requestAnimationFrame(() => { r.style.transition = 'transform .16s ease'; r.style.transform = ''; });
+  });
 }
 function over(st, x, y){
-  st.ghost.style.transform = `translate(${x - st.dx}px, ${y - st.dy}px)`;
+  st.ghost.style.transform = `translate(${x - st.dx}px, ${y - st.dy}px) rotate(${st.touch ? 0 : 1.2}deg)`;
   st.ghost.style.visibility = 'hidden';
   const hit = document.elementFromPoint(x, y);
   st.ghost.style.visibility = '';
-  const list = hit && hit.closest('.pl-list');
-  B.$$('.pl-list.over').forEach(l => { if (l !== list) l.classList.remove('over'); });
-  B.$$('.pl-mark').forEach(m => m.remove());
-  st.target = null;
-  if (!list) return;
-  list.classList.add('over');
+  // попадание в шапку дня или пустое место клетки тоже считается этим днём
+  let list = hit && hit.closest('.pl-list');
+  if (!list && hit){ const box = hit.closest('.pl-day,.pl-mc,.pl-mw,.pl-some'); if (box) list = box.querySelector('.pl-list'); }
+  const ok = list && !(!!list.dataset.shbox !== !!st.shn && !(st.shn && list.dataset.d));   // задачи не кладутся в блок ШАДа, вебы не кладутся в «Когда-нибудь»
+  B.$$('.pl-over').forEach(b => { if (!ok || !b.contains(list)) b.classList.remove('pl-over'); });
+  if (!ok){ st.target = null; st.tag.textContent = ''; st.ghost.classList.add('nope'); return; }
+  st.ghost.classList.remove('nope');
+  const box = list.closest('.pl-day,.pl-mc,.pl-mw,.pl-some') || list;
+  box.classList.add('pl-over');
+  // место вставки: перед первой задачей, середина которой ниже курсора; вебы ШАДа встают после задач
   const rows = [...list.querySelectorAll(':scope > .pl-t[data-tid]')].filter(r => r !== st.el);
   let before = null;
-  for (const r of rows){ const b = r.getBoundingClientRect(); if (y < b.top + b.height / 2 && (Math.abs(x - (b.left + b.width / 2)) < b.width / 2 + 20 || list.closest('.pl-day,.pl-mc'))){ before = r; break; } }
-  const box = !!list.dataset.shbox;
-  if (box !== !!st.shn && !(st.shn && list.dataset.d)){ list.classList.remove('over'); return; }   // задачи не кладутся в блок ШАДа, вебы не кладутся в «Когда-нибудь»
-  st.target = {date: list.dataset.d, before: before ? before.dataset.tid : null, box};
-  const mk = document.createElement('div'); mk.className = 'pl-mark';
-  if (before) list.insertBefore(mk, before);
-  else { const lastRow = rows[rows.length - 1]; if (lastRow) lastRow.after(mk); else list.prepend(mk); }
+  const grid = !list.closest('.pl-day,.pl-mc');   // в «Когда-нибудь» задачи стоят в несколько колонок
+  if (!st.shn) for (const r of rows){ const b = r.getBoundingClientRect(); if (y < b.top + b.height / 2 && (!grid || Math.abs(x - (b.left + b.width / 2)) < b.width / 2 + 20)){ before = r; break; } }
+  const date = list.dataset.d || '';
+  st.target = {date, before: before ? before.dataset.tid : null, box: !!list.dataset.shbox};
+  st.tag.textContent = st.target.box ? 'в блок недели' : date ? '→ ' + B.fmtW(date) : '→ Когда-нибудь';
+  // переставляем место вставки, только если оно правда сдвинулось
+  const anchor = before || (rows.length ? rows[rows.length - 1].nextSibling : list.firstChild);
+  if (st.ph.parentNode === list && (st.ph.nextSibling === anchor || st.ph === anchor)) return;
+  const from = st.ph.parentNode;
+  shiftRows([from, list], () => { list.insertBefore(st.ph, anchor); });
 }
-function drop(st){
+/* отпустили: карточка плавно садится на место вставки, затем данные сохраняются и планер перерисовывается */
+function finish(st, commit){
   justDragged = Date.now();
-  if (!st.target) return;
+  const target = commit ? st.target : null;
+  B.$$('.pl-over').forEach(b => b.classList.remove('pl-over'));
+  const g = st.ghost, ph = st.ph;
+  const done = () => {
+    g.remove();
+    if (!target){ ph.remove(); st.el.classList.remove('dragging'); return; }
+    drop(st, target);
+  };
+  if (reduceMotion() || !ph.isConnected) return done();
+  const dest = target ? ph : st.el;
+  if (!target) ph.remove(), st.el.classList.remove('dragging');
+  const r = dest.getBoundingClientRect();
+  g.classList.add('landing');
+  g.style.transform = `translate(${r.left}px, ${r.top}px)`;
+  setTimeout(done, 150);
+}
+function drop(st, target){
   if (st.shn){
     const p = B.shad.plan.find(x => x.n === st.shn);
-    if (st.target.box){ if (p && (st.kind === 'web' ? p.wp : p.hp)){ B.shadUnplace(st.shn, st.kind); B.toast(`${st.kind === 'web' ? '' : 'ДЗ '}${esc(p.code || '')}: день снят, карточка в блоке недели`); } }
-    else if (st.target.date) moveShad(st.shn, st.kind, st.target.date);
+    if (target.box){ if (p && (st.kind === 'web' ? p.wp : p.hp)){ B.shadUnplace(st.shn, st.kind); B.toast(`${st.kind === 'web' ? '' : 'ДЗ '}${esc(p.code || '')}: день снят, карточка в блоке недели`); } else B.render(true); }
+    else if (target.date){ moveShad(st.shn, st.kind, target.date); B.render(true); }
     return;
   }
-  const t = B.task(st.id); if (!t) return;
-  const to = st.target.date || '';
+  const t = B.task(st.id); if (!t) return B.render(true);
+  const to = target.date || '', was = t.due || '';
   const ids = (to ? onDate(to) : someday()).map(x => x.id).filter(i => i !== t.id);
-  const at = st.target.before ? ids.indexOf(st.target.before) : -1;
+  const at = target.before ? ids.indexOf(target.before) : -1;
   ids.splice(at < 0 ? ids.length : at, 0, t.id);
   moveTask(t, to, ids);
+  if (was !== to) B.toast(to ? `Перенесено на ${B.fmtW(to)}` : 'Перенесено в «Когда-нибудь»', 1400);
 }
 /* перенос веба (вместе с ним сдвигается срок ДЗ) или только срока ДЗ */
 function moveShad(n, kind, to){

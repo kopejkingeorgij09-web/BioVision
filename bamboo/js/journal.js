@@ -31,7 +31,7 @@ function summary(date){
   const ws = B.workouts().filter(w => w.date === date);
   const shad = []; for (const n in B.shad.marks){ const m = B.shad.marks[n]; if (m.at && B.dayOf(m.at) === date){ const p = B.shad.plan.find(x => x.n === +n); if (p) shad.push(`${p.code} «${p.t}»: ${B.SHAD_STAGES[m.s]}`); } }
   const hs = B.habits().filter(h => B.habitDone(h, date)).map(h => h.name);
-  return {done, subs, ws, rm: B.readMin(date), shad, hs};
+  return {done, subs, ws, rm: B.readMin(date), shad, hs, ph: B.phxDay(date)};
 }
 
 function summaryHtml(date){
@@ -43,6 +43,12 @@ function summaryHtml(date){
   if (s.rm) li.push(`${icon('book')}${B.mins(s.rm)} чтения`);
   s.ws.forEach(w => li.push(`${icon('dumbbell')}${esc(B.SPORT_TYPES[w.type] || w.type)}${w.min ? ', ' + B.mins(+w.min) : ''}`));
   if (s.hs.length) li.push(`${icon('habit')}Привычки: ${s.hs.map(esc).join(', ')}`);
+  // что было на «Фагах»: сданные работы, оценки, карточки
+  if (s.ph){
+    (s.ph.subs || []).forEach(t => li.push(`${icon('check')}Сдал на Фагах: ${esc(t)}`));
+    (s.ph.grades || []).forEach(g => li.push(`${icon('star')}Оценка на Фагах: ${esc(g.t)}${g.score != null ? ` · ${esc(+(+g.score).toFixed(1))}${g.max ? ' из ' + esc(g.max) : ''}` : ''}`));
+    if (s.ph.cards) li.push(`${icon('book')}Карточки на Фагах: ${s.ph.cards}`);
+  }
   return li.length ? `<ul class="plain sum">${li.map(x => `<li>${x}</li>`).join('')}</ul>` : '<p class="muted">Пока ничего не отмечено.</p>';
 }
 

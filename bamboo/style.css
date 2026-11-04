@@ -876,7 +876,7 @@ mark{background:var(--gold-soft);color:inherit;border-radius:3px;padding:0 1px}
 .pl-day.was .pl-dh b{color:var(--ink-2)}
 .pl-list{display:grid;align-content:start;border-radius:6px;transition:background .12s}
 .pl-list.over{background:color-mix(in srgb,var(--accent) 7%,transparent)}
-.pl-t,.pl-empty,.pl-add,.pl-shad{min-height:40px;border-bottom:1px solid var(--rule)}
+.pl-t,.pl-empty,.pl-add,.pl-shad,.pl-ph{min-height:40px;border-bottom:1px solid var(--rule)}
 .pl-empty{display:block;width:100%;background:none;border-top:0;border-left:0;border-right:0;cursor:text;padding:0}
 .pl-empty:hover{background:color-mix(in srgb,var(--ink) 3%,transparent)}
 .pl-empty.sm{min-height:20px;border-bottom:0}
@@ -1394,3 +1394,26 @@ kbd{font:600 12px var(--f-mono);background:var(--paper-2);border:1px solid var(-
 .rf-music .rf-add .ic{fill:none}
 .rf-del{margin-left:auto;border:0;background:transparent;color:inherit;font:inherit;opacity:.8;cursor:pointer;padding:2px 4px;border-radius:6px}
 .rf-del:hover{opacity:1;background:rgba(255,255,255,.14)}
+
+/* занятия и сроки ДЗ с «Фагов» (только просмотр, ссылка ведёт на Фаги) */
+.pl-ph{display:flex;align-items:center;gap:4px;width:100%;padding:0 0 0 10px;position:relative;color:var(--c-teal)}
+.pl-ph.teach{color:var(--c-green)}.pl-ph.learn{color:var(--c-blue)}.pl-ph.dl{color:var(--c-amber)}
+.pl-ph::before{content:"";position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:2px;background:currentColor}
+.pl-ph.dl::before{background:none;border-left:3px dotted currentColor;width:0}
+.pl-ph .pl-open{flex:1;min-width:0;display:flex;align-items:center;gap:6px;font-size:13.5px;color:var(--ink-2);overflow:hidden;white-space:nowrap;padding:9px 2px;text-decoration:none}
+.pl-ph .pl-open:hover{text-decoration:none;color:var(--ink)}
+.pl-ph .pl-tt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl-phk{flex:none;font:700 10px var(--f-body);letter-spacing:.05em;color:currentColor;border:1px dashed currentColor;border-radius:99px;padding:1px 6px}
+.pl-phs{flex:none;font-size:12px;color:currentColor;padding-right:4px}
+.pl-ph.ok .pl-tt{text-decoration:line-through;opacity:.6}.pl-ph.ok .pl-phk{border-style:solid}
+.pl-ph.cancel{opacity:.5}.pl-ph.cancel .pl-tt{text-decoration:line-through}
+.planner .pl-ph .pl-open{font-size:calc(13.5px * var(--plfs,1))}
+.pl-mc .pl-ph{min-height:24px;border-bottom:0;padding:0 0 0 7px}
+.pl-mc .pl-ph .pl-open{font-size:12px;padding:3px 0}
+.pl-mc .pl-phs{display:none}
+.ph-card .pl-ph{border-bottom:1px solid var(--rule)}
+.ph-dl{display:flex;gap:10px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--rule);color:var(--ink);text-decoration:none;font-size:14px}
+.ph-dl:hover{text-decoration:none}
+.ph-dl b{flex:none;min-width:84px;font-size:12.5px;font-weight:600;color:var(--ink-3)}
+.ph-dl.near b{color:var(--warn)}.ph-dl.late b{color:var(--bad)}
+.ph-cards{margin:8px 0 0;font-size:13px}

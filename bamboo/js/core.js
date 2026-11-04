@@ -257,6 +257,29 @@ function onShadX(snap){
   snap.docs.forEach(d => { const n = parseInt(d.id.slice(1), 10); const v = d.data() || {}; if (n && v.b) m[n] = {b: +v.b || 0, at: v.at || 0}; });
   if (JSON.stringify(m) !== JSON.stringify(B.shad.bonus)){ B.shad.bonus = m; changed(); }
 }
+/* лента с «Фагов» (коллекция 'phx', пишет сервер, см. supabase/migrations/20261104c_phagi_bamboo_bridge.sql):
+   ev_<id> занятия (role 'teach' — уроки с ученицами, 'learn' — свои), dl_<id> сроки ДЗ, day_<дата> что было на Фагах за день */
+B.phx = {ev: {}, dl: {}, day: {}};
+B.PHAGI = '../phagi/';
+function onPhx(snap){
+  const m = {ev: {}, dl: {}, day: {}};
+  snap.docs.forEach(d => { const i = d.id.indexOf('_'), k = d.id.slice(0, i), id = d.id.slice(i + 1); if (m[k]) m[k][id] = Object.assign({id}, d.data() || {}); });
+  if (JSON.stringify(m) !== JSON.stringify(B.phx)){ B.phx = m; changed(); }
+}
+/* занятия и сроки с Фагов на день: занятия по времени, потом сроки ДЗ */
+B.phxOn = date => {
+  const out = [];
+  for (const id in B.phx.ev){
+    const e = B.phx.ev[id]; if (!e.date) continue;
+    let on = e.date === date;
+    if (e.repeat === 'weekly') on = date >= e.date && B.diff(e.date, date) % 7 === 0 && (!e.until || date <= e.until);
+    if (on) out.push({k: 'ev', id, t: e.title, from: e.start || '', to: e.end || '', role: e.role, cancel: (e.skip || []).includes(date)});
+  }
+  out.sort((a, b) => (a.from || '99').localeCompare(b.from || '99'));
+  for (const id in B.phx.dl){ const x = B.phx.dl[id]; if (x.due === date) out.push({k: 'dl', id, t: x.title, done: !!x.done, checked: !!x.checked, shad: x.shad, fix: x.fix}); }
+  return out;
+};
+B.phxDay = date => B.phx.day[date] || null;
 B.shadStage = n => (B.shad.marks[n] && B.shad.marks[n].s) || 0;
 B.setShadStage = async (n, s) => {
   const cur = B.shad.marks[n] || {};
@@ -325,6 +348,7 @@ B.connect = async () => {
     db.collection('bamboo').onSnapshot(onRemote, () => setSync('error', navigator.onLine ? 'Облако не ответило, копия на устройстве' : 'Нет интернета, копия на устройстве'));
     db.collection('shad').onSnapshot(onShad, () => {});
     db.collection('shadx').onSnapshot(onShadX, () => {});
+    db.collection('phx').onSnapshot(onPhx, () => {});
   } else {
     if (!docs.cfg) seed();
     try { B.shad.marks = JSON.parse(localStorage.getItem(LS_SHADMARKS) || '{}') || {}; } catch (e) {}
@@ -396,6 +420,8 @@ B.habitVal = (h, date) => {
   }
   if (h.auto === 'sport') return sportSet().has(date) ? 1 : 0;
   const d = B.day(date), v = d.h && d.h[h.id];
+  // карточки на «Фагах»: от h.min (по умолчанию 10) повторённых за день отмечается сама, ручная отметка тоже считается
+  if (h.auto === 'cards' && !v){ const x = B.phxDay(date); return x && (x.cards || 0) >= (h.min || 10) ? 1 : 0; }
   return v ? (v === 0.5 ? 0.5 : 1) : 0;
 };
 B.habitDone = (h, date) => B.habitVal(h, date) > 0;
@@ -433,6 +459,9 @@ B.calc = () => {
     (t.postpones || []).forEach(p => push(postBy, B.dayOf(p.at), p));
   });
   B.workouts().forEach(w => push(sportBy, w.date, w));
+  // сданное ДЗ с «Фагов» — как сделанная задача (+5); ДЗ к вебам ШАДа не считаются здесь, их опыт идёт через стадию веба
+  const phBy = {};
+  for (const id in B.phx.dl){ const x = B.phx.dl[id]; if (x.done && x.doneAt && !x.shad) push(phBy, x.doneAt, x); }
   for (const n in B.shad.marks){ const m = B.shad.marks[n]; if (m.at && m.s) push(shadBy, B.dayOf(m.at), m.s); }
   const shadXBy = {};   // бонус за проверенное ДЗ ШАДа, пока веб в стадии «ДЗ решено» или «Закрыт»
   for (const n in B.shad.bonus){ const m = B.shad.bonus[n]; if (m.at && m.b && B.shadStage(+n) >= 3) push(shadXBy, B.dayOf(m.at), m.b); }
@@ -448,6 +477,7 @@ B.calc = () => {
     const dn = doneBy[date] || [];
     if (dn.length) p.tasks = dn.reduce((a, t) => a + (t.pri === 1 || crownSet.has(t.id) ? B.XP.taskP1 : B.XP.task), 0);
     if (subBy[date]) p.subs = subBy[date].length * B.XP.sub;
+    if (phBy[date]) p.tasks = (p.tasks || 0) + phBy[date].length * B.XP.task;
     if (shadBy[date]) p.shad = shadBy[date].reduce((x, st) => x + (B.XP.shad[st] || 0), 0);   // весь опыт веба в день последней отметки
     if (shadXBy[date]) p.shad = (p.shad || 0) + shadXBy[date].reduce((x, b) => x + b, 0);
     let hab = 0;
@@ -468,7 +498,7 @@ B.calc = () => {
 
     let xp = 0; for (const k in p) xp += p[k];
     // день: разбор есть — «good»; что-то сделано без разбора — «some»; пусто — «empty»
-    const active = dn.length || hab || rm || sportBy[date] || subBy[date];
+    const active = dn.length || hab || rm || sportBy[date] || subBy[date] || phBy[date];
     const result = date >= today ? 'open' : rvOk ? 'good' : active ? 'some' : 'empty';
     xpAll += Math.max(0, xp);
     total = Math.max(0, total + xp);

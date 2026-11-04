@@ -2234,22 +2234,25 @@ function pwWeekHTML(from,by){
   const wl=tdList(from),sl=tdList('');
   return `<div class="pwk">${[0,1,2,3,4].map(i=>pwDay(addDays(from,i),by,7)).join('')}<div class="pw-wkend">${pwDay(addDays(from,5),by,3)}${pwDay(addDays(from,6),by,3)}</div></div>
   <div class="pw-bottom"><section class="pw-box"><h2>На этой неделе <span>${tdSub(wl,from)}</span></h2><div class="pw-list">${wl.map(tdRow).join('')}${tdAddRow(from,Math.max(2,4-wl.length))}</div></section>
-  <section class="pw-box pw-some"><h2>Когда-нибудь <span>${sl.filter(x=>!x.done).length||''}</span></h2><div class="pw-list">${sl.map(tdRow).join('')}${tdAddRow('',Math.max(2,4-sl.length))}</div></section></div>`}
+  <section class="pw-box pw-some"><h2>Когда-нибудь <span>${sl.filter(x=>!x.done).length||''}${S.dual?' · общие с «Зовом леса»':''}</span></h2><div class="pw-list">${sl.map(tdRow).join('')}${tdAddRow('',Math.max(2,4-sl.length))}</div></section></div>`}
 /* дела на неделю и «Когда-нибудь»: личные, data/users/<я>/<id> {kind:'todo',text,wk:'<понедельник>'|'',done,doneAt,ord} */
 const tdMon=d=>{const x=pd(d);x.setDate(x.getDate()-((x.getDay()+6)%7));return dkey(x)};
-function tdList(wk){const cut=Date.now()-14*864e5;return(S.todos||[]).filter(x=>(x.wk||'')===wk&&(wk||!x.done||(x.doneAt||0)>cut)).sort((a,b)=>(a.done-b.done)||((a.ord||0)-(b.ord||0)))}
+function tdList(wk){const cut=Date.now()-14*864e5;return(S.todos||[]).filter(x=>(x.wk||'')===wk&&(wk||!x.done||(x.doneAt||0)>cut)).sort((a,b)=>(a.done-b.done)||(a.due||'').localeCompare(b.due||'')||((a.ord||0)-(b.ord||0)))}
 function tdSub(wl,wk){const d=wl.filter(x=>x.done).length,sh=tdShad(wk);return [wl.length?`${d} из ${wl.length}`:'',sh].filter(Boolean).join(' · ')}
 /* у Георгия ещё строка про вебы ШАДа этой недели из трекера */
 function tdShad(wk){const uid=T()?null:meId();if(!wk||!uid)return'';const L=(S.track[uid]||[]).filter(x=>x.shad&&x.date>=wk&&x.date<=addDays(wk,6));if(!L.length)return'';
   return `ШАД: закрыто ${L.filter(x=>(x.stage|0)===4).length} из ${L.length}`}
-function tdRow(x){return `<div class="pw-td${x.done?' done':''}"><button class="pw-chk" data-act="tdchk" data-id="${esc(x.id)}" aria-pressed="${!!x.done}" aria-label="${x.done?'Вернуть':'Сделано'}: ${esc(x.text)}">${x.done?'✓':''}</button><span class="pw-tt">${esc(x.text)}</span><button class="pw-mv" data-act="tdmv" data-id="${esc(x.id)}" title="${x.wk?'Убрать в «Когда-нибудь»':'На эту неделю'}" aria-label="${x.wk?'Убрать в «Когда-нибудь»':'На эту неделю'}">${x.wk?'↓':'↑'}</button><button class="pw-mv" data-act="tddel" data-id="${esc(x.id)}" title="Удалить" aria-label="Удалить">×</button></div>`}
+const tdDay=x=>x.due&&x.wk?`<span class="pw-time">${WD[(pd(x.due).getDay()+6)%7].toLowerCase()}${x.time?' '+esc(x.time):''}</span>`:'';
+function tdRow(x){return `<div class="pw-td${x.done?' done':''}"><button class="pw-chk" data-act="tdchk" data-id="${esc(x.id)}" aria-pressed="${!!x.done}" aria-label="${x.done?'Вернуть':'Сделано'}: ${esc(x.text)}">${x.done?'✓':''}</button>${tdDay(x)}<span class="pw-tt">${esc(x.text)}</span><button class="pw-mv" data-act="tdmv" data-id="${esc(x.id)}" title="${x.wk?'Убрать в «Когда-нибудь»':'На эту неделю'}" aria-label="${x.wk?'Убрать в «Когда-нибудь»':'На эту неделю'}">${x.wk?'↓':'↑'}</button><button class="pw-mv" data-act="tddel" data-id="${esc(x.id)}" title="Удалить" aria-label="Удалить">×</button></div>`}
 function tdAddRow(wk,n){const on=S.tdAdd===(wk||'-');
   return (on?`<div class="pw-addr"><input class="pw-in" data-wk="${wk}" maxlength="200" placeholder="${wk?'Дело на неделю':'Когда-нибудь…'}" autocomplete="off" enterkeyhint="done"></div>`:'')+
     Array.from({length:on?Math.max(1,n-1):n},(_,i)=>`<button class="pw-empty" data-act="tdadd" data-wk="${wk}" aria-label="${i?'':wk?'Добавить дело на неделю':'Добавить в «Когда-нибудь»'}"${i?' tabindex="-1"':''}></button>`).join('')}
 async function tdSave(inp){const text=inp.value.trim(),wk=inp.dataset.wk||'';inp.value='';
   if(!text){S.tdAdd=null;render();return}
   const ord=(S.todos||[]).reduce((m,x)=>Math.max(m,x.ord||0),0)+10;
-  await S.db.collection('data/users/'+meId()).add({kind:'todo',text,wk,done:false,ord,createdAt:now()})}
+  const d={kind:'todo',text,wk,done:false,ord,createdAt:now()};
+  /* у Георгия дела общие с задачами «Зова леса»: документы bt_<id> сервер связывает с bamboo t_<id> */
+  if(S.dual)await S.db.doc(`data/users/${meId()}/bt_${Math.random().toString(36).slice(2,14)}`).set(d);else await S.db.collection('data/users/'+meId()).add(d)}
 document.addEventListener('keydown',e=>{const t=e.target;if(!t||!t.classList||!t.classList.contains('pw-in'))return;
   if(e.key==='Enter'&&!e.isComposing){e.preventDefault();tdSave(t)}else if(e.key==='Escape'){e.preventDefault();S.tdAdd=null;t.blur();render()}});
 document.addEventListener('focusout',e=>{const t=e.target;if(t&&t.classList&&t.classList.contains('pw-in')){if(t.value.trim())tdSave(t);setTimeout(()=>{if(!document.activeElement||!document.activeElement.classList.contains('pw-in')){S.tdAdd=null;render()}},150)}});
@@ -4429,6 +4432,15 @@ function openOcc(k,id,date){
   ${T()?`<div class="actions" style="justify-content:flex-start"><button class="btn sm" data-dact="addhw">Задать ДЗ к этому занятию</button></div>`:''}</div>`;
   occCtx={ev,date};
   const acts={close:closeDlg,hw:el=>{closeDlg();S.view='task';S.taskId=el.dataset.id;window.scrollTo(0,0)}};
+  /* веб ШАДа: вместо «приду / не приду» этап, общий с трекером ШАДа и «Зовом леса» (data/users/<я>/shadst-w<n> → shad/wNN) */
+  const shn=(ev.id.match(/^shad-w(\d+)$/)||[])[1];
+  if(shn&&(ev.to||[]).includes(meId())){
+    const ti=(S.track[meId()]||[]).find(x=>x.shad===+shn),st=ti?ti.stage|0:0;
+    body+=`<h3 style="font-size:15px;margin:14px 0 4px">Этап веба</h3><div class="rsvp tk-stages">${TK_SH.map((l,i)=>`<button data-dact="shst" data-v="${i}" aria-pressed="${st===i}">${l}</button>`).join('')}</div>
+    <p class="muted small" style="margin:4px 0 0">Этап общий с трекером ШАДа и «Зовом леса». «ДЗ решено» и «Закрыт» ставятся и сами, когда ДЗ сдано и проверено.</p>`;
+    acts.shst=async el=>{const v=Number(el.dataset.v);$('#dlgbox').querySelectorAll('[data-dact="shst"]').forEach(b=>b.setAttribute('aria-pressed',b===el));
+      if(ti)ti.stage=v;await S.db.doc(`data/users/${meId()}/shadst-w${shn}`).set({kind:'shadst',n:+shn,s:v,updatedAt:now()});toast('Этап: '+TK_SH[v].toLowerCase());render(true)};
+  }
   if(T()){
     const rs=recipients(ev);
     body+=`<h3 style="font-size:15px;margin:14px 0 6px">Ответы учениц</h3>${rs.length?rs.map(uid=>{const r=myRsvp(uid,ev.id,date);return `<div class="row small" style="padding:4px 0"><span class="grow">${esc(name(uid))}${r&&r.note?`<br><span class="muted">${esc(r.note)}</span>`:''}</span><span class="st ${r?(r.st==='yes'?'graded':'late'):''}">${r?RS[r.st]:'нет ответа'}</span></div>`}).join(''):'<p class="muted small">Событие никому не назначено.</p>'}
@@ -4441,7 +4453,8 @@ function openOcc(k,id,date){
       skip:async()=>{const sk=new Set(ev.skip||[]);cancel?sk.delete(date):sk.add(date);await S.db.doc('events/'+ev.id).update({skip:[...sk]});closeDlg();toast(cancel?'Занятие возвращено':'Занятие отменено')},
       addhw:()=>{const next=ev.repeat==='weekly'?addDays(date,7):'';openTaskDialog(null,{subject:ev.subject,to:recipients(ev),due:next,lesson:{eventId:ev.id,date}})}
     });
-  }else if(!cancel){
+  }else if(shn)body+=`<div class="actions"><button class="btn sm" data-dact="close">Закрыть</button></div>`;
+  else if(!cancel){
     const r=myRsvp(meId(),ev.id,date)||{};
     body+=`<h3 style="font-size:15px;margin:14px 0 4px">Придёшь?</h3><div class="rsvp">${Object.entries(RS).map(([k,l])=>`<button data-dact="rs" data-v="${k}" aria-pressed="${r.st===k}">${l}</button>`).join('')}</div>
     <label>Комментарий для учителя<input name="rnote" maxlength="200" value="${esc(r.note||'')}" placeholder="Например: можно перенести на 19:00?"></label>

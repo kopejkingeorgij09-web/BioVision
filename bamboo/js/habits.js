@@ -142,7 +142,7 @@ B.views.habits = {
             const s = B.habitStreak(h), rate = B.habitRate(h);
             return `<section class="card habit" style="--hc:var(--c-${B.habitColor(h)})">
               <div class="row between">
-                <button class="habit-name" data-act="habitEdit" data-id="${h.id}"><i class="hic">${icon(h.icon || 'habit')}</i><span><b>${esc(h.name)}</b><small>${h.kind === 'weekly' ? `${h.target || 3} раза в неделю` : 'каждый день'}${h.auto === 'read' ? ` · от ${h.min || 30} мин чтения, отмечается само` : h.auto === 'sport' ? ' · по записи тренировки' : ''}</small></span></button>
+                <button class="habit-name" data-act="habitEdit" data-id="${h.id}"><i class="hic">${icon(h.icon || 'habit')}</i><span><b>${esc(h.name)}</b><small>${h.kind === 'weekly' ? `${h.target || 3} раза в неделю` : 'каждый день'}${h.auto === 'read' ? ` · от ${h.min || 30} мин чтения, отмечается само` : h.auto === 'sport' ? ' · по записи тренировки' : h.auto === 'cards' ? ` · от ${h.min || 10} карточек на Фагах, отмечается само` : ''}</small></span></button>
                 <div class="streak ${s.cur ? 'on' : ''}">${icon('flame')}<b>${s.cur}</b><small>${s.unit}</small></div>
               </div>
               ${last7(h)}
@@ -186,15 +186,17 @@ function formHtml(){
     <div class="field">Цвет<div class="colors">${B.COLORS.map(c => `<label class="cpick c-${c}"><input type="radio" name="hColor" value="${c}" ${(h.color || (h.id ? B.habitColor(h) : HPAL[B.habits().length % HPAL.length])) === c ? 'checked' : ''}><i></i><span>${B.COLOR_NAMES[c]}</span></label>`).join('')}</div></div>
     <div class="field">Иконка<div class="icons">${ICONS.map(i => `<label class="ipick"><input type="radio" name="hIcon" value="${i}" ${h.icon === i ? 'checked' : ''}><i>${icon(i)}</i></label>`).join('')}</div></div>
     <div class="ed-grid">
-      <label>Отмечать<select id="hAuto" data-in="hfRedraw"><option value="">Вручную</option><option value="read" ${read ? 'selected' : ''}>По минутам чтения</option><option value="sport" ${sport ? 'selected' : ''}>По отметке тренировки</option></select></label>
+      <label>Отмечать<select id="hAuto" data-in="hfRedraw"><option value="">Вручную</option><option value="read" ${read ? 'selected' : ''}>По минутам чтения</option><option value="sport" ${sport ? 'selected' : ''}>По отметке тренировки</option><option value="cards" ${h.auto === 'cards' ? 'selected' : ''}>По карточкам на Фагах</option></select></label>
       <label>Как часто<select id="hKind" data-in="hfRedraw"><option value="daily" ${h.kind !== 'weekly' ? 'selected' : ''}>Каждый день</option><option value="weekly" ${h.kind === 'weekly' ? 'selected' : ''}>Несколько раз в неделю</option></select></label>
       ${h.kind === 'weekly' ? `<label>Сколько раз в неделю<input id="hTarget" type="number" min="1" max="7" value="${h.target || 3}"></label>` : ''}
       ${read ? `<label>Цель, минут в день<input id="hMin" type="number" min="1" max="600" value="${h.min || 30}"></label>
         <label>Минимум, минут<input id="hMiniMin" type="number" min="1" max="120" value="${h.miniMin || 10}"></label>` : ''}
+      ${h.auto === 'cards' ? `<label>Карточек за день<input id="hMin" type="number" min="1" max="500" value="${h.min || 10}"></label>` : ''}
     </div>
     ${!h.auto ? `<label class="field">Минимальная версия на плохой день<input id="hMini" value="${esc(h.mini || '')}" placeholder="Например: 5 отжиманий или лечь до 00:30"></label>` : ''}
     <p class="hint">${read ? 'Отмечается сама, когда за день набралась цель. Если прочитал меньше цели, но не меньше минимума, засчитывается минимум: серия держится, опыт вдвое меньше.'
       : sport ? 'Отмечается нажатием на день здесь, в «Привычках», или на главной. К тренировке можно написать заметку.'
+      : h.auto === 'cards' ? 'Отмечается сама, когда на «Фагах» за день повторено столько карточек. Можно отметить и вручную, нажатием на день.'
       : 'Нажатие на привычку ставит и снимает отметку. Если задан минимум, его ставит долгое нажатие: серия держится, опыт вдвое меньше.'}</p>
     <div class="row between">${h.id ? `<button class="btn ghost danger" data-act="habitDel" data-id="${h.id}">${icon('trash')} В архив</button>` : '<span></span>'}
       <button class="btn primary" data-act="habitSave" data-id="${h.id || ''}">Сохранить</button></div>`;

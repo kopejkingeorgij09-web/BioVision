@@ -16,16 +16,16 @@ function applyTheme(){
   if (t === 'sakura'){ t = 'light'; try { localStorage.setItem(LS_THEME, t); } catch (e) {} }
   if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t);
   const dark = t === 'dark' || t === 'night' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
-  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = t === 'night' ? '#0B1A14' : dark ? '#151A14' : '#F4EFE4';
+  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = t === 'night' ? '#0B1A14' : t === 'day' ? '#EAF0E4' : dark ? '#151A14' : '#F4EFE4';
 }
 applyTheme();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { applyTheme(); if (B.render) B.render(); });
-const THEMES = [['light', 'Бумага', '#F4EFE4'], ['dark', 'Тёмная', '#1B211A'], ['night', 'Ночной лес', '#123024'], ['auto', 'Как в системе', '']];
+const THEMES = [['light', 'Бумага', '#F4EFE4'], ['dark', 'Тёмная', '#1B211A'], ['night', 'Ночной лес', '#123024'], ['day', 'Лесной день', '#C9D9BE'], ['auto', 'Как в системе', '']];
 const curTheme = () => { try { return localStorage.getItem(LS_THEME) || 'auto'; } catch (e) { return 'auto'; } };
 const isDark = () => { const t = curTheme(); return t === 'dark' || t === 'night' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches); };
 const setTheme = v => { try { localStorage.setItem(LS_THEME, v); } catch (e) {} applyTheme(); B.render(); };
 B.acts.theme = el => { setTheme(el.dataset.v); B.$$('.swatches .sw').forEach(x => x.classList.toggle('on', x.dataset.v === el.dataset.v)); };
-/* кнопка в шапке: по кругу Бумага → Тёмная → Ночной лес → как в системе */
+/* кнопка в шапке: по кругу Бумага → Тёмная → Ночной лес → Лесной день → как в системе */
 B.acts.themeNext = () => {
   const i = THEMES.findIndex(x => x[0] === curTheme()), n = THEMES[(i + 1) % THEMES.length];
   setTheme(n[0]); B.toast(`Тема: ${n[1]}`, 1200);

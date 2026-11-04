@@ -16,7 +16,7 @@
   --s-deep:#0B0F1E; --s-space:#121833; --s-strato:#2B4A86; --s-high:#6D9FD6; --s-sky:#AFD3EE; --s-low:#E3F0E6;
   --hill:#9BC08A; --soil:#7E6A4B; --cul-a:#4E9B5E; --cul-b:#5FAA6C; --node:#2F6E3F; --mile:#22314A; --mile-ok:#2F7A4B;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]):not([data-theme="night"]){
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]):not([data-theme="night"]):not([data-theme="day"]){
   --paper:#121611; --paper-2:#181D16; --sheet:#1B211A; --ink:#EAE6D9; --ink-2:#B4B3A6; --ink-3:#7F8277;
   --rule:#2B3329; --rule-2:#38412F;
   --accent:#7CC48F; --accent-2:#94D3A5; --accent-ink:#0F1A12; --accent-soft:#1E3324;
@@ -614,7 +614,7 @@ input[type=range]{accent-color:var(--accent)}
 
 /* ---------- корона и важность ---------- */
 :root{--gold:#B8860B;--gold-soft:#F7EDCF}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]):not([data-theme="night"]){--gold:#E8B84A;--gold-soft:#3A3016}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]):not([data-theme="night"]):not([data-theme="day"]){--gold:#E8B84A;--gold-soft:#3A3016}}
 :root[data-theme="dark"]{--gold:#E8B84A;--gold-soft:#3A3016}
 .daylist{display:grid;gap:10px}
 .crown-meter{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:12px;background:var(--paper);font-size:13.5px;color:var(--ink-2)}
@@ -722,6 +722,23 @@ input[type=range]{accent-color:var(--accent)}
   color-scheme:dark}
 :root[data-theme="night"] .lvl{background:linear-gradient(135deg,#1E3424,#13281E 70%)}
 :root[data-theme="night"] .h4 span,:root[data-theme="night"] .h4 b{color:#142017!important}
+
+/* ---------- тема «Лесной день»: светлая пара «Ночного леса». Шалфейная бумага, тёмно-зелёные чернила, золото потемнее,
+   чтобы читалось на ярком солнце. Бумага не белая, чтобы не слепила. ---------- */
+:root[data-theme="day"]{
+  --paper:#EAF0E4; --paper-2:#E0E8D8; --sheet:#F7F9F2; --ink:#10291B; --ink-2:#3E5A48; --ink-3:#6F8577;
+  --rule:#D3DECB; --rule-2:#B9C9B2;
+  --accent:#8A6510; --accent-2:#A47C1C; --accent-ink:#FFFDF5; --accent-soft:#F1E7C6;
+  --bad:#B23F28; --bad-soft:#F6DFD6; --warn:#A8700F; --warn-soft:#F4E7C8; --cold:#2F6F8F; --cold-soft:#DCEAF0;
+  --p1:#B83D26; --p2:#A8700F; --p3:#2F6F9F; --p4:#8C9A8E;
+  --c-ink:#4C5E52; --c-blue:#2F6F9F; --c-teal:#1D7F70; --c-green:#2E7D4A; --c-amber:#A8700F; --c-red:#B83D26; --c-violet:#6C4BA8; --c-pink:#B0446F;
+  --m1:#2A62CF; --gr:#0B7D70; --in:#A0650A; --m2:#86319E; --ag:#B23A0B; --dm:#AD1655; --la:#46710E;
+  --gold:#9C7414; --gold-soft:#F1E5C2;
+  --s-deep:#0B1A14; --s-space:#123024; --s-strato:#2C5A44; --s-high:#6E9C82; --s-sky:#B9D4C2; --s-low:#E4EEDD;
+  --hill:#9DBF8C; --soil:#7A6448; --cul-a:#3F8A50; --cul-b:#52A064; --node:#1F5A3A; --mile:#14321F; --mile-ok:#8A6510;
+  --shadow:0 1px 2px rgba(20,50,30,.06); --shadow-lg:0 18px 60px rgba(16,41,27,.2);
+  color-scheme:light}
+:root[data-theme="day"] .lvl{background:linear-gradient(135deg,#DCE7D2,#F7F9F2 70%)}
 
 .themes{flex-wrap:wrap}
 .themes button{flex:1 1 30%}

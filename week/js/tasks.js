@@ -64,7 +64,12 @@ const childIds = id => [id].concat(B.projects().filter(p => p.parent === id).map
 const inCal = t => S.cal === 'all' || childIds(S.cal).includes(t.proj || 'inbox');
 const sortT = (a, b) => (a.ord ?? 1e9) - (b.ord ?? 1e9) || (a.created || 0) - (b.created || 0);
 const onDate = date => B.tasks().filter(t => t.due === date && inCal(t)).sort(sortT);
-const someday = () => { const cut = Date.now() - 14 * 864e5; return B.tasks().filter(t => !t.due && inCal(t) && (!t.done || (t.doneAt || 0) > cut)).sort(sortT); };
+const someday = () => { const cut = Date.now() - 14 * 864e5; return B.tasks().filter(t => !t.due && !t.wk && inCal(t) && (!t.done || (t.doneAt || 0) > cut)).sort(sortT); };
+/* «Дела на неделю»: задача без дня, привязанная к неделе (поле wk = понедельник). В списках её ключ 'w:<понедельник>' */
+const weekTasks = ws => B.tasks().filter(t => !t.due && t.wk === ws && inCal(t)).sort(sortT);
+const isWk = k => typeof k === 'string' && k.startsWith('w:');
+const listOf = k => !k ? someday() : isWk(k) ? weekTasks(k.slice(2)) : onDate(k);
+const keyOf = t => t.due || (t.wk ? 'w:' + t.wk : '');
 /* будущие повторы открытых задач в пределах [from, to] */
 function ghosts(from, to){
   const out = {};
@@ -117,7 +122,7 @@ function dayList(date, list, min, gh){
   return `<div class="pl-list" data-d="${date}">
     ${list.map(t => row(t)).join('')}${(gh || []).map(t => row(t, {ghost: true})).join('')}${shad.map(shadRow).join('')}
     ${adding === date ? `<div class="pl-add"><input class="pl-in" data-d="${date}" placeholder="Новая задача" autocomplete="off" enterkeyhint="done"></div>` : ''}
-    ${Array.from({length: adding === date ? Math.max(0, empties - 1) : empties}, (_, i) => `<button class="pl-empty" data-act="plAdd" data-d="${date}" ${i ? 'tabindex="-1"' : ''} aria-label="Добавить задачу${date ? ' на ' + B.fmt(date) : ''}"></button>`).join('')}
+    ${Array.from({length: adding === date ? Math.max(0, empties - 1) : empties}, (_, i) => `<button class="pl-empty" data-act="plAdd" data-d="${date}" ${i ? 'tabindex="-1"' : ''} aria-label="Добавить задачу${date && !isWk(date) ? ' на ' + B.fmt(date) : ''}"></button>`).join('')}
   </div>`;
 }
 /* нагрузка дня: невыполненные дела, повторы и вебы ШАДа. Видна только в загруженные дни (сегодня и дальше):
@@ -141,18 +146,21 @@ function dayCol(date, min, gh){
 function weekView(){
   const ws = anchor || B.weekStart(B.today()), days = Array.from({length: 7}, (_, i) => B.add(ws, i));
   const gh = ghosts(days[0], days[6]);
-  const withShad = (S.cal === 'all' || S.cal === 'shad') && B.shad.plan.length, cols = withShad ? 2 : 3;
+  const cols = 2, wl = weekTasks(ws);
   const sd = someday(), rows = innerWidth < 760 ? sd.length + 2 : Math.max(4, Math.ceil((sd.length + 1) / cols) + 1);
   return `<div class="pl-week">
       ${days.slice(0, 5).map(d => dayCol(d, 9, gh)).join('')}
       <div class="pl-wkend">${dayCol(days[5], 4, gh)}${dayCol(days[6], 4, gh)}</div>
     </div>
-    <div class="pl-bottom ${withShad ? 'two' : ''}">
+    <div class="pl-bottom two">
       <section class="pl-some">
         <h2>Когда-нибудь</h2>
         <div class="pl-somebox" style="--rows:${rows};--cols:${cols}">${dayList('', sd, innerWidth < 760 ? rows : rows * cols, null)}</div>
       </section>
-      ${withShad ? shadBox(days[0]) : ''}
+      <section class="pl-shbox pl-wkbox">
+        <h2>Дела на неделю <span>${wl.filter(t => !t.done).length ? `без дня ${wl.filter(t => !t.done).length}` : 'перетащи сюда, если день не важен'}</span></h2>
+        ${dayList('w:' + ws, wl, 4, null)}
+      </section>
     </div>`;
 }
 /* «ШАД на неделю»: карточки без дня; перетащи на день, чтобы поставить, или обратно сюда, чтобы снять день */
@@ -195,12 +203,18 @@ function monthView(){
     </div>`;
     if (B.wd(d) === 6) cells += monthWeekCell(ws, withShad, ws === cw);
   }
-  return `<div class="pl-month ${withShad ? 'with-shad' : ''}"><div class="pl-mh">${WDS.map(w => `<span>${w}</span>`).join('')}<span class="pl-mhw">Неделя</span></div><div class="pl-mg">${cells}</div></div>`;
+  return `<div class="pl-month with-shad"><div class="pl-mh">${WDS.map(w => `<span>${w}</span>`).join('')}<span class="pl-mhw">Неделя</span></div><div class="pl-mg">${cells}</div></div>`;
 }
 /* восьмая колонка месяца: номер недели и её карточки ШАДа без дня; их можно тащить на дни месяца */
 function monthWeekCell(ws, withShad, cur){
   const head = `<button class="pl-mwn" data-act="plGoWeek" data-d="${ws}" title="Открыть неделю">№${isoWeek(B.add(ws, 3))}</button>`;
-  if (!withShad) return `<div class="pl-mw ${cur ? 'cw' : ''}">${head}</div>`;
+  if (!withShad){
+    const k = 'w:' + ws, wl = weekTasks(ws);
+    return `<div class="pl-mw ${cur ? 'cw' : ''}"><div class="pl-mwh">${head}</div>
+      <div class="pl-list" data-d="${k}">${wl.map(x => row(x, {dot: false})).join('')}
+        ${adding === k ? `<div class="pl-add"><input class="pl-in" data-d="${k}" placeholder="Дело на неделю" autocomplete="off" enterkeyhint="done"></div>`
+          : `<button class="pl-empty sm" data-act="plAdd" data-d="${k}" aria-label="Добавить дело на неделю" title="Дело на неделю"><span>${icon('plus')}</span></button>`}</div></div>`;
+  }
   const list = B.shadWeek(ws), left = B.shadHoursLeft(B.shadWeekAll(ws)), show = monthCap();
   const h = (Math.round(left * 2) / 2).toString().replace('.', ',');
   return `<div class="pl-mw ${cur ? 'cw' : ''}">
@@ -263,12 +277,12 @@ B.views.tasks = {
 function addFrom(inp, again){
   const v = inp.value.trim(), d = inp.dataset.d;
   if (v){
-    const def = {due: d};
+    const def = {due: isWk(d) ? '' : d};
     if (S.cal !== 'all') def.proj = S.cal;
     const r = B.parseQuick(v, def);
     if (r.title){
-      const ord = (d ? onDate(d) : someday()).reduce((m, x) => Math.max(m, x.ord ?? 0), 0) + 10;
-      B.saveTask(B.newTask({title: r.title, proj: r.proj || def.proj || 'inbox', pri: r.pri, due: r.due || d, time: r.time, ord}), true);
+      const ord = listOf(d).reduce((m, x) => Math.max(m, x.ord ?? 0), 0) + 10, due = r.due || def.due;
+      B.saveTask(B.newTask({title: r.title, proj: r.proj || def.proj || 'inbox', pri: r.pri, due, wk: !due && isWk(d) ? d.slice(2) : '', time: r.time, ord}), true);
     }
   }
   adding = again && v ? d : null;
@@ -400,7 +414,7 @@ function over(st, x, y){
   if (!st.shn) for (const r of rows){ const b = r.getBoundingClientRect(); if (y < b.top + b.height / 2 && (!grid || Math.abs(x - (b.left + b.width / 2)) < b.width / 2 + 20)){ before = r; break; } }
   const date = list.dataset.d || '';
   st.target = {date, before: before ? before.dataset.tid : null, box: !!list.dataset.shbox};
-  st.tag.textContent = st.target.box ? 'в блок недели' : date ? '→ ' + B.fmtW(date) : '→ Когда-нибудь';
+  st.tag.textContent = st.target.box ? 'в блок недели' : isWk(date) ? '→ на неделю' : date ? '→ ' + B.fmtW(date) : '→ Когда-нибудь';
   // переставляем место вставки, только если оно правда сдвинулось
   const anchor = before || (rows.length ? rows[rows.length - 1].nextSibling : list.firstChild);
   if (st.ph.parentNode === list && (st.ph.nextSibling === anchor || st.ph === anchor)) return;
@@ -434,12 +448,12 @@ function drop(st, target){
     return;
   }
   const t = B.task(st.id); if (!t) return B.render(true);
-  const to = target.date || '', was = t.due || '';
-  const ids = (to ? onDate(to) : someday()).map(x => x.id).filter(i => i !== t.id);
+  const to = target.date || '', was = keyOf(t);
+  const ids = listOf(to).map(x => x.id).filter(i => i !== t.id);
   const at = target.before ? ids.indexOf(target.before) : -1;
   ids.splice(at < 0 ? ids.length : at, 0, t.id);
   moveTask(t, to, ids);
-  if (was !== to) B.toast(to ? `Перенесено на ${B.fmtW(to)}` : 'Перенесено в «Когда-нибудь»', 1400);
+  if (was !== to) B.toast(isWk(to) ? 'В дела на неделю' : to ? `Перенесено на ${B.fmtW(to)}` : 'Перенесено в «Когда-нибудь»', 1400);
 }
 /* перенос веба (вместе с ним сдвигается срок ДЗ) или только срока ДЗ */
 function moveShad(n, kind, to){
@@ -458,13 +472,15 @@ function moveShad(n, kind, to){
 }
 /* перенос с записью в историю: дело, переехавшее на более поздний день, считается переносом (без штрафа) */
 function moveTask(t, to, order){
-  const patch = {due: to};
+  const wk = isWk(to) ? to.slice(2) : '', key = to;
+  to = wk ? '' : to;
+  const patch = {due: to, wk};
   if (!t.done && (t.due || '') !== to && t.due && (!to || to > t.due)) patch.postpones = (t.postpones || []).concat({from: t.due, to, why: '', at: Date.now()});
   if (t.remind && t.remind.at && t.due && to && t.due !== to){ const d = new Date(t.remind.at); d.setDate(d.getDate() + B.diff(t.due, to)); patch.remind = {at: localISO(d)}; }
   if (!to) patch.time = '';
   B.updTask(t.id, patch, true);
   if (order) order.forEach((id, i) => { const x = B.task(id); if (x && x.ord !== i * 10) B.saveTask(Object.assign({}, x, {ord: i * 10}), true); });
-  else B.updTask(t.id, {ord: (to ? onDate(to) : someday()).reduce((m, x) => Math.max(m, x.ord ?? 0), 0) + 10}, true);
+  else B.updTask(t.id, {ord: listOf(key).reduce((m, x) => Math.max(m, x.ord ?? 0), 0) + 10}, true);
   B.changed();
 }
 document.addEventListener('click', e => { if (Date.now() - justDragged < 350 && e.target.closest('.pl-t,.pl-shad')){ e.stopPropagation(); e.preventDefault(); } }, true);
@@ -703,7 +719,7 @@ B.pl = {
   },
   /* ⌥↑ ⌥↓: поднять или опустить задачу внутри её дня */
   reorder(t, k){
-    const due = t.due || '', ids = (due ? onDate(due) : someday()).map(x => x.id), i = ids.indexOf(t.id), j = i + k;
+    const due = keyOf(t), ids = listOf(due).map(x => x.id), i = ids.indexOf(t.id), j = i + k;
     if (i < 0 || j < 0 || j >= ids.length) return false;
     [ids[i], ids[j]] = [ids[j], ids[i]];
     moveTask(t, due, ids); return true;

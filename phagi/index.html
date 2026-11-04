@@ -817,6 +817,70 @@ legend{font-size:14px;color:var(--muted);padding:0 4px}
   .tg.n1 .tg-ev{font-size:13.5px}
 }
 @media(prefers-reduced-motion:reduce){.cvs button,.tg-ev,.tg-dh b{transition:none}}
+/* планер недели как в «Зове леса» */
+.cal-head.pl{gap:10px 12px;margin:4px 0 18px}
+.cal-head.pl h1{font:800 clamp(26px,4vw,40px)/1.05 var(--f);letter-spacing:-.02em;color:var(--text);min-width:0;text-transform:capitalize;margin:0}
+.pw-wn{color:var(--line);font-weight:800;margin-left:4px}
+:root[data-eff="dark"] .pw-wn{color:color-mix(in srgb,var(--muted) 55%,transparent)}
+.pl-arr{display:flex;gap:6px}
+.icon.dark{border-radius:50%;background:var(--text);color:var(--card);border-color:var(--text);font-size:20px}
+.icon.dark:hover{filter:brightness(1.2)}
+.pwk{display:grid;gap:0 22px;grid-template-columns:1fr}
+@media(min-width:760px){.pwk{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(min-width:1100px){.pwk{grid-template-columns:repeat(6,minmax(0,1fr))}}
+.pw-wkend{display:grid;align-content:start}
+.pw-day{display:grid;align-content:start;margin-bottom:18px;min-width:0}
+@media(min-width:1100px){.pw-day{margin-bottom:26px}}
+.pw-dh{all:unset;box-sizing:border-box;cursor:pointer;display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:4px 0 8px;border-bottom:2px solid var(--text);font:800 19px/1.2 var(--f);letter-spacing:-.01em;color:var(--text)}
+.pw-dh span{font-weight:500;font-size:17px;color:var(--muted);opacity:.75}
+.pw-dh:hover b{color:var(--ink)}
+.pw-dh:focus-visible{outline:2px solid var(--focus)}
+.pw-day.now .pw-dh{border-color:var(--accent);color:var(--accent)}
+.pw-day.now .pw-dh span{color:var(--accent);opacity:1;font-weight:600}
+.pw-day.was .pw-dh b{color:var(--muted)}
+.pw-list{display:grid;align-content:start}
+.pw-t,.pw-empty{min-height:40px;border-bottom:1px solid var(--line)}
+.pw-empty{all:unset;box-sizing:border-box;display:block;width:100%;min-height:40px;border-bottom:1px solid var(--line);cursor:text}
+.pw-empty:hover{background:color-mix(in srgb,var(--text) 3%,transparent)}
+.pw-empty:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+.pw-t{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:6px;min-height:40px;border-bottom:1px solid var(--line);padding:6px 2px 6px 9px;position:relative;font-size:14.5px;line-height:1.3;color:var(--text);min-width:0}
+.pw-t::before{content:"";position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:3px;background:var(--c)}
+.pw-t:hover{background:color-mix(in srgb,var(--c) 8%,transparent)}
+.pw-t:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+.pw-tt{flex:1;min-width:0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+.pw-time{font:500 12px ui-monospace,Menlo,monospace;color:var(--muted);flex:none}
+.pw-k,.pw-hw{flex:none;font:700 10px var(--d);letter-spacing:.06em;padding:2px 6px;border-radius:99px}
+.pw-k{color:var(--c);border:1px dashed var(--c)}
+.pw-hw{color:var(--card);background:var(--c)}
+.pw-ic{flex:none;font-size:12px}
+.pw-rs,.pw-n{flex:none;font-size:11.5px;color:var(--muted)}
+.pw-t.due::before{background:none;border-left:3px dashed var(--c);width:0}
+.pw-t.due.done .pw-tt{text-decoration:line-through;color:var(--muted)}
+.pw-t.due.done .pw-k{border-style:solid;border-color:var(--bio);color:var(--bio)}
+.pw-t.due.done .pw-k::before{content:"✓ "}
+.pw-t.due.chk .pw-k::before{content:"✓✓ "}
+.pw-t.cancel .pw-tt{text-decoration:line-through}.pw-t.cancel{opacity:.55}
+.pw-t.mine::before{background:repeating-linear-gradient(to bottom,var(--c) 0 4px,transparent 4px 7px)}
+.calwrap.cv-week{display:block}
+@media(max-width:759px){.pw-list .pw-empty~.pw-empty~.pw-empty{display:none}}
+@media(max-width:600px){.cal-head.pl .cvs{flex:1 1 100%;order:1}.cal-head.pl .cal-today{order:2;margin-right:auto}}
+.pw-wn{color:color-mix(in srgb,var(--muted) 40%,transparent)!important}
+/* месяц полегче, в духе планера */
+.calwrap.cv-month .month{background:transparent;border:0;border-radius:0;gap:0}
+.calwrap.cv-month .wd{background:transparent;border-bottom:2px solid var(--text);font:700 13px var(--f);color:var(--text);padding:4px 6px 8px}
+.calwrap.cv-month .cell{background:transparent;border-bottom:1px solid var(--line);border-right:1px solid var(--line);min-height:110px}
+.calwrap.cv-month .cell:nth-child(7n){border-right:0}
+.calwrap.cv-month .cell.out{background:color-mix(in srgb,var(--soft) 45%,transparent)}
+.calwrap.cv-month .cell.sel{box-shadow:inset 0 0 0 2px var(--text)}
+.calwrap.cv-month .cell:hover{background:color-mix(in srgb,var(--text) 3%,transparent)}
+@media(max-width:600px){
+  .cal-head.pl h1{order:0;flex:1 1 100%;text-align:left;font-size:28px}
+  .cal-head.pl .cvs{order:1;flex:1 1 100%;grid-template-columns:repeat(3,1fr)}
+  .cal-head.pl .cal-today{order:2;margin-right:auto}
+  .cal-head.pl .pl-arr{order:3}
+  .cal-head.pl .cal-new{order:4}
+  .calwrap.cv-month .cell{min-height:64px}
+}
 /* tests */
 .q{border-top:1px solid var(--line);padding:14px 0}
 .q:first-of-type{border-top:0}
@@ -2070,10 +2134,10 @@ function homeHTML(){
 }
 
 /* calendar views: month, week, 3 days, day; the choice is remembered in this browser */
-const CALV=[['month','Месяц'],['week','Неделя'],['3d','3 дня'],['day','День']];
+const CALV=[['week','Неделя'],['month','Месяц'],['day','День']];   // неделя и месяц как планер «Зова леса» (4.11.2026)
 function calView(){
   if(!S.calView){let v=null;try{v=localStorage.getItem('calView')}catch(e){}
-    S.calView=CALV.some(x=>x[0]===v)?v:(window.matchMedia&&matchMedia('(max-width:600px)').matches?'3d':'week')}
+    S.calView=CALV.some(x=>x[0]===v)?v:'week'}
   return S.calView}
 function calRange(){
   const v=calView(),d=S.calDay;
@@ -2086,7 +2150,8 @@ const hm=s=>{const m=/^(\d{1,2}):(\d{2})/.exec(s||'');return m?Number(m[1])*60+N
 const hmS=n=>String(Math.floor(n/60)%24).padStart(2,'0')+':'+String(n%60).padStart(2,'0');
 function calTitle(from,n){
   const v=calView();
-  if(v==='month'){const m=pd(S.calMonth);return m.toLocaleDateString('ru-RU',{month:'long',year:'numeric'})}
+  if(v==='month'){const m=pd(S.calMonth);return m.toLocaleDateString('ru-RU',{month:'long',year:'numeric'}).replace(/\s*г\.?$/,'')}
+  if(v==='week'){const th=pd(addDays(from,3)),s=th.toLocaleDateString('ru-RU',{month:'long'});return `${s[0].toUpperCase()+s.slice(1)} ${th.getFullYear()} <span class="pw-wn">№${isoWeek(from)}</span>`}
   if(n===1){const s=pd(from).toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});return s[0].toUpperCase()+s.slice(1)}
   const a=pd(from),b=pd(addDays(from,n-1)),y=b.getFullYear()===pd(today()).getFullYear()&&a.getFullYear()===b.getFullYear()?'':b.getFullYear();
   if(a.getMonth()===b.getMonth())return `${a.getDate()}–${b.getDate()} ${b.toLocaleDateString('ru-RU',{day:'numeric',month:'long'}).replace(/^\d+\s/,'')}${y?' '+y:''}`;
@@ -2105,6 +2170,20 @@ function calLay(list){
   if(grp.length)close();
   return out;
 }
+/* неделя-планер как в «Зове леса»: пять колонок будней и шестая с субботой и воскресеньем, дела строками */
+const MON_S=['янв.','февр.','марта','апр.','мая','июня','июля','авг.','сент.','окт.','нояб.','дек.'];
+function isoWeek(d){const x=pd(d);x.setDate(x.getDate()+3-((x.getDay()+6)%7));const y=new Date(x.getFullYear(),0,4);return 1+Math.round(((x-y)/864e5-3+((y.getDay()+6)%7))/7)}
+function pwLine(o){
+  const ev=o.ev,due=o.type==='due',lbl=due?o.task.title:ev.title,tm=!due&&ev.start?ev.start:'';
+  const fs=o.type==='ev'&&!o.cancel?evFiles(ev,o.date).length:0,hw=o.type==='ev'?lessonTasks(ev,o.date).length:0;
+  const r=o.type==='ev'&&!T()?myRsvp(meId(),ev.id,o.date):null;
+  return `<button class="pw-t${due?' due':''}${hwCls(o)}${o.cancel?' cancel':''}${o.type==='mine'?' mine':''}" style="--c:${occColor(o)}" ${occAttrs(o)}${hwN(o)} title="${esc(occLabel(o)+hwTip(o))}">${tm?`<span class="pw-time">${esc(tm)}</span>`:''}${due?'<span class="pw-k">ДЗ</span>':''}<span class="pw-tt">${esc(lbl)}</span>${fs?'<span class="pw-ic" aria-label="есть файлы">📎</span>':''}${hw?`<span class="pw-hw" title="Домашнее задание к занятию">ДЗ${hw>1?' '+hw:''}</span>`:''}${r?`<span class="pw-rs">${esc(RS[r.st].toLowerCase())}</span>`:''}${due&&hwN(o)?`<span class="pw-n">${esc(hwState(o.task).n)}</span>`:''}</button>`}
+function pwDay(d,by,rows){
+  const t0=today(),x=pd(d),list=by[d]||[];
+  const empty=Array.from({length:Math.max(1,rows-list.length)},(_,i)=>`<button class="pw-empty" data-act="pwnew" data-d="${d}" aria-label="${i?'':'Добавить '+(T()?'событие':'своё событие')+': '+fmtDayW(d)}"${i?' tabindex="-1"':''}></button>`).join('');
+  return `<section class="pw-day${d===t0?' now':''}${d<t0?' was':''}"><button class="pw-dh" data-act="pwday" data-d="${d}" aria-label="${fmtDayW(d)}"><b>${x.getDate()} ${MON_S[x.getMonth()]}</b><span>${d===t0?'Сегодня':WD[(x.getDay()+6)%7]}</span></button><div class="pw-list">${list.map(pwLine).join('')}${empty}</div></section>`}
+function pwWeekHTML(from,by){
+  return `<div class="pwk">${[0,1,2,3,4].map(i=>pwDay(addDays(from,i),by,7)).join('')}<div class="pw-wkend">${pwDay(addDays(from,5),by,3)}${pwDay(addDays(from,6),by,3)}</div></div>`}
 function calGridHTML(from,n,by){
   const days=Array.from({length:n},(_,i)=>addDays(from,i)),t0=today();
   const timed=d=>(by[d]||[]).filter(o=>o.type!=='due'&&hm(o.ev.start)!=null);
@@ -2138,14 +2217,22 @@ function calHTML(){
       ${list.slice(0,3).map(o=>`<button class="chip${o.type==='due'?' due':''}${hwCls(o)}${o.cancel?' cancel':''}" style="--c:${occColor(o)}" ${occAttrs(o)}${hwN(o)} title="${esc(occLabel(o)+hwTip(o))}">${esc(occLabel(o))}</button>`).join('')}${list.length>3?`<span class="more">ещё ${list.length-3}</span>`:''}
       <span class="dots">${list.slice(0,4).map(o=>`<i ${o.type==='due'?`class="due${hwCls(o)}" `:''}style="--c:${occColor(o)}"></i>`).join('')}</span></div>`}
     grid=`<div class="month">${WD.map(w=>`<div class="wd">${w}</div>`).join('')}${cells}</div>`}
+  else if(v==='week')grid=pwWeekHTML(from,by);
   else grid=calGridHTML(from,n,by);
   const day=by[S.calDay]||occs(S.calDay,S.calDay);
   const unit={month:['месяц','Предыдущий','Следующий'],week:['неделя','Предыдущая','Следующая'],'3d':['3 дня','Предыдущие','Следующие'],day:['день','Предыдущий','Следующий']}[v];
   const isNow=v==='month'?S.calMonth===dkey(new Date(pd(t0).getFullYear(),pd(t0).getMonth(),1)):t0>=from&&t0<=addDays(from,n-1);
-  return `<div class="cal-head cv-${v}"><div class="cal-nav"><button class="icon" data-act="calnav" data-n="-1" aria-label="${unit[1]} ${unit[0]}">‹</button><h1>${calTitle(from,n)}</h1><button class="icon" data-act="calnav" data-n="1" aria-label="${unit[2]} ${unit[0]}">›</button></div><button class="btn ghost sm cal-today${isNow?' on':''}" data-act="caltoday">Сегодня</button><span class="grow"></span><div class="cvs" role="group" aria-label="Вид календаря">${CALV.map(([k,l])=>`<button data-act="calview" data-v="${k}" aria-pressed="${k===v}">${l}</button>`).join('')}</div><button class="btn cal-new" data-act="newevent" aria-label="${T()?'Новое событие':'Своё событие'}"><span class="pl" aria-hidden="true">+</span><span class="tx">${T()?'Новое событие':'Своё событие'}</span></button></div>
+  const views=`<div class="cvs" role="group" aria-label="Вид календаря">${CALV.map(([k,l])=>`<button data-act="calview" data-v="${k}" aria-pressed="${k===v}">${l}</button>`).join('')}</div>`;
+  const newBtn=`<button class="btn cal-new" data-act="newevent" aria-label="${T()?'Новое событие':'Своё событие'}"><span class="pl" aria-hidden="true">+</span><span class="tx">${T()?'Новое событие':'Своё событие'}</span></button>`;
+  const hwHint=T()?'Когда домашку сдали все, кому она задана, срок становится зелёным с галочкой ✓, а когда всё проверено, с двумя ✓✓. Пока сдали не все, видно, сколько сдали, например 1/3.':'Сданная домашка становится зелёной, с галочкой ✓ и зачёркнутым названием, проверенная учителем отмечена двумя галочками ✓✓.';
+  if(v==='day')return `<div class="cal-head cv-${v}"><div class="cal-nav"><button class="icon" data-act="calnav" data-n="-1" aria-label="${unit[1]} ${unit[0]}">‹</button><h1>${calTitle(from,n)}</h1><button class="icon" data-act="calnav" data-n="1" aria-label="${unit[2]} ${unit[0]}">›</button></div><button class="btn ghost sm cal-today${isNow?' on':''}" data-act="caltoday">Сегодня</button><span class="grow"></span>${views}${newBtn}</div>
   <div class="calwrap cv-${v}">${grid}
   <section class="sheet agenda"><div class="row" style="justify-content:space-between;margin-bottom:10px"><h2 style="margin:0">${(s=>s.charAt(0).toUpperCase()+s.slice(1))(fmtDayW(S.calDay))}</h2></div>${agendaList(day,'В этот день ничего нет.')}</section></div>
-  <p class="muted small">Вид меняется кнопками сверху: месяц, неделя, 3 дня или день${v==='month'?'':', на телефоне листайте дни свайпом влево и вправо'}.${v==='month'?'':' Нажмите на пустое время, чтобы добавить '+(T()?'событие':'своё событие')+' на этот час.'} Занятия отмечены цветной полоской${v==='month'?' и закрашенной точкой':''}, сроки домашки пунктирной рамкой${v==='month'?' со значком листа и точкой-кружком':' в строке «весь день»'}. ${T()?'Когда домашку сдали все, кому она задана, срок становится зелёным с галочкой ✓, а когда всё проверено, с двумя ✓✓. Пока сдали не все, перед названием видно, сколько сдали, например 1/3.':'Сданная домашка становится зелёной, с галочкой ✓ и зачёркнутым названием, проверенная учителем отмечена двумя галочками ✓✓.'} Нажмите на занятие, чтобы открыть ДЗ к нему или отметить, придёте ли вы.</p>`;
+  <p class="muted small">Нажмите на пустое время, чтобы добавить ${T()?'событие':'своё событие'} на этот час. Сроки домашки стоят в строке «весь день». ${hwHint} Нажмите на занятие, чтобы открыть ДЗ к нему или отметить, придёте ли вы.</p>`;
+  return `<div class="cal-head pl cv-${v}"><h1>${calTitle(from,n)}</h1><span class="grow"></span>${views}<button class="btn ghost sm cal-today${isNow?' on':''}" data-act="caltoday">Сегодня</button><div class="pl-arr"><button class="icon dark" data-act="calnav" data-n="-1" aria-label="${unit[1]} ${unit[0]}">‹</button><button class="icon dark" data-act="calnav" data-n="1" aria-label="${unit[2]} ${unit[0]}">›</button></div>${newBtn}</div>
+  <div class="calwrap cv-${v}">${grid}${v==='month'?`
+  <section class="sheet agenda"><div class="row" style="justify-content:space-between;margin-bottom:10px"><h2 style="margin:0">${(s=>s.charAt(0).toUpperCase()+s.slice(1))(fmtDayW(S.calDay))}</h2></div>${agendaList(day,'В этот день ничего нет.')}</section>`:''}</div>
+  <p class="muted small">${v==='week'?`Нажмите на пустую строку дня, чтобы добавить ${T()?'событие':'своё событие'}, на дату дня — чтобы открыть этот день по часам. Строка с меткой ДЗ — срок домашки, метка ДЗ справа у занятия — к нему есть домашнее задание.`:'Нажмите на день, чтобы увидеть его дела ниже.'} ${hwHint} Нажмите на занятие, чтобы открыть ДЗ к нему или отметить, придёте ли вы.</p>`;
 }
 
 function tasksHTML(){
@@ -4492,7 +4579,7 @@ const actions={
     for(const path of drop)await S.db.doc(path).delete().catch(()=>{});toast('Ученица убрана')},
   calnav:el=>{const k=Number(el.dataset.n),v=calView();
     if(v==='month'){const m=pd(S.calMonth);m.setMonth(m.getMonth()+k);S.calMonth=dkey(m);return}
-    const st=v==='week'?7:v==='3d'?3:1;S.calDay=addDays(S.calDay,k*st);if(S.cal3)S.cal3=addDays(S.cal3,k*st);S.calMonth=null},
+    const st=v==='week'?7:1;S.calDay=addDays(S.calDay,k*st);if(S.cal3)S.cal3=addDays(S.cal3,k*st);S.calMonth=null},
   caltoday:()=>{S.calDay=today();S.calMonth=null;S.cal3=null},
   calday:el=>{S.calDay=el.dataset.d;const cm=S.calMonth&&pd(S.calMonth),m=pd(S.calDay);if(!cm||m.getMonth()!==cm.getMonth()||m.getFullYear()!==cm.getFullYear())S.calMonth=null},
   calview:el=>{const v=el.dataset.v,was=calView();if(v===was)return;
@@ -4503,6 +4590,8 @@ const actions={
     const hh=el.offsetHeight/Number(el.closest('.tg').style.getPropertyValue('--rows')||1),m=Number(el.dataset.h0)*60+Math.floor(y/hh*2)*30;
     openEventDialog(null,{date:d,start:hmS(Math.min(m,23*60+30)),end:hmS(Math.min(m+60,23*60+59))})},
   occ:el=>openOcc(el.dataset.k,el.dataset.id,el.dataset.d),
+  pwnew:el=>{S.calDay=el.dataset.d;openEventDialog(null,{date:el.dataset.d})},
+  pwday:el=>{S.calDay=el.dataset.d;S.calView='day';S.calMonth=null;try{localStorage.setItem('calView','day')}catch(e){}},
   newevent:()=>openEventDialog(null,{date:S.view==='cal'?S.calDay:today()}),
   deck:el=>{S.view='deck';S.deckId=el.dataset.id;window.scrollTo(0,0)},
   newdeck:()=>openDeckDialog(null,'new'),

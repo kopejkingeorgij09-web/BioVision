@@ -250,6 +250,13 @@ function onShad(snap){
   snap.docs.forEach(d => { const n = parseInt(d.id.slice(1), 10); const v = d.data() || {}; if (n){ m[n] = {s: v.s || 0, note: v.note || '', at: v.at || 0}; if (v.o) m[n].o = v.o; } });
   if (JSON.stringify(m) !== JSON.stringify(B.shad.marks)){ B.shad.marks = m; applyOver(); changed(); }
 }
+/* бонус за качество ДЗ с «Фагов» (до +10 за веб): его пишет сервер в коллекцию 'shadx', когда ДЗ проверено */
+B.shad.bonus = {};
+function onShadX(snap){
+  const m = {};
+  snap.docs.forEach(d => { const n = parseInt(d.id.slice(1), 10); const v = d.data() || {}; if (n && v.b) m[n] = {b: +v.b || 0, at: v.at || 0}; });
+  if (JSON.stringify(m) !== JSON.stringify(B.shad.bonus)){ B.shad.bonus = m; changed(); }
+}
 B.shadStage = n => (B.shad.marks[n] && B.shad.marks[n].s) || 0;
 B.setShadStage = async (n, s) => {
   const cur = B.shad.marks[n] || {};
@@ -317,6 +324,7 @@ B.connect = async () => {
     setSync('cloud', 'Синхронизирую…');
     db.collection('bamboo').onSnapshot(onRemote, () => setSync('error', navigator.onLine ? 'Облако не ответило, копия на устройстве' : 'Нет интернета, копия на устройстве'));
     db.collection('shad').onSnapshot(onShad, () => {});
+    db.collection('shadx').onSnapshot(onShadX, () => {});
   } else {
     if (!docs.cfg) seed();
     try { B.shad.marks = JSON.parse(localStorage.getItem(LS_SHADMARKS) || '{}') || {}; } catch (e) {}
@@ -364,7 +372,7 @@ B.nextStep = t => (t.subs || []).find(s => !s.done);
 /* ---------- опыт, уровни, серии ----------
    Опыт дают только дела и привычки: задача +5 (важная или с короной +8), подзадача +4,
    привычка +10 (минимальная версия +5; чтение и тренировка тоже привычки и считаются здесь же).
-   Фокус, чтение минутами, разбор и ШАД опыта не дают: они видны в своих разделах и сериях.
+   Фокус, чтение минутами и разбор опыта не дают: они видны в своих разделах и сериях.
    Каждый новый уровень сажает в лесу новое дерево, растущее дерево показывает прогресс внутри уровня. */
 B.XP = {task: 5, taskP1: 8, sub: 4, habit: 10,
   // ШАД ценится выше обычных дел: опыт по достигнутой стадии веба (Смотрю, Посмотрен, ДЗ решено, Закрыт), всего до 60 за веб
@@ -426,6 +434,8 @@ B.calc = () => {
   });
   B.workouts().forEach(w => push(sportBy, w.date, w));
   for (const n in B.shad.marks){ const m = B.shad.marks[n]; if (m.at && m.s) push(shadBy, B.dayOf(m.at), m.s); }
+  const shadXBy = {};   // бонус за проверенное ДЗ ШАДа, пока веб в стадии «ДЗ решено» или «Закрыт»
+  for (const n in B.shad.bonus){ const m = B.shad.bonus[n]; if (m.at && m.b && B.shadStage(+n) >= 3) push(shadXBy, B.dayOf(m.at), m.b); }
 
   const days = {}, weekHab = {};
   let total = 0, xpAll = 0;
@@ -439,6 +449,7 @@ B.calc = () => {
     if (dn.length) p.tasks = dn.reduce((a, t) => a + (t.pri === 1 || crownSet.has(t.id) ? B.XP.taskP1 : B.XP.task), 0);
     if (subBy[date]) p.subs = subBy[date].length * B.XP.sub;
     if (shadBy[date]) p.shad = shadBy[date].reduce((x, st) => x + (B.XP.shad[st] || 0), 0);   // весь опыт веба в день последней отметки
+    if (shadXBy[date]) p.shad = (p.shad || 0) + shadXBy[date].reduce((x, b) => x + b, 0);
     let hab = 0;
     habits.forEach(h => {
       if (h.created && date < h.created) return;

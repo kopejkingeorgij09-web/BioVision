@@ -3,7 +3,7 @@
 const {esc, icon} = B;
 const NAV = [
   ['today', 'Сегодня', 'today'], ['tasks', 'Задачи', 'list'], ['habits', 'Привычки', 'habit'], ['journal', 'Дневник', 'pen'],
-  ['read', 'Чтение', 'book'], ['forest', 'Лес', 'tree'], ['stats', 'Итоги', 'chart'],
+  ['read', 'Чтение', 'book'], ['forest', 'Лес', 'tree'],
   ['search', 'Поиск', 'search'], ['settings', 'Настройки', 'gear']
 ];
 const FOOT = ['search', 'settings'];
@@ -87,7 +87,10 @@ B.on('change', () => B.render());
 B.on('sync', () => shell(route()));
 
 /* ---------- каркас: боковая панель, нижнее меню, шапка ---------- */
+/* «Итоги» живут вкладкой внутри «Дневника»: в меню подсвечивается «Дневник» */
+const navKey = v => v === 'stats' ? 'journal' : v;
 function shell(r){
+  r = Object.assign({}, r, {v: navKey(r.v)});
   const c = B.calc();
   const side = document.getElementById('side');
   side.innerHTML = `<a class="brand" href="#/today">${icon('tree')}<span><b>Зов леса</b><small>уровень ${c.level} · ${c.trees ? B.fmtTrees(c.trees) : 'поляна'}</small></span></a>

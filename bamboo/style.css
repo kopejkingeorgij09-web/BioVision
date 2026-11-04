@@ -1317,3 +1317,16 @@ a.rf-mt:hover b{text-decoration:underline}
   .rf-mt b{font-size:13px}.rf-mt span{font-size:11px}
   .rf-scene .rf-fog{bottom:58px}
 }
+/* нагрузка дня: только цвет линии и маленькое число в загруженные дни */
+.pl-day.busy .pl-dh{border-bottom-color:var(--warn)}
+.pl-day.over .pl-dh{border-bottom-color:var(--bad)}
+.pl-load{font:600 11px var(--f-mono);font-style:normal;margin-right:6px;padding:1px 6px;border-radius:99px;vertical-align:2px;background:var(--warn-soft);color:var(--warn)}
+.pl-day.over .pl-load{background:var(--bad-soft);color:var(--bad)}
+.pl-md.busy,.pl-md.over{position:relative}
+.pl-md.busy::after,.pl-md.over::after{content:"";position:absolute;right:-2px;top:3px;width:5px;height:5px;border-radius:50%;background:var(--warn)}
+.pl-md.over::after{background:var(--bad)}
+.jr-tabs{margin-bottom:6px}
+.jr-tabs a{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:9px;color:var(--ink-2);font-size:13.5px;font-weight:500}
+.jr-tabs a:hover{text-decoration:none;color:var(--ink)}
+.jr-tabs a.on{background:var(--sheet);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.jr-tabs a .ic{width:15px;height:15px}

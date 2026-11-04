@@ -120,11 +120,20 @@ function dayList(date, list, min, gh){
     ${Array.from({length: adding === date ? Math.max(0, empties - 1) : empties}, (_, i) => `<button class="pl-empty" data-act="plAdd" data-d="${date}" ${i ? 'tabindex="-1"' : ''} aria-label="Добавить задачу${date ? ' на ' + B.fmt(date) : ''}"></button>`).join('')}
   </div>`;
 }
+/* нагрузка дня: невыполненные дела, повторы и вебы ШАДа. Видна только в загруженные дни (сегодня и дальше):
+   линия под датой становится янтарной (от 6) или красной (от 9), рядом число. В обычные дни ничего не добавляется. */
+const BUSY = 6, OVER = 9;
+function loadOf(date, gh){
+  if (date < B.today()) return {n: 0, cls: ''};
+  const shad = S.cal === 'all' || S.cal === 'shad' ? B.shadOn(date).filter(it => B.shadStage(it.p.n) < it.need).length : 0;
+  const n = onDate(date).filter(x => !x.done).length + ((gh && gh[date]) || []).length + shad;
+  return {n, cls: n >= OVER ? 'over' : n >= BUSY ? 'busy' : ''};
+}
 function dayCol(date, min, gh){
   if (innerWidth < 760) min = 2;
-  const t = B.today(), cls = date === t ? 'now' : date < t ? 'was' : '';
-  return `<section class="pl-day ${cls}" data-day="${date}">
-    <header class="pl-dh"><b>${dLabel(date)}</b><span>${date === t ? 'Сегодня' : WDS[B.wd(date)]}</span></header>
+  const t = B.today(), cls = date === t ? 'now' : date < t ? 'was' : '', ld = loadOf(date, gh);
+  return `<section class="pl-day ${cls} ${ld.cls}" data-day="${date}">
+    <header class="pl-dh" ${ld.cls ? `title="${ld.n} ${B.plural(ld.n, 'дело', 'дела', 'дел')} на день${ld.cls === 'over' ? ', перегруз' : ''}"` : ''}><b>${dLabel(date)}</b><span>${ld.cls ? `<i class="pl-load">${ld.n}</i>` : ''}${date === t ? 'Сегодня' : WDS[B.wd(date)]}</span></header>
     ${dayList(date, onDate(date), min, gh[date])}
   </section>`;
 }
@@ -174,7 +183,7 @@ function monthView(){
     const all = list.length + g.length + shad.length, show = 4;
     const out = d.slice(0, 7) !== first.slice(0, 7), ws = B.weekStart(d);
     cells += `<div class="pl-mc ${d === t ? 'now' : ''} ${out ? 'out' : ''} ${past ? 'was' : ''} ${ws === cw ? 'cw' : ''} ${B.wd(d) > 4 ? 'we' : ''}">
-      <button class="pl-md" data-act="plGoWeek" data-d="${d}" title="Открыть неделю">${B.parse(d).getDate()}</button>
+      ${(() => { const ld = loadOf(d, gh); return `<button class="pl-md ${ld.cls}" data-act="plGoWeek" data-d="${d}" title="Открыть неделю${ld.cls ? ` · ${ld.n} ${B.plural(ld.n, 'дело', 'дела', 'дел')}` : ''}">${B.parse(d).getDate()}</button>`; })()}
       <div class="pl-list" data-d="${d}">${list.slice(0, show).map(x => row(x, {dot: false})).join('')}${g.slice(0, Math.max(0, show - list.length)).map(x => row(x, {ghost: true, dot: false})).join('')}${all <= show ? shad.slice(0, show - list.length - g.length).map(shadRow).join('') : ''}
         ${all > show ? `<button class="pl-more" data-act="plGoWeek" data-d="${d}">ещё ${all - show}</button>` : ''}
         ${doneN ? `<button class="pl-more pl-donen" data-act="plGoWeek" data-d="${d}" title="Сделано за день">✓ ${doneN}</button>` : ''}

@@ -112,7 +112,8 @@ B.views.stats = {
   render(){
     const r = range(), list = days(r), s = summary(list);
     return `<div class="page stats-page">
-      <header class="page-h"><div><div class="eyebrow">Итоги</div><h1>${esc(r.label)}</h1></div>
+      <div class="toggle jr-tabs"><a class="" href="#/journal">${icon('pen')}День</a><a class="on" href="#/stats">${icon('chart')}Итоги</a></div>
+      <header class="page-h"><div><div class="eyebrow">Дневник · итоги</div><h1>${esc(r.label)}</h1></div>
         <div class="row">${mode !== 'all' ? `<button class="icon-btn" data-act="stShift" data-k="-1" aria-label="Назад">${icon('left')}</button><button class="icon-btn" data-act="stShift" data-k="1" aria-label="Вперёд">${icon('right')}</button>` : ''}</div></header>
       <div class="toggle wide st-mode">${[['week', 'Неделя'], ['month', 'Месяц'], ['all', 'Всё время']].map(([k, l]) => `<button class="${mode === k ? 'on' : ''}" data-act="stMode" data-k="${k}">${l}</button>`).join('')}</div>
       <div class="cols">

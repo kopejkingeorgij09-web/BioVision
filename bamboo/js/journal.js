@@ -54,6 +54,7 @@ B.views.journal = {
     const top = (d.top || []).map(B.task).filter(Boolean);
     const res = r ? {good: 'разбор', some: 'без разбора', empty: 'пустой', open: 'идёт'}[r.result] : '';
     return `<div class="page journal-page">
+      <div class="toggle jr-tabs"><a class="on" href="#/journal">${icon('pen')}День</a><a class="" href="#/stats">${icon('chart')}Итоги</a></div>
       <header class="page-h"><div><div class="eyebrow">Дневник</div><h1>${date === t ? 'Сегодня' : B.WDF[B.wd(date)] + ', ' + B.fmt(date)}</h1></div>
         <div class="row"><a class="icon-btn" href="#/journal/${B.add(date, -1)}" aria-label="Предыдущий день">${icon('left')}</a>${date < t ? `<a class="icon-btn" href="#/journal/${B.add(date, 1)}" aria-label="Следующий день">${icon('right')}</a>` : ''}</div></header>
       ${timeline(date, c)}

@@ -1,0 +1,200 @@
+{
+ "fire-flora-light": {
+  "file": "fire-flora-light/body.webp",
+  "source": "Бескрылый дракон огня, флоры и света.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "water-flora-light": {
+  "file": "water-flora-light/body.webp",
+  "source": "Водный дракон флоры и света.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "fire-air-flora": {
+  "file": "fire-air-flora/body.webp",
+  "source": "Огненно-воздушный дракон с лесными рогами.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "fire-air-dark": {
+  "file": "fire-air-dark/body.webp",
+  "source": "Огненно-воздушный дракон с тёмными шипами.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "fire-earth-light": {
+  "file": "fire-earth-light/body.webp",
+  "source": "Огненно-каменный дракон с золотым сиянием.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "fire-earth": {
+  "file": "fire-earth/body.webp",
+  "source": "Огненно-каменный дракон с янтарными кристаллами.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "fire-flora": {
+  "file": "fire-flora/body.webp",
+  "source": "Огненно-лесной дракон с цветами.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "fire-light": {
+  "file": "fire-light/body.webp",
+  "source": "Огненно-световой дракон с кристаллическим хвостом.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "fire-air": {
+  "file": "fire-air/body.webp",
+  "source": "Редкий огненно-воздушный дракон.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "earth-air-light": {
+  "file": "earth-air-light/body.webp",
+  "source": "Светокаменный дракон с воздушным гребнем.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "water-earth-light": {
+  "file": "water-earth-light/body.webp",
+  "source": "Сияющий дракон воды, земли и света.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "water-earth-air": {
+  "file": "water-earth-air/body.webp",
+  "source": "Стихийный дракон воды, камня и воздуха.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "water-earth-dark": {
+  "file": "water-earth-dark/body.webp",
+  "source": "Тёмный водно-земной дракон.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "water-flora-dark": {
+  "file": "water-flora-dark/body.webp",
+  "source": "Тёмный водный дракон с мшистыми рогами.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "fire-earth-flora": {
+  "file": "fire-earth-flora/body.webp",
+  "source": "Трёхстихийный дракон огня, камня и леса.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "fire-light-dark": {
+  "file": "fire-light-dark/body.webp",
+  "source": "Трёхстихийный дракон огня, света и тьмы.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "fire-flora-dark": {
+  "file": "fire-flora-dark/body.webp",
+  "source": "Трёхстихийный дракон огня, флоры и тьмы.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "fire-earth-dark": {
+  "file": "fire-earth-dark/body.webp",
+  "source": "02488aee-1c76-4bdb-b39a-a1e287cba924.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "air-light-dark": {
+  "file": "air-light-dark/body.webp",
+  "source": "130f0b61-070f-4ae6-9d0b-eb14580ba341.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "earth-flora-dark": {
+  "file": "earth-flora-dark/body.webp",
+  "source": "269de644-e130-459a-b0b1-030e1a6621a7.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "earth-air-flora": {
+  "file": "earth-air-flora/body.webp",
+  "source": "2ca27f57-760e-4d06-9bcc-e56d010fd486.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "air-flora-dark": {
+  "file": "air-flora-dark/body.webp",
+  "source": "4623e34f-6356-4b9e-a325-84fc23e77886.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "air-flora-light": {
+  "file": "air-flora-light/body.webp",
+  "source": "53e9346f-6bc2-403b-aacc-80fa5e0d04aa.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "water-air-dark": {
+  "file": "water-air-dark/body.webp",
+  "source": "617857fb-98ce-4298-9d35-dc0c65232cde.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "water-air-flora": {
+  "file": "water-air-flora/body.webp",
+  "source": "6d78f8b2-7ac9-423d-bad2-08df6c364ce2.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "earth-air-dark": {
+  "file": "earth-air-dark/body.webp",
+  "source": "7ffa1c94-737c-4bc4-bdea-41a078d31f8c.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "fire-air-light": {
+  "file": "fire-air-light/body.webp",
+  "source": "8c84cbd8-bcf8-4010-8a0c-756c99e94e41.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "flora-light-dark": {
+  "file": "flora-light-dark/body.webp",
+  "source": "a506cf1b-33a0-405e-9da5-890125a9cf7c.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "earth-light-dark": {
+  "file": "earth-light-dark/body.webp",
+  "source": "cc72b450-6ea2-4e42-abf4-1d58b8122846.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "earth-flora-light": {
+  "file": "earth-flora-light/body.webp",
+  "source": "cc97bc30-9e8c-47f5-9aa9-8d865f953a73.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "water-light-dark": {
+  "file": "water-light-dark/body.webp",
+  "source": "cefbbd88-6784-4e18-bd2a-704587f1c40f.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "water-earth-flora": {
+  "file": "water-earth-flora/body.webp",
+  "source": "e0ae3ab4-bea3-4822-a833-d70e77ec3511.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ },
+ "water-air-light": {
+  "file": "water-air-light/body.webp",
+  "source": "fdc90a07-c25c-4886-a7a9-b0a038ae916d.png",
+  "tool": "ChatGPT",
+  "tries": 1
+ }
+}

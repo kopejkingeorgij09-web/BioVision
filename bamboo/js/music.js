@@ -22,6 +22,12 @@ const TRACKS = [
   ['Марс, вестник войны', 'Холст', 'Gustav_Holst_-_the_planets,_op._32_-_i._mars,_the_bringer_of_war.ogg'],
   ['Патетическая симфония, I часть', 'Чайковский', "Tchaikovsky,_Symphony_No._6_In_B_Minor,_Op._74,_'Pathetique'_-_I._Adagio,_Allegro_Non_Troppo.ogg"],
 ];
+/* свои песни: файлы с устройства хранятся в IndexedDB этого браузера в исходном виде,
+   в репозиторий и в облако не уходят. В списке они идут первыми: [название, исполнитель, null, blob-адрес, id] */
+const OWN = [];
+const idb = () => new Promise((ok, no) => { const r = indexedDB.open('zov-music', 1); r.onupgradeneeded = () => r.result.createObjectStore('t', {keyPath: 'id'}); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
+const tx = async (mode, fn) => { const d = await idb(); return new Promise((ok, no) => { const t = d.transaction('t', mode), r = fn(t.objectStore('t')); t.oncomplete = () => ok(r && r.result); t.onerror = () => no(t.error); }); };
+const all = () => OWN.concat(TRACKS);
 const KEY = 'zov-music-i';
 const enc = f => encodeURIComponent(f).replace(/'/g, '%27').replace(/[()]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
 
@@ -53,12 +59,13 @@ const srcs = f => {
   const h = md5(f), p = `${h[0]}/${h.slice(0, 2)}/${enc(f)}`, base = 'https://upload.wikimedia.org/wikipedia/commons/';
   return [`${base}transcoded/${p}/${enc(f)}.mp3`, base + p];
 };
+const srcsOf = t => t[3] ? [t[3]] : srcs(t[2]);
 const page = f => 'https://commons.wikimedia.org/wiki/File:' + enc(f);
 
 let au = null, idx = -1, alt = 0, fails = 0, fade = null, broke = false, seeking = false;
 const mmss = x => { x = Math.max(0, Math.floor(x || 0)); return Math.floor(x / 60) + ':' + String(x % 60).padStart(2, '0'); };
 const dur = () => au && isFinite(au.duration) ? au.duration : 0;
-const get = () => { try { const r = localStorage.getItem(KEY), v = r == null ? -1 : +r; return v >= 0 && v < TRACKS.length ? v : -1; } catch { return -1; } };
+const get = () => { try { const r = localStorage.getItem(KEY), v = r == null ? -1 : +r; return v >= 0 && v < all().length ? v : -1; } catch { return -1; } };
 const put = v => { try { localStorage.setItem(KEY, String(v)); } catch {} };
 const playing = () => !!au && !au.paused;
 
@@ -67,8 +74,8 @@ function fadeTo(v, ms, done){
   fade = setInterval(() => { const k = Math.min(1, (Date.now() - t0) / ms); au.volume = from + (v - from) * k; if (k >= 1){ clearInterval(fade); done && done(); } }, 50);
 }
 function load(i){
-  idx = (i + TRACKS.length) % TRACKS.length; alt = 0; put(idx);
-  au.src = srcs(TRACKS[idx][2])[0]; au.volume = 0;
+  const L = all(); idx = (i + L.length) % L.length; alt = 0; put(idx);
+  au.src = srcsOf(L[idx])[0]; au.volume = 0;
   au.play().then(() => fadeTo(1, 2500)).catch(() => {});
   sync();
 }
@@ -81,9 +88,9 @@ function ensure(){
   au.addEventListener('timeupdate', tick);
   au.addEventListener('loadedmetadata', tick);
   au.addEventListener('error', () => {
-    const s = srcs(TRACKS[idx][2]);
+    const s = srcsOf(all()[idx]);
     if (alt + 1 < s.length){ alt++; au.src = s[alt]; au.play().then(() => fadeTo(1, 2500)).catch(() => {}); return; }
-    if (++fails >= TRACKS.length){ broke = true; fails = 0; sync(); return; }   // сети нет или Викисклад недоступен
+    if (++fails >= all().length){ broke = true; fails = 0; sync(); return; }   // сети нет или Викисклад недоступен
     load(idx + 1);
   });
   if ('mediaSession' in navigator){
@@ -93,7 +100,7 @@ function ensure(){
   }
 }
 function sync(){
-  const t = TRACKS[idx];
+  const t = all()[idx];
   if (t && 'mediaSession' in navigator && window.MediaMetadata) navigator.mediaSession.metadata = new MediaMetadata({title: t[0], artist: t[1], album: 'Зов леса'});
   B.$$('.rf-music').forEach(el => { el.outerHTML = pill(); });
 }
@@ -111,15 +118,73 @@ function seekRow(){
   const d = dur(), c = au ? au.currentTime || 0 : 0;
   return `<div class="rf-seek"><span class="rf-t0">${mmss(c)}</span><input type="range" min="0" max="${Math.max(1, Math.floor(d))}" step="1" value="${Math.floor(c)}" style="--p:${d ? (c / d * 100).toFixed(2) : 0}%" data-in="musSeek" aria-label="Перемотка"><span class="rf-t1">${d ? mmss(d) : '–:––'}</span></div>`;
 }
+const addBtn = () => `<label class="rf-mb sm rf-add" title="Добавить свои песни с устройства" aria-label="Добавить свои песни">${icon('plus')}<input type="file" accept="audio/*" multiple hidden data-in="musAdd"></label>`;
+function addRow(t){
+  return `<div class="rf-own">${addBtn()}<span>${OWN.length ? `своих песен ${OWN.length}` : 'добавить свои песни'}</span>${t[3] ? `<button class="rf-del" data-act="musDel" aria-label="Убрать эту песню из плеера">убрать эту</button>` : ''}</div>`;
+}
 function pill(){
-  const t = TRACKS[idx], on = playing();
+  const t = all()[idx], on = playing();
   if (broke) return `<div class="rf-music"><button class="rf-mb" data-act="musToggle" aria-label="Попробовать снова">${icon('music', 'mi')}</button><span class="rf-mt"><b>Музыка не загрузилась</b><span>нужен интернет, нажми ещё раз</span></span></div>`;
-  if (!t) return `<div class="rf-music idle"><button class="rf-mb" data-act="musToggle" aria-label="Включить музыку">${icon('music', 'mi')}</button><span class="rf-mt"><b>Музыка леса</b><span>классика до мурашек</span></span></div>`;
+  if (!t) return `<div class="rf-music idle">${addBtn()}<button class="rf-mb" data-act="musToggle" aria-label="Включить музыку">${icon('music', 'mi')}</button><span class="rf-mt"><b>Музыка леса</b><span>классика до мурашек</span></span></div>`;
   return `<div class="rf-music full ${on ? 'on' : ''}"><div class="rf-row"><button class="rf-mb sm prev" data-act="musPrev" aria-label="Назад: с начала или предыдущая">${icon('skip')}</button><button class="rf-mb" data-act="musToggle" aria-label="${on ? 'Пауза' : 'Играть'}">${icon(on ? 'pause' : 'play')}</button>
-    <a class="rf-mt" href="${page(t[2])}" target="_blank" rel="noopener" title="Запись на Викискладе: исполнитель и лицензия"><b>${esc(t[0])}</b><span>${esc(t[1])}</span></a>
-    <button class="rf-mb sm" data-act="musNext" aria-label="Следующая">${icon('skip')}</button></div>${seekRow()}</div>`;
+    ${t[3] ? `<span class="rf-mt"><b>${esc(t[0])}</b><span>${esc(t[1] || 'своя песня')}</span></span>` : `<a class="rf-mt" href="${page(t[2])}" target="_blank" rel="noopener" title="Запись на Викискладе: исполнитель и лицензия"><b>${esc(t[0])}</b><span>${esc(t[1])}</span></a>`}
+    <button class="rf-mb sm" data-act="musNext" aria-label="Следующая">${icon('skip')}</button></div>${seekRow()}${addRow(t)}</div>`;
 }
 B.music = {pill};
+/* название и исполнитель из тегов ID3v2 (TIT2, TPE1), иначе из имени файла */
+async function tags(f){
+  const name = f.name.replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ');
+  let title = name, artist = '';
+  try {
+    const b = new Uint8Array(await f.slice(0, 256 * 1024).arrayBuffer());
+    if (b[0] === 73 && b[1] === 68 && b[2] === 51){
+      const v = b[3], size = (b[6] << 21) | (b[7] << 14) | (b[8] << 7) | b[9];
+      let p = 10; const end = Math.min(b.length, 10 + size);
+      while (p + 10 < end){
+        const id = String.fromCharCode(b[p], b[p + 1], b[p + 2], b[p + 3]);
+        const n = v === 4 ? (b[p + 4] << 21) | (b[p + 5] << 14) | (b[p + 6] << 7) | b[p + 7] : (b[p + 4] << 24) | (b[p + 5] << 16) | (b[p + 6] << 8) | b[p + 7];
+        if (!/^[A-Z0-9]{4}$/.test(id) || n <= 0) break;
+        if (id === 'TIT2' || id === 'TPE1'){
+          const e = b[p + 10], d = b.subarray(p + 11, p + 10 + n);
+          const txt = new TextDecoder(e === 1 ? 'utf-16' : e === 2 ? 'utf-16be' : e === 3 ? 'utf-8' : 'windows-1251').decode(d).replace(/\0/g, ' ').replace(/\s*[\[(][^\])]*\.(me|ru|com|net|org|cc|fm|su|biz|info)\b[^\])]*[\])]/gi, '').trim();
+          if (txt){ if (id === 'TIT2') title = txt; else artist = txt; }
+        }
+        p += 10 + n;
+      }
+    }
+  } catch {}
+  return {title, artist};
+}
+async function loadOwn(){
+  try {
+    const rows = await tx('readonly', st => st.getAll());
+    OWN.length = 0;
+    (rows || []).sort((a, b) => a.at - b.at).forEach(r => OWN.push([r.title, r.artist, null, URL.createObjectURL(r.blob), r.id]));
+    sync();
+  } catch {}
+}
+B.inputs.musAdd = async (el, e) => {
+  if (e.type !== 'change' || !el.files.length) return;
+  const files = [...el.files]; let n = 0;
+  B.toast('Добавляю…', 1200);
+  for (const f of files){
+    const m = await tags(f), id = 'o' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    try { await tx('readwrite', st => st.put({id, title: m.title, artist: m.artist, blob: f, at: Date.now() + n})); n++; } catch {}
+  }
+  const was = idx >= 0 ? all()[idx] : null;
+  await loadOwn();
+  if (was) idx = all().findIndex(t => t[2] === was[2] && t[4] === was[4]);
+  B.toast(n ? `Добавлено песен: ${n}. Они хранятся только в этом браузере` : 'Не вышло сохранить: мало места в браузере', 2600);
+  if (n && !playing()){ ensure(); load(0); }
+};
+B.acts.musDel = async () => {
+  const t = all()[idx]; if (!t || !t[3]) return;
+  try { await tx('readwrite', st => st.delete(t[4])); } catch {}
+  URL.revokeObjectURL(t[3]); OWN.splice(OWN.indexOf(t), 1);
+  const go = playing(); ensure(); if (go) load(idx); else { idx = Math.min(idx, all().length - 1); sync(); }
+  B.toast('Песня убрана из плеера', 1400);
+};
+if (window.indexedDB) loadOwn();
 B.acts.musPrev = () => {
   ensure(); if (idx < 0) return B.acts.musToggle();
   if (au.currentTime > 3){ au.currentTime = 0; tick(); return; }
@@ -136,7 +201,7 @@ B.inputs.musSeek = (el, e) => {
 B.acts.musToggle = () => {
   ensure();
   if (broke){ broke = false; load(idx < 0 ? 0 : idx); return; }
-  if (idx < 0){ const last = get(); load(last < 0 ? Math.floor(Math.random() * TRACKS.length) : last); return; }
+  if (idx < 0){ const last = get(); load(last < 0 ? (OWN.length ? 0 : Math.floor(Math.random() * TRACKS.length)) : last); return; }
   if (playing()) fadeTo(0, 600, () => au.pause());
   else { au.volume = 0; au.play().then(() => fadeTo(1, 1500)).catch(() => {}); }
 };

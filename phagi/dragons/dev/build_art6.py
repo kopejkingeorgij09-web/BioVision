@@ -19,8 +19,31 @@ Q = 84
 WING_ROOT = {'fire': (1366, 700), 'water': (1250, 551), 'earth': (1475, 589), 'air': (1429, 625),
              'flora': (1472, 635), 'light': (1482, 585), 'dark': (1481, 614)}
 WING_MIRROR = {'fire'}
-# ручные поправки опорных точек, доли кадра после обрезки: {код: {точка: [u, v]}}
-FIX = {}
+# ручная разметка скелета: dev/art6-rig.txt
+def load_rig():
+    rig = {}
+    for line in open(os.path.join(HERE, 'art6-rig.txt')):
+        if not line.strip() or line.startswith('#'): continue
+        c, *n = line.split(); n = list(map(float, n))
+        rig[c] = dict(shoulder=(n[0], n[1]), hip=(n[2], n[3]), belly=n[4], rear=(n[5], n[6]), front=(n[7], n[8]))
+    return rig
+
+
+def split_legs(a, ground, rng, belly):
+    """в группе лап (задних или передних) ищем ближнюю и дальнюю лапу по срезу на высоте голени"""
+    H, W = a.shape
+    best = []
+    for k in (.25, .4, .55):
+        y = int(ground - (ground - belly * H) * k)
+        row = a[min(H - 1, y), int(rng[0] * W):int(rng[1] * W)]
+        rs = [((s0 + e0) / 2 / W + rng[0]) for s0, e0 in runs(row, W * .006) if e0 - s0 > W * .008]
+        if len(rs) >= 2: best = rs; break
+        if len(rs) > len(best): best = rs
+    if len(best) >= 2:
+        mid = (best[0] + best[-1]) / 2
+        return [[rng[0], mid, best[0]], [mid, rng[1], best[-1]]]
+    c = best[0] if best else (rng[0] + rng[1]) / 2
+    return [[rng[0], rng[1], c]]
 
 
 def crop(im, pad=6):
@@ -59,40 +82,47 @@ def anchors(im):
     # морда: самая правая точка верхних 60 % кадра
     ys, xs = np.nonzero(a[: int(H * .6)])
     i = xs.argmax(); snout = (xs[i] / W, ys[i] / H)
-    # передние лапы: самые правые, задние: самые левые из правой половины тела и левее
-    front = max(feet_c) if feet_c else .66
-    rear = min([f for f in feet_c if f > .22] or [.36])
-    if front - rear < .12: rear = front - .25
     # хвост: самая левая точка
     ys2, xs2 = np.nonzero(a[:, : int(W * .3)])
     j = xs2.argmin() if len(xs2) else 0
     tail = (xs2[j] / W, ys2[j] / H) if len(xs2) else (0, .5)
 
-    def topv(u):
-        x0, x1 = int(max(0, (u - .03) * W)), int(min(W - 1, (u + .03) * W))
-        return float(np.percentile(top[x0:x1 + 1], 80)) / H
+    def topv(u0, u1=None, q=80):
+        if u1 is None: u0, u1 = u0 - .03, u0 + .03
+        x0, x1 = int(max(0, u0 * W)), int(min(W - 1, u1 * W))
+        return float(np.percentile(top[x0:x1 + 1], q)) / H
 
-    def botv(u):
-        # низ туловища над лапами: ищем верх просвета между лапами
-        x0, x1 = int(max(0, (u - .06) * W)), int(min(W - 1, (u + .06) * W))
-        return float(np.percentile(bot[x0:x1 + 1], 15)) / H
-
-    # плечо (крепление крыла) и основание шеи считаются от морды: у всех рисунков одна раскладка
-    # (голова справа, хвост слева), а лапы по силуэту находятся ненадёжно из-за хвостов до земли
-    sh_u = snout[0] - .3
-    shoulder = (sh_u, topv(sh_u) + .07)
-    hip = (snout[0] - .62, topv(snout[0] - .62) + .08)
-    # шея: середина между плечом и мордой, по верхнему краю
-    neck_u = snout[0] - .22
-    neck = (neck_u, topv(neck_u) + .08)
+    # лапы: узкие полосы силуэта на высоте голени (несколько срезов, берём самый чистый)
+    legs = []
+    for k in (.08, .11, .14, .05):
+        y = int(ground - H * k)
+        row = a[y].copy(); row[: int(W * .22)] = False; row[int((snout[0] - .02) * W):] = False
+        rs = [(s0 / W, e0 / W) for s0, e0 in runs(row, W * .006) if W * .008 < e0 - s0 < W * .11]
+        if 3 <= len(rs) <= 6: legs = rs; break
+        if len(rs) > len(legs): legs = rs
+    if len(legs) < 2: legs = [(.3, .36), (.4, .46), (.68, .74), (.78, .84)]
+    cs = [(l0 + l1) / 2 for l0, l1 in legs]
+    # задние и передние: делим по самому большому просвету
+    gi = max(range(len(cs) - 1), key=lambda i: cs[i + 1] - cs[i])
+    rear_g, front_g = legs[: gi + 1], legs[gi + 1:]
+    rear = float(np.mean([(l0 + l1) / 2 for l0, l1 in rear_g]))
+    front = float(np.mean([(l0 + l1) / 2 for l0, l1 in front_g]))
+    feet_c = cs
+    # живот: низ силуэта в просвете между задними и передними лапами
+    x0, x1 = int(rear_g[-1][1] * W) + 2, int(front_g[0][0] * W) - 2
+    gap = [bot[x] for x in range(x0, max(x0 + 1, x1)) if has[x] and bot[x] < ground - H * .06]
+    belly = min(.88, max(.4, float(np.median(gap)) / H)) if gap else .68
+    # спина: верх силуэта посередине между тазом и плечом (там нет ни шеи, ни хвоста)
+    back = topv(rear + (front - rear) * .25, rear + (front - rear) * .7, 75)
+    sh_u = front - .03
+    shoulder = (sh_u, back + (belly - back) * .18)
+    hip = (rear, back + (belly - back) * .25)
+    neck = (min(snout[0] - .08, sh_u + .06), back + (belly - back) * .1)
     eye = (snout[0] - .075, snout[1] - .035)
-    # линия живота: низ силуэта в просветах между лапами
-    x0, x1 = int((rear + .03) * W), int((front - .03) * W)
-    gap = [bot[x] for x in range(x0, max(x0 + 1, x1)) if has[x] and bot[x] < ground - H * .08]
-    belly = min(.85, max(.45, float(np.median(gap)) / H)) if gap else .7
     return {
         'snout': snout, 'eye': eye, 'neck': neck, 'shoulder': shoulder, 'hip': hip, 'tail': tail,
-        'front': front, 'rear': rear, 'belly': belly, 'feet': feet_c, 'ground': ground / H,
+        'front': front, 'rear': rear, 'belly': belly, 'feet': feet_c, 'ground': ground / H, 'back': back,
+        'legs': [[l0, l1, (l0 + l1) / 2, 1 if g is front_g else 0] for g in (rear_g, front_g) for l0, l1 in g],
     }
 
 
@@ -116,6 +146,8 @@ def fit(im, w):
 
 
 def main():
+    global RIG
+    RIG = load_rig()
     man = {'body': {}, 'wing': {}, 'baby': {}}
     bodies = {}
     for n in NAMES:
@@ -134,7 +166,15 @@ def main():
             im, _ = fit(im, BODY_W)
             save(im, dst)
         an = anchors(im)
-        an.update(FIX.get(code, {}))
+        R = RIG.get(code)
+        if R:
+            an.update(shoulder=R['shoulder'], hip=R['hip'], belly=R['belly'], rear=sum(R['rear']) / 2, front=sum(R['front']) / 2)
+            sh = R['shoulder']
+            an['neck'] = (min(an['snout'][0] - .1, sh[0] + .05), sh[1] - .02)
+            al = np.asarray(im.getchannel('A')) > 60
+            g = an['ground'] * im.height
+            an['legs'] = [l + [0] for l in split_legs(al, g, R['rear'], R['belly'])] + [l + [1] for l in split_legs(al, g, R['front'], R['belly'])]
+        else: print('нет разметки', code)
         man['body'][code] = dict(w=im.width, h=im.height, **{k: r3(v) for k, v in an.items()})
     for n in NAMES:
         src = Image.open(os.path.join(SRC, n, 'wing.webp')).convert('RGBA')
@@ -144,11 +184,11 @@ def main():
             src = ImageOps.mirror(src)
         im, (ox, oy) = crop(src)
         im, k = fit(im, WING_W)
-        save(im, os.path.join(OUT, 'w', CODE[n] + '.webp'))
+        if not os.path.exists(os.path.join(OUT, 'w', CODE[n] + '.webp')): save(im, os.path.join(OUT, 'w', CODE[n] + '.webp'))
         man['wing'][CODE[n]] = dict(w=im.width, h=im.height, root=r3(((root[0] - ox) * k / im.width, (root[1] - oy) * k / im.height)))
         b, _ = crop(Image.open(os.path.join(SRC, n, 'baby.webp')).convert('RGBA'))
         b, _ = fit(b, 480)
-        save(b, os.path.join(OUT, 'k', CODE[n] + '.webp'))
+        if not os.path.exists(os.path.join(OUT, 'k', CODE[n] + '.webp')): save(b, os.path.join(OUT, 'k', CODE[n] + '.webp'))
         man['baby'][CODE[n]] = dict(w=b.width, h=b.height, **{k2: r3(v) for k2, v in anchors(b).items()})
     js = 'window.DR6ART_MANIFEST=' + json.dumps(man, ensure_ascii=False, separators=(',', ':')) + ';\n'
     with open(os.path.join(OUT, 'manifest.js'), 'w') as f:

@@ -366,7 +366,9 @@ B.nextStep = t => (t.subs || []).find(s => !s.done);
    привычка +10 (минимальная версия +5; чтение и тренировка тоже привычки и считаются здесь же).
    Фокус, чтение минутами, разбор и ШАД опыта не дают: они видны в своих разделах и сериях.
    Каждый новый уровень сажает в лесу новое дерево, растущее дерево показывает прогресс внутри уровня. */
-B.XP = {task: 5, taskP1: 8, sub: 4, habit: 10};
+B.XP = {task: 5, taskP1: 8, sub: 4, habit: 10,
+  // ШАД ценится выше обычных дел: опыт по достигнутой стадии веба (Смотрю, Посмотрен, ДЗ решено, Закрыт), всего до 60 за веб
+  shad: [0, 5, 20, 50, 60]};
 B.need = L => 100 + 25 * L;           // опыта от уровня L до L+1
 
 B.levelOf = total => {
@@ -436,6 +438,7 @@ B.calc = () => {
     const dn = doneBy[date] || [];
     if (dn.length) p.tasks = dn.reduce((a, t) => a + (t.pri === 1 || crownSet.has(t.id) ? B.XP.taskP1 : B.XP.task), 0);
     if (subBy[date]) p.subs = subBy[date].length * B.XP.sub;
+    if (shadBy[date]) p.shad = shadBy[date].reduce((x, st) => x + (B.XP.shad[st] || 0), 0);   // весь опыт веба в день последней отметки
     let hab = 0;
     habits.forEach(h => {
       if (h.created && date < h.created) return;

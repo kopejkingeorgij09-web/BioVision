@@ -258,7 +258,7 @@ function onShadX(snap){
   if (JSON.stringify(m) !== JSON.stringify(B.shad.bonus)){ B.shad.bonus = m; changed(); }
 }
 /* лента с «Фагов» (коллекция 'phx', пишет сервер, см. supabase/migrations/20261104c_phagi_bamboo_bridge.sql):
-   ev_<id> занятия (role 'teach' — уроки с ученицами, 'learn' — свои), dl_<id> сроки ДЗ, day_<дата> что было на Фагах за день */
+   ev_<id> занятия (в «Зове леса» не показываются), dl_<id> сроки ДЗ, day_<дата> что было на Фагах за день */
 B.phx = {ev: {}, dl: {}, day: {}};
 B.PHAGI = '../phagi/';
 function onPhx(snap){
@@ -266,16 +266,9 @@ function onPhx(snap){
   snap.docs.forEach(d => { const i = d.id.indexOf('_'), k = d.id.slice(0, i), id = d.id.slice(i + 1); if (m[k]) m[k][id] = Object.assign({id}, d.data() || {}); });
   if (JSON.stringify(m) !== JSON.stringify(B.phx)){ B.phx = m; changed(); }
 }
-/* занятия и сроки с Фагов на день: занятия по времени, потом сроки ДЗ */
+/* сроки ДЗ с Фагов на день. Занятия (ev_) в планер не берём: они часто меняются, их держат только на Фагах (просьба Георгия 4.11.2026) */
 B.phxOn = date => {
   const out = [];
-  for (const id in B.phx.ev){
-    const e = B.phx.ev[id]; if (!e.date) continue;
-    let on = e.date === date;
-    if (e.repeat === 'weekly') on = date >= e.date && B.diff(e.date, date) % 7 === 0 && (!e.until || date <= e.until);
-    if (on) out.push({k: 'ev', id, t: e.title, from: e.start || '', to: e.end || '', role: e.role, cancel: (e.skip || []).includes(date)});
-  }
-  out.sort((a, b) => (a.from || '99').localeCompare(b.from || '99'));
   for (const id in B.phx.dl){ const x = B.phx.dl[id]; if (x.due === date) out.push({k: 'dl', id, t: x.title, done: !!x.done, checked: !!x.checked, shad: x.shad, fix: x.fix}); }
   return out;
 };

@@ -108,7 +108,12 @@ const shadRow = it => { const s = B.shadStage(it.p.n), ok = s >= it.need;
     <button class="pl-open" data-act="shadOpen" data-n="${it.p.n}" title="${esc(it.p.t)}">${it.old ? '<span class="pl-old">хвост</span>' : ''}${it.from ? `<span class="pl-time">${it.from}</span>` : ''}<b>${it.kind === 'web' ? '' : 'ДЗ · '}${esc(it.p.code || '')}</b> ${esc(it.p.t)}</button>${shadMeter(s)}
     <button class="pl-chk" data-act="shadChk" data-n="${it.p.n}" data-need="${it.need}" aria-label="${ok ? 'Вернуть' : 'Готово'}" title="${it.kind === 'web' ? 'Веб посмотрен' : 'ДЗ решено'}">${icon('check')}</button>
   </div>`; };
-B.acts.shadChk = el => { const n = +el.dataset.n, need = +el.dataset.need, s = B.shadStage(n); B.setShadStage(n, s >= need ? need - 1 : need); };
+B.acts.shadChk = async el => {
+  const n = +el.dataset.n, need = +el.dataset.need, s = B.shadStage(n), before = B.calc().total;
+  await B.setShadStage(n, s >= need ? need - 1 : need);
+  const gain = B.calc().total - before;
+  if (gain > 0) B.toast(`<b class="pos">ШАД</b> · <b class="pos">+${gain} XP</b>`, 1600);
+};
 
 function dayList(date, list, min, gh){
   const shad = S.cal === 'all' || S.cal === 'shad' ? B.shadOn(date) : [];

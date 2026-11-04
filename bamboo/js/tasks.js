@@ -237,7 +237,7 @@ B.views.tasks = {
           ${viewToggle()}
           <div class="pl-fs" role="group" aria-label="Размер текста"><button data-act="plFs" data-k="-1" title="Текст мельче" ${fsI === 0 ? 'disabled' : ''}>A</button><button data-act="plFs" data-k="1" title="Текст крупнее" ${fsI === FS.length - 1 ? 'disabled' : ''}>A</button></div>
           <a class="icon-btn" href="#/search" title="Поиск" aria-label="Поиск">${icon('search')}</a>
-          <button class="icon-btn pl-full ${B.plWide ? 'on' : ''}" data-act="plFull" title="${B.plWide ? 'Показать меню' : 'Во весь экран: спрятать меню'}" aria-label="${B.plWide ? 'Показать меню' : 'Во весь экран'}" aria-pressed="${B.plWide}">${icon(B.plWide ? 'shrink' : 'expand')}</button>
+          <button class="icon-btn pl-full ${B.plWide ? 'on' : ''}" data-act="plFull" title="${B.plWide ? 'Показать меню (⌥⇧)' : 'Во весь экран: спрятать меню (⌥⇧)'}" aria-label="${B.plWide ? 'Показать меню' : 'Во весь экран'}" aria-pressed="${B.plWide}">${icon(B.plWide ? 'shrink' : 'expand')}</button>
           ${isNow ? '' : `<button class="btn sm ghost" data-act="plToday">Сегодня</button>`}
           <button class="icon-btn dark" data-act="plShift" data-k="-1" aria-label="Назад">${icon('left')}</button>
           <button class="icon-btn dark" data-act="plShift" data-k="1" aria-label="Вперёд">${icon('right')}</button>
@@ -674,6 +674,8 @@ document.addEventListener('keydown', e => {
   undoT = setTimeout(() => { if (undoFn && undoFn.commit === commit){ commit(); undoFn = null; } }, 6000);
   B.toast(`Удалено: ${B.esc(t.title || 'без названия')} <button class="toast-btn" data-act="undoDel">Вернуть</button>`, 6000);
 });
+/* для клавиш в keys.js: какая задача под курсором, перенос, текущий вид */
+B.pl = {hover: () => hoverId, move: (t, to) => moveTask(t, to), view: () => S.view};
 B.acts.undoDel = () => { if (!undoFn) return; clearTimeout(undoT); undoFn.undo(); undoFn = null; B.toast('Задача вернулась', 1400); };
 /* закрытие карточки: пустую задачу без названия не держим */
 B.acts.edDone = el => { const t = B.task(el.dataset.id); if (!t) return; const before = B.calc().total; B.setDone(t, !t.done); const gain = B.calc().total - before; if (!t.done && gain > 0) B.toast(`<b class="pos">Готово</b> · <b class="pos">+${gain} XP</b>`); B.openTask(t.id, true); };

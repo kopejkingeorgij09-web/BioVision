@@ -1350,3 +1350,10 @@ a.rf-mt:hover b{text-decoration:underline}
 
 /* колонка «Неделя» в месяце: карточки ШАДа плотнее, чтобы длинный список не растягивал строку */
 .planner .pl-mw .pl-shad{min-height:calc(24px * var(--plfs,1))}
+
+/* ---------- подсказка по клавишам (?) ---------- */
+.kh-h{font-size:13px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 4px}
+.kh{display:grid}
+.kh-r{display:grid;grid-template-columns:minmax(120px,auto) 1fr;gap:12px;align-items:center;padding:6px 0;border-bottom:1px solid var(--rule);font-size:14px}
+.kh-k{display:flex;gap:4px;flex-wrap:wrap}
+kbd{font:600 12px var(--f-mono);background:var(--paper-2);border:1px solid var(--rule-2);border-bottom-width:2px;border-radius:6px;padding:2px 7px;color:var(--ink);white-space:nowrap}

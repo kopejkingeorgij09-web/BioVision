@@ -55,7 +55,9 @@ const srcs = f => {
 };
 const page = f => 'https://commons.wikimedia.org/wiki/File:' + enc(f);
 
-let au = null, idx = -1, alt = 0, fails = 0, fade = null, broke = false;
+let au = null, idx = -1, alt = 0, fails = 0, fade = null, broke = false, seeking = false;
+const mmss = x => { x = Math.max(0, Math.floor(x || 0)); return Math.floor(x / 60) + ':' + String(x % 60).padStart(2, '0'); };
+const dur = () => au && isFinite(au.duration) ? au.duration : 0;
 const get = () => { try { const r = localStorage.getItem(KEY), v = r == null ? -1 : +r; return v >= 0 && v < TRACKS.length ? v : -1; } catch { return -1; } };
 const put = v => { try { localStorage.setItem(KEY, String(v)); } catch {} };
 const playing = () => !!au && !au.paused;
@@ -76,6 +78,8 @@ function ensure(){
   au.addEventListener('ended', () => { fails = 0; load(idx + 1); });
   au.addEventListener('playing', () => { fails = 0; broke = false; sync(); });
   au.addEventListener('pause', sync);
+  au.addEventListener('timeupdate', tick);
+  au.addEventListener('loadedmetadata', tick);
   au.addEventListener('error', () => {
     const s = srcs(TRACKS[idx][2]);
     if (alt + 1 < s.length){ alt++; au.src = s[alt]; au.play().then(() => fadeTo(1, 2500)).catch(() => {}); return; }
@@ -84,7 +88,8 @@ function ensure(){
   });
   if ('mediaSession' in navigator){
     navigator.mediaSession.setActionHandler('nexttrack', () => B.acts.musNext());
-    navigator.mediaSession.setActionHandler('previoustrack', () => load(idx - 1));
+    navigator.mediaSession.setActionHandler('previoustrack', () => B.acts.musPrev());
+    try { navigator.mediaSession.setActionHandler('seekto', d => { if (d.seekTime != null) au.currentTime = d.seekTime; }); } catch {}
   }
 }
 function sync(){
@@ -92,15 +97,42 @@ function sync(){
   if (t && 'mediaSession' in navigator && window.MediaMetadata) navigator.mediaSession.metadata = new MediaMetadata({title: t[0], artist: t[1], album: 'Зов леса'});
   B.$$('.rf-music').forEach(el => { el.outerHTML = pill(); });
 }
+/* полоска перемотки обновляется на месте, без перерисовки всего плеера */
+function tick(){
+  if (seeking || !au) return;
+  const d = dur(), c = au.currentTime || 0;
+  B.$$('.rf-music .rf-seek').forEach(el => {
+    const r = el.querySelector('input'); if (!r) return;
+    r.max = Math.max(1, Math.floor(d)); r.value = Math.floor(c); r.style.setProperty('--p', d ? (c / d * 100).toFixed(2) + '%' : '0%');
+    el.querySelector('.rf-t0').textContent = mmss(c); el.querySelector('.rf-t1').textContent = d ? mmss(d) : '–:––';
+  });
+}
+function seekRow(){
+  const d = dur(), c = au ? au.currentTime || 0 : 0;
+  return `<div class="rf-seek"><span class="rf-t0">${mmss(c)}</span><input type="range" min="0" max="${Math.max(1, Math.floor(d))}" step="1" value="${Math.floor(c)}" style="--p:${d ? (c / d * 100).toFixed(2) : 0}%" data-in="musSeek" aria-label="Перемотка"><span class="rf-t1">${d ? mmss(d) : '–:––'}</span></div>`;
+}
 function pill(){
   const t = TRACKS[idx], on = playing();
   if (broke) return `<div class="rf-music"><button class="rf-mb" data-act="musToggle" aria-label="Попробовать снова">${icon('music', 'mi')}</button><span class="rf-mt"><b>Музыка не загрузилась</b><span>нужен интернет, нажми ещё раз</span></span></div>`;
   if (!t) return `<div class="rf-music idle"><button class="rf-mb" data-act="musToggle" aria-label="Включить музыку">${icon('music', 'mi')}</button><span class="rf-mt"><b>Музыка леса</b><span>классика до мурашек</span></span></div>`;
-  return `<div class="rf-music ${on ? 'on' : ''}"><button class="rf-mb" data-act="musToggle" aria-label="${on ? 'Пауза' : 'Играть'}">${icon(on ? 'pause' : 'play')}</button>
+  return `<div class="rf-music full ${on ? 'on' : ''}"><div class="rf-row"><button class="rf-mb sm prev" data-act="musPrev" aria-label="Назад: с начала или предыдущая">${icon('skip')}</button><button class="rf-mb" data-act="musToggle" aria-label="${on ? 'Пауза' : 'Играть'}">${icon(on ? 'pause' : 'play')}</button>
     <a class="rf-mt" href="${page(t[2])}" target="_blank" rel="noopener" title="Запись на Викискладе: исполнитель и лицензия"><b>${esc(t[0])}</b><span>${esc(t[1])}</span></a>
-    <button class="rf-mb sm" data-act="musNext" aria-label="Следующая">${icon('skip')}</button></div>`;
+    <button class="rf-mb sm" data-act="musNext" aria-label="Следующая">${icon('skip')}</button></div>${seekRow()}</div>`;
 }
 B.music = {pill};
+B.acts.musPrev = () => {
+  ensure(); if (idx < 0) return B.acts.musToggle();
+  if (au.currentTime > 3){ au.currentTime = 0; tick(); return; }
+  if (playing()) fadeTo(0, 300, () => load(idx - 1)); else load(idx - 1);
+};
+B.inputs.musSeek = (el, e) => {
+  if (!au) return;
+  const d = dur(), v = +el.value;
+  el.style.setProperty('--p', d ? (v / d * 100).toFixed(2) + '%' : '0%');
+  const t0 = el.parentNode.querySelector('.rf-t0'); if (t0) t0.textContent = mmss(v);
+  if (e.type === 'input'){ seeking = true; return; }
+  seeking = false; if (d) au.currentTime = v;
+};
 B.acts.musToggle = () => {
   ensure();
   if (broke){ broke = false; load(idx < 0 ? 0 : idx); return; }

@@ -115,12 +115,19 @@ B.acts.shadChk = async el => {
   if (gain > 0) B.toast(`<b class="pos">ШАД</b> · <b class="pos">+${gain} XP</b>`, 1600);
 };
 
+/* занятия и сроки ДЗ с «Фагов»: только для просмотра, открываются на Фагах. ДЗ к вебам ШАДа здесь не дублируются (они в карточках ШАДа),
+   кроме работы над ошибками */
+const phList = date => S.cal === 'all' ? B.phxOn(date).filter(x => x.k === 'ev' || !x.shad || x.fix) : [];
+B.phRow = it => `<div class="pl-ph ${it.k} ${it.role || ''} ${it.done ? 'ok' : ''} ${it.cancel ? 'cancel' : ''}">
+    <a class="pl-open" href="${B.PHAGI}" target="_blank" rel="noopener" title="${esc(it.t)} · открыть на Фагах">${it.from ? `<span class="pl-time">${it.from}</span>` : ''}${it.k === 'dl' ? `<span class="pl-phk">${it.fix ? 'РнО' : 'ДЗ'}</span>` : ''}<span class="pl-tt">${esc(it.t)}</span></a>
+    ${it.k === 'dl' ? `<span class="pl-phs" title="${it.done ? (it.checked ? 'Сдано и проверено' : 'Сдано') : 'Не сдано'}">${it.done ? (it.checked ? '✓✓' : '✓') : ''}</span>` : `<span class="pl-phs" title="${it.role === 'teach' ? 'Урок с ученицей' : 'Занятие'} на Фагах">${it.role === 'teach' ? '👩‍🏫' : '📘'}</span>`}
+  </div>`;
 function dayList(date, list, min, gh){
-  const shad = S.cal === 'all' || S.cal === 'shad' ? B.shadOn(date) : [];
-  const n = list.length + (gh || []).length + shad.length;
+  const shad = S.cal === 'all' || S.cal === 'shad' ? B.shadOn(date) : [], ph = phList(date);
+  const n = list.length + (gh || []).length + shad.length + ph.length;
   const empties = Math.max(1, min - n);
   return `<div class="pl-list" data-d="${date}">
-    ${list.map(t => row(t)).join('')}${(gh || []).map(t => row(t, {ghost: true})).join('')}${shad.map(shadRow).join('')}
+    ${ph.filter(x => x.k === 'ev').map(B.phRow).join('')}${list.map(t => row(t)).join('')}${(gh || []).map(t => row(t, {ghost: true})).join('')}${shad.map(shadRow).join('')}${ph.filter(x => x.k === 'dl').map(B.phRow).join('')}
     ${adding === date ? `<div class="pl-add"><input class="pl-in" data-d="${date}" placeholder="Новая задача" autocomplete="off" enterkeyhint="done"></div>` : ''}
     ${Array.from({length: adding === date ? Math.max(0, empties - 1) : empties}, (_, i) => `<button class="pl-empty" data-act="plAdd" data-d="${date}" ${i ? 'tabindex="-1"' : ''} aria-label="Добавить задачу${date ? ' на ' + B.fmt(date) : ''}"></button>`).join('')}
   </div>`;
@@ -131,7 +138,8 @@ const BUSY = 6, OVER = 9;
 function loadOf(date, gh){
   if (date < B.today()) return {n: 0, cls: ''};
   const shad = S.cal === 'all' || S.cal === 'shad' ? B.shadOn(date).filter(it => B.shadStage(it.p.n) < it.need).length : 0;
-  const n = onDate(date).filter(x => !x.done).length + ((gh && gh[date]) || []).length + shad;
+  const ph = phList(date).filter(x => !x.done && !x.cancel).length;   // уроки и несданные ДЗ с «Фагов» тоже нагружают день
+  const n = onDate(date).filter(x => !x.done).length + ((gh && gh[date]) || []).length + shad + ph;
   return {n, cls: n >= OVER ? 'over' : n >= BUSY ? 'busy' : ''};
 }
 function dayCol(date, min, gh){
@@ -187,12 +195,12 @@ function monthView(){
   for (let d = from; d <= to; d = B.add(d, 1)){
     // в прошедших днях сделанные задачи сворачиваются в «✓ N», чтобы зачёркнутое не занимало клетку
     const all0 = onDate(d), past = d < t, list = past ? all0.filter(x => !x.done) : all0, doneN = all0.length - list.length;
-    const g = gh[d] || [], shad = S.cal === 'all' || S.cal === 'shad' ? B.shadOn(d) : [];
-    const all = list.length + g.length + shad.length, show = monthCap();
+    const g = gh[d] || [], shad = S.cal === 'all' || S.cal === 'shad' ? B.shadOn(d) : [], ph = phList(d);
+    const all = list.length + g.length + shad.length + ph.length, show = monthCap();
     const out = d.slice(0, 7) !== first.slice(0, 7), ws = B.weekStart(d);
     cells += `<div class="pl-mc ${d === t ? 'now' : ''} ${out ? 'out' : ''} ${past ? 'was' : ''} ${ws === cw ? 'cw' : ''} ${B.wd(d) > 4 ? 'we' : ''}">
       ${(() => { const ld = loadOf(d, gh); return `<button class="pl-md ${ld.cls}" data-act="plGoWeek" data-d="${d}" title="Открыть неделю${ld.cls ? ` · ${ld.n} ${B.plural(ld.n, 'дело', 'дела', 'дел')}` : ''}">${B.parse(d).getDate()}</button>`; })()}
-      <div class="pl-list" data-d="${d}">${list.slice(0, show).map(x => row(x, {dot: false})).join('')}${g.slice(0, Math.max(0, show - list.length)).map(x => row(x, {ghost: true, dot: false})).join('')}${all <= show ? shad.slice(0, show - list.length - g.length).map(shadRow).join('') : ''}
+      <div class="pl-list" data-d="${d}">${list.slice(0, show).map(x => row(x, {dot: false})).join('')}${g.slice(0, Math.max(0, show - list.length)).map(x => row(x, {ghost: true, dot: false})).join('')}${all <= show ? shad.slice(0, show - list.length - g.length).map(shadRow).join('') + ph.map(B.phRow).join('') : ''}
         ${all > show ? `<button class="pl-more" data-act="plGoWeek" data-d="${d}">ещё ${all - show}</button>` : ''}
         ${doneN ? `<button class="pl-more pl-donen" data-act="plGoWeek" data-d="${d}" title="Сделано за день">✓ ${doneN}</button>` : ''}
         ${adding === d ? `<div class="pl-add"><input class="pl-in" data-d="${d}" placeholder="Новая задача" autocomplete="off" enterkeyhint="done"></div>`

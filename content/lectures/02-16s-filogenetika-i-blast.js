@@ -78,6 +78,13 @@ css.textContent=`
 #m-l02 .bf-fold{padding:12px 16px;margin:16px 0;border:1px solid var(--line);border-radius:var(--r);background:var(--surface-2)}
 #m-l02 .bf-fold summary{cursor:pointer;font-weight:650}
 #m-l02 .bf-fold[open] summary{margin-bottom:10px}
+#m-l02 .bf-case-traces{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:10px;margin:12px 0 18px}
+#m-l02 .bf-case-traces figure{margin:0;padding:10px;border:1px solid var(--line);border-radius:var(--rs);background:var(--surface)}
+#m-l02 .bf-case-traces svg{display:block;width:100%;height:auto}
+#m-l02 .bf-case-traces figcaption{font-size:14px;line-height:1.4}
+#m-l02 .bf-case-form label{display:block;font-weight:650}
+#m-l02 .bf-case-form textarea{box-sizing:border-box;width:100%;min-height:108px;margin:6px 0 8px;padding:10px;resize:vertical;border:1px solid var(--line);border-radius:var(--rs);background:var(--surface);color:var(--ink);font:inherit}
+#m-l02 .bf-case-form .k-bar{margin-top:8px}
 #m-l02 .bf-photo{margin:16px 0;padding:12px;border:1px solid var(--line);border-radius:var(--r);background:var(--card)}
 #m-l02 .bf-photo img{display:block;width:100%;max-width:685px;height:auto;margin:0 auto;border-radius:var(--rs)}
 #m-l02 .bf-photo figcaption{margin-top:8px;color:var(--muted);font-size:13px;line-height:1.5}
@@ -354,7 +361,7 @@ VZ.doc(ID,{kick:'Конспект · лекция 2 · 05.11.2026',title:'От �
     <a href="#/l/2/l02-1"><small>§ 1–3</small>Колония, маркер и родство</a>
     <a href="#/l/2/l02-4"><small>§ 4–5</small>От ДНК до консенсуса</a>
     <a href="#/l/2/l02-6"><small>§ 6–8</small>BLAST и статистика</a>
-    <a href="#/l/2/l02-9"><small>§ 9</small>Разбор результатов</a>
+    <a href="#/l/2/l02-9"><small>§ 9</small>Разбор результатов и практикум</a>
     <a href="#/l/2/l02-genomes"><small>§ 10</small>Геномы и большие деревья</a>
     <a href="#/l/2/l02-10"><small>§ 11</small>Словарь и источники</a>
   </nav>`,
@@ -530,7 +537,56 @@ ${K.choice({t:'Совпадение имеет тот же bit score. Прост
 ${sources([ref.score,ref.asa,ref.bonf,ref.bh])}
 `);
 
-section(9,'Как написать вывод по своему изоляту',()=>`
+const caseDraft='l02:isolate-case';
+const caseTrace=(title,call,q,description,peaks)=>`<figure>
+  <figcaption><b>${title}</b> · вызов ${call}, Q${q}<br>${description}</figcaption>
+  <svg viewBox="0 0 280 100" aria-hidden="true">
+    <rect x="118" y="8" width="44" height="68" rx="4" fill="var(--surface-2)"/>
+    <path d="M12 76H268" stroke="var(--muted)" opacity=".5"/>
+    ${peaks.map(([base,center,height,width])=>{
+      const y=76-height;
+      const color=`color-mix(in srgb, ${baseColors[base]} 70%, var(--ink))`;
+      return `<path d="M${center-width} 76 Q${center-width/2} 76 ${center-4} ${y+9} Q${center} ${y-9} ${center+4} ${y+9} Q${center+width/2} 76 ${center+width} 76" fill="none" stroke="${color}" stroke-width="2.5"/>`;
+    }).join('')}
+    <text x="140" y="94" text-anchor="middle" font-size="13" fill="var(--ink)">1124</text>
+  </svg>
+</figure>`;
+
+BVHOST.root.addEventListener('input',event=>{
+  const field=BV_ET(event);
+  if(field.id==='bfCaseAnswer')BV.store.set(caseDraft,field.value);
+});
+BVHOST.root.addEventListener('submit',event=>{
+  const form=BV_ET(event);
+  if(form.id!=='bfCaseForm')return;
+  event.preventDefault();
+  const field=BV.$('#bfCaseAnswer',form);
+  if(!field.value.trim()){
+    BV.toast('Сначала запиши свой вывод.');
+    field.focus();
+    return;
+  }
+  const review=BV.$('#bfCaseReview',form);
+  review.hidden=false;
+  BV.$('[type="submit"]',form).setAttribute('aria-expanded','true');
+  review.focus();
+});
+BVHOST.root.addEventListener('click',async event=>{
+  const button=BV_ET(event).closest('#bfCaseCopy');
+  if(!button)return;
+  const field=BV.$('#bfCaseAnswer',button.form);
+  const answer=field.value.trim();
+  if(!answer){
+    BV.toast('Сначала запиши свой вывод.');
+    field.focus();
+    return;
+  }
+  const copied=await BV.copy('БиоВиз · кейс «Как назвать изолят?»\n\n'+answer);
+  BV.toast(copied?'Вывод скопирован.':'Выдели и скопируй вывод из поля.');
+});
+
+VZ.sec(ID,{id:S(9),no:9,t:'Как написать вывод по своему изоляту',sub:[['isolate-case','Кейс «Как назвать изолят?»']],html:()=>`
+<p><a href="#/l/2/isolate-case">Перейти к сквозному практикуму</a></p>
 <p>На демонстрации в NCBI запрос был длиной <b>56 нуклеотидов</b>. В таблице рядом стояли записи из разных родов. Для приведённых строк покрытие и идентичность были 100%, Max score был 104, E-value составлял 9 × 10<sup>−19</sup>.</p>
 ${K.tbl(['Запись со слайда','Query cover','Identity','E-value'],[
  ['<i>Acinetobacter baumannii</i> · CP133072.1','100%','100%','9e−19'],
@@ -550,8 +606,40 @@ ${K.open({t:'Твоя формулировка',q:'Тебе дали табли�
   a:'«Фрагмент длиной 56 нт полностью совпал с участками нескольких записей из разных родов. По этому фрагменту вид не различается». Далее можно запросить качественное прочтение более длинной части 16S и подобрать референсы типовых штаммов.'})}
 ${K.open({t:'На олимпиаде',q:'У двух предполагаемых видов 16S совпадает на 99,9%, а сравнение качественных геномов даёт ANI 92,7% при хорошем покрытии. Какие результаты ты проверишь перед таксономическим выводом?',
   a:'Проверю качество и происхождение геномов, долю сопоставленных фрагментов и сравнение с типовыми штаммами. Затем сопоставлю dDDH, дерево по нескольким ортологам и описание фенотипа. Высокое сходство одного консервативного гена совместимо с расхождением геномов.'})}
-${sources([ref.blast,ref.columns,ref.blastQuick,ref.loci,ref.dug,ref.genome])}
-`);
+<h3 id="isolate-case">Кейс «Как назвать изолят?»</h3>
+<p class="hint">Около 15 минут · учебные данные · всё можно пройти в браузере</p>
+<p>Из чистой культуры получили прямое и обратное прочтения 16S. После обрезки и сборки осталось 1200 нт. Обратное прочтение уже приведено к ориентации прямого. В позиции 1124 программа предложила разные основания.</p>
+<div class="bf-case-traces">
+  ${caseTrace('Прямое прочтение','A',12,'Пики A и G перекрываются. A чуть выше.',[['C',55,52,19],['G',142,34,37],['A',137,41,31],['T',225,48,22]])}
+  ${caseTrace('Обратное прочтение','G',37,'Высокий одиночный пик G.',[['C',55,52,19],['G',140,54,20],['T',225,48,22]])}
+</div>
+<p>Таблица показывает учебный результат поиска <i>blastn</i> с консенсусом, в котором в позицию 1124 поставили G. Все строки относятся к одному поиску по базе 16S. A и B — типовые штаммы двух видов одного рода. У каждого попадания один выровненный участок.</p>
+${K.tbl(['Референс','Совпадения / длина','Query cover','Identity','E-value'],[
+  ['Род X, вид A','1199 / 1200','100%','99,92%','0.0'],
+  ['Род X, вид B','1199 / 1200','100%','99,92%','0.0'],
+  ['Род Y, вид C','60 / 60','5%','100%','2 × 10<sup>−21</sup>']
+])}
+<p>Сформулируй вывод для отчёта в двух–четырёх предложениях. Объясни, какую букву оставишь и почему, какой уровень идентификации поддерживает таблица и какие данные позволят уточнить вид.</p>
+<form id="bfCaseForm" class="bf-case-form">
+  <label for="bfCaseAnswer">Твой вывод</label>
+  <textarea id="bfCaseAnswer" rows="4" required maxlength="2400" aria-describedby="bfCaseHint">
+${BV.esc(BV.store.get(caseDraft,''))}</textarea>
+  <p id="bfCaseHint" class="hint">Черновик хранится в этом браузере. Можешь скопировать свой текст до просмотра разбора.</p>
+  <div class="k-bar">
+    <button type="submit" class="btn" aria-controls="bfCaseReview" aria-expanded="false">Сверить с разбором</button>
+    <button type="button" class="btn ghost" id="bfCaseCopy">Скопировать вывод</button>
+  </div>
+  <div class="k-ans" id="bfCaseReview" tabindex="-1" hidden>
+    <h4>Три критерия для самопроверки</h4>
+    <ol>
+      <li><b>Качество.</b> Чистый пик G и Q37 поддерживают выбор G. Двойной пик на прямом чтении отмечаем в записи о контроле качества. Если расхождение повторится на качественных чтениях, проверяем матрицу или читаем участок заново.</li>
+      <li><b>Граница вывода.</b> Полное покрытие и 1199 совпавших позиций поддерживают предварительное отнесение к роду X. По этим данным A и B разделить нельзя. У C совпали все 60 выровненных букв, но они охватывают только 5% запроса. Значения E говорят о силе совпадения на случайном фоне и сами по себе вид не определяют.</li>
+      <li><b>Следующий шаг.</b> Сравнить геном изолята с геномами типовых штаммов A и B. Для ANI проверить также долю сопоставленного генома. Другой разумный вариант — маркер, который уже показал способность различать эти два вида.</li>
+    </ol>
+  </div>
+</form>
+${sources([ref.phred,ref.blast,ref.columns,ref.blastQuick,ref.loci,ref.dug,ref.genome])}
+`});
 
 const genomeSteps=[
   ['Чтения','ДНК разбита на фрагменты. Короткие чтения дают много наблюдений отдельных оснований. Длинные могут пересечь повтор вместе с уникальными краями.'],

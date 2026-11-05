@@ -10,6 +10,7 @@
 const {$,$$,esc,store}=BV,R=BVHOST.root,C=window.BV_COURSE;
 
 const I={
+ folder:'<path d="M3.5 6a1.5 1.5 0 0 1 1.5-1.5h4l2 2H19A1.5 1.5 0 0 1 20.5 8v10A1.5 1.5 0 0 1 19 19.5H5A1.5 1.5 0 0 1 3.5 18z"/>',
  home:'<path d="M4 10.5 12 4l8 6.5V20H14.5v-5.5h-5V20H4z"/>',
  lab:'<path d="M9.5 3.5h5M10.5 3.5v6L5 18.6A1.6 1.6 0 0 0 6.4 21h11.2a1.6 1.6 0 0 0 1.4-2.4L13.5 9.5v-6"/><path d="M7.4 15h9.2"/>',
  prompt:'<rect x="8" y="3.5" width="12.5" height="14" rx="2"/><path d="M5.5 7v11.5a2 2 0 0 0 2 2H16"/><path d="M11 8.5h6.5M11 12h6.5M11 15.5h4"/>',
@@ -182,6 +183,20 @@ main{flex:1;width:100%;max-width:1240px;margin:0 auto;padding:34px max(20px,env(
 .cont em{display:block;font-style:normal;opacity:.78;font-size:14px;margin-top:2px}
 .cont .i{margin-left:auto;width:22px;height:22px;transition:transform .2s}
 .cont:hover .i{transform:translateX(3px)}
+.topic-list{display:grid;gap:12px}
+.topic{min-width:0;border:1px solid var(--line);border-radius:var(--r);background:var(--card);overflow:hidden}
+.topic>summary{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px 14px;align-items:center;padding:15px 18px;cursor:pointer;list-style:none;background:var(--surface-2)}
+.topic>summary::-webkit-details-marker{display:none}
+.topic>summary:focus-visible{outline:2px solid var(--ui);outline-offset:-3px}
+.topic-icon{display:grid;place-items:center;width:40px;height:40px;border:1px solid var(--line);border-radius:var(--rx);color:var(--ui);background:var(--card)}
+.topic-icon .i{width:22px;height:22px}
+.topic>summary strong{display:block;color:var(--ink);font:600 19px/1.25 var(--font-display)}
+.topic>summary small{display:block;margin-top:4px;color:var(--muted);font-size:13px;line-height:1.4}
+.topic-toggle{font:600 12px/1.3 var(--font-mono);color:var(--muted);white-space:nowrap}
+.topic-toggle::after{content:'▸';display:inline-block;margin-left:8px;color:var(--ui)}
+.topic[open] .topic-toggle::after{transform:rotate(90deg)}
+.topic>.rows{border:0;border-top:1px solid var(--line);border-radius:0}
+@media (max-width:560px){.topic>summary{padding:13px 12px;gap:6px 10px}.topic-icon{width:32px;height:32px}.topic>summary strong{font-size:17px}}
 .rows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);background:var(--card);overflow:hidden}
 .rows>li+li{border-top:1px solid var(--line)}
 .row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px 18px;align-items:center;padding:18px 20px;text-decoration:none;color:var(--ink);transition:background .15s}
@@ -444,6 +459,18 @@ BV.fmtDate=fmtDate;
 function lectureRows(list){const h=hiddenL();return list.map(L=>{const p=progress(L);
   return `<li><a class="row" href="#/l/${L.n}"><span class="no">${String(L.n).padStart(2,'0')}</span><span><b>${esc(L.title)}${h.has(L.id)?' <span class="badge cut">скрыта</span>':''}</b><small>${fmtDate(L.date)} · ${p.total} разделов</small><span class="ab">${esc(L.about)}</span></span>
     <span class="pr">${p.done?`${p.done} из ${p.total}`:'не начата'}<span class="trk" aria-hidden="true">${Array.from({length:p.total},(_,k)=>`<i${k<p.done?' class="on"':''}></i>`).join('')}</span></span></a></li>`}).join('')}
+function lectureTopics(list){
+  if(!list.length)return '<p class="empty">Лекций пока нет.</p>';
+  const folders=C.topics.map(topic=>({...topic,lectures:list.filter(L=>L.topic===topic.id)}));
+  const other=list.filter(L=>!C.topics.some(topic=>topic.id===L.topic));
+  if(other.length)folders.push({id:'other',title:'Другие лекции',about:'',lectures:other});
+  const open=new Map($$('.topic[data-topic]',home).map(folder=>[folder.dataset.topic,folder.open]));
+  return `<div class="topic-list">${folders.filter(topic=>topic.lectures.length).map(topic=>
+    `<details class="topic" id="topic-${esc(topic.id)}" data-topic="${esc(topic.id)}"${open.get(topic.id)!==false?' open':''}>
+      <summary><span class="topic-icon">${ic('folder')}</span><span><strong>${esc(topic.title)}</strong><small>${esc(topic.about)}</small></span><span class="topic-toggle" aria-label="Лекций ${topic.lectures.length}">${topic.lectures.length}</span></summary>
+      <ol class="rows">${lectureRows(topic.lectures)}</ol>
+    </details>`).join('')}</div>`;
+}
 function renderHome(){
   const last=store.get('last',null),L=last&&visibleLectures().find(x=>x.id===last.id);
   const sec=L&&parentOf(L.id,last.s);
@@ -453,7 +480,7 @@ function renderHome(){
   home.innerHTML=`<div class="top"><header class="hero"><p class="eyebrow">Научная группа · ${esc(C.group)}</p><h1>${esc(C.title)}</h1>
      <p class="lead">Конспекты лекций с интерактивными рисунками и журнал лабораторных работ группы.</p></header>${locus()}</div>
    ${news}${cont}
-   <section class="blk" aria-labelledby="hLect"><h2 id="hLect">Лекции <em>${LL.length}</em></h2>${LL.length?`<ol class="rows">${lectureRows(LL)}</ol>`:'<p class="empty">Лекций пока нет.</p>'}</section>
+   <section class="blk" aria-labelledby="hLect"><h2 id="hLect">Лекции <em>${LL.length}</em></h2>${lectureTopics(LL)}</section>
    <section class="blk" aria-labelledby="hLab"><h2 id="hLab">Лабораторные работы <em data-lw-count></em></h2><div data-lw-home><p class="empty">Загружаю…</p></div></section>`;
   if(BV.labworks)BV.labworks.homeBlock($('[data-lw-home]',home),$('[data-lw-count]',home))}
 /* настройки сайта пришли из облака: перерисовать главную, если она открыта */

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Микробиология · БиоВиз</title>
-<meta name="description" content="БиоВиз: конспекты лекций по микробиологии с интерактивными рисунками и журнал лабораторных работ научной группы.">
+<title>Лекции научной группы · БиоВиз</title>
+<meta name="description" content="БиоВиз: конспекты лекций по микробиологии и биоинформатике с интерактивными рисунками и журнал лабораторных работ научной группы.">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#F2F3EE">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
@@ -40,7 +40,7 @@ if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWork
 /* Загрузка: файлы качаются параллельно, выполняются строго по порядку.
    К адресу добавляется версия: после обновления браузер не возьмёт старый файл из кеша.
    ПЕРЕД КАЖДЫМ PUSH поднимай BV_VER. */
-const BV_VER='2026-11-03-intro-back';
+const BV_VER='2026-11-05-16s';
 const CORE=['bioviz/core/base.js','bioviz/core/konspekt.js','bioviz/core/mol.js','bioviz/core/vz.js','content/course.js'];
 const TAIL=['bioviz/core/app.js','bioviz/core/split.js','bioviz/core/lnav.js','bioviz/core/prompt.js','bioviz/core/labworks.js','bioviz/core/admin.js','bioviz/core/search.js','bioviz/core/terms.js','bioviz/core/intro.js','bioviz/core/offline.js'];
 const url=(s,bust)=>s+'?v='+BV_VER+(bust?'&r='+Date.now():'');

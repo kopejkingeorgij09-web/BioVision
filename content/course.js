@@ -3,11 +3,18 @@
    Чтобы добавить лекцию: положи файл в content/lectures/ (образец — content/lectures/_shablon.js),
    допиши строку в lectures и подними BV_VER в index.html. Подробно — content/README.md. */
 window.BV_COURSE={
-  title:'Микробиология',
+  title:'Лекции научной группы',
   group:'Геномное редактирование',
+  topics:[
+    {id:'microbiology',title:'Микробиология',about:'Как устроены микроорганизмы, чем они питаются и как их выращивают.'},
+    {id:'bioinformatics',title:'Биоинформатика и биостатистика',about:'Как читать последовательности, сравнивать их и делать выводы о родстве.'}
+  ],
   lectures:[
-    {n:1,id:'l01',date:'2026-10-15',title:'Введение в микробиологию',
+    {n:1,id:'l01',topic:'microbiology',date:'2026-10-15',title:'Введение в микробиологию',
      about:'Эндосимбиоз, прокариоты и эукариоты, жгутик-мотор, кворум-сенсинг и синтрофия, питание, олиготрофы и питательные среды.',
-     file:'content/lectures/01-vvedenie-v-mikrobiologiyu.js'}
+     file:'content/lectures/01-vvedenie-v-mikrobiologiyu.js'},
+    {n:2,id:'l02',topic:'bioinformatics',date:'2026-11-05',title:'От колонии до имени: 16S, филогенетика и BLAST',
+     about:'Как прочитать ген по Сэнгеру, собрать консенсус и понять, что о бактерии говорят дерево, p-value и E-value.',
+     file:'content/lectures/02-16s-filogenetika-i-blast.js'}
   ]
 };

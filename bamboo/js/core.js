@@ -179,7 +179,7 @@ function seed(){
 }
 
 /* ---------- ШАД: план из ../shad/plan.json и отметки из коллекции 'shad' ---------- */
-B.SHAD_STAGES = ['Не начат', 'Смотрю', 'Веб посмотрен', 'ДЗ решено', 'Закрыт'];
+B.SHAD_STAGES = ['Не начат', 'Смотрю', 'Веб посмотрен', 'ДЗ сдано', 'Закрыт'];
 B.shad = {plan: [], base: [], courses: {}, marks: {}, lms: ''};
 const LS_SHADPLAN = 'bamboo-shadplan', LS_SHADMARKS = 'shad-track-progress';   // второй ключ общий с трекером shad/ на этом устройстве
 function usePlan(d){

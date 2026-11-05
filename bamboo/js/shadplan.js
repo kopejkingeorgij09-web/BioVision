@@ -103,7 +103,7 @@ function sheetHTML(n){
       <p class="hint">Проще перетаскивать: в «Неделе» карточки без дня лежат в блоке «ШАД на неделю», их можно поставить на любой день и вернуть обратно. Если у ДЗ уже есть день, он едет вместе с вебом. Изменения видны и в трекере ШАДа.</p>
       ${p.edited ? `<button class="btn sm ghost" data-act="shReset" data-n="${n}">Вернуть как в плане</button>` : ''}
     </details>
-    <div class="row between">${B.shad.lms ? `<a class="btn ghost" href="${esc(B.shad.lms)}" target="_blank" rel="noopener">Платформа ↗</a>` : '<span></span>'}<button class="btn primary" data-act="closeSheet">Готово</button></div>`;
+    <div class="row between">${B.shad.lms ? `<a class="btn ghost" href="${esc(p.lessonId ? `https://lms.profimatika.ru/school/lesson/${p.lessonId}` : B.shad.lms)}" target="_blank" rel="noopener">${p.lessonId ? 'Открыть урок' : 'Платформа'} ↗</a>` : '<span></span>'}<button class="btn primary" data-act="closeSheet">Готово</button></div>`;
 }
 /* быстрый выбор дня в пределах недели: удобно на телефоне, где тянуть карточку далеко */
 function dayPick(p, kind){

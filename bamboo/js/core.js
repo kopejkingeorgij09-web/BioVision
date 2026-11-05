@@ -184,7 +184,7 @@ B.shad = {plan: [], base: [], courses: {}, marks: {}, lms: ''};
 const LS_SHADPLAN = 'bamboo-shadplan', LS_SHADMARKS = 'shad-track-progress';   // второй ключ общий с трекером shad/ на этом устройстве
 function usePlan(d){
   B.shad.courses = d.courses || {}; B.shad.lms = d.lms || ''; B.shad.brk = d.break || null; B.shad.hours = d.hours || {web: 3.75, hw: 1.9};
-  B.shad.base = (d.webs || []).map(x => ({n: x.n, c: x.course, code: x.code, t: x.title, w: x.web, h: x.hw,
+  B.shad.base = (d.webs || []).map(x => ({n: x.n, c: x.course, code: x.code, t: x.title, lessonId: x.lessonId, w: x.web, h: x.hw,
     wk: x.web && x.web.date ? B.weekStart(x.web.date) : '', hk: x.hw && x.hw.date ? B.weekStart(x.hw.date) : ''}));
   applyOver(); changed();
 }

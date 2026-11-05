@@ -332,9 +332,9 @@ paint('bfMultiplicity',(figure,g,out)=>{
     const alpha=percent/100;
     const any=threshold=>-Math.expm1(count*Math.log1p(-threshold));
     const row=(y,name,prob,fill)=>label(40,y,name,'font-size="17"')+
-      `<rect x="40" y="${y+9}" width="455" height="16" rx="5" class="bf-muted" opacity=".2"/>
-      <rect x="40" y="${y+9}" width="${455*prob}" height="16" rx="5" class="${fill}"/>`+
-      label(565,y+22,fmt(100*prob,2)+'%','text-anchor="end" font-size="17"');
+      `<rect x="40" y="${y+9}" width="375" height="16" rx="5" class="bf-muted" opacity=".2"/>
+      <rect x="40" y="${y+9}" width="${375*prob}" height="16" rx="5" class="${fill}"/>`+
+      label(505,y+22,fmt(100*prob,2)+'%','text-anchor="end" font-size="20"');
     g.innerHTML=row(32,'Без поправки',any(alpha),'bf-warn')+
       row(100,'С поправкой Бонферрони',any(alpha/count),'bf-fill');
     out.innerHTML=`<b>FWER · ${fmt(100*any(alpha),2)}% без поправки, ${fmt(100*any(alpha/count),2)}% с поправкой.</b> Без поправки E[V] = ${fmt(count*alpha)}. Порог одной проверки после поправки · ${sci(percent/count)}%.`;

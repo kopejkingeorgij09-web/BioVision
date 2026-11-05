@@ -8,7 +8,7 @@ async function loadPlan(){
   const d = await r.json();
   COURSES = d.courses; HOURS = d.hours || HOURS; BREAK = d.break || BREAK; LMS = d.lms || "";
   // внутренний короткий формат: c — курс, t — название, w и h — [дата, начало, конец]
-  BASE = d.webs.map(x => ({n:x.n, c:x.course, code:x.code, t:x.title, web:x.web, hw:x.hw}));
+  BASE = d.webs.map(x => ({n:x.n, c:x.course, code:x.code, t:x.title, lessonId:x.lessonId, web:x.web, hw:x.hw}));
   applyOver();
 }
 /* правки из «Зова леса» (перенос веба, новое название) лежат в отметке веба, поле o: {t, w:{date,from,to}, h:{date,from,to}} */
@@ -17,7 +17,7 @@ function applyOver(){
     const o = (progress[x.n] && progress[x.n].o) || {}, w = Object.assign({}, x.web, o.w), h = Object.assign({}, x.hw, o.h);
     // пока в «Зове леса» не выбран день (o.w.date / o.h.date), веб и ДЗ просто стоят на своей неделе: отставать начинаем после её воскресенья
     const wEnd = (o.w && o.w.date) ? null : weekEnd(x.web.date), hEnd = (o.h && o.h.date) || !x.hw ? null : weekEnd(x.hw.date);
-    return {n:x.n, c:x.c, code:x.code, t:o.t || x.t, w:[w.date,w.from||"",w.to||"23:59"], h:[h.date,h.from||"",h.to||"23:59"], wEnd, hEnd};
+    return {n:x.n, c:x.c, code:x.code, t:o.t || x.t, lessonId:x.lessonId, w:[w.date,w.from||"",w.to||"23:59"], h:[h.date,h.from||"",h.to||"23:59"], wEnd, hEnd};
   });
 }
 // время у веба и ДЗ необязательно: без него показываем только день
@@ -134,6 +134,11 @@ async function initStore(){
 }
 
 /* ---------- render ---------- */
+function actionTime(p){
+  const web = st(p.n) < 2;
+  const slot = web ? p.w : p.h;
+  return at((web ? p.wEnd : p.hEnd) || slot[0], slot[2]);
+}
 function renderSummary(){
   const now = Date.now();
   const done = PLAN.filter(p => st(p.n) === 4).length;
@@ -145,7 +150,7 @@ function renderSummary(){
   $("#kLate").textContent = late;
   $("#kHours").textContent = "≈" + Math.round(hrs) + " ч";
 
-  const nextP = PLAN.find(p => st(p.n) < 4);
+  const nextP = PLAN.filter(p => st(p.n) < 4).sort((a, b) => actionTime(a) - actionTime(b))[0];
   const todayStr = moscowToday();
   const tape = $("#tape");
   tape.innerHTML = PLAN.map(p => {
@@ -301,7 +306,7 @@ function renderSheet(n, keepNote){
     <p class="sec-l"><label for="note">Заметка</label></p>
     <textarea id="note" placeholder="Где остановился, какие задачи не вышли, что спросить в чате курса">${esc(typed !== null ? typed : (progress[n] && progress[n].note) || "")}</textarea>
     <div class="sh-foot"><span class="saved" id="savedNote">${progress[n] && progress[n].at ? "Обновлено " + new Date(progress[n].at).toLocaleString("ru-RU",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) : "Изменения сохраняются сразу"}</span>
-      <a class="lms" href="${esc(LMS)}" target="_blank" rel="noopener">Открыть платформу ↗</a>
+      <a class="lms" href="${esc(p.lessonId ? `https://lms.profimatika.ru/school/lesson/${p.lessonId}` : LMS)}" target="_blank" rel="noopener">${p.lessonId ? "Открыть урок" : "Открыть платформу"} ↗</a>
       <button class="btn primary" id="shDone">Готово</button></div>`;
   if (hadFocus){ const t = sh.querySelector("textarea"); t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
   else if (optFocus){ const b = sh.querySelector('.opt[aria-checked="true"]'); if (b) b.focus({preventScroll:true}); }

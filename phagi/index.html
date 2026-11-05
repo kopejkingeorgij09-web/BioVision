@@ -2310,6 +2310,10 @@ function calHTML(){
 }
 
 function tasksHTML(){
+  if(!T()&&S.shadHw){
+    const ts=personalShadTasks(S.shadHw);
+    return `<div class="page-h"><h1>ДЗ к вебу ШАДа №${S.shadHw}</h1><button class="btn ghost" data-act="go" data-v="tasks">Все задания</button></div>${ts.length?`<div class="list cols">${ts.map(taskRow).join('')}</div>`:'<p class="muted">Задания к этому вебу пока не видны для этого аккаунта.</p>'}`;
+  }
   if(T())tfLoad();
   const all=myTasks().filter(t=>!inNb(t)),sk=t=>SUBJ[t.subject]?t.subject:'other';
   const subs=Object.keys(SUBJ).filter(k=>all.some(t=>sk(t)===k));if(S.tSubj&&!subs.includes(S.tSubj))S.tSubj='';
@@ -4437,7 +4441,7 @@ function openOcc(k,id,date){
   if(shn&&(ev.to||[]).includes(meId())){
     const ti=(S.track[meId()]||[]).find(x=>x.shad===+shn),st=ti?ti.stage|0:0;
     body+=`<h3 style="font-size:15px;margin:14px 0 4px">Этап веба</h3><div class="rsvp tk-stages">${TK_SH.map((l,i)=>`<button data-dact="shst" data-v="${i}" aria-pressed="${st===i}">${l}</button>`).join('')}</div>
-    <p class="muted small" style="margin:4px 0 0">Этап общий с трекером ШАДа и «Зовом леса». «ДЗ решено» и «Закрыт» ставятся и сами, когда ДЗ сдано и проверено.</p>`;
+    <p class="muted small" style="margin:4px 0 0">Этап общий с трекером ШАДа и «Зовом леса». «ДЗ сдано» и «Закрыт» ставятся и сами, когда ДЗ сдано и проверено.</p>`;
     acts.shst=async el=>{const v=Number(el.dataset.v);$('#dlgbox').querySelectorAll('[data-dact="shst"]').forEach(b=>b.setAttribute('aria-pressed',b===el));
       if(ti)ti.stage=v;await S.db.doc(`data/users/${meId()}/shadst-w${shn}`).set({kind:'shadst',n:+shn,s:v,updatedAt:now()});toast('Этап: '+TK_SH[v].toLowerCase());render(true)};
   }
@@ -4593,7 +4597,7 @@ const actions={
     if(!/^\d{4}-\d\d-\d\d$/.test(st)||!/^\d{4}-\d\d-\d\d$/.test(en))return toast('Укажите даты начала и конца');
     if(st>en)return toast('Конец турнира раньше начала');if(diffDays(st,en)>59)return toast('Турнир может длиться не больше 60 дней');
     await S.db.doc('arenacfg/main').set({open:c.open,start:st,end:en,prize:pz,updatedAt:now()});delete S.fv.arst;delete S.fv.aren;delete S.fv.arpz;toast('Турнир сохранён')},
-  go:el=>{S.view=el.dataset.v;if(S.view==='fix'){S.fixState=null;S.fixPos=0}if(S.view==='cal')S.calMonth=null;window.scrollTo(0,0)},
+  go:el=>{S.shadHw=null;S.view=el.dataset.v;if(S.view==='fix'){S.fixState=null;S.fixPos=0}if(S.view==='cal')S.calMonth=null;window.scrollTo(0,0)},
   open:el=>{S.view='task';S.taskId=el.dataset.id;window.scrollTo(0,0)},
   newtask:()=>openTaskDialog(null),
   edittask:el=>openTaskDialog(S.tasks.find(t=>t.id===el.dataset.id)),
@@ -5556,13 +5560,14 @@ const tkS=x=>x.subj in TK_SJ?x.subj:tkBs(x.block);
 function tkSubjs(xs){const u=new Set(tkLs(xs).map(tkS));return['bio','math','shad'].filter(k=>u.has(k))}
 const TK_ST=['Не начато','Занятие прошло','ДЗ сдано','Карточки выучены','Закрыто'];
 /* вебы ШАДа: этапы как в трекере shad/ и «Зове леса», синхронизируются с ними через базу (supabase/migrations/20261104b_shad_phagi_tracker.sql) */
-const TK_SH=['Не начат','Смотрю','Веб посмотрен','ДЗ решено','Закрыт'];
+const TK_SH=['Не начат','Смотрю','Веб посмотрен','ДЗ сдано','Закрыт'];
 const tkSh_=x=>x&&(x.shad||tkS(x)==='shad');
 const tkStL=x=>tkSh_(x)?TK_SH:TK_ST;
 const tkBc=b=>`var(--tk-${TK_BL[b]?b:tkBs(b)==='math'?'mvar':'prep'})`;
 const tkBn=(b,i)=>(TK_BL[b]||['Другое','Другое'])[i];
 function tkUid(){if(!T())return meId();if(!S.people.some(p=>p.id===S.trUid))S.trUid=S.people.length?S.people[0].id:null;return S.trUid}
-function tkLag(l){if(l.kind==='event')return null;const st=l.stage|0,t=today(),sh=tkSh_(l);if(l.date<t&&st<1)return sh?'веб':'занятие';if(l.due&&l.due<t&&st<(sh?3:2))return'ДЗ';return null}
+function tkDue(x){return !T()&&x.shad?personalShadTasks(x.shad).find(t=>!t.fix&&t.due)?.due||'':x.due}
+function tkLag(l){if(l.kind==='event')return null;const st=l.stage|0,t=today(),sh=tkSh_(l);if(l.date<t&&st<1)return sh?'веб':'занятие';if(tkDue(l)&&tkDue(l)<t&&st<(sh?3:2))return'ДЗ';return null}
 function tkLate(uid){return(S.track[uid]||[]).filter(tkLag).length}
 const tkLs=xs=>xs.filter(x=>x.kind!=='event');
 const tkSorted=xs=>[...xs].sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:(a.kind==='event')-(b.kind==='event'));
@@ -5598,7 +5603,7 @@ function tkPlan(xs){
     ${L.length?`<div class="tk-cells">${cells}</div>`:''}</section>`;
   // что делать дальше: сначала отстающее, иначе ближайшее незакрытое
   let f=L.find(tkLag);const fl=!!f;if(!f)f=L.find(x=>x.date>=t&&(x.stage|0)<4)||L.find(x=>(x.stage|0)<4);
-  if(f){const what=fl?(tkLag(f)==='ДЗ'?`Сдать ДЗ, срок ${fmtDayW(f.due)}`:`${tkSh_(f)?'Веб':'Занятие'} ${fmtDayW(f.date)}`):`${fmtDayW(f.date)}${f.time?', '+f.time:''}`;
+  if(f){const what=fl?(tkLag(f)==='ДЗ'?`Сдать ДЗ, срок ${fmtDayW(tkDue(f))}`:`${tkSh_(f)?'Веб':'Занятие'} ${fmtDayW(f.date)}`):`${fmtDayW(f.date)}${f.time?', '+f.time:''}`;
     html+=`<section class="sheet tk-focus${fl?' late':''}"><span class="tk-tag">${fl?'Догнать':'Дальше'}</span><div><h3>${nums[f.id]}. ${esc(f.title)}</h3><p>${esc(what)}</p></div>${T()?`<button class="btn ghost sm" data-act="tkadv" data-id="${esc(f.id)}">Отметить этап</button>`:''}</section>`}
   // фильтры
   const cnt={all:L.length,ahead:L.filter(l=>(l.stage|0)<4&&!tkLag(l)).length,late,done:closed},used=new Set(L.map(l=>l.block));
@@ -5620,7 +5625,7 @@ function tkPlan(xs){
 function tkRow(x,nums){
   const day=`<div class="tk-day">${pd(x.date).getDate()}<small>${tkWd(x.date)}</small></div>`;
   if(x.kind==='event')return `<button class="tk-row ev" data-act="tkopen" data-id="${esc(x.id)}">${day}<div class="tk-mid"><div class="tk-meta"><span>${esc(x.end?tkSh(x.date)+' – '+tkSh(x.end):fmtDayW(x.date))}</span></div><div class="tk-ttl">${esc(x.title)}</div>${x.note?`<div class="tk-sub">${esc(x.note)}</div>`:''}</div></button>`;
-  const st=x.stage|0,lg=tkLag(x),sub=[x.time,x.hw?`ДЗ${x.due?' до '+fmtDay(x.due):''}`:'',x.note?'есть заметка':''].filter(Boolean).join(' · ');
+  const st=x.stage|0,lg=tkLag(x),sub=[x.time,x.hw?`ДЗ${tkDue(x)?' до '+fmtDay(tkDue(x)):''}`:'',x.note?'есть заметка':''].filter(Boolean).join(' · ');
   const lbl=lg?`<span class="tk-pill">отстаёт: ${lg}</span>`:st===4?`<span class="tk-pill ok">${tkStL(x)[4]}</span>`:`<span>${tkStL(x)[st]}</span>`;
   return `<button class="tk-row${x.date===today()?' today':''}" style="--c:${tkBc(x.block)}" data-act="tkopen" data-id="${esc(x.id)}">${day}
     <div class="tk-mid"><div class="tk-meta"><span>${String(nums[x.id]).padStart(2,'0')}</span>${S.trMix?`<span class="sj">${TK_SJ[tkS(x)]}</span>`:''}<span class="bl">${esc(tkBn(x.block,1))}</span></div><div class="tk-ttl">${esc(x.title)}</div>${sub?`<div class="tk-sub">${esc(sub)}</div>`:''}</div>
@@ -5659,7 +5664,8 @@ function calFullSet(on){S.calFull=on;try{localStorage.setItem('ph_calfull',on?'1
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.view==='cal'&&S.calFull&&!document.querySelector('dialog[open]')&&!(e.target.classList&&e.target.classList.contains('pw-in'))){calFullSet(false)}
   if(e.altKey&&e.shiftKey&&(e.code==='KeyF')&&S.view==='cal'){e.preventDefault();calFullSet(!S.calFull)}});
 /* ДЗ на Фагах, привязанное к вебу ШАДа (lesson.eventId = shad-w<n>) */
-function tkHwL(x){if(!x.shad)return'';const ts=myTasks().filter(t=>t.lesson&&t.lesson.eventId==='shad-w'+x.shad);if(!ts.length)return'';
+function personalShadTasks(n){return myTasks().filter(t=>t.lesson?.eventId==='shad-w'+n&&t.to?.length===1&&t.to[0]===meId())}
+function tkHwL(x){if(!x.shad)return'';const ts=personalShadTasks(x.shad);if(!ts.length)return'';
   return `<span class="tk-lbl">ДЗ на Фагах</span><div class="list">${ts.map(t=>`<button class="item" data-dact="tkhw" data-id="${esc(t.id)}"><span class="grow"><span class="t">${esc(t.title)}</span>${t.due?`<br><span class="muted small">до ${esc(fmtDayW(t.due))}</span>`:''}</span></button>`).join('')}</div>`}
 /* карточка: ученица видит описание, учитель правит */
 function tkOpen(id,kind){
@@ -5673,8 +5679,8 @@ function tkOpen(id,kind){
     return openDlg(`<div class="tk-card" style="--c:${tkBc(x.block)}"><div class="tk-meta"><span>${nums[x.id]||''}</span><span class="sj">${TK_SJ[tkS(x)]}</span><span class="bl">${esc(tkBn(x.block,0))}</span></div><h2>${esc(x.title)}</h2>
       <p class="muted" style="margin-top:-6px">${esc(fmtDayW(x.date))}${x.time?', '+esc(x.time):''}</p>
       ${(x.points||[]).length?`<span class="tk-lbl">Что разбираем</span><ul>${x.points.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>`:''}
-      ${x.hw?`<span class="tk-lbl">Домашнее задание</span><div>${esc(x.hw)}${x.due?`, до ${esc(fmtDayW(x.due))}`:''}</div>`:''}
-      ${tkSh_(x)?`<p class="muted small">Этап ставится сам: сдал ДЗ здесь, на Фагах, и веб становится «ДЗ решено», работа над ошибками или ДЗ без потерь закрывают его. Отметки общие с трекером ШАДа и «Зовом леса».</p>`:''}
+      ${x.hw?`<span class="tk-lbl">Домашнее задание</span><div>${esc(x.hw)}${tkDue(x)?`, до ${esc(fmtDayW(tkDue(x)))}`:''}</div>`:''}
+      ${tkSh_(x)?`<p class="muted small">Этап ставится сам: сдал ДЗ здесь, на Фагах, и веб становится «ДЗ сдано», работа над ошибками или ДЗ без потерь закрывают его. Отметки общие с трекером ШАДа и «Зовом леса».</p>`:''}
       <span class="tk-lbl">Этап</span><div>${lg?`<span class="tk-pill">отстаёт: ${lg}</span> `:''}${tkStL(x)[x.stage|0]}</div>${tkHwL(x)}
       ${x.note?`<span class="tk-lbl">Заметка учителя</span><div>${esc(x.note)}</div>`:''}</div>
       <div class="actions"><button class="btn" data-dact="close">Закрыть</button></div>`,{close:closeDlg,tkhw:el=>{closeDlg();actions.open(el);render()}});
@@ -5753,6 +5759,8 @@ $('#rolesw').addEventListener('click',e=>{const b=e.target.closest('button[data-
   let devT=false;try{devT=localStorage.getItem('ph_teach_dev')===S.me.id}catch{}
   S.dual=!!S.me.isOwner||!!S.me.teach||devT;
   S.mode=S.me.isOwner&&roleGet()!=='student'?'teacher':'student';
+  const shadHw=new URLSearchParams(location.search).get('shadHw');
+  if(!T()&&/^(?:[1-9][0-9]?|10[0-2])$/.test(shadHw||'')){S.shadHw=Number(shadHw);S.view='tasks'}
   subscribe();render();
   loadScript('https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js').then(()=>{KX=window.katex||null;render()}).catch(()=>{});
 })();

@@ -38,7 +38,7 @@ function rxFor(t){
 const SKIP='h1,h2,h3,h4,a,button,figure,.kf,dl,.k-q,.mb-ref,code,kbd,.tm,svg,input,label,.k-toc,figcaption,.kf-ph,.k-dock,.mb-glf,small,.k-box>b:first-child';
 function glossary(sheet){
   const dl=$$('dl',sheet).find(d=>$$('dt',d).length>=5);if(!dl)return[];
-  const out=[];$$('dt',dl).forEach(dt=>{const dd=dt.nextElementSibling;if(!dd||dd.tagName!=='DD')return;const t=dt.textContent.trim();if(t&&t!=='Ничего')out.push({t,d:dd.innerHTML,rx:rxFor(t)})});
+  const out=[];$$('dt',dl).forEach(dt=>{const dd=dt.nextElementSibling;if(!dd||dd.tagName!=='DD')return;const t=dt.textContent.trim();if(t&&t!=='Ничего')out.push({t,d:dd.querySelector("[data-term-definition]")?.innerHTML||dd.innerHTML,rx:rxFor(t)})});
   /* длинные термины раньше, чтобы «вторичный эндосимбиоз» не перехватил просто «эндосимбиоз» */
   return out.sort((a,b)=>b.t.length-a.t.length)}
 
@@ -46,11 +46,24 @@ function mark(sheet,lid){if(sheet.dataset.tm)return;const G=glossary(sheet);if(!
   $$('.k-sec',sheet).forEach(sec=>{if(sec.contains(sheet._tm.dl))return;const used=new Set();
     const walk=document.createTreeWalker(sec,NodeFilter.SHOW_TEXT,{acceptNode:n=>!n.nodeValue.trim()||n.parentElement.closest(SKIP)?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT});
     const nodes=[];while(walk.nextNode())nodes.push(walk.currentNode);
-    for(const node of nodes){let n=node;
-      for(let gi=0;gi<G.length;gi++){if(used.has(gi)||!n)continue;const m=G[gi].rx.exec(n.nodeValue);if(!m)continue;
-        used.add(gi);const a=n.splitText(m.index),rest=a.splitText(m[0].length);
-        const sp=document.createElement('span');sp.className='tm';sp.tabIndex=0;sp.dataset.g=gi;sp.setAttribute('role','button');sp.setAttribute('aria-label',`${m[0]}: определение`);
-        a.replaceWith(sp);sp.appendChild(a);n=rest}}})}
+    for(const node of nodes){
+      let n=node;
+      while(n.nodeValue){
+        let first=null, gi=-1;
+        for(let i=0;i<G.length;i++){
+          if(used.has(i))continue;
+          const match=G[i].rx.exec(n.nodeValue);
+          if(match&&(!first||match.index<first.index)){first=match;gi=i}
+        }
+        if(!first)break;
+        used.add(gi);
+        const a=n.splitText(first.index),rest=a.splitText(first[0].length);
+        const sp=document.createElement('span');sp.className='tm';sp.tabIndex=0;sp.dataset.g=gi;sp.setAttribute('role','button');sp.setAttribute('aria-label',`${first[0]}: определение`);
+        a.replaceWith(sp);sp.appendChild(a);n=rest;
+      }
+    }
+  });
+}
 
 /* ---------- карточка ---------- */
 const card=document.createElement('div');card.className='tm-card';card.setAttribute('role','tooltip');card.id='tmCard';R.appendChild(card);

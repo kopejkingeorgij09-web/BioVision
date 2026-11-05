@@ -85,6 +85,9 @@ B.acts.shadFilter = el => { filter = el.dataset.f; try { localStorage.setItem(LS
 function sheetHTML(n){
   const p = B.shad.plan.find(x => x.n === n); if (!p) return '';
   const s = B.shadStage(n), course = B.shad.courses[p.c] || {}, late = lateOf(p), note = (B.shad.marks[n] || {}).note;
+  const homework = Object.values(B.phx?.dl || {}).filter(t => t.shad === n && !t.fix);
+  const submitted = homework.filter(t => t.done).length;
+  const hwStatus = homework.length && (homework.every(t => t.checked) ? 'Проверено' : submitted === homework.length ? 'Ждёт проверки' : `Сдано ${submitted} из ${homework.length}`);
   const DESC = ['Веб ещё впереди', 'Начал веб, досмотрю позже', 'Есть конспект от руки', 'Решил сам и сверил с решениями', 'Ошибки разобраны, тема понятна'];
   return `<div class="row"><span class="cchip c-${p.c}">${esc(course.full || course.name || p.c)}</span><span class="mono muted">${esc(p.code || '')} · веб ${n}/${B.shad.plan.length}</span></div>
     <h2>${esc(p.t)}</h2>
@@ -103,7 +106,7 @@ function sheetHTML(n){
       <p class="hint">Проще перетаскивать: в «Неделе» карточки без дня лежат в блоке «ШАД на неделю», их можно поставить на любой день и вернуть обратно. Если у ДЗ уже есть день, он едет вместе с вебом. Изменения видны и в трекере ШАДа.</p>
       ${p.edited ? `<button class="btn sm ghost" data-act="shReset" data-n="${n}">Вернуть как в плане</button>` : ''}
     </details>
-    <div class="row between">${B.shad.lms ? `<a class="btn ghost" href="${esc(p.lessonId ? `https://lms.profimatika.ru/school/lesson/${p.lessonId}` : B.shad.lms)}" target="_blank" rel="noopener">${p.lessonId ? 'Открыть урок' : 'Платформа'} ↗</a>` : '<span></span>'}<button class="btn primary" data-act="closeSheet">Готово</button></div>`;
+    <div class="row between">${B.shad.lms ? `<a class="btn ghost" href="${esc(p.lessonId ? `https://lms.profimatika.ru/school/lesson/${p.lessonId}` : B.shad.lms)}" target="_blank" rel="noopener">${p.lessonId ? 'Открыть урок' : 'Платформа'} ↗</a>` : '<span></span>'}<a class="btn ghost" href="../phagi/?shadHw=${n}" target="_blank" rel="noopener">Открыть ДЗ на Фагах ↗</a><button class="btn primary" data-act="closeSheet">Готово</button></div>${hwStatus ? `<p class="hint">${hwStatus}</p>` : ''}`;
 }
 /* быстрый выбор дня в пределах недели: удобно на телефоне, где тянуть карточку далеко */
 function dayPick(p, kind){

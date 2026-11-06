@@ -42,6 +42,7 @@ function shapeNode(stroke) {
   if (tool === 'line') return svg('line', { ...attrs, x1, y1, x2, y2 });
   if (tool === 'rect') return svg('rect', { ...attrs, x: Math.min(x1, x2), y: Math.min(y1, y2), width: Math.abs(x2 - x1), height: Math.abs(y2 - y1) });
   if (tool === 'ellipse') return svg('ellipse', { ...attrs, cx: (x1 + x2) / 2, cy: (y1 + y2) / 2, rx: Math.abs(x2 - x1) / 2, ry: Math.abs(y2 - y1) / 2 });
+  if (stroke.geometry === 'polygon') return svg('polygon', { ...attrs, points: points.map(line).join(' ') });
   if (tool === 'highlight') return svg('polyline', {
     ...attrs, opacity: 0.28, 'stroke-width': width * 4, points: points.map(p => line(p)).join(' '),
   });
@@ -57,11 +58,11 @@ function within(p, polygon) {
   return inside;
 }
 
-function nearSegment(p, a, b, radius) {
+function segmentDistance(p, a, b) {
   const x = b[0] - a[0], y = b[1] - a[1], length = x * x + y * y;
-  if (!length) return distance(p, a) < radius;
+  if (!length) return distance(p, a);
   const t = limit(((p[0] - a[0]) * x + (p[1] - a[1]) * y) / length, 0, 1);
-  return distance(p, [a[0] + t * x, a[1] + t * y]) < radius;
+  return distance(p, [a[0] + t * x, a[1] + t * y]);
 }
 
 function segments(stroke) {
@@ -77,30 +78,106 @@ function segments(stroke) {
   return stroke.points;
 }
 
+function simplify(points, tolerance) {
+  let farthest = tolerance, split = -1;
+  for (let i = 1; i < points.length - 1; i++) {
+    const error = segmentDistance(points[i], points[0], points.at(-1));
+    if (error > farthest) { farthest = error; split = i; }
+  }
+  if (split === -1) return [points[0], points.at(-1)];
+  return simplify(points.slice(0, split + 1), tolerance).slice(0, -1).concat(simplify(points.slice(split), tolerance));
+}
+
+function evenSamples(points) {
+  const lengths = [0];
+  for (let i = 1; i < points.length; i++) lengths.push(lengths[i - 1] + distance(points[i - 1], points[i]));
+  const length = lengths.at(-1);
+  let i = 1;
+  const samples = Array.from({ length: 65 }, (_, index) => {
+    const target = length * index / 64;
+    while (lengths[i] < target && i < points.length - 1) i++;
+    const fraction = (target - lengths[i - 1]) / (lengths[i] - lengths[i - 1] || 1);
+    const a = points[i - 1], b = points[i];
+    return [a[0] + (b[0] - a[0]) * fraction, a[1] + (b[1] - a[1]) * fraction];
+  });
+  return { length, samples };
+}
+
+function regularRectangle(corners) {
+  const [a, b, c, d] = corners;
+  const x = b[0] - a[0] + c[0] - d[0], y = b[1] - a[1] + c[1] - d[1];
+  const angle = Math.atan2(y, x), u = [Math.cos(angle), Math.sin(angle)], v = [-u[1], u[0]];
+  const project = ([x, y], axis) => x * axis[0] + y * axis[1];
+  const us = corners.map(p => project(p, u)), vs = corners.map(p => project(p, v));
+  const midU = (Math.min(...us) + Math.max(...us)) / 2, midV = (Math.min(...vs) + Math.max(...vs)) / 2;
+  let halfU = (Math.max(...us) - Math.min(...us)) / 2, halfV = (Math.max(...vs) - Math.min(...vs)) / 2;
+  if (Math.min(halfU, halfV) >= Math.max(halfU, halfV) * .84) halfU = halfV = (halfU + halfV) / 2;
+  return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([i, j]) => {
+    const s = midU + i * halfU, t = midV + j * halfV;
+    return [s * u[0] + t * v[0], s * u[1] + t * v[1]];
+  });
+}
+
 function straighten(stroke) {
-  const points = stroke.points;
-  if (stroke.tool !== 'pen' || points.length < 4) return stroke;
+  if (stroke.tool !== 'pen' || stroke.geometry || stroke.points.length < 2) return stroke;
+  const { length, samples: points } = evenSamples(stroke.points);
   let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
   for (const [x, y] of points) {
     left = Math.min(left, x); top = Math.min(top, y);
     right = Math.max(right, x); bottom = Math.max(bottom, y);
   }
   const width = right - left, height = bottom - top, span = Math.hypot(width, height);
-  if (span < 8) return stroke;
+  if (span < 22) return stroke;
   const start = points[0], end = points.at(-1);
-  if (distance(start, end) > span * .3 || Math.min(width, height) < span * .12) {
-    if (points.every(point => nearSegment(point, start, end, span * .13))) {
-      return { ...stroke, tool: 'line', points: [start, end] };
+  const gap = distance(start, end);
+  if (gap >= span * .78 && length <= gap * 1.5 &&
+      points.every(point => segmentDistance(point, start, end) <= gap * .10)) {
+    const finish = [...end];
+    if (Math.abs(end[0] - start[0]) < gap * .07) finish[0] = start[0];
+    if (Math.abs(end[1] - start[1]) < gap * .07) finish[1] = start[1];
+    return { ...stroke, tool: 'line', points: [start, finish] };
+  }
+  if (gap > span * .26 || Math.min(width, height) < span * .19 || length < span * 1.9 || length > span * 3.5) return stroke;
+
+  // Start at the point farthest from the seam, then simplify both halves of the loop.
+  const seam = center(start, end);
+  const opposite = points.reduce((far, point, i) => distance(point, seam) > distance(points[far], seam) ? i : far, 0);
+  const ring = points.slice(opposite, -1).concat([seam], points.slice(1, opposite + 1));
+  const split = points.length - opposite - 1;
+  const vertices = simplify(ring.slice(0, split + 1), span * .07).slice(0, -1)
+    .concat(simplify(ring.slice(split), span * .07).slice(0, -1));
+  const corners = vertices.filter((point, i) =>
+    segmentDistance(point, vertices[(i + vertices.length - 1) % vertices.length], vertices[(i + 1) % vertices.length]) > span * .05);
+  const area = Math.abs(corners.reduce((sum, [x, y], i) => {
+    const [a, b] = corners[(i + 1) % corners.length];
+    return sum + x * b - y * a;
+  }, 0)) / 2;
+  const closesPolygon = area > width * height * .28 &&
+    corners.every((p, i) => distance(p, corners[(i + 1) % corners.length]) > span * .16);
+  if (closesPolygon && (corners.length === 3 || corners.length === 4)) {
+    let polygon = corners;
+    if (corners.length === 4) {
+      const nearlyRight = corners.every((p, i) => {
+        const prev = corners[(i + 3) % 4], next = corners[(i + 1) % 4];
+        const dot = (prev[0] - p[0]) * (next[0] - p[0]) + (prev[1] - p[1]) * (next[1] - p[1]);
+        return Math.abs(dot) / (distance(p, prev) * distance(p, next)) < .48;
+      });
+      polygon = nearlyRight ? regularRectangle(corners) : null;
     }
-    return stroke;
+    if (polygon) {
+      const closed = polygon.concat([polygon[0]]).map(([x, y]) => [x, y, .5]);
+      return { ...stroke, geometry: 'polygon', points: closed };
+    }
   }
-  let rectangleError = 0, ellipseError = 0;
-  for (const [x, y] of points) {
-    rectangleError += Math.min(x - left, right - x, y - top, bottom - y);
-    ellipseError += Math.abs(Math.hypot(2 * (x - left) / width - 1, 2 * (y - top) / height - 1) - 1) * Math.min(width, height) / 2;
+
+  const radialErrors = points.map(([x, y]) => Math.abs(Math.hypot(2 * (x - left) / width - 1, 2 * (y - top) / height - 1) - 1));
+  if (area < width * height * .45 || Math.max(...radialErrors) > .30 ||
+      radialErrors.reduce((sum, value) => sum + value, 0) / points.length > .12) return stroke;
+  if (Math.min(width, height) >= Math.max(width, height) * .83) {
+    const cx = (left + right) / 2, cy = (top + bottom) / 2, radius = (width + height) / 4;
+    return { ...stroke, tool: 'ellipse', points: [[cx - radius, cy - radius], [cx + radius, cy + radius]] };
   }
-  const tool = rectangleError <= ellipseError ? 'rect' : 'ellipse';
-  return { ...stroke, tool, points: [[left, top], [right, bottom]] };
+  return { ...stroke, tool: 'ellipse', points: [[left, top], [right, bottom]] };
 }
 
 export function showExistingMarks(host, mark, width, height) {
@@ -136,6 +213,7 @@ export function createSurface(host, content, options) {
   host.append(surface, typing);
   let view = options.initialView ?? { x: 0, y: 0, zoom: 1 };
   let active;
+  let shapeTimer;
   let selected = [];
   let selectedTexts = [];
   let selectedOutline = [];
@@ -357,7 +435,7 @@ export function createSurface(host, content, options) {
     const radius = 16 / viewport().scale;
     for (const stroke of state.strokes ?? []) {
       const points = segments(stroke);
-      if (points.some((p, i) => nearSegment(point, p, points[i + 1] ?? p, radius))) active.erased.add(stroke.id);
+      if (points.some((p, i) => segmentDistance(point, p, points[i + 1] ?? p) < radius)) active.erased.add(stroke.id);
     }
     Array.from(ink.children).forEach((node, i) => {
       if (active.erased.has(state.strokes[i].id)) node.setAttribute('opacity', '0.18');
@@ -369,7 +447,23 @@ export function createSurface(host, content, options) {
       ? svg('polyline', {
         fill: 'none', stroke: '#7775e7', 'stroke-width': 1.5, 'stroke-dasharray': '5 4',
         'vector-effect': 'non-scaling-stroke', points: active.points.map(line).join(' '),
-      }) : shapeNode(active));
+      }) : shapeNode(active.shape ?? active));
+  }
+
+  function waitForShape(event) {
+    if (active.tool !== 'pen' || !settings().holdShapes || active.shape) return;
+    const screen = [event.clientX, event.clientY];
+    if (distance(screen, active.screen) < 5) return;
+    active.screen = screen;
+    clearTimeout(shapeTimer);
+    const stroke = active;
+    shapeTimer = setTimeout(() => {
+      if (active !== stroke || signal?.aborted) return;
+      const shape = straighten(stroke);
+      if (shape === stroke) return;
+      stroke.shape = shape;
+      strokePreview();
+    }, 500);
   }
 
   function beginStroke(event, tool) {
@@ -401,6 +495,7 @@ export function createSurface(host, content, options) {
     }
     if (active || (event.button !== 0 && event.pointerType !== 'pen')) return;
     if (event.pointerType === 'pen') {
+      if (event.button === 2 && !event.pressure && !(event.buttons & 1)) return;
       pointers.clear();
       gesture = null;
       penContact?.();
@@ -445,13 +540,14 @@ export function createSurface(host, content, options) {
     }
     if (!active || event.pointerId !== active.pointer) return;
     if (event.pointerType === 'pen') {
-      const next = sideTool?.(event, false);
+      const next = sideTool?.(event);
       if (next !== active.tool && ['pen', 'highlight', 'erase'].includes(next) &&
           ['pen', 'highlight', 'erase'].includes(active.tool) && [next, active.tool].includes('erase')) {
         finishStroke(event, true);
         beginStroke(event, next);
       }
     }
+    if (active.shape) return;
     if (active.tool === 'hand') {
       view.x += event.clientX - active.screen[0];
       view.y += event.clientY - active.screen[1];
@@ -465,7 +561,10 @@ export function createSurface(host, content, options) {
       if (active.tool === 'erase') erase(point);
       else if (distance(point, active.points.at(-1)) > 0.2) active.points.push(point);
     }
-    if (active.tool !== 'erase') strokePreview();
+    if (active.tool !== 'erase') {
+      strokePreview();
+      waitForShape(event);
+    }
   });
 
   function end(event) {
@@ -478,7 +577,8 @@ export function createSurface(host, content, options) {
 
   function finishStroke(event, save) {
     if (!active || active.pointer !== event.pointerId) return;
-    const { id, points, tool, color, width, erased } = active;
+    const { id, points, tool, color, width, erased, shape } = active;
+    clearTimeout(shapeTimer);
     active = null;
     preview.replaceChildren();
     if (!save) { render(); positionSelection(); return; }
@@ -532,7 +632,9 @@ export function createSurface(host, content, options) {
       positionSelection();
       return;
     }
-    const stroke = { id, points: ['line', 'rect', 'ellipse'].includes(tool) ? [points[0], points.at(-1)] : points, tool, color, width };
+    const stroke = shape
+      ? { id, points: shape.points, tool: shape.tool, color, width, ...(shape.geometry ? { geometry: shape.geometry } : {}) }
+      : { id, points: ['line', 'rect', 'ellipse'].includes(tool) ? [points[0], points.at(-1)] : points, tool, color, width };
     update({ ...state, strokes: [...(state.strokes ?? []), stroke] });
   }
   for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) surface.addEventListener(type, end);
@@ -549,7 +651,7 @@ export function createSurface(host, content, options) {
   const resize = new ResizeObserver(renderView);
   resize.observe(host);
   host.closest('#content')?.addEventListener('scroll', positionSelection, { passive: true, signal });
-  signal?.addEventListener('abort', () => { resize.disconnect(); showSelection?.(null); }, { once: true });
+  signal?.addEventListener('abort', () => { clearTimeout(shapeTimer); resize.disconnect(); showSelection?.(null); }, { once: true });
   renderView();
   render();
   return {

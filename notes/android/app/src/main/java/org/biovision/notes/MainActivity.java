@@ -34,6 +34,8 @@ import org.json.JSONObject;
 public final class MainActivity extends Activity {
     private static final String HOST = "appassets.androidplatform.net";
     private static final int PICK_FILES = 11;
+    private static final int STYLUS_BUTTONS = MotionEvent.BUTTON_STYLUS_PRIMARY | MotionEvent.BUTTON_STYLUS_SECONDARY;
+    private static final int PEN_BUTTONS = STYLUS_BUTTONS | MotionEvent.BUTTON_SECONDARY;
     private PenWebView web;
     private ValueCallback<Uri[]> pendingFiles;
     private volatile boolean penButtonDown;
@@ -139,6 +141,7 @@ public final class MainActivity extends Activity {
         PenWebView() { super(MainActivity.this); }
 
         private boolean penButtonContact;
+        private boolean touchReportsButton;
         private int penSample;
         private long lastButtonEdge = -1000;
 
@@ -154,9 +157,8 @@ public final class MainActivity extends Activity {
 
         private boolean observePenButton(MotionEvent event, boolean contact) {
             int action = event.getActionMasked();
-            int barrel = MotionEvent.BUTTON_STYLUS_PRIMARY | MotionEvent.BUTTON_STYLUS_SECONDARY;
             boolean stylus = event.isFromSource(InputDevice.SOURCE_STYLUS)
-                || ((event.getButtonState() | event.getActionButton()) & barrel) != 0;
+                || ((event.getButtonState() | event.getActionButton()) & STYLUS_BUTTONS) != 0;
             for (int i = 0; !stylus && i < event.getPointerCount(); i++) {
                 int tool = event.getToolType(i);
                 stylus = tool == MotionEvent.TOOL_TYPE_STYLUS || tool == MotionEvent.TOOL_TYPE_ERASER;
@@ -173,18 +175,23 @@ public final class MainActivity extends Activity {
             }
             if (action == MotionEvent.ACTION_CANCEL) {
                 lastButtonEdge = -1000;
+                touchReportsButton = false;
                 publishPenButton(false, false, true, event.getEventTime(), "reset");
                 return false;
             }
-            int mask = barrel | MotionEvent.BUTTON_SECONDARY;
             long time = event.getEventTime();
             boolean explicit = (action == MotionEvent.ACTION_BUTTON_PRESS || action == MotionEvent.ACTION_BUTTON_RELEASE)
-                && (event.getActionButton() & mask) != 0;
-            boolean down = (event.getButtonState() & mask) != 0;
+                && (event.getActionButton() & PEN_BUTTONS) != 0;
+            boolean down = (event.getButtonState() & PEN_BUTTONS) != 0;
             if (explicit) {
                 lastButtonEdge = time;
                 down = action == MotionEvent.ACTION_BUTTON_PRESS;
-            } else if (!contact && time - lastButtonEdge < 40) {
+            } else if (contact) {
+                if (penId < 0) touchReportsButton = false;
+                touchReportsButton |= down;
+                // On some pens, hover and button events carry a mask but tip events omit it.
+                if (!touchReportsButton) down = penButtonDown;
+            } else if (time - lastButtonEdge < 40) {
                 // Some devices echo the pre-edge mask in the next hover event.
                 down = penButtonDown;
             }
@@ -235,7 +242,7 @@ public final class MainActivity extends Activity {
             else event.getPointerCoords(penIndex, coordinates[0]);
             MotionEvent pen = MotionEvent.obtain(event.getDownTime(),
                 history > 0 ? event.getHistoricalEventTime(0) : event.getEventTime(),
-                penAction, 1, properties, coordinates, event.getMetaState(), event.getButtonState(),
+                penAction, 1, properties, coordinates, event.getMetaState(), event.getButtonState() & ~PEN_BUTTONS,
                 event.getXPrecision(), event.getYPrecision(), event.getDeviceId(), event.getEdgeFlags(),
                 event.getSource(), event.getFlags());
             if (history > 0) {

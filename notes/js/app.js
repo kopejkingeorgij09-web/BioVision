@@ -18,14 +18,14 @@ const tools = { pen: 'Перо', highlight: 'Маркер', erase: 'Ластик
 const blank = () => ({ id: crypto.randomUUID(), strokes: [], texts: [] });
 const preferenceKey = 'biovision-notes-pen';
 const themes = { system: 'Как в системе', white: 'Белая', gray: 'Серая', warm: 'Тёплая белая', violet: 'Тёмно-фиолетовая', green: 'Тёмно-зелёная', black: 'Чёрная' };
-const appVersion = { name: '0.4.1', code: 5 };
+const appVersion = { name: '0.5.0', code: 6 };
 const releaseBase = cloudConfig.url + '/storage/v1/object/public/notes-releases/';
 const darkMode = matchMedia('(prefers-color-scheme: dark)');
 const existingPrefs = JSON.parse(localStorage.getItem(preferenceKey) ?? '{}');
 const accountLabel = () => identity()?.app_metadata?.notes_access_code ? 'Аккаунт по коду' : identity()?.email ?? 'Войти';
 const prefs = {
   tool: 'pen', color: matchMedia('(prefers-color-scheme: dark)').matches ? '#eee9ff' : '#28223c',
-  width: 3, textPt: 12, finger: false, theme: 'system',
+  width: 3, textPt: 12, finger: false, theme: 'system', holdShapes: true,
   autoColor: !existingPrefs.color || ['#28223c', '#eee9ff'].includes(existingPrefs.color),
   ...existingPrefs,
   penButtonsVersion: 2,
@@ -1195,7 +1195,9 @@ function penButtonSettings() {
 $('settings').onclick = () => choose('Настройки', (dialog, close) => {
   const theme = select(themes, prefs.theme, 'Тема');
   theme.onchange = () => { prefs.theme = theme.value; applyTheme(); remember(); };
-  dialog.append(labelled('Тема', theme), button('Цвет пера по теме', () => {
+  const shapes = select({ on: 'Включено', off: 'Выключено' }, prefs.holdShapes ? 'on' : 'off', 'Фигуры при удержании');
+  shapes.onchange = () => { prefs.holdShapes = shapes.value === 'on'; remember(); };
+  dialog.append(labelled('Тема', theme), labelled('Фигуры при удержании', shapes), button('Цвет пера по теме', () => {
     prefs.autoColor = true; applyTheme(); remember();
   }), element('p', '⌘+/− меняет размер текста. ⌘Y добавляет текстовое поле. ⌘Z отменяет действие, ⇧⌘Z повторяет его. На других клавиатурах используй Ctrl.', 'muted'));
   if (window.NotesAndroid) dialog.append(button('Кнопка S Pen', penButtonSettings));

@@ -18,7 +18,7 @@ const tools = { pen: 'Перо', highlight: 'Маркер', erase: 'Ластик
 const blank = () => ({ id: crypto.randomUUID(), strokes: [], texts: [] });
 const preferenceKey = 'biovision-notes-pen';
 const themes = { system: 'Как в системе', white: 'Белая', gray: 'Серая', warm: 'Тёплая белая', violet: 'Тёмно-фиолетовая', green: 'Тёмно-зелёная', black: 'Чёрная' };
-const appVersion = { name: '0.3.0', code: 3 };
+const appVersion = { name: '0.4.0', code: 4 };
 const releaseBase = cloudConfig.url + '/storage/v1/object/public/notes-releases/';
 const darkMode = matchMedia('(prefers-color-scheme: dark)');
 const existingPrefs = JSON.parse(localStorage.getItem(preferenceKey) ?? '{}');
@@ -28,7 +28,9 @@ const prefs = {
   width: 3, textPt: 12, finger: false, theme: 'system',
   autoColor: !existingPrefs.color || ['#28223c', '#eee9ff'].includes(existingPrefs.color),
   ...existingPrefs,
+  penButtonsVersion: 2,
 };
+if (!existingPrefs.penButtonsVersion && prefs.tool === 'lasso') prefs.tool = 'pen';
 let scope = libraryId();
 let items = [];
 let current;
@@ -50,29 +52,38 @@ let failedWrite = false;
 let surfaces = [];
 let selectedText;
 let documentText;
+let objectClipboard;
+let selectionHost;
 const notebookZoom = new Map();
 
 const buttonSettings = () => ({ ...defaultPenButton, ...prefs.penButton });
-let toolBeforeToggle;
+const holdActions = { none: 'Без действия', pen: 'Перо', erase: 'Ластик', highlight: 'Маркер', lasso: 'Лассо' };
+const pressActions = { ...holdActions, text: 'Текст', newText: 'Новое текстовое поле', undo: 'Отменить', redo: 'Повторить' };
+let gestureTool;
+let penSettingsDraft;
+const baseTool = () => gestureTool ?? prefs.tool;
 const penButton = createPenButton({
-  settings: buttonSettings,
-  enabled: () => Boolean(current && surfaces.length && !$('dialog').open),
+  settings: () => penSettingsDraft ?? buttonSettings(),
+  enabled: () => Boolean(penSettingsDraft || current && surfaces.length && !$('dialog').open),
   changed: updateToolButtons,
-  activate(action) {
+  activate(action, gesture) {
+    if (penSettingsDraft) {
+      $('pen-button-status').textContent = (gesture === 'double' ? 'Двойное нажатие' : 'Короткое нажатие') + ' → ' + pressActions[action];
+      return;
+    }
     if (action === 'undo' || action === 'redo') { history(action === 'redo'); return; }
     if (action === 'newText') { addTextBlock(); return; }
-    if (!tools[action] || action === 'hand' && !current?.data.pages?.length) return;
-    if (prefs.tool === action) {
-      chooseTool(toolBeforeToggle?.action === action ? toolBeforeToggle.previous : 'pen');
-      toolBeforeToggle = undefined;
-    } else {
-      toolBeforeToggle = { action, previous: prefs.tool };
-      chooseTool(action);
-    }
+    if (!tools[action]) return;
+    const previous = baseTool();
+    gestureTool = gestureTool === action ? undefined : action;
+    if (previous === 'lasso' && baseTool() !== 'lasso') surfaces.forEach(surface => surface.deselect());
+    updateToolButtons();
   },
 });
 
 function chooseTool(tool) {
+  if (baseTool() === 'lasso' && tool !== 'lasso') surfaces.forEach(surface => surface.deselect());
+  gestureTool = undefined;
   prefs.tool = tool;
   remember();
   updateToolButtons();
@@ -80,26 +91,30 @@ function chooseTool(tool) {
 
 function updateToolButtons() {
   const held = penButton.held();
-  const effective = held === 'none' ? prefs.tool : held;
+  const effective = held === 'none' ? baseTool() : held;
   for (const control of document.querySelectorAll('[data-ink-tool]')) {
     control.setAttribute('aria-pressed', String(control.dataset.inkTool === effective));
   }
+  $('content').classList.toggle('lasso-mode', effective === 'lasso');
   const status = $('pen-button-status');
-  if (status) status.textContent = penButton.isPressed() ? 'Кнопка удерживается' : 'Кнопка отпущена';
+  if (status) status.textContent = penButton.isPressed()
+    ? 'Кнопка нажата → ' + holdActions[held] : 'Кнопка отпущена';
 }
 
 window.notesPenButton = (down, contact, canceled, time) => penButton.input(down, contact, canceled, time);
 
-function sideTool(event, first) {
-  if (event.pointerType !== 'pen') return prefs.tool;
-  if (event.button === 5 || event.buttons & 32) return 'erase';
-  const native = window.NotesAndroid?.penButtonPressed;
-  const held = first && native ? window.NotesAndroid.penButtonPressed() : penButton.held() !== 'none';
-  if (held || (event.buttons & 2) || event.button === 2) {
+function sideTool(event) {
+  if (event.pointerType !== 'pen') return baseTool();
+  const bridge = window.NotesAndroid;
+  const held = bridge?.penButtonPressed
+    ? bridge.penButtonPressed()
+    : penButton.isPressed() || Boolean(event.buttons & 2) || event.button === 2;
+  if (held) {
     const tool = buttonSettings().hold;
-    if (tool !== 'none') return tool;
+    return tool === 'none' ? baseTool() : tool;
   }
-  return prefs.tool;
+  if (event.button === 5 || event.buttons & 32) return 'erase';
+  return baseTool();
 }
 
 function message(text) {
@@ -112,10 +127,10 @@ function report(error) { message(error.message ?? String(error)); }
 
 function choose(title, populate) {
   const dialog = $('dialog');
-  if (dialog.open) dialog.close();
   dialog.replaceChildren(element('h2', title));
   populate(dialog, () => dialog.close());
-  dialog.showModal();
+  if (dialog.open) dialog.querySelector('input, select, button')?.focus();
+  else dialog.showModal();
 }
 
 function labelled(label, input) {
@@ -267,42 +282,58 @@ function updateUndo() {
 
 function visible() { return items.filter(item => !item.deleted); }
 
+const folderColors = { violet: 'Сиреневый', blue: 'Голубой', green: 'Зелёный', gold: 'Янтарный', rose: 'Розовый' };
+
+function libraryItems() {
+  return visible().sort((a, b) => a.data.title.localeCompare(b.data.title, 'ru', { numeric: true }));
+}
+
+function folderPath(id, records = libraryItems()) {
+  const path = [];
+  const seen = new Set();
+  while (id && !seen.has(id)) {
+    seen.add(id);
+    const entry = records.find(item => item.id === id && item.data.kind === 'folder');
+    if (!entry) break;
+    path.unshift(entry);
+    id = entry.data.parent;
+  }
+  return path;
+}
+
+function inFolder(records, id) {
+  const parents = new Set(records.filter(item => item.data.kind === 'folder').map(item => item.id));
+  return records.filter(item => (parents.has(item.data.parent) ? item.data.parent : null) === id);
+}
+
 function renderLibrary() {
   const nav = $('tree');
-  nav.replaceChildren();
+  const records = libraryItems();
   const term = $('query').value.trim().toLocaleLowerCase('ru');
-  const records = visible().sort((a, b) => {
-    const fa = a.data.kind === 'folder', fb = b.data.kind === 'folder';
-    return fa === fb ? a.data.title.localeCompare(b.data.title, 'ru') : fa ? -1 : 1;
-  });
-  const parents = new Set(records.filter(item => item.data.kind === 'folder').map(item => item.id));
-  function row(item, depth) {
-    const line = element('div', undefined, 'tree-row');
-    line.style.paddingLeft = Math.min(depth, 6) * 12 + 'px';
-    const link = button(kinds[item.data.kind][0] + '  ' + item.data.title, () => open(item.id));
-    link.title = item.data.title;
-    if (current?.id === item.id || folder === item.id && !current) link.setAttribute('aria-current', 'true');
-    line.append(link);
-    nav.append(line);
+  nav.replaceChildren();
+  function row(item, depth = 0) {
+    const link = button(item ? kinds[item.data.kind][0] + '  ' + item.data.title : '⌂  Библиотека', () => open(item?.id));
+    link.className = 'library-link';
+    link.style.setProperty('--depth', depth);
+    if (item) link.title = item.data.title;
+    if (current?.id === item?.id && current || !current && (item?.id ?? null) === folder) link.setAttribute('aria-current', 'page');
+    nav.append(link);
   }
   if (term) {
-    for (const item of records.filter(item => [item.data.title, item.data.body ?? ''].some(value => value.toLocaleLowerCase('ru').includes(term)))) row(item, 0);
+    for (const item of records.filter(item => [item.data.title, item.data.body ?? ''].some(value => value.toLocaleLowerCase('ru').includes(term)))) row(item);
+    if (!nav.childElementCount) nav.append(element('p', 'Ничего не найдено', 'muted'));
   } else {
-    const seen = new Set();
+    row(null);
+    const expanded = new Set(folderPath(folder, records).map(item => item.id));
     function branch(parent, depth) {
-      for (const item of records) {
-        if (seen.has(item.id)) continue;
-        const actual = parents.has(item.data.parent) ? item.data.parent : null;
-        if (actual !== parent) continue;
-        seen.add(item.id);
+      for (const item of inFolder(records, parent).filter(item => item.data.kind === 'folder')) {
         row(item, depth);
-        if (item.data.kind === 'folder') branch(item.id, depth + 1);
+        if (expanded.delete(item.id)) branch(item.id, depth + 1);
       }
     }
     branch(null, 0);
-    for (const item of records) if (!seen.has(item.id)) row(item, 0);
+    if (current) row(current);
   }
-  if (!nav.childElementCount) nav.append(element('p', term ? 'Ничего не найдено' : 'Библиотека пуста', 'muted'));
 }
 
 async function preload(item, owner) {
@@ -335,18 +366,19 @@ function open(id, { replace = false } = {}) {
   forward = [];
   const hash = item ? '#note=' + item.id : location.pathname + location.search;
   if (replace) window.history.replaceState(null, '', hash);
-  else if (hash !== location.hash) window.history.pushState(null, '', hash);
+  else if ((item ? hash : '') !== location.hash) window.history.pushState(null, '', hash);
   $('app').classList.remove('library-open');
   render();
   if (item) void preload(item, scope);
 }
 
-async function create(kind, title, paper) {
+async function create(kind, title, paper, color) {
   const item = { id: crypto.randomUUID(), library: scope, revision: 0 };
   const data = { kind, title, parent: folder, paper };
   if (kind === 'pages' || kind === 'board') data.pages = [blank()];
   if (kind === 'text') data.body = '';
   if (kind !== 'folder') data.attachments = [];
+  else data.color = color;
   await save(data, { item });
   open(item.id);
   if (kind === 'text') $('content').querySelector('textarea')?.focus();
@@ -362,19 +394,24 @@ function createDialog(defaultKind = 'pages') {
     title.required = true;
     const paper = select(layouts, 'dots', 'Разметка');
     const pattern = labelled('Разметка', paper);
-    const toggle = () => { pattern.hidden = kind.value === 'folder' || kind.value === 'text'; };
+    const color = select(folderColors, 'violet', 'Цвет папки');
+    const folderColor = labelled('Цвет папки', color);
+    const toggle = () => {
+      pattern.hidden = kind.value === 'folder' || kind.value === 'text';
+      folderColor.hidden = kind.value !== 'folder';
+    };
     kind.addEventListener('change', toggle);
     toggle();
     const actions = element('div', undefined, 'dialog-actions');
     const submit = element('button', 'Создать', 'primary');
     submit.type = 'submit';
     actions.append(button('Отмена', close), submit);
-    form.append(labelled('Тип', kind), labelled('Название', title), pattern, actions);
+    form.append(labelled('Тип', kind), labelled('Название', title), pattern, folderColor, actions);
     form.onsubmit = async event => {
       event.preventDefault();
       if (!title.value.trim()) return;
       submit.disabled = true;
-      try { await create(kind.value, title.value.trim(), paper.value); close(); }
+      try { await create(kind.value, title.value.trim(), paper.value, color.value); close(); }
       catch (error) { report(error); submit.disabled = false; }
     };
     dialog.append(form);
@@ -383,22 +420,64 @@ function createDialog(defaultKind = 'pages') {
 }
 
 function welcome() {
-  const section = element('section', undefined, 'welcome');
-  const currentFolder = items.find(item => item.id === folder && !item.deleted);
-  section.append(element('h1', currentFolder?.data.title ?? 'Мои заметки'));
-  section.append(element('p', currentFolder ? 'Открой заметку в библиотеке или создай новую в этой папке.' : 'Тетради для рукописи, доски для схем и конспекты для клавиатуры.'));
-  const cards = element('div', undefined, 'cards');
-  for (const [kind, [icon, label, description]] of Object.entries(kinds)) {
-    const card = button('', () => createDialog(kind));
-    card.append(element('strong', icon + '  ' + label), element('span', description, 'muted'));
-    cards.append(card);
+  const records = libraryItems();
+  const path = folderPath(folder, records);
+  const currentFolder = path.at(-1);
+  const section = element('section', undefined, 'library-view');
+  const breadcrumbs = element('nav', undefined, 'library-path');
+  breadcrumbs.setAttribute('aria-label', 'Путь к папке');
+  breadcrumbs.append(button('Библиотека', () => open(null)));
+  for (const entry of path) {
+    breadcrumbs.append(element('span', '›', 'muted'), button(entry.data.title, () => open(entry.id)));
   }
-  section.append(cards);
-  if (currentFolder) {
-    section.append(button('← ' + (currentFolder.data.parent ? 'На уровень выше' : 'Все заметки'), () => open(currentFolder.data.parent)));
-    section.append(button('Действия с папкой', () => more(currentFolder)));
+  breadcrumbs.lastElementChild.setAttribute('aria-current', 'page');
+  const title = element('div', undefined, 'library-title');
+  title.append(element('h1', currentFolder?.data.title ?? 'Мои заметки'));
+  const actions = element('div', undefined, 'library-actions');
+  actions.append(button('Новая папка', () => createDialog('folder')),
+    button('Новая заметка', () => createDialog(), 'primary'));
+  if (currentFolder) actions.append(button('Действия с папкой', () => more(currentFolder)));
+  title.append(actions);
+  section.append(breadcrumbs, title);
+
+  const controls = element('div', undefined, 'library-actions library-view-options');
+  const mode = select({ grid: 'Плитки', list: 'Список' }, prefs.libraryLayout ?? 'grid', 'Вид библиотеки');
+  mode.onchange = () => { prefs.libraryLayout = mode.value; remember(); welcome(); $('content').querySelector('[aria-label="Вид библиотеки"]').focus(); };
+  controls.append(labelled('Вид', mode));
+  section.append(controls);
+  const entries = inFolder(records, currentFolder?.id ?? null);
+  for (const [label, group] of [
+    ['Папки', entries.filter(item => item.data.kind === 'folder')],
+    ['Заметки', entries.filter(item => item.data.kind !== 'folder')],
+  ]) {
+    if (!group.length) continue;
+    section.append(element('h2', label));
+    const cards = element('div', undefined, 'library-items ' + (prefs.libraryLayout === 'list' ? 'library-list' : ''));
+    for (const item of group) {
+      const card = element('article', undefined, 'library-card');
+      const itemKind = item.data.kind;
+      const openItem = button('', () => open(item.id));
+      openItem.className = 'library-card-open';
+      openItem.setAttribute('aria-label', item.data.title);
+      const icon = element('span', itemKind === 'folder' ? '' : kinds[itemKind][0], 'library-item-icon');
+      icon.setAttribute('aria-hidden', 'true');
+      icon.dataset.color = itemKind === 'folder' ? item.data.color ?? 'violet' : 'note';
+      const info = element('span', undefined, 'library-item-text');
+      const childCount = itemKind === 'folder' ? inFolder(records, item.id).length : 0;
+      info.append(element('strong', item.data.title), element('small', itemKind === 'folder' ? 'Объектов · ' + childCount : kinds[itemKind][1], 'muted'));
+      openItem.append(icon, info);
+      const actions = button('⋯', () => more(item));
+      actions.className = 'library-card-menu';
+      actions.setAttribute('aria-label', 'Действия с «' + item.data.title + '»');
+      card.append(openItem, actions);
+      cards.append(card);
+    }
+    section.append(cards);
   }
-  $('content').append(section);
+  if (!entries.length) section.append(element('p', 'Здесь пока пусто. Создай заметку или папку.', 'library-empty muted'));
+  const previous = $('content').querySelector('.library-view');
+  if (previous) previous.replaceWith(section);
+  else $('content').append(section);
 }
 
 function fileBar() {
@@ -459,11 +538,11 @@ function inkControls(board, surface, withLayout) {
     const label = tools[key];
     if (key === 'hand' && !board) continue;
     const control = button(label, () => {
-      toolBeforeToggle = undefined;
       chooseTool(key);
     });
     control.dataset.inkTool = key;
-    bar.append(control);
+    if (['line', 'rect', 'ellipse'].includes(key)) extra.append(control);
+    else bar.append(control);
   }
   const color = element('input');
   color.type = 'color';
@@ -485,7 +564,10 @@ function inkControls(board, surface, withLayout) {
   const straighten = button('Выровнять фигуру', () => shapeSelection?.());
   straighten.id = 'straighten';
   straighten.disabled = true;
-  extra.append(color, width, finger, recognize, straighten);
+  const paste = button('Вставить объекты', pasteObjects);
+  paste.id = 'paste-objects';
+  paste.disabled = !objectClipboard;
+  extra.append(color, width, finger, recognize, straighten, paste);
   textControls(extra, prefs.textPt, true);
   const advanced = button('Дополнительно', () => {
     moreInkTools = !moreInkTools;
@@ -513,10 +595,47 @@ function inkControls(board, surface, withLayout) {
   if (board) bar.append(button('−', () => surface.zoom(.8)), button('＋', () => surface.zoom(1.25)), button('Уместить', surface.fit));
 }
 
+function selectionActions(selection) {
+  const menu = $('selection-actions');
+  if (!selection) { menu.hidden = true; selectionHost = undefined; return; }
+  if (selectionHost !== selection.host || menu.hidden) {
+    menu.replaceChildren(button('Дублировать', selection.duplicate), button('Вырезать', selection.cut), button('Удалить', selection.delete));
+    selectionHost = selection.host;
+  }
+  const area = $('content').getBoundingClientRect();
+  menu.hidden = selection.bottom < area.top || selection.top > area.bottom;
+  if (menu.hidden) return;
+  const width = menu.offsetWidth, height = menu.offsetHeight;
+  const minX = Math.max(6, area.left + 5), maxX = Math.max(minX, area.right - width - 5);
+  const left = Math.max(minX, Math.min(maxX, selection.x - width / 2));
+  const preferred = selection.top - height - 8 >= area.top ? selection.top - height - 8 : selection.bottom + 8;
+  const top = Math.max(area.top + 5, Math.min(area.bottom - height - 5, preferred));
+  menu.style.left = left + 'px';
+  menu.style.top = top + 'px';
+}
+
+function pasteObjects() {
+  if (!objectClipboard) return;
+  const area = $('content').getBoundingClientRect();
+  const visible = surface => {
+    const rect = surface.host.getBoundingClientRect();
+    return Math.max(0, Math.min(rect.bottom, area.bottom) - Math.max(rect.top, area.top));
+  };
+  const target = surfaces.find(surface => surface.host === selectionHost) ??
+    [...surfaces].sort((a, b) => visible(b) - visible(a))[0];
+  target?.paste(objectClipboard);
+}
+
 function commonSurface() {
   return {
-    settings: () => prefs, signal: editor.signal,
+    settings: () => ({ ...prefs, tool: baseTool() }), signal: editor.signal,
     sideTool,
+    showSelection: selectionActions,
+    clipboard: { write(data) {
+      objectClipboard = structuredClone(data);
+      if ($('paste-objects')) $('paste-objects').disabled = false;
+      message('Вырезано. Вставь через «Дополнительно» или ⌘V / Ctrl+V.');
+    } },
     penContact: () => penButton.use(),
     notifyText(text) {
       selectedText = text;
@@ -602,7 +721,8 @@ function render() {
   root.style.setProperty('--grid-size', (current?.data.gridSize ?? 24) + 'px');
   $('title').hidden = !current;
   $('heading').hidden = Boolean(current);
-  $('heading').textContent = items.find(item => item.id === folder)?.data.title ?? 'Все заметки';
+  $('heading').textContent = 'Библиотека';
+  $('back-to-folder').hidden = !current;
   $('more').hidden = !current;
   $('focus-mode').hidden = !current;
   renderLibrary();
@@ -742,7 +862,7 @@ function more(item) {
     title.required = true;
     title.maxLength = 150;
     const folders = visible().filter(entry => entry.data.kind === 'folder');
-    const choices = { '': 'Все заметки' };
+    const choices = { '': 'Библиотека' };
     for (const entry of folders) {
       let ancestor = entry;
       const seen = new Set();
@@ -750,24 +870,36 @@ function more(item) {
         seen.add(ancestor.id);
         ancestor = folders.find(candidate => candidate.id === ancestor.data.parent);
       }
-      if (!ancestor) choices[entry.id] = entry.data.title;
+      if (!ancestor) choices[entry.id] = folderPath(entry.id, folders).map(item => item.data.title).join(' › ');
     }
-    const destination = select(choices, item.data.parent ?? '', 'Папка');
+    const destination = select(choices, item.data.parent ?? '', 'Переместить в папку');
     const controls = element('div', undefined, 'dialog-actions');
     const submit = element('button', 'Сохранить', 'primary');
     submit.type = 'submit';
     controls.append(button('Закрыть', close), submit);
-    form.append(labelled('Название', title), labelled('Папка', destination), controls);
+    const color = select(folderColors, item.data.color ?? 'violet', 'Цвет папки');
+    form.append(labelled('Название', title), labelled('Переместить в папку', destination));
+    if (item.data.kind === 'folder') form.append(labelled('Цвет папки', color));
+    form.append(controls);
     form.onsubmit = async event => {
       event.preventDefault();
       if (!title.value.trim()) return;
       try {
-        await save({ ...item.data, title: title.value.trim(), parent: destination.value || null }, { item });
+        const latest = items.find(entry => entry.id === item.id && !entry.deleted);
+        if (!latest) { close(); return; }
+        const parent = destination.value || null;
+        if (latest.data.kind === 'folder' && folderPath(parent).some(entry => entry.id === latest.id)) {
+          return message('Выбери папку вне этой ветки');
+        }
+        const data = { ...latest.data, title: title.value.trim(), parent };
+        if (latest.data.kind === 'folder') data.color = color.value;
+        await save(data, { item: latest });
+        if (current?.id === latest.id) folder = parent;
         close(); render();
       } catch (error) { report(error); }
     };
     dialog.append(form);
-    const selectedFile = current?.data.kind === 'board' ? boardFileId : attachmentId;
+    const selectedFile = current?.id === item.id ? current.data.kind === 'board' ? boardFileId : attachmentId : null;
     if (selectedFile) dialog.append(button('Отсоединить вложение', () => {
       const attachments = current.data.kind === 'board' ? boardFilesWithPositions(current.data.attachments) : current.data.attachments;
       mutate({ ...current.data, attachments: attachments.filter(file => file.id !== selectedFile) });
@@ -801,13 +933,17 @@ async function runSync() {
     if (owner !== scope || writes !== flushed) { schedule(); return; }
     const selected = updated.find(item => item.id === current?.id);
     const refresh = selected && selected.operation !== current.operation && !selected.pending;
+    const libraryChanged = !current && (items.length !== updated.length ||
+      updated.some(item => !items.some(local => local.id === item.id && local.operation === item.operation)));
     items = updated;
+    if (folder && !items.some(item => item.id === folder && !item.deleted)) folder = null;
     if (refresh) {
       if (selected.deleted) open(selected.data.parent);
       else { current = selected; back = []; forward = []; render(); }
     } else {
       if (selected) current = selected;
       renderLibrary();
+      if (libraryChanged) welcome();
     }
     if (result.conflicts) message('Правки с двух устройств сохранены отдельными версиями');
     if (result.error) throw result.error;
@@ -821,6 +957,7 @@ async function runSync() {
 async function changeAccount() {
   await writes.catch(() => {});
   scope = libraryId();
+  objectClipboard = undefined;
   items = await list('items', scope);
   $('account').textContent = accountLabel();
   $('sync').textContent = identity() ? 'Сохранено локально' : 'Локальная библиотека';
@@ -897,6 +1034,7 @@ function emailAccount() {
 
 $('new-item').onclick = () => createDialog();
 $('query').oninput = renderLibrary;
+$('back-to-folder').onclick = () => open(folder);
 $('more').onclick = () => { if (current) more(current); };
 $('account').onclick = account;
 $('sync').onclick = () => identity() ? runSync() : account();
@@ -942,6 +1080,10 @@ window.addEventListener('online', () => schedule(0));
 window.addEventListener('offline', () => { if (identity() && !failedWrite) $('sync').textContent = 'Офлайн · сохранено локально'; });
 window.addEventListener('focus', () => schedule(0));
 window.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && selectionHost && !$('selection-actions').hidden) {
+    surfaces.find(surface => surface.host === selectionHost)?.deselect();
+    return;
+  }
   if (event.key === 'Escape' && prefs.focusMode && !$('dialog').open) {
     prefs.focusMode = false;
     remember();
@@ -955,6 +1097,7 @@ window.addEventListener('keydown', event => {
     if (canUndo) { event.preventDefault(); history(event.shiftKey); }
   }
   if (!current || (input && !editorInput)) return;
+  if (!input && event.code === 'KeyV' && objectClipboard && surfaces.length) { event.preventDefault(); pasteObjects(); }
   if (event.code === 'KeyY' && surfaces.length) { event.preventDefault(); addTextBlock(); }
   if ($('text-pt') && ['Equal', 'Minus', 'NumpadAdd', 'NumpadSubtract'].includes(event.code)) {
     event.preventDefault();
@@ -994,25 +1137,49 @@ async function checkUpdates(status, check) {
 
 function penButtonSettings() {
   choose('Кнопка S Pen', (dialog, close) => {
-    const hold = { none: 'Ничего', pen: 'Перо', erase: 'Ластик', highlight: 'Маркер', lasso: 'Лассо' };
-    const tap = { ...hold, text: 'Инструмент «Текст»', newText: 'Новое текстовое поле', undo: 'Отменить', redo: 'Повторить' };
-    for (const [gesture, title, choices] of [
-      ['hold', 'Удержание', hold], ['tap', 'Один короткий щелчок', tap], ['double', 'Двойной щелчок', tap],
+    const draft = buttonSettings();
+    penSettingsDraft = draft;
+    penButton.reset();
+    const table = element('div', undefined, 'pen-bindings');
+    const fields = [];
+    for (const [gesture, title, hint, choices] of [
+      ['hold', 'Удержание', 'Временный инструмент, пока кнопка нажата', holdActions],
+      ['tap', 'Одно нажатие', 'Отпусти кнопку рядом с экраном', pressActions],
+      ['double', 'Два нажатия', 'Нажми и отпусти кнопку дважды', pressActions],
     ]) {
-      const control = select(choices, buttonSettings()[gesture], title);
-      control.onchange = () => {
-        prefs.penButton = { ...buttonSettings(), [gesture]: control.value };
-        remember();
-        updateToolButtons();
-      };
-      dialog.append(labelled(title, control));
+      const field = select(choices, draft[gesture], title);
+      const row = element('label', undefined, 'pen-binding');
+      const text = element('span');
+      text.append(element('strong', title), element('small', hint, 'muted'));
+      row.append(text, field);
+      field.onchange = () => { draft[gesture] = field.value; penButton.reset(); };
+      fields.push([gesture, field]);
+      table.append(row);
     }
-    const status = element('p', '', 'muted');
+    const status = element('p', 'Поднеси перо к экрану и нажми кнопку для проверки', 'pen-test');
     status.id = 'pen-button-status';
     status.setAttribute('role', 'status');
-    dialog.append(element('p', 'Поднеси кончик пера к экрану. Чтобы переключить инструмент, нажми и отпусти кнопку рядом с экраном. Чтобы воспользоваться временным инструментом, удерживай кнопку и коснись экрана.', 'muted'), status,
-      button('По умолчанию', () => { delete prefs.penButton; remember(); penButtonSettings(); }),
-      button('Закрыть', close));
+    function finish() {
+      if (penSettingsDraft !== draft) return;
+      penSettingsDraft = undefined;
+      penButton.reset();
+      updateToolButtons();
+    }
+    const actions = element('div', undefined, 'dialog-actions');
+    actions.append(button('Сбросить', () => {
+      Object.assign(draft, defaultPenButton);
+      for (const [gesture, field] of fields) field.value = draft[gesture];
+      penButton.reset();
+    }), button('Отмена', close), button('Применить', () => {
+      prefs.penButton = { ...draft };
+      if (gestureTool === 'lasso') surfaces.forEach(surface => surface.deselect());
+      gestureTool = undefined;
+      remember();
+      finish();
+      close();
+    }, 'primary'));
+    dialog.append(table, status, actions);
+    dialog.addEventListener('close', finish, { once: true });
     updateToolButtons();
   });
 }

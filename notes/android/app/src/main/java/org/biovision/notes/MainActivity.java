@@ -135,6 +135,7 @@ public final class MainActivity extends Activity {
 
         private boolean penButtonContact;
         private int penSample;
+        private boolean explicitPenButtons;
 
         private void publishPenButton(boolean down, boolean contact, boolean canceled, long time) {
             boolean changed = down != penButtonDown || (down && contact && !penButtonContact);
@@ -155,8 +156,10 @@ public final class MainActivity extends Activity {
             int sample = ++penSample;
             int action = event.getActionMasked();
             if (action == MotionEvent.ACTION_HOVER_EXIT) {
-                if (penButtonDown) postDelayed(() -> {
-                    if (sample == penSample) publishPenButton(false, false, true, SystemClock.uptimeMillis());
+                postDelayed(() -> {
+                    if (sample != penSample) return;
+                    explicitPenButtons = false;
+                    if (penButtonDown) publishPenButton(false, false, true, SystemClock.uptimeMillis());
                 }, 170);
                 return false;
             }
@@ -164,13 +167,24 @@ public final class MainActivity extends Activity {
                 publishPenButton(false, false, true, event.getEventTime());
                 return false;
             }
-            int mask = MotionEvent.BUTTON_STYLUS_PRIMARY | MotionEvent.BUTTON_STYLUS_SECONDARY | MotionEvent.BUTTON_SECONDARY;
+            int primary = MotionEvent.BUTTON_STYLUS_PRIMARY | MotionEvent.BUTTON_SECONDARY;
+            int mask = primary | MotionEvent.BUTTON_STYLUS_SECONDARY;
             int buttons = event.getButtonState();
-            if (action == MotionEvent.ACTION_BUTTON_PRESS) buttons |= event.getActionButton();
-            if (action == MotionEvent.ACTION_BUTTON_RELEASE) buttons &= ~event.getActionButton();
-            publishPenButton((buttons & mask) != 0, contact || penId >= 0, false, event.getEventTime());
-            return (action == MotionEvent.ACTION_BUTTON_PRESS || action == MotionEvent.ACTION_BUTTON_RELEASE)
+            boolean explicit = (action == MotionEvent.ACTION_BUTTON_PRESS || action == MotionEvent.ACTION_BUTTON_RELEASE)
                 && (event.getActionButton() & mask) != 0;
+            if (explicit) {
+                explicitPenButtons = true;
+                if (action == MotionEvent.ACTION_BUTTON_PRESS) buttons |= event.getActionButton();
+                else {
+                    int released = event.getActionButton();
+                    if ((released & primary) != 0) released |= primary;
+                    buttons &= ~released;
+                }
+            }
+            // When the device sends explicit changes, hover samples must not invent extra clicks.
+            boolean down = !explicit && explicitPenButtons ? penButtonDown : (buttons & mask) != 0;
+            publishPenButton(down, contact || penId >= 0, false, event.getEventTime());
+            return explicit;
         }
 
         @Override public boolean dispatchGenericMotionEvent(MotionEvent event) {
@@ -182,6 +196,7 @@ public final class MainActivity extends Activity {
             super.onWindowFocusChanged(focused);
             if (!focused) {
                 ++penSample;
+                explicitPenButtons = false;
                 publishPenButton(false, false, true, SystemClock.uptimeMillis());
             }
         }

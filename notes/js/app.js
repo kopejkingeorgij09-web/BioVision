@@ -18,7 +18,7 @@ const tools = { pen: 'Перо', highlight: 'Маркер', erase: 'Ластик
 const blank = () => ({ id: crypto.randomUUID(), strokes: [], texts: [] });
 const preferenceKey = 'biovision-notes-pen';
 const themes = { system: 'Как в системе', white: 'Белая', gray: 'Серая', warm: 'Тёплая белая', violet: 'Тёмно-фиолетовая', green: 'Тёмно-зелёная', black: 'Чёрная' };
-const appVersion = { name: '0.4.0', code: 4 };
+const appVersion = { name: '0.4.1', code: 5 };
 const releaseBase = cloudConfig.url + '/storage/v1/object/public/notes-releases/';
 const darkMode = matchMedia('(prefers-color-scheme: dark)');
 const existingPrefs = JSON.parse(localStorage.getItem(preferenceKey) ?? '{}');
@@ -101,14 +101,20 @@ function updateToolButtons() {
     ? 'Кнопка нажата → ' + holdActions[held] : 'Кнопка отпущена';
 }
 
-window.notesPenButton = (down, contact, canceled, time) => penButton.input(down, contact, canceled, time);
+window.notesPenButton = (down, contact, canceled, time, source) => {
+  penButton.input(down, contact, canceled, time);
+  const diagnostic = $('pen-button-signal');
+  const channel = { button: 'событие кнопки', touch: 'касание', hover: 'наведение' }[source];
+  if (diagnostic && channel) {
+    diagnostic.textContent = 'Сигнал Android · ' + channel + ' · ' + (down ? 'нажата' : 'отпущена');
+  }
+};
 
 function sideTool(event) {
   if (event.pointerType !== 'pen') return baseTool();
   const bridge = window.NotesAndroid;
-  const held = bridge?.penButtonPressed
-    ? bridge.penButtonPressed()
-    : penButton.isPressed() || Boolean(event.buttons & 2) || event.button === 2;
+  const pointerButton = Boolean(event.buttons & 2) || event.button === 2;
+  const held = pointerButton || (bridge?.penButtonPressed ? bridge.penButtonPressed() : penButton.isPressed());
   if (held) {
     const tool = buttonSettings().hold;
     return tool === 'none' ? baseTool() : tool;
@@ -1129,7 +1135,7 @@ async function checkUpdates(status, check) {
     link.href = releaseBase + 'v' + release.version + '/' + filename;
     status.replaceChildren(link, element('p', android
       ? 'Открой скачанный APK и подтверди обновление.'
-      : 'Распакуй архив и замени старое приложение «Поля» новым.'));
+      : 'Распакуй архив. Заверши «Поля» через ⌘Q, замени приложение в «Программах» и открой новую копию.'));
   } catch {
     status.textContent = 'Не удалось проверить обновления. Попробуй ещё раз.';
   } finally { check.disabled = false; }
@@ -1159,6 +1165,8 @@ function penButtonSettings() {
     const status = element('p', 'Поднеси перо к экрану и нажми кнопку для проверки', 'pen-test');
     status.id = 'pen-button-status';
     status.setAttribute('role', 'status');
+    const signal = element('small', 'Сигнал Android · ожидаю нажатия', 'muted');
+    signal.id = 'pen-button-signal';
     function finish() {
       if (penSettingsDraft !== draft) return;
       penSettingsDraft = undefined;
@@ -1178,7 +1186,7 @@ function penButtonSettings() {
       finish();
       close();
     }, 'primary'));
-    dialog.append(table, status, actions);
+    dialog.append(table, status, signal, actions);
     dialog.addEventListener('close', finish, { once: true });
     updateToolButtons();
   });

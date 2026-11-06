@@ -112,21 +112,44 @@ final class NotesApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKU
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        startServer()
+    }
+
+    private func startServer() {
         do {
             guard let root = Bundle.main.resourceURL?.appendingPathComponent("Web") else { throw CocoaError(.fileNoSuchFile) }
-            server = try BundledServer(root: root)
-            server?.start { [weak self] state in
+            let next = try BundledServer(root: root)
+            server = next
+            next.start { [weak self, weak next] state in
                 DispatchQueue.main.async {
-                    if case .ready = state { self?.view?.load(URLRequest(url: origin)) }
-                    if case .failed(let error) = state { self?.show(error) }
+                    guard let self, let next, self.server === next else { return }
+                    if case .ready = state { self.view?.load(URLRequest(url: origin)) }
+                    if case .failed(let error) = state {
+                        self.server = nil
+                        self.show(error)
+                    }
                 }
             }
         } catch { show(error) }
     }
 
     private func show(_ error: Error) {
+        if let networkError = error as? NWError, case .posix(.EADDRINUSE) = networkError {
+            let alert = NSAlert()
+            alert.messageText = "Локальный порт «Поля» уже занят"
+            alert.informativeText = "Если открыта другая копия «Поля», переключись на неё и заверши её через ⌘Q. Затем вернись сюда и нажми «Повторить»."
+            alert.addButton(withTitle: "Повторить")
+            alert.addButton(withTitle: "Закрыть")
+            if alert.runModal() == .alertFirstButtonReturn {
+                DispatchQueue.main.async { [weak self] in self?.startServer() }
+            } else {
+                NSApp.terminate(nil)
+            }
+            return
+        }
         let alert = NSAlert(error: error)
         alert.messageText = "Не удалось открыть Поля"
+        if alert.informativeText.isEmpty { alert.informativeText = error.localizedDescription }
         alert.runModal()
     }
 

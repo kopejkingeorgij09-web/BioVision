@@ -34,7 +34,7 @@ import org.json.JSONObject;
 public final class MainActivity extends Activity {
     private static final String HOST = "appassets.androidplatform.net";
     private static final int PICK_FILES = 11;
-    private WebView web;
+    private PenWebView web;
     private ValueCallback<Uri[]> pendingFiles;
     private volatile boolean penButtonDown;
 
@@ -119,6 +119,11 @@ public final class MainActivity extends Activity {
         else super.onBackPressed();
     }
 
+    @Override public boolean dispatchGenericMotionEvent(MotionEvent event) {
+        if (web != null && web.observePenButton(event, false)) return true;
+        return super.dispatchGenericMotionEvent(event);
+    }
+
     @Override protected void onDestroy() {
         if (pendingFiles != null) pendingFiles.onReceiveValue(null);
         pendingFiles = null;
@@ -135,69 +140,64 @@ public final class MainActivity extends Activity {
 
         private boolean penButtonContact;
         private int penSample;
-        private boolean explicitPenButtons;
+        private long lastButtonEdge = -1000;
 
-        private void publishPenButton(boolean down, boolean contact, boolean canceled, long time) {
+        private void publishPenButton(boolean down, boolean contact, boolean canceled, long time, String source) {
             boolean changed = down != penButtonDown || (down && contact && !penButtonContact);
             penButtonDown = down;
             penButtonContact = down && contact;
             if (changed || canceled) {
-                evaluateJavascript("window.notesPenButton?.(" + down + "," + contact + "," + canceled + "," + time + ");", null);
+                evaluateJavascript("window.notesPenButton?.(" + down + "," + contact + "," + canceled + "," + time
+                    + "," + JSONObject.quote(source) + ");", null);
             }
         }
 
         private boolean observePenButton(MotionEvent event, boolean contact) {
-            boolean stylus = event.isFromSource(InputDevice.SOURCE_STYLUS);
+            int action = event.getActionMasked();
+            int barrel = MotionEvent.BUTTON_STYLUS_PRIMARY | MotionEvent.BUTTON_STYLUS_SECONDARY;
+            boolean stylus = event.isFromSource(InputDevice.SOURCE_STYLUS)
+                || ((event.getButtonState() | event.getActionButton()) & barrel) != 0;
             for (int i = 0; !stylus && i < event.getPointerCount(); i++) {
                 int tool = event.getToolType(i);
                 stylus = tool == MotionEvent.TOOL_TYPE_STYLUS || tool == MotionEvent.TOOL_TYPE_ERASER;
             }
             if (!stylus) return false;
             int sample = ++penSample;
-            int action = event.getActionMasked();
             if (action == MotionEvent.ACTION_HOVER_EXIT) {
                 postDelayed(() -> {
                     if (sample != penSample) return;
-                    explicitPenButtons = false;
-                    if (penButtonDown) publishPenButton(false, false, true, SystemClock.uptimeMillis());
+                    lastButtonEdge = -1000;
+                    if (penButtonDown) publishPenButton(false, false, true, SystemClock.uptimeMillis(), "reset");
                 }, 170);
                 return false;
             }
             if (action == MotionEvent.ACTION_CANCEL) {
-                publishPenButton(false, false, true, event.getEventTime());
+                lastButtonEdge = -1000;
+                publishPenButton(false, false, true, event.getEventTime(), "reset");
                 return false;
             }
-            int primary = MotionEvent.BUTTON_STYLUS_PRIMARY | MotionEvent.BUTTON_SECONDARY;
-            int mask = primary | MotionEvent.BUTTON_STYLUS_SECONDARY;
-            int buttons = event.getButtonState();
+            int mask = barrel | MotionEvent.BUTTON_SECONDARY;
+            long time = event.getEventTime();
             boolean explicit = (action == MotionEvent.ACTION_BUTTON_PRESS || action == MotionEvent.ACTION_BUTTON_RELEASE)
                 && (event.getActionButton() & mask) != 0;
+            boolean down = (event.getButtonState() & mask) != 0;
             if (explicit) {
-                explicitPenButtons = true;
-                if (action == MotionEvent.ACTION_BUTTON_PRESS) buttons |= event.getActionButton();
-                else {
-                    int released = event.getActionButton();
-                    if ((released & primary) != 0) released |= primary;
-                    buttons &= ~released;
-                }
+                lastButtonEdge = time;
+                down = action == MotionEvent.ACTION_BUTTON_PRESS;
+            } else if (!contact && time - lastButtonEdge < 40) {
+                // Some devices echo the pre-edge mask in the next hover event.
+                down = penButtonDown;
             }
-            // When the device sends explicit changes, hover samples must not invent extra clicks.
-            boolean down = !explicit && explicitPenButtons ? penButtonDown : (buttons & mask) != 0;
-            publishPenButton(down, contact || penId >= 0, false, event.getEventTime());
+            publishPenButton(down, contact || penId >= 0, false, time, explicit ? "button" : contact ? "touch" : "hover");
             return explicit;
-        }
-
-        @Override public boolean dispatchGenericMotionEvent(MotionEvent event) {
-            if (observePenButton(event, false)) return true;
-            return super.dispatchGenericMotionEvent(event);
         }
 
         @Override public void onWindowFocusChanged(boolean focused) {
             super.onWindowFocusChanged(focused);
             if (!focused) {
                 ++penSample;
-                explicitPenButtons = false;
-                publishPenButton(false, false, true, SystemClock.uptimeMillis());
+                lastButtonEdge = -1000;
+                publishPenButton(false, false, true, SystemClock.uptimeMillis(), "reset");
             }
         }
 

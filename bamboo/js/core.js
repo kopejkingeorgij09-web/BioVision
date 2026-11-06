@@ -233,7 +233,8 @@ B.setShadOver = (n, patch) => {
     o = JSON.parse(JSON.stringify(o));
     if (!Object.keys(o).length) o = null;
   }
-  const v = {s: cur.s || 0, note: cur.note || '', at: Date.now()}; if (o) v.o = o;
+  const v = {...cur, s: cur.s || 0, note: cur.note || ''};
+  if (o) v.o = o; else delete v.o;
   B.recordShad(n, B.shad.marks[n], v);
   B.shad.marks = Object.assign({}, B.shad.marks, {[n]: v});
   applyOver(); changed(); shadWrite(n, v);
@@ -247,7 +248,7 @@ async function loadShadPlan(){
 }
 function onShad(snap){
   const m = {};
-  snap.docs.forEach(d => { const n = parseInt(d.id.slice(1), 10); const v = d.data() || {}; if (n){ m[n] = {s: v.s || 0, note: v.note || '', at: v.at || 0}; if (v.o) m[n].o = v.o; } });
+  snap.docs.forEach(d => { const n = parseInt(d.id.slice(1), 10); const v = d.data() || {}; if (n){ m[n] = {s: v.s || 0, note: v.note || '', at: v.at || 0}; if (v.o) m[n].o = v.o; if (v.stageAt) m[n].stageAt = v.stageAt; } });
   if (JSON.stringify(m) !== JSON.stringify(B.shad.marks)){ B.shad.marks = m; applyOver(); changed(); }
 }
 /* бонус за качество ДЗ с «Фагов» (до +10 за веб): его пишет сервер в коллекцию 'shadx', когда ДЗ проверено */
@@ -261,6 +262,7 @@ function onShadX(snap){
    ev_<id> занятия (в «Зове леса» не показываются), dl_<id> сроки ДЗ, day_<дата> что было на Фагах за день */
 B.phx = {ev: {}, dl: {}, day: {}};
 B.PHAGI = '../phagi/';
+B.phagiTask = id => B.PHAGI + '?task=' + encodeURIComponent(id);
 function onPhx(snap){
   const m = {ev: {}, dl: {}, day: {}};
   snap.docs.forEach(d => { const i = d.id.indexOf('_'), k = d.id.slice(0, i), id = d.id.slice(i + 1); if (m[k]) m[k][id] = Object.assign({id}, d.data() || {}); });
@@ -276,7 +278,12 @@ B.phxDay = date => B.phx.day[date] || null;
 B.shadStage = n => (B.shad.marks[n] && B.shad.marks[n].s) || 0;
 B.setShadStage = async (n, s) => {
   const cur = B.shad.marks[n] || {};
-  const v = {s, note: cur.note || '', at: Date.now()}; if (cur.o) v.o = cur.o;
+  const at = Date.now(), stageAt = {};
+  for (let i = 1; i <= s; i++){
+    const reached = i <= (cur.s || 0) ? (cur.stageAt ? cur.stageAt[i] : cur.at) : at;
+    if (reached) stageAt[i] = reached;
+  }
+  const v = {...cur, s, note: cur.note || '', at, stageAt};
   B.recordShad(n, B.shad.marks[n], v);
   B.shad.marks = Object.assign({}, B.shad.marks, {[n]: v});
   changed();
@@ -455,7 +462,13 @@ B.calc = () => {
   // сданное ДЗ с «Фагов» — как сделанная задача (+5); ДЗ к вебам ШАДа не считаются здесь, их опыт идёт через стадию веба
   const phBy = {};
   for (const id in B.phx.dl){ const x = B.phx.dl[id]; if (x.done && x.doneAt && !x.shad) push(phBy, x.doneAt, x); }
-  for (const n in B.shad.marks){ const m = B.shad.marks[n]; if (m.at && m.s) push(shadBy, B.dayOf(m.at), m.s); }
+  for (const n in B.shad.marks){
+    const m = B.shad.marks[n];
+    for (let i = 1; i <= Math.min(4, m.s || 0); i++){
+      const at = m.stageAt ? m.stageAt[i] : m.at;
+      if (at) push(shadBy, B.dayOf(at), {n: +n, xp: B.XP.shad[i] - B.XP.shad[i - 1]});
+    }
+  }
   const shadXBy = {};   // бонус за проверенное ДЗ ШАДа, пока веб в стадии «ДЗ решено» или «Закрыт»
   for (const n in B.shad.bonus){ const m = B.shad.bonus[n]; if (m.at && m.b && B.shadStage(+n) >= 3) push(shadXBy, B.dayOf(m.at), m.b); }
 
@@ -471,7 +484,7 @@ B.calc = () => {
     if (dn.length) p.tasks = dn.reduce((a, t) => a + (t.pri === 1 || crownSet.has(t.id) ? B.XP.taskP1 : B.XP.task), 0);
     if (subBy[date]) p.subs = subBy[date].length * B.XP.sub;
     if (phBy[date]) p.tasks = (p.tasks || 0) + phBy[date].length * B.XP.task;
-    if (shadBy[date]) p.shad = shadBy[date].reduce((x, st) => x + (B.XP.shad[st] || 0), 0);   // весь опыт веба в день последней отметки
+    if (shadBy[date]) p.shad = shadBy[date].reduce((sum, stage) => sum + stage.xp, 0);
     if (shadXBy[date]) p.shad = (p.shad || 0) + shadXBy[date].reduce((x, b) => x + b, 0);
     let hab = 0;
     habits.forEach(h => {
@@ -491,15 +504,15 @@ B.calc = () => {
 
     let xp = 0; for (const k in p) xp += p[k];
     // день: разбор есть — «good»; что-то сделано без разбора — «some»; пусто — «empty»
-    const active = dn.length || hab || rm || sportBy[date] || subBy[date] || phBy[date];
+    const active = dn.length || hab || rm || sportBy[date] || subBy[date] || phBy[date] || p.shad;
     const result = date >= today ? 'open' : rvOk ? 'good' : active ? 'some' : 'empty';
     xpAll += Math.max(0, xp);
     total = Math.max(0, total + xp);
-    days[date] = {xp, p, result, total, done: dn.length, review: rvOk, reviewText: B.hasReview(d)};
+    days[date] = {xp, p, result, total, done: dn.length, active: !!active, shadWebs: [...new Set((shadBy[date] || []).map(x => x.n))], review: rvOk, reviewText: B.hasReview(d)};
   }
   // уровень и лес
   const {L, rem, frac, trees} = B.levelOf(total);
-  const doneDay = date => !!(days[date] && days[date].done);
+  const doneDay = date => !!(days[date] && (days[date].done || days[date].shadWebs.length));
   const rv = B.streakOf(date => !!(days[date] && days[date].review), start);
   const tk = B.streakOf(doneDay, start);
   const reviews = Object.values(days).filter(x => x.review).length, empty = Object.values(days).filter(x => x.result === 'empty').length;

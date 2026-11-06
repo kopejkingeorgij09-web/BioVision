@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<script src="cloud.js?v=7"></script>
+<script src="cloud.js?v=8"></script>
 <link rel="stylesheet" href="dragons/dragons.css?v=33">
 <link rel="stylesheet" href="dragons/world.css?v=33"><script src="dragons/world.js?v=33"></script><script src="dragons/genetics.js?v=33"></script><script src="dragons/element-art/manifest.js?v=33"></script><script src="dragons/art-motion.js?v=33"></script><script src="dragons/element-art.js?v=33"></script><script src="dragons/draw.js?v=33"></script><script src="dragons/puzzles.js?v=33"></script><script src="dragons/economy.js?v=33"></script><script src="dragons/island.js?v=33"></script><script src="dragons/store.js?v=33"></script><script src="dragons/battle.js?v=33"></script><script src="dragons/campaign.js?v=33"></script><script src="dragons/learning.js?v=33"></script><script src="dragons/ui.js?v=33"></script><script src="dragons/inspect.js?v=33"></script><script src="dragons/live.js?v=33"></script><script src="dragons/fight.js?v=33"></script>
 <meta charset="utf-8">
-<meta name="ph-ver" content="2026-10-31.3">
+<meta name="ph-ver" content="2026-11-06.1">
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Фаги естественных наук</title>
@@ -1702,7 +1702,7 @@ async function uploadFiles(fileList){
 }
 
 const S={mode:'loading',db:null,user:null,me:null,people:[],nbooks:[],nbId:null,nbUid:null,tasks:[],posts:[],events:[],mine:[],todos:[],decks:[],
-  subs:{},grades:{},srs:{},rsvp:{},fix:{},bverr:{},tdecks:[],dparts:{},ttasks:[],atasks:{},adecks:{},adparts:{},cfg:{},myDeck:null,streak:{},peek:{},peekIn:{},fixPos:0,fixState:null,view:'home',taskId:null,deckId:null,fv:{},watched:new Set(),
+  subs:{},grades:{},attempts:{},srs:{},rsvp:{},fix:{},bverr:{},tdecks:[],dparts:{},ttasks:[],atasks:{},adecks:{},adparts:{},cfg:{},myDeck:null,streak:{},peek:{},peekIn:{},fixPos:0,fixState:null,view:'home',taskId:null,deckId:null,fv:{},watched:new Set(),
   calMonth:null,calDay:today(),calView:null,actRange:null,actSel:null,actAnim:'',cal3:null,rev:null,arena:{},acfgDoc:{},arenaLoaded:false,arUid:null,
   track:{},trUid:null,trTab:'plan',trF:'all',trB:'',trS:''};
 const val=(id,d='')=>(id in S.fv?S.fv[id]:(d??''));
@@ -2353,9 +2353,30 @@ function testBody(t,answers,reveal,keyPrefix,extra){
   }).join('');
 }
 
+function testAttempts(t,uid){
+  return S.attempts[uid]?.[t.id] || [];
+}
+function attemptsHTML(t,uid,current){
+  const attempts=testAttempts(t,uid);
+  if(!attempts.length)return '';
+  const first=attempts[0].submission, last=current?.status==='submitted'?current:attempts.at(-1).submission;
+  const score=s=>`${s.auto??'—'} из ${s.total??testMax(t)}`;
+  const summary=first===last?`Первая попытка: ${score(first)}`:`Первая: ${score(first)} · Последняя: ${score(last)}`;
+  return `<details class="ansd" data-k="attempts-${esc(uid)}-${esc(t.id)}">
+    <summary>История попыток · ${esc(summary)}</summary>
+    ${attempts.map(({id,submission,grade,questions},i)=>`<details class="ansd" data-k="attempt-${esc(id)}">
+      <summary>Попытка ${i+1} · ${esc(fmtTime(submission.updatedAt))} · ${esc(score(submission))}</summary>
+      ${grade?.score!=null?`<p>Оценка учителя: ${esc(grade.score)}</p>`:''}
+      ${grade?.feedback?`<div class="feedback">${fbHTML(grade.feedback)}</div>`:''}
+      ${filesHTML(grade?.notes)}
+      ${testBody({q:questions||t.q},submission.answers||[],true,'attempt-'+id)}
+    </details>`).join('')}
+  </details>`;
+}
+
 function taskHTML(){
   const t=S.tasks.find(x=>x.id===S.taskId);
-  if(!t)return `<button class="back" data-act="go" data-v="tasks">← К заданиям</button><div class="empty">Задание удалено или ещё загружается.</div>`;
+  if(!t||!forMe(t)&&!ownAsg(t))return `<button class="back" data-act="go" data-v="tasks">← К заданиям</button><div class="empty">Задание не найдено или недоступно.</div>`;
   const links=(t.links||[]).filter(okUrl),max=maxOf(t);
   const lessonEv=t.lesson&&S.events.find(e=>e.id===t.lesson.eventId);
   let html=`<button class="back" data-act="go" data-v="tasks">← К заданиям</button>
@@ -2363,6 +2384,7 @@ function taskHTML(){
   <h1 style="font:700 22px/1.25 var(--d);color:var(--ink);margin:10px 0 12px">${esc(t.title)}</h1>
   ${t.nb&&S.nbooks.some(b=>b.id===t.nb.id)?`<p class="small"><button class="back" style="margin:0;color:var(--ink)" data-act="nbgo" data-id="${t.id}">В тетради «${esc(S.nbooks.find(b=>b.id===t.nb.id).title)}», ${t.nb.after?'после страницы '+t.nb.after:'перед первой страницей'}</button></p>`:''}
   ${lessonEv?`<p class="small"><button class="back" style="margin:0;color:var(--ink)" data-act="occ" data-k="ev" data-id="${lessonEv.id}" data-d="${t.lesson.date}">К занятию «${esc(lessonEv.title)}», ${fmtDay(t.lesson.date)}</button></p>`:''}
+  ${linkButton('task',t.id)}
   ${t.body?`<div class="body">${rich(t.body)}</div>`:''}
   ${filesHTML(t.files)}
   ${links.length?`<div class="links" style="margin-top:12px">${links.map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener">${esc(u)}</a>`).join('')}</div>`:''}
@@ -2385,7 +2407,7 @@ function taskHTML(){
       if(t.kind==='test')ans=submitted?`<div class="row" style="margin:8px 0">${markHTML({score:s.auto},max,'sm')}<span class="muted small">Автопроверка, ${fmtTime(s.updatedAt)}${s.startedAt?`, решала ${durLabel(s.startedAt,s.updatedAt)}`:''}</span><span class="grow"></span><button class="btn ghost sm" data-act="retake" data-id="${t.id}" data-uid="${uid}">Разрешить пересдачу</button></div><details class="ansd" data-k="tv-${t.id}-${uid}"><summary><span class="ansd-o">Открыть ответы ученицы</span><span class="ansd-c">Свернуть ответы ученицы</span> <span class="muted">· верно ${(t.q||[]).filter((q,i)=>checkQ(q,(s.answers||[])[i])).length} из ${(t.q||[]).length}</span></summary>${testBody(t,s.answers||[],true,'tv-'+uid)}</details>`:`<p class="muted small">${s&&s.startedAt?`Тест начат ${fmtTime(s.startedAt)}, ответы ещё не отправлены.`:'Тест ещё не пройден.'}</p>`;
       else ans=submitted?`<div class="answer">${s.text?rich(s.text):(s.files&&s.files.length?'':'<span class="muted">Без текста</span>')}${filesHTML(s.files)}${okUrl(s.link)?`<div class="links"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.link)}</a></div>`:''}<div class="muted small" style="margin-top:6px">Сдано ${fmtTime(s.updatedAt)}</div></div>${annotRow(t,uid,s,g)}`:`<p class="muted small">Работа ещё не сдана${s&&s.status==='draft'?' (есть черновик)':''}.</p>`;
       const tsc=g&&g.score!=null?g.score:(t.kind==='test'&&submitted?s.auto||0:null);
-      return `<section class="sheet"><div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(name(uid))}</h2><span class="st ${st.k}">${esc(st.l)}</span></div>${hwPctHTML(tsc,max,'sm')}${ans}
+      return `<section class="sheet"><div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(name(uid))}</h2><span class="st ${st.k}">${esc(st.l)}</span></div>${hwPctHTML(tsc,max,'sm')}${ans}${t.kind==='test'?attemptsHTML(t,uid,s):''}
       <div class="row" style="align-items:flex-start;margin-top:10px"><label style="width:130px">${t.kind==='test'?'Своя оценка':'Оценка'}${max?' из '+esc(max):''}<input id="sc-${k}" type="number" min="0" step="0.5" value="${esc(val('sc-'+k,g&&g.score!=null?g.score:''))}"></label>
       <label class="grow">Комментарий<textarea id="fb-${k}" rows="2">${esc(val('fb-'+k,g?g.feedback:''))}</textarea></label></div>
       <div class="actions">${g?`<span class="muted small" style="margin-right:auto;align-self:center">Возвращено ${fmtTime(g.returnedAt)}</span>`:''}<button class="btn sm" data-act="grade" data-id="${t.id}" data-uid="${uid}">${g?'Обновить оценку':'Вернуть с оценкой'}</button></div></section>`}).join('');
@@ -2409,7 +2431,7 @@ function taskHTML(){
         <section class="sheet"><h2>Тест</h2><p class="muted small">Отправить ответы можно один раз, проверка мгновенная.</p>${svHTML(t.id,s)}${testBody(t,null,false,'ta-'+t.id)}<div class="actions"><button class="btn" data-act="submittest" data-id="${t.id}">Отправить ответы</button></div></section>`;
       }
     }
-    return html;
+    return html+attemptsHTML(t,uid,s);
   }
   if(g&&g.returnedAt)html+=`<section class="sheet"><h2>Проверено ${fmtTime(g.returnedAt)}</h2>${hwPctHTML(g.score,max)}<div class="row" style="align-items:flex-start">${markHTML(g,max)}${g.feedback?`<div class="feedback grow">${fbHTML(g.feedback)}</div>`:''}</div></section>`;
   const notes=((S.grades[uid]||{})[t.id]||{}).notes||[];
@@ -2464,13 +2486,13 @@ function deckHTML(){
     const uids=d.to||[];
     html+=`<section class="sheet"><div class="row" style="justify-content:space-between"><span>${subj(d.subject)}${byTag(d)}${d.typing?'<span class="tpill">⌨ ответ с клавиатуры</span>':''}</span><span class="muted small">${(d.cards||[]).length} ${plural((d.cards||[]).length,'карточка','карточки','карточек')}</span></div>
     <h1 style="font:700 22px/1.25 var(--d);color:var(--ink);margin:10px 0 14px">${esc(d.title)}</h1>
-    <div class="actions" style="justify-content:flex-start"><button class="btn sm" data-act="adddeck" data-id="${d.id}">Добавить карточки</button><button class="btn ghost sm" data-act="editdeck" data-id="${d.id}">Изменить колоду</button><button class="btn danger sm" data-act="deldeck" data-id="${d.id}">Удалить</button></div></section>
+    <div class="actions" style="justify-content:flex-start">${linkButton('deck',d.id)}<button class="btn sm" data-act="adddeck" data-id="${d.id}">Добавить карточки</button><button class="btn ghost sm" data-act="editdeck" data-id="${d.id}">Изменить колоду</button><button class="btn danger sm" data-act="deldeck" data-id="${d.id}">Удалить</button></div></section>
     ${!T()?`<section class="sheet"><h2>Кому дана</h2><p style="margin:0">${toNames(d)}</p><p class="muted small" style="margin:8px 0 0">Прогресс учениц по колоде видит учитель.</p></section>`:`<section class="sheet"><h2>Прогресс</h2>${uids.length?`<div class="tbl-wrap"><table><thead><tr><th>Ученица</th><th>Выучено</th><th>На сегодня</th><th>Новых</th><th>Последнее повторение</th></tr></thead><tbody>${uids.map(uid=>{const stt=(S.srs[uid]||{})[d.id],st=deckStats(d,stt);return `<tr><td>${esc(name(uid))}</td><td>${st.learned} из ${st.total}</td><td>${st.due}</td><td>${st.neu}</td><td>${stt&&stt.updatedAt?fmtTime(stt.updatedAt):'—'}</td></tr>`}).join('')}</tbody></table></div>`:'<p class="muted">Колода никому не назначена.</p>'}</section>`}
     <section class="sheet"><h2>Карточки</h2><div class="tbl-wrap"><table><thead><tr><th>Вопрос</th><th style="text-align:left">Ответ</th></tr></thead><tbody>${(d.cards||[]).slice(0,300).map(c=>`<tr><td style="white-space:normal">${rich(c.f)}</td><td style="white-space:normal;text-align:left">${rich(c.b)}</td></tr>`).join('')}</tbody></table></div></section>`;
     return html;
   }
   const state=(S.srs[meId()]||{})[d.id],st=deckStats(d,state);
-  html+=`<section class="sheet deck-hero" style="--c:${d.own?'var(--accent)':sc(d.subject)}"><div class="deck">${ring(st.total?st.learned/st.total:0,76)}<div class="grow">${subj(d.subject)}<h1 style="font:700 22px/1.25 var(--d);color:var(--ink);margin:6px 0 10px">${esc(d.title)}</h1>
+  html+=`<section class="sheet deck-hero" style="--c:${d.own?'var(--accent)':sc(d.subject)}"><div class="deck">${ring(st.total?st.learned/st.total:0,76)}<div class="grow">${subj(d.subject)}<h1 style="font:700 22px/1.25 var(--d);color:var(--ink);margin:6px 0 10px">${esc(d.title)}</h1>${linkButton('deck',d.id)}
   <div class="stats"><span><b>${st.due}</b>повторить</span><span><b>${st.newToday}</b>новых сегодня</span><span><b>${st.learned}</b>выучено</span><span><b>${st.total}</b>всего</span></div></div></div>
   <div class="actions">${st.due+st.newToday?`<button class="btn" data-act="study" data-id="${d.id}">Начать повторение</button>`:`<span class="muted">На сегодня всё. Возвращайся завтра.</span>`}<button class="btn ghost" data-act="study" data-id="${d.id}" data-all="1">Пройти всю колоду</button></div>
   <button class="tsw" data-act="typemode" data-id="${d.id}" aria-pressed="${typeMode(d)}"><span class="sw2" aria-hidden="true"></span><span class="grow"><b>⌨ Писать ответ с клавиатуры</b><span class="muted">Карточка сама проверит ответ и покажет правильный, а оценку ставите как обычно.</span></span></button></section>`;
@@ -3025,8 +3047,9 @@ function analysisHTML(t){
 }
 function tagStats(uid){
   const m={};
-  S.tasks.forEach(t=>{if(t.kind!=='test'||inNb(t)||!(t.to||[]).includes(uid))return;const s=(S.subs[uid]||{})[t.id];if(!s||s.status!=='submitted'||!Array.isArray(s.answers))return;
-    (t.q||[]).forEach((q,i)=>{if(!q.tag)return;const x=m[q.tag]=m[q.tag]||{tag:q.tag,ok:0,n:0};x.n++;if(checkQ(q,s.answers[i]))x.ok++})});
+  S.tasks.forEach(t=>{if(t.kind!=='test'||inNb(t)||!(t.to||[]).includes(uid))return;const first=testAttempts(t,uid)[0],s=first?.submission||(S.subs[uid]||{})[t.id];
+    if(!s||s.status!=='submitted'||!Array.isArray(s.answers))return;
+    (first?.questions||t.q||[]).forEach((q,i)=>{if(!q.tag)return;const x=m[q.tag]=m[q.tag]||{tag:q.tag,ok:0,n:0};x.n++;if(checkQ(q,s.answers[i]))x.ok++})});
   const num=x=>/^\d+$/.test(x.tag);
   return Object.values(m).sort((a,b)=>num(a)&&num(b)?a.tag-b.tag:num(a)?-1:num(b)?1:a.tag.localeCompare(b.tag,'ru'));
 }
@@ -3192,6 +3215,31 @@ function peopleHTML(){
   <p class="muted small">При первом входе ученица введёт имя и появится здесь. Код можно удалить в том же окне, тогда войти им больше нельзя, а прогресс остаётся. Ответы, карточки и отметки одной ученицы другая не видит. Чужую чашку Петри ученица видит, только если вы отметили её выше, и только для просмотра.</p></section>`;
 }
 
+const linkParams=new URLSearchParams(location.search);
+const linkKinds=['task','deck','notebook','lesson'];
+const linkId=/^[A-Za-z0-9_.~:@+-]{1,150}$/;
+const linkedKind=linkKinds.find(k=>linkId.test(linkParams.get(k)||''));
+let linkedTarget=linkedKind?{kind:linkedKind,id:linkParams.get(linkedKind),date:linkParams.get('date')}:null;
+let linkedLesson=null;
+function linkButton(kind,id,date=''){
+  return `<button class="btn ghost sm" data-act="copyLink" data-k="${kind}" data-id="${esc(id)}" data-d="${esc(date)}">Скопировать ссылку</button>`;
+}
+function resolveLinkedTarget(){
+  if(!linkedTarget||!T()&&!S.joined)return;
+  const {kind,id,date}=linkedTarget;
+  if(kind==='task'&&allMyTasks().some(t=>t.id===id)){
+    S.view='task';S.taskId=id;
+  }else if(kind==='deck'&&myDecks().some(d=>d.id===id)){
+    S.view='deck';S.deckId=id;
+  }else if(kind==='notebook'&&nbList().some(b=>b.id===id)){
+    S.view='nb';S.nbId=id;S.nbUid=nbCur().to?.[0]||null;
+  }else if(kind==='lesson'&&/^\d{4}-\d{2}-\d{2}$/.test(date||'')&&occs(date,date).some(o=>o.type==='ev'&&o.ev.id===id)){
+    S.view='cal';S.calDay=date;S.calMonth=null;
+    linkedLesson={id,date};
+  }else return;
+  linkedTarget=null;
+  S.shadHw=null;
+}
 function mainHTML(){
   switch(S.mode){
     case 'loading':return `<div class="empty">Загружаю класс…</div>`;
@@ -3202,6 +3250,7 @@ function mainHTML(){
     <p class="muted">Напиши, как тебя зовут, чтобы учитель понимал, чья работа.</p>
     <label>Имя<input id="joinname" maxlength="40" value="${esc(val('joinname'))}" autocomplete="given-name"></label>
     <button class="btn" data-act="join">Войти в класс</button></section>`;
+  if(linkedTarget)return `<div class="empty"><p>Открываю ссылку. Если запись недоступна в этом профиле, можно вернуться на главную.</p><button class="btn ghost" data-act="dismissLink">На главную</button></div>`;
   const html=({home:homeHTML,cal:calHTML,tasks:tasksHTML,task:taskHTML,cards:cardsHTML,deck:deckHTML,review:reviewHTML,stview:stViewHTML,journal:journalHTML,marks:marksHTML,fix:fixHTML,people:peopleHTML,arena:arenaHTML,arview:arviewHTML,island:DRGUI.islandView,sum:sumHTML,bio:bioHTML,nbs:nbsHTML,nb:nbHTML,track:trackHTML}[S.view]||homeHTML)();
   const c=PHC[S.view];
   return c&&IC[S.view]?html.replace('<div class="page-h"><h1>',`<div class="page-h"><h1><span class="phi" style="--c:${c}" aria-hidden="true"><svg viewBox="0 0 24 24">${IC[S.view]}</svg></span>`):html;
@@ -3237,6 +3286,7 @@ function patchMain(M,html){
   M._keys=keys;
 }
 function draw(soft){
+  resolveLinkedTarget();
   const a=document.activeElement,aid=a&&a.id;let ss,se;try{ss=a.selectionStart;se=a.selectionEnd}catch{}
   const sy=window.scrollY;
   /* При кормлении панель заменяется. Сохраняем её прокрутку только внутри того же раздела/здания. */
@@ -3257,6 +3307,10 @@ function draw(soft){
   if(S.view!==lastView){lastView=S.view;M.classList.remove('vin');void M.offsetWidth;M.classList.add('vin');setTimeout(()=>M.classList.remove('vin'),320)}
   patchMain(M,html);
   dRestore(M);
+  if(linkedLesson){
+    const {id,date}=linkedLesson;linkedLesson=null;
+    openOcc('ev',id,date);
+  }
   const nextPane=M.querySelector(':scope>.drg-pan');
   if(nextPane){nextPane.dataset.scrollKey=pk;nextPane.scrollTop=paneY}
   if(aid){const e=document.getElementById(aid);if(e&&e!==document.activeElement&&!$('#dlg').open){e.focus({preventScroll:true});try{if(ss!=null)e.setSelectionRange(ss,se)}catch{}}}
@@ -3301,6 +3355,13 @@ function subscribe(){
 function watch(uid){
   if(S.watched.has(uid))return;S.watched.add(uid);
   const db=S.db,map=q=>Object.fromEntries(q.docs.map(d=>[d.id,d.data()]));
+  db.collection('subs/'+uid+'/attempts').onSnapshot(q=>{
+    const byTask=Object.create(null);
+    listOf(q).sort((a,b)=>String(a.submission?.updatedAt).localeCompare(String(b.submission?.updatedAt))).forEach(a=>{
+      if(a.submission?.status==='submitted')(byTask[a.task]||=[]).push(a);
+    });
+    S.attempts[uid]=byTask;render(true);
+  },err);
   db.collection('subs/'+uid+'/items').onSnapshot(q=>{S.subs[uid]=map(q);render(true)},err);
   db.collection('srs/'+uid+'/meta').onSnapshot(q=>{const m=map(q),srv=m.streak||{days:{}};
     if(uid===meId()){mergeStreak(srv);markReady('streak',q)}else S.streak[uid]=srv;DRGUI.onSnap(uid,m.dragons);syncPeek();syncArena();render(true)},err);
@@ -4435,7 +4496,8 @@ function openOcc(k,id,date){
   <div class="sheet" style="padding:12px 14px;background:var(--soft);border:0"><b>Домашнее задание к занятию</b>${hw.length?`<div class="list" style="margin-top:8px">${hw.map(t=>`<button class="item" data-dact="hw" data-id="${t.id}"><span class="grow"><span class="t">${esc(t.title)}</span><br><span class="muted small">${t.due?'до '+fmtDay(t.due):'без срока'}</span></span>${T()?'':`<span class="st ${status(t,meId()).k}">${esc(status(t,meId()).l)}</span>`}</button>`).join('')}</div>`:`<p class="muted small" style="margin:6px 0 0">Пока не задано.</p>`}
   ${T()?`<div class="actions" style="justify-content:flex-start"><button class="btn sm" data-dact="addhw">Задать ДЗ к этому занятию</button></div>`:''}</div>`;
   occCtx={ev,date};
-  const acts={close:closeDlg,hw:el=>{closeDlg();S.view='task';S.taskId=el.dataset.id;window.scrollTo(0,0)}};
+  body+=`<div class="actions"><button class="btn ghost sm" data-dact="copyLesson">Скопировать ссылку</button></div>`;
+  const acts={close:closeDlg,copyLesson:()=>actions.copyLink({dataset:{k:'lesson',id:ev.id,d:date}}),hw:el=>{closeDlg();S.view='task';S.taskId=el.dataset.id;window.scrollTo(0,0)}};
   /* веб ШАДа: вместо «приду / не приду» этап, общий с трекером ШАДа и «Зовом леса» (data/users/<я>/shadst-w<n> → shad/wNN) */
   const shn=(ev.id.match(/^shad-w(\d+)$/)||[])[1];
   if(shn&&(ev.to||[]).includes(meId())){
@@ -4597,7 +4659,15 @@ const actions={
     if(!/^\d{4}-\d\d-\d\d$/.test(st)||!/^\d{4}-\d\d-\d\d$/.test(en))return toast('Укажите даты начала и конца');
     if(st>en)return toast('Конец турнира раньше начала');if(diffDays(st,en)>59)return toast('Турнир может длиться не больше 60 дней');
     await S.db.doc('arenacfg/main').set({open:c.open,start:st,end:en,prize:pz,updatedAt:now()});delete S.fv.arst;delete S.fv.aren;delete S.fv.arpz;toast('Турнир сохранён')},
-  go:el=>{S.shadHw=null;S.view=el.dataset.v;if(S.view==='fix'){S.fixState=null;S.fixPos=0}if(S.view==='cal')S.calMonth=null;window.scrollTo(0,0)},
+  dismissLink:()=>{linkedTarget=null;S.view='home';history.replaceState(null,'',location.pathname)},
+  copyLink:async el=>{
+    const {k,id,d}=el.dataset,url=new URL(location.pathname,location.origin);
+    url.searchParams.set(k,id);
+    if(d)url.searchParams.set('date',d);
+    try{await navigator.clipboard.writeText(url.href);toast('Ссылка скопирована')}
+    catch{prompt('Скопируйте ссылку',url.href)}
+  },
+  go:el=>{linkedTarget=null;S.shadHw=null;S.view=el.dataset.v;if(S.view==='fix'){S.fixState=null;S.fixPos=0}if(S.view==='cal')S.calMonth=null;window.scrollTo(0,0)},
   open:el=>{S.view='task';S.taskId=el.dataset.id;window.scrollTo(0,0)},
   newtask:()=>openTaskDialog(null),
   edittask:el=>openTaskDialog(S.tasks.find(t=>t.id===el.dataset.id)),
@@ -4613,7 +4683,7 @@ const actions={
   rmfile:async el=>{const id=el.dataset.id,s=(S.subs[meId()]||{})[id]||{};const files=(s.files||[]).slice();files.splice(Number(el.dataset.i),1);
     await S.db.doc(`subs/${meId()}/items/${id}`).set({text:val('ans-'+id,s.text||''),link:val('lnk-'+id,s.link||''),files,status:'draft',updatedAt:now()})},
   submittest:el=>submitTest(el.dataset.id,false),
-  starttest:async el=>{const id=el.dataset.id;await S.db.doc(`subs/${meId()}/items/${id}`).set({status:'draft',startedAt:now(),updatedAt:now(),draft:{}});toast('Время пошло')},
+  starttest:async el=>{const id=el.dataset.id;await S.db.doc(`subs/${meId()}/items/${id}`).set({status:'draft',startedAt:now(),updatedAt:now(),draft:{}});autoSub.delete(id);toast('Время пошло')},
   fixcheck:async()=>{
     const uid=meId(),pile=errPile(uid),it=pile[Math.min(S.fixPos,pile.length-1)];if(!it)return;
     const k=`fx-${it.t.id}-${it.i}-0`,v=val(k,''),q=it.q;
@@ -4656,8 +4726,18 @@ const actions={
   annot:el=>{const{uid,tid,fid,fn}=el.dataset;openAnnot({uid,tid,fid,fn})},
   fixnext:()=>{S.fixState=null;if(!errPile(meId()).length)S.view='marks';window.scrollTo(0,0)},
   fixskip:()=>{const n=errPile(meId()).length;S.fixPos=n?(Math.min(S.fixPos,n-1)+1)%n:0;S.fixState=null},
-  retake:async el=>{const{id,uid}=el.dataset;if(!await askConfirm(`Разрешить ${name(uid)} пройти тест заново? Её прошлые ответы удалятся.`,'Разрешить'))return;
-    await S.db.doc(`subs/${uid}/items/${id}`).delete();if((S.grades[uid]||{})[id])await S.db.doc(`grades/${uid}/items/${id}`).delete();toast('Пересдача разрешена')},
+  retake:async el=>{
+    const {id,uid}=el.dataset, attempt=S.subs[uid]?.[id]?.updatedAt;
+    if(!T()||!attempt)return;
+    try{
+      if(!await askConfirm(`Разрешить ${name(uid)} пройти тест заново? Ответы и оценка сохранятся в истории.`,'Разрешить'))return;
+      await PHCLOUD.retake(uid,id,attempt);
+      toast('Пересдача разрешена. Попытка сохранена.');
+    }catch(e){
+      if(e.code==='40001')toast('Попытка уже изменилась. Обновите страницу и проверьте ответы.');
+      else fail(e);
+    }
+  },
   grade:async el=>{const id=el.dataset.id,uid=el.dataset.uid,k=`${id}-${uid}`,g=(S.grades[uid]||{})[id]||{};
     const raw=val('sc-'+k,g.score!=null?String(g.score):'');const score=raw===''?null:Number(raw);
     if(score!=null&&Number.isNaN(score))return toast('Оценка должна быть числом');
@@ -5089,6 +5169,7 @@ function nbBarHTML(b,uid,st){
   return `<div class="nbbar"><div class="nbrow"><button class="icon" data-act="nbback" aria-label="К тетрадям" title="К тетрадям">←</button>
     <span class="nbti"><b>${esc(b.title)}</b><span class="muted small nbsub">${b.topic?esc(b.topic)+' · ':''}${T()&&NB.self?'вы решаете тесты сами, ученицы этого не видят':T()&&uid?'тетрадь: '+esc(name(uid))+(l?', ваши пометки поверх':''):!T()?'пометки сохраняются в классе, учитель их видит':''}</span></span>
     ${who}
+    ${linkButton('notebook',b.id)}
     <span class="seg nbmode"><label><input type="radio" name="nbmode" data-act="nbmode" data-m="work" ${rd?'':'checked'}><span class="nbl">Рабочая тетрадь</span><span class="nbs">Тетрадь</span></label><label><input type="radio" name="nbmode" data-act="nbmode" data-m="read" ${rd?'checked':''}>Конспект</label></span>
     <span class="nbzoom"><button class="icon" data-act="nbzoom" data-z="-1" aria-label="Уменьшить">−</button><b>${Math.round(NB.zoom*100)}%</b><button class="icon" data-act="nbzoom" data-z="1" aria-label="Увеличить">+</button></span>
     ${st&&st.st==='ok'?`<button class="btn ghost sm nbdlb" data-act="nbdl" title="Скачать заполненную тетрадь в PDF"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m-4.5-4.5L12 15l4.5-4.5M5 19.5h14"/></svg><span>Скачать заполненную</span></button>`:''}${T()?`<button class="btn ghost sm" data-act="nbedit" data-id="${b.id}">Настроить</button>`:''}</div>${tools}</div>`}
@@ -5106,13 +5187,13 @@ function nbSelfHTML(t,head){
 function nbTestHTML(t,uid){
   const n=(t.q||[]).length,max=testMax(t),s=uid?(S.subs[uid]||{})[t.id]:null,done=s&&s.status==='submitted';
   const ok=done?(t.q||[]).filter((q,i)=>checkQ(q,(s.answers||[])[i])).length:0;
-  const head=`<div class="nbq-h"><span class="nbq-k"><svg viewBox="0 0 24 24" aria-hidden="true">${IC.test}</svg>Тест</span><b>${esc(t.title)}</b><span class="muted small">${n} ${plural(n,'вопрос','вопроса','вопросов')}${t.time?`, ${t.time} мин`:''}${t.due?`, до ${fmtDay(t.due)}`:''}</span></div>`;
+  const head=`<div class="nbq-h"><span class="nbq-k"><svg viewBox="0 0 24 24" aria-hidden="true">${IC.test}</svg>Тест</span><b>${esc(t.title)}</b><span class="muted small">${n} ${plural(n,'вопрос','вопроса','вопросов')}${t.time?`, ${t.time} мин`:''}${t.due?`, до ${fmtDay(t.due)}`:''}</span></div>${T()?'':attemptsHTML(t,uid,s)}`;
   if(T()&&NB.self)return nbSelfHTML(t,head);
   if(T()){
     const key=(t.q||[]).map(q=>q.t==='text'?q.acc[0]:q.t==='single'?q.ans[0]:q.ans);
     const res=!uid?'':done?`<div class="row" style="margin:8px 0">${markHTML({score:s.auto},max,'sm')}<span class="muted small">${esc(name(uid))}, ${fmtTime(s.updatedAt)}${s.startedAt?`, решала ${durLabel(s.startedAt,s.updatedAt)}`:''}</span><span class="grow"></span><button class="btn ghost sm" data-act="retake" data-id="${t.id}" data-uid="${uid}">Разрешить пересдачу</button></div><details class="ansd" data-k="nbtv-${t.id}-${uid}"><summary><span class="ansd-o">Открыть ответы ученицы</span><span class="ansd-c">Свернуть ответы ученицы</span> <span class="muted">· верно ${ok} из ${n}</span></summary>${testBody(t,s.answers||[],true,'nbtv-'+uid)}</details>`
       :`<p class="muted small" style="margin:6px 0">${esc(name(uid))}: ${s&&s.startedAt?'тест начат, ответы ещё не отправлены':'ещё не решала'}.</p>`;
-    return `<section class="sheet nbq">${head}${res}<details class="ansd" data-k="nbpv-${t.id}"><summary><span class="ansd-o">Ключ теста</span><span class="ansd-c">Свернуть ключ</span></summary>${testBody(t,key,true,'pv')}</details><div class="actions"><button class="btn ghost sm" data-act="edittask" data-id="${t.id}">Изменить</button><button class="btn danger sm" data-act="nbdeltest" data-id="${t.id}">Удалить</button></div></section>`}
+    return `<section class="sheet nbq">${head}${res}${attemptsHTML(t,uid,s)}<details class="ansd" data-k="nbpv-${t.id}"><summary><span class="ansd-o">Ключ теста</span><span class="ansd-c">Свернуть ключ</span></summary>${testBody(t,key,true,'pv')}</details><div class="actions"><button class="btn ghost sm" data-act="edittask" data-id="${t.id}">Изменить</button><button class="btn danger sm" data-act="nbdeltest" data-id="${t.id}">Удалить</button></div></section>`}
   if(done)return `<section class="sheet nbq done">${head}<div class="row" style="margin-top:8px">${markHTML({score:s.auto},max,'sm')}<span>Верно ${ok} из ${n}</span></div><details class="ansd" data-k="nbr-${t.id}"><summary><span class="ansd-o">Открыть разбор</span><span class="ansd-c">Свернуть разбор</span></summary>${testBody(t,s.answers||[],true,'r',(q,i,o)=>o?'':`<div style="margin-top:8px">${cardBtn(t,i)}</div>`)}</details></section>`;
   const tl=Number(t.time)||0;
   if(tl&&!(s&&s.startedAt))return `<section class="sheet nbq">${head}<p class="small">Тест на время: ${tl} ${plural(tl,'минута','минуты','минут')}. Таймер запустится после нажатия кнопки и не остановится, даже если закрыть страницу.</p><div class="actions" style="justify-content:flex-start"><button class="btn" data-act="starttest" data-id="${t.id}">Начать тест</button></div></section>`;

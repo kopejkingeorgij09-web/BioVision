@@ -52,7 +52,7 @@ function scene(c){
   list.sort((a, b) => a.y - b.y);
   const r = rnd(4242);
   let flowers = '';
-  const active = c.days ? Object.values(c.days).filter(d => d.result === 'good' || d.result === 'some').length : 0;
+  const active = c.days ? Object.values(c.days).filter(d => d.active || d.review).length : 0;
   for (let i = 0; i < Math.min(active, 140); i++){
     const fx = 10 + r() * (W - 20), fy = GROUND + 18 + r() * (H - GROUND - 26), k = r();
     flowers += k < 0.5 ? `<circle class="fl ${k < 0.2 ? 'w' : k < 0.35 ? 'y' : 'p'}" cx="${fx.toFixed(1)}" cy="${fy.toFixed(1)}" r="2.2"/>`
@@ -96,15 +96,15 @@ function mix(a, b, t){
 const ryAt = depth => RG + 14 + depth * (RH - RG - 40);
 function idleDays(c){
   const t = c.today || B.today(); let last = '';
-  for (const k in c.days){ const d = c.days[k]; if ((d.result === 'good' || d.result === 'some') && k > last) last = k; }
+  for (const k in c.days){ const d = c.days[k]; if ((d.active || d.review) && k > last) last = k; }
   if (!last) return 0;
-  const today = c.days[t]; if (today && (today.result === 'good' || today.result === 'some')) return 0;
+  const today = c.days[t]; if (today && (today.active || today.review)) return 0;
   return Math.max(0, B.diff(last, t) - 1);
 }
 /* в какой день был достигнут каждый уровень: копим опыт по дням */
 function levelDates(c){
-  const out = {}; let sum = 0, L = 1;
-  Object.keys(c.days || {}).sort().forEach(k => { sum += (c.days[k] || {}).xp || 0; while (sum >= B.xpForLevel(L + 1)){ L++; out[L] = k; } });
+  const out = {}; let L = 1;
+  Object.keys(c.days || {}).sort().forEach(k => { while (c.days[k].total >= B.xpForLevel(L + 1)){ L++; out[L] = k; } });
   return out;
 }
 function richScene(c){
@@ -145,7 +145,7 @@ function richScene(c){
   if (L >= 8){ ground += `<path d="M760 ${RH} C770 ${RH - 60} 860 ${RH - 90} 820 ${RG + 140} S700 ${RG + 70} 760 ${RG + 30}" fill="none" stroke="#B99B6B" stroke-width="22" stroke-linecap="round" opacity=".55"/>`;
     [[880, RH - 70], [905, RH - 58], [690, RG + 150], [1010, RH - 30]].forEach(([x, y]) => { ground += `<g transform="translate(${x} ${y})"><rect x="-2" y="-8" width="4" height="8" fill="#F1E6D0"/><path d="M-8 -7 Q0 -18 8 -7Z" fill="#C8402F"/><circle cx="-2" cy="-11" r="1.3" fill="#fff"/><circle cx="3" cy="-10" r="1" fill="#fff"/></g>`; }); }
   // цветы и трава: дни с делами
-  const act = Object.values(c.days || {}).filter(d => d.result === 'good' || d.result === 'some').length;
+  const act = Object.values(c.days || {}).filter(d => d.active || d.review).length;
   let flowers = '';
   const rf = rnd(4243);
   for (let i = 0; i < Math.min(act, 220); i++){
@@ -161,7 +161,7 @@ function richScene(c){
   list.sort((a, b) => a.y - b.y);
   const when = levelDates(c), KN = {pine: 'сосна', spruce: 'ель', birch: 'берёза', oak: 'дуб', maple: 'клён', linden: 'липа'};
   const trees = list.map(p => { const sc = p.big ? 2.1 : (0.5 + p.depth * 0.95) * shrink, dt = p.big ? '' : when[p.i + 2];
-    return `<g class="rt"><title>${p.big ? 'Вековой дуб: веха «Дубрава»' : `Дерево ${p.i + 1}, ${KN[p.kind] || 'дерево'}${dt ? `: выросло ${B.fmtS(dt)}` : ''}`}</title><ellipse cx="${p.x.toFixed(0)}" cy="${(p.y + 2).toFixed(0)}" rx="${(26 * sc).toFixed(1)}" ry="${(5 * sc).toFixed(1)}" fill="#000" opacity=".16"/>${tree(p.kind, p.x, p.y, sc, p.hue, p.depth < 0.3 ? 'dist' : '')}</g>`; }).join('');
+    return `<g class="rt" ${p.big ? '' : `data-act="forestTree" data-n="${p.i + 1}"`}><title>${p.big ? 'Вековой дуб: веха «Дубрава»' : `Дерево ${p.i + 1}, ${KN[p.kind] || 'дерево'}${dt ? `: выросло ${B.fmtS(dt)}` : ''}`}</title><ellipse cx="${p.x.toFixed(0)}" cy="${(p.y + 2).toFixed(0)}" rx="${(26 * sc).toFixed(1)}" ry="${(5 * sc).toFixed(1)}" fill="#000" opacity=".16"/>${tree(p.kind, p.x, p.y, sc, p.hue, p.depth < 0.3 ? 'dist' : '')}</g>`; }).join('');
   const f = Math.max(0, Math.min(1, c.frac || 0)), gy = RH - 18, nk = spot(grown).kind;
   const growing = f < 0.25 ? sprout(RW / 2, gy, 2 + f * 4) : tree(nk, RW / 2, gy, 0.6 + f * 1.1, 0.3, 'grow');
   // живность
@@ -190,8 +190,8 @@ function richScene(c){
       <linearGradient id="rfog" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C9CED3" stop-opacity=".2"/><stop offset=".55" stop-color="#C9CED3" stop-opacity=".95"/><stop offset="1" stop-color="#B7BEC4" stop-opacity=".9"/></linearGradient>
       <radialGradient id="rglow"><stop offset="0" stop-color="#FFF6C8" stop-opacity=".55"/><stop offset="1" stop-color="#FFF6C8" stop-opacity="0"/></radialGradient></defs>
     <rect width="${RW}" height="${RH}" fill="url(#rsky)"/>${sky}${hills}${ground}${flowers}${trees}
-    <ellipse cx="${RW / 2}" cy="${gy - 40}" rx="${110 + f * 60}" ry="${110 + f * 60}" fill="url(#rglow)"/>
-    <ellipse cx="${RW / 2}" cy="${gy + 3}" rx="${30 + f * 50}" ry="6" fill="#000" opacity=".18"/><g class="rt"><title>Растёт дерево ${L}-го уровня: ${Math.round(f * 100)}% пути до взрослого</title>${growing}</g>${rays}${front}${shade}${life}${fog}
+    <ellipse cx="${RW / 2}" cy="${gy - 40}" pointer-events="none" rx="${110 + f * 60}" ry="${110 + f * 60}" fill="url(#rglow)"/>
+    <ellipse cx="${RW / 2}" cy="${gy + 3}" rx="${30 + f * 50}" ry="6" fill="#000" opacity=".18"/><g class="rt"><title>Растёт дерево ${L}-го уровня: ${Math.round(f * 100)}% пути до взрослого</title>${growing}</g><g pointer-events="none">${rays}${front}${shade}${life}${fog}</g>
   </svg>`, ph, idle};
 }
 function richBlock(c){
@@ -211,6 +211,44 @@ function richBlock(c){
   </section>`;
 }
 
+function treeDetails(n){
+  const c = B.calc();
+  if (!Number.isInteger(n) || n < 1 || n > c.trees) return;
+  const date = levelDates(c)[n + 1], key = 'tree_' + n;
+  const note = B.get(key)?.label || '';
+  const day = c.days[date];
+  const tasks = B.tasks().filter(t => t.done && t.doneAt && B.dayOf(t.doneAt) === date).map(t => t.title);
+  const webs = (day?.shadWebs || []).map(n => B.shad.plan.find(p => p.n === n)?.t || 'Веб №' + n);
+  const items = tasks.concat(webs.map(t => 'ШАД · ' + t));
+  const sources = {tasks: 'Дела и задания', subs: 'Подзадачи', habits: 'Привычки', shad: 'ШАД'};
+  B.sheet(`<h2>Дерево №${n}</h2>
+    ${day ? `<p class="muted">Выросло ${B.fmt(date)} ${B.parse(date).getFullYear()}</p>
+      <div class="sub-h">В этот день</div>
+      <ul class="plain dots">${Object.entries(day.p).map(([k, xp]) => `<li>${esc(sources[k] || k)} · +${xp} XP</li>`).join('')}
+      ${items.slice(0, 8).map(t => `<li>${esc(t)}</li>`).join('')}</ul>
+      <a class="btn ghost sm" href="#/journal/${date}">Открыть день в дневнике</a>` : ''}
+    <label class="field">Подпись дерева<input id="forestTreeLabel" maxlength="120" value="${esc(note)}" placeholder="Какое достижение хочется запомнить?"></label>
+    <div class="row end"><button class="btn primary" data-act="forestTreeSave" data-n="${n}">Сохранить</button></div>`);
+}
+B.acts.forestTree = el => treeDetails(Number(el.dataset.n));
+B.acts.forestTreePick = () => treeDetails(Number(B.$('#forestTreePicker')?.value));
+B.acts.forestTreeSave = el => {
+  const label = B.$('#forestTreeLabel').value.trim();
+  B.put('tree_' + el.dataset.n, label ? {label} : null);
+  B.closeSheet();
+};
+function treePicker(c){
+  if (!c.trees) return '';
+  const options = Array.from({length: c.trees}, (_, i) => {
+    const n = c.trees - i, label = B.get('tree_' + n)?.label;
+    return `<option value="${n}">Дерево №${n}${label ? ' · ' + esc(label) : ''}</option>`;
+  }).join('');
+  return `<section class="card"><h2>История деревьев</h2><div class="row">
+    <select id="forestTreePicker" class="grow" aria-label="Выбрать дерево">${options}</select>
+    <button class="btn sm" data-act="forestTreePick">Открыть</button>
+  </div></section>`;
+}
+
 B.views.forest = {
   title: 'Лес',
   render(){
@@ -220,10 +258,11 @@ B.views.forest = {
     const avg = n7 ? x7 / n7 : 0;
     const left = next ? B.xpForLevel(next[0]) - c.total : 0;
     const eta = next && avg > 0 ? Math.ceil(left / avg) : null;
-    const act = Object.values(c.days).filter(d => d.result === 'good' || d.result === 'some').length;
+    const act = Object.values(c.days).filter(d => d.active || d.review).length;
     return `<div class="page forest-page">
       <header class="page-h"><div><div class="eyebrow">Лес · ${prev ? esc(prev[1]) : 'Семечко'}</div><h1>${c.trees ? B.fmtTrees(c.trees) : 'Поляна'}</h1></div></header>
       ${richBlock(c)}
+      ${treePicker(c)}
       <div class="cols">
         <div class="col fr-small">
           <section class="card scene-card">${scene(c)}</section>

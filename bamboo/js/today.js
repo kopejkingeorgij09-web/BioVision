@@ -94,7 +94,7 @@ function phagiCard(c){
   if (!soon.length && !cards) return '';
   return `<section class="card ph-card">
     <div class="row between"><h2>${icon('book')}Фаги</h2><a class="muted" href="${B.PHAGI}" target="_blank" rel="noopener">открыть →</a></div>
-    ${soon.length ? `<div class="sub-h">Сдать</div>${soon.map(x => { const k = B.diff(c.today, x.due); return `<a class="ph-dl ${k < 0 ? 'late' : k <= 1 ? 'near' : ''}" href="${B.PHAGI}" target="_blank" rel="noopener"><b>${k < 0 ? 'просрочено' : k === 0 ? 'сегодня' : k === 1 ? 'завтра' : B.fmtW(x.due)}</b><span>${esc(x.title)}</span></a>`; }).join('')}` : ''}
+    ${soon.length ? `<div class="sub-h">Сдать</div>${soon.map(x => { const k = B.diff(c.today, x.due); return `<a class="ph-dl ${k < 0 ? 'late' : k <= 1 ? 'near' : ''}" href="${B.phagiTask(x.id)}" target="_blank" rel="noopener"><b>${k < 0 ? 'просрочено' : k === 0 ? 'сегодня' : k === 1 ? 'завтра' : B.fmtW(x.due)}</b><span>${esc(x.title)}</span></a>`; }).join('')}` : ''}
     ${cards ? `<p class="muted ph-cards">Карточек за сегодня: ${cards}</p>` : ''}
   </section>`;
 }

@@ -5,6 +5,7 @@ import { boardFilesWithPositions, boardFileWidth, describeFile, mountBoardFile, 
 import { button, element, textEditor } from './text.js';
 import { cloudConfig } from './config.js';
 import { createPenButton, defaultPenButton } from './pen-button.js';
+import { createUtilities } from './utilities.js';
 
 const $ = id => document.getElementById(id);
 const kinds = {
@@ -18,7 +19,7 @@ const tools = { pen: 'Перо', highlight: 'Маркер', erase: 'Ластик
 const blank = () => ({ id: crypto.randomUUID(), strokes: [], texts: [] });
 const preferenceKey = 'biovision-notes-pen';
 const themes = { system: 'Как в системе', white: 'Белая', gray: 'Серая', warm: 'Тёплая белая', violet: 'Тёмно-фиолетовая', green: 'Тёмно-зелёная', black: 'Чёрная' };
-const appVersion = { name: '0.5.0', code: 6 };
+const appVersion = { name: '0.6.0', code: 7 };
 const releaseBase = cloudConfig.url + '/storage/v1/object/public/notes-releases/';
 const darkMode = matchMedia('(prefers-color-scheme: dark)');
 const existingPrefs = JSON.parse(localStorage.getItem(preferenceKey) ?? '{}');
@@ -55,6 +56,8 @@ let documentText;
 let objectClipboard;
 let selectionHost;
 const notebookZoom = new Map();
+const utilities = createUtilities($('utilities'), $('timer-chip'), message);
+let fullscreen = false;
 
 const buttonSettings = () => ({ ...defaultPenButton, ...prefs.penButton });
 const holdActions = { none: 'Без действия', pen: 'Перо', erase: 'Ластик', highlight: 'Маркер', lasso: 'Лассо' };
@@ -164,8 +167,62 @@ function remember() {
   const focus = Boolean(current && prefs.focusMode);
   $('app').classList.toggle('focus-mode', focus);
   $('focus-mode').setAttribute('aria-pressed', String(focus));
-  $('focus-mode').setAttribute('aria-label', focus ? 'Вернуть библиотеку' : 'Во весь экран');
-  $('focus-mode').title = focus ? 'Вернуть библиотеку' : 'Во весь экран';
+  $('focus-mode').setAttribute('aria-label', focus ? 'Вернуть библиотеку' : 'Скрыть библиотеку');
+  $('focus-mode').title = focus ? 'Вернуть библиотеку' : 'Скрыть библиотеку';
+}
+
+function updateFullscreen(active) {
+  fullscreen = Boolean(active);
+  const control = $('fullscreen');
+  control.hidden = !current && !fullscreen;
+  control.setAttribute('aria-pressed', String(fullscreen));
+  control.title = fullscreen ? 'Выйти из полного экрана' : 'Полный экран';
+  control.setAttribute('aria-label', control.title);
+  $('app').classList.toggle('fullscreen', fullscreen);
+  $('app').classList.remove('library-open');
+}
+window.notesFullscreenChanged = updateFullscreen;
+document.addEventListener('fullscreenchange', () => updateFullscreen(Boolean(document.fullscreenElement)));
+
+async function setFullscreen(active) {
+  if (window.NotesAndroid?.setFullscreen) { window.NotesAndroid.setFullscreen(active); return; }
+  if (window.webkit?.messageHandlers?.notesFullscreen) {
+    window.webkit.messageHandlers.notesFullscreen.postMessage(active);
+    return;
+  }
+  try {
+    if (active) {
+      await document.documentElement.requestFullscreen();
+    } else if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    } else updateFullscreen(false);
+  } catch {
+    updateFullscreen(active);
+    if (active) message('Этот браузер оставляет свою панель на экране.');
+  }
+}
+
+function boardViewport(id, signal) {
+  const key = 'biovision-notes-board-view:' + scope + ':' + id;
+  let initialView, pending, timer;
+  try {
+    const view = JSON.parse(localStorage.getItem(key));
+    if (view && [view.x, view.y, view.zoom].every(Number.isFinite) && view.zoom >= .15 && view.zoom <= 6) initialView = view;
+  } catch { /* Storage can be unavailable in a private session. */ }
+  function flush() {
+    clearTimeout(timer);
+    timer = undefined;
+    if (!pending) return;
+    try { localStorage.setItem(key, JSON.stringify(pending)); } catch { /* The board remains usable. */ }
+    pending = undefined;
+  }
+  signal.addEventListener('abort', flush, { once: true });
+  window.addEventListener('pagehide', flush, { signal });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); }, { signal });
+  return { initialView, onViewChange(view) {
+    pending = view;
+    timer ??= setTimeout(flush, 180);
+  } };
 }
 
 function numberControl(id, title, value, min, max, step, change) {
@@ -709,7 +766,6 @@ function notebookViewport(root, pages, id, signal) {
 }
 
 function render() {
-  const previousBoard = surfaces.find(surface => surface.host.dataset.note === current?.id);
   editor.abort();
   editor = new AbortController();
   selectedStrokes = [];
@@ -731,6 +787,8 @@ function render() {
   $('back-to-folder').hidden = !current;
   $('more').hidden = !current;
   $('focus-mode').hidden = !current;
+  $('fullscreen').hidden = !current && !fullscreen;
+  if (!current && fullscreen) void setFullscreen(false);
   renderLibrary();
   remember();
   if (!current) { welcome(); return; }
@@ -800,13 +858,10 @@ function render() {
       }
       wrap.append(paper);
       const worldLayers = board ? [element('div', undefined, 'board-world'), element('div', undefined, 'board-world board-world-controls')] : undefined;
-      if (worldLayers) {
-        paper.dataset.note = current.id;
-        paper.append(...worldLayers);
-      }
+      if (worldLayers) paper.append(...worldLayers);
       surface = createSurface(paper, structuredClone(data), {
         ...commonSurface(), board, width: 794, worldLayers,
-        initialView: previousBoard?.view(),
+        ...(board ? boardViewport(current.id, editor.signal) : {}),
         pinch: notebook?.pinch,
         commit(next, history) {
           mutate({ ...current.data, pages: current.data.pages.map(page => page.id === data.id ? next : page) }, history);
@@ -862,6 +917,7 @@ function render() {
 
 function more(item) {
   choose('Действия', (dialog, close) => {
+    if (current?.id === item.id) dialog.append(button('Инструменты', () => { close(); utilities.open(); }));
     const form = element('form');
     const title = element('input');
     title.value = item.data.title;
@@ -1054,6 +1110,7 @@ $('focus-mode').onclick = () => {
   $('app').classList.remove('library-open');
   remember();
 };
+$('fullscreen').onclick = () => void setFullscreen(!fullscreen);
 $('hide-library').onclick = () => $('app').classList.remove('library-open');
 $('title').onchange = () => {
   if (!current) return;
@@ -1086,6 +1143,11 @@ window.addEventListener('online', () => schedule(0));
 window.addEventListener('offline', () => { if (identity() && !failedWrite) $('sync').textContent = 'Офлайн · сохранено локально'; });
 window.addEventListener('focus', () => schedule(0));
 window.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !$('dialog').open && utilities.close()) { event.preventDefault(); return; }
+  if (event.key === 'Escape' && fullscreen && !$('dialog').open && !document.fullscreenElement) {
+    void setFullscreen(false);
+    return;
+  }
   if (event.key === 'Escape' && selectionHost && !$('selection-actions').hidden) {
     surfaces.find(surface => surface.host === selectionHost)?.deselect();
     return;
@@ -1201,6 +1263,7 @@ $('settings').onclick = () => choose('Настройки', (dialog, close) => {
     prefs.autoColor = true; applyTheme(); remember();
   }), element('p', '⌘+/− меняет размер текста. ⌘Y добавляет текстовое поле. ⌘Z отменяет действие, ⇧⌘Z повторяет его. На других клавиатурах используй Ctrl.', 'muted'));
   if (window.NotesAndroid) dialog.append(button('Кнопка S Pen', penButtonSettings));
+  dialog.append(button('Инструменты', () => { close(); utilities.open(); }));
   if (window.NotesAndroid || window.NotesMac) {
     const status = element('div', 'Версия ' + appVersion.name, 'muted');
     const check = button('Проверить обновления', () => void checkUpdates(status, check));

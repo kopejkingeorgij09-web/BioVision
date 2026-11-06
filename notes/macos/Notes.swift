@@ -75,7 +75,7 @@ final class BundledServer {
     }
 }
 
-final class NotesApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate {
+final class NotesApp: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate, WKScriptMessageHandler {
     private var server: BundledServer?
     private var window: NSWindow?
     private var view: WKWebView?
@@ -100,6 +100,7 @@ final class NotesApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKU
         let config = WKWebViewConfiguration()
         let script = WKUserScript(source: "window.NotesMac = true;", injectionTime: .atDocumentStart, forMainFrameOnly: true)
         config.userContentController.addUserScript(script)
+        config.userContentController.add(self, name: "notesFullscreen")
         let web = WKWebView(frame: .zero, configuration: config)
         web.navigationDelegate = self
         web.uiDelegate = self
@@ -107,6 +108,8 @@ final class NotesApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKU
         let frame = CGRect(x: 0, y: 0, width: 1100, height: 800)
         let window = NSWindow(contentRect: frame, styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         self.window = window
+        window.delegate = self
+        window.collectionBehavior.insert(.fullScreenPrimary)
         window.title = "Поля"
         window.contentView = web
         window.center()
@@ -154,6 +157,19 @@ final class NotesApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKU
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == "notesFullscreen", message.frameInfo.isMainFrame,
+              let requested = message.body as? Bool, let window else { return }
+        if requested != window.styleMask.contains(.fullScreen) { window.toggleFullScreen(nil) }
+    }
+
+    func windowDidEnterFullScreen(_ notification: Notification) { updateFullscreen(true) }
+    func windowDidExitFullScreen(_ notification: Notification) { updateFullscreen(false) }
+
+    private func updateFullscreen(_ enabled: Bool) {
+        view?.evaluateJavaScript("window.notesFullscreenChanged?.(\(enabled));")
+    }
 
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {

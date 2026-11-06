@@ -212,6 +212,7 @@ export function createSurface(host, content, options) {
   typing.className = 'ink-text';
   host.append(surface, typing);
   let view = options.initialView ?? { x: 0, y: 0, zoom: 1 };
+  let lastView = { ...view };
   let active;
   let shapeTimer;
   let selected = [];
@@ -247,6 +248,10 @@ export function createSurface(host, content, options) {
     host.style.setProperty('--paper-scale', scale);
     host.style.setProperty('--grid-x', left + 'px');
     host.style.setProperty('--grid-y', top + 'px');
+    if (board && (view.x !== lastView.x || view.y !== lastView.y || view.zoom !== lastView.zoom)) {
+      lastView = { ...view };
+      options.onViewChange?.(lastView);
+    }
     positionSelection();
   }
 
@@ -656,7 +661,6 @@ export function createSurface(host, content, options) {
   render();
   return {
     host,
-    view: () => ({ ...view }),
     deselect() { clearSelection(); render(); },
     paste(data) {
       const points = data.strokes.flatMap(stroke => stroke.points).concat(data.texts.map(text => [text.x, text.y]));

@@ -10,7 +10,9 @@ import android.os.Bundle;
 import android.os.SystemClock;
 import android.view.InputDevice;
 import android.view.MotionEvent;
+import android.view.View;
 import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -39,6 +41,7 @@ public final class MainActivity extends Activity {
     private PenWebView web;
     private ValueCallback<Uri[]> pendingFiles;
     private volatile boolean penButtonDown;
+    private boolean fullscreen;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -117,8 +120,26 @@ public final class MainActivity extends Activity {
     }
 
     @Override public void onBackPressed() {
-        if (web.canGoBack()) web.goBack();
+        if (fullscreen) setFullscreen(false);
+        else if (web.canGoBack()) web.goBack();
         else super.onBackPressed();
+    }
+
+    private void setFullscreen(boolean enabled) {
+        fullscreen = enabled;
+        if (Build.VERSION.SDK_INT >= 30) {
+            WindowInsetsController controller = getWindow().getInsetsController();
+            if (controller != null) {
+                controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                if (enabled) controller.hide(WindowInsets.Type.systemBars());
+                else controller.show(WindowInsets.Type.systemBars());
+            }
+        } else {
+            getWindow().getDecorView().setSystemUiVisibility(enabled
+                ? View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                : 0);
+        }
+        web.evaluateJavascript("window.notesFullscreenChanged?.(" + fullscreen + ");", null);
     }
 
     @Override public boolean dispatchGenericMotionEvent(MotionEvent event) {
@@ -265,6 +286,9 @@ public final class MainActivity extends Activity {
 
     private final class InkBridge {
         @JavascriptInterface public boolean penButtonPressed() { return penButtonDown; }
+        @JavascriptInterface public void setFullscreen(boolean enabled) {
+            runOnUiThread(() -> { if (!isDestroyed()) MainActivity.this.setFullscreen(enabled); });
+        }
 
         @JavascriptInterface public void recognize(String points, String language) {
             if (points.length() > 2_000_000 || !("ru".equals(language) || "en".equals(language))) {

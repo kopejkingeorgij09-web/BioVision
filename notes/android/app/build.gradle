@@ -1,0 +1,36 @@
+plugins {
+    id 'com.android.application' version '8.9.2'
+}
+
+android {
+    namespace 'org.biovision.notes'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'org.biovision.notes'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '0.1.0'
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    sourceSets.main.assets.srcDir(layout.buildDirectory.dir('generated/notesAssets'))
+}
+
+def notes = rootProject.projectDir.parentFile
+def assets = layout.buildDirectory.dir('generated/notesAssets')
+tasks.register('bundleNotesWeb', Exec) {
+    inputs.files(fileTree(notes) {
+        include 'index.html', 'style.css', 'icon.svg', 'manifest.webmanifest', 'sw.js', 'js/**', 'scripts/bundle-web.sh'
+    })
+    outputs.dir(assets)
+    commandLine 'bash', new File(notes, 'scripts/bundle-web.sh'), assets.get().dir('www').asFile
+}
+tasks.named('preBuild') { dependsOn 'bundleNotesWeb' }
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.12.1'
+    implementation 'com.google.mlkit:digital-ink-recognition:19.0.0'
+}

@@ -1,0 +1,12 @@
+{
+  "id": "./",
+  "name": "Поля · заметки",
+  "short_name": "Поля",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f9f8ff",
+  "theme_color": "#f9f8ff",
+  "icons": [{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]
+}

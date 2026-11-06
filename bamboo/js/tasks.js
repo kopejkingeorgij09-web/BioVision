@@ -223,15 +223,16 @@ function monthWeekCell(ws, withShad, cur){
   </div>`;
 }
 
-const viewToggle = () => `<div class="toggle pl-views">${[['week', 'week', 'Неделя'], ['month', 'grid', 'Месяц'], ['shad', 'chart', 'ШАД']].map(([v, ic, l]) => `<button class="${S.view === v ? 'on' : ''}" data-act="plView" data-v="${v}" title="${v === 'shad' ? 'Темы и расписание ШАДа' : l}">${icon(ic)}<span>${l}</span></button>`).join('')}</div>`;
+const viewToggle = () => `<div class="toggle pl-views">${[['week', 'week', 'Неделя'], ['month', 'grid', 'Месяц'], ['shad', 'chart', 'ШАД'], ['calendar', 'cal', 'Календарь']].map(([v, ic, l]) => `<button class="${S.view === v ? 'on' : ''}" data-act="plView" data-v="${v}" title="${v === 'shad' ? 'Темы и расписание ШАДа' : l}">${icon(ic)}<span>${l}</span></button>`).join('')}</div>`;
 function calName(){ if (S.cal === 'all') return 'Все календари'; const p = B.proj(S.cal); return p ? p.name : 'Все календари'; }
 
 B.views.tasks = {
   title: 'Задачи',
   render(arg){
-    if (arg === 'plan' || arg === 'week' || arg === 'month'){ S.view = arg === 'plan' ? 'shad' : arg; saveS(); }
+    if (arg === 'plan' || arg === 'week' || arg === 'month' || arg === 'calendar'){ S.view = arg === 'plan' ? 'shad' : arg; saveS(); }
     else if (arg && B.proj(arg)){ S.cal = arg; saveS(); }
     if (S.cal !== 'all' && !B.proj(S.cal)){ S.cal = 'all'; saveS(); }
+    if (S.view === 'calendar') return B.calendarView.render(viewToggle());
     const month = S.view === 'month', t = B.today();
     if (S.view === 'shad') return `<div class="page planner is-shad">
       <header class="pl-h"><h1>План ШАДа</h1><div class="pl-tools">${viewToggle()}</div></header>
@@ -260,6 +261,7 @@ B.views.tasks = {
     </div>`;
   },
   mount(){
+    if (S.view === 'calendar') return B.calendarView.mount();
     const inp = B.$('.pl-in');
     if (inp){
       inp.focus({preventScroll: true});
@@ -299,7 +301,10 @@ let fsI = 2; try { const v = +localStorage.getItem(LS_FS); if (FS.includes(v)) f
 B.acts.plFs = el => { fsI = B.clamp(fsI + +el.dataset.k, 0, FS.length - 1); try { localStorage.setItem(LS_FS, FS[fsI]); } catch (e) {} B.render(true); B.toast(`Текст ${Math.round(FS[fsI] * 100)}%`, 900); };
 B.acts.plAddDay = el => { anchor = B.weekStart(el.dataset.d); S.view = 'week'; saveS(); adding = el.dataset.d; B.render(true); };
 B.acts.plGoWeek = el => { anchor = B.weekStart(el.dataset.d); S.view = 'week'; saveS(); B.render(true); };
-B.acts.plView = el => { S.view = el.dataset.v; saveS(); const t = B.today(); if (S.view === 'shad'){ B.render(true); return; } anchor = S.view === 'month' ? (anchor || t).slice(0, 8) + '01' : (anchor && anchor.slice(0, 7) !== t.slice(0, 7) ? B.weekStart(anchor) : null); B.render(true); };
+B.acts.plView = el => { S.view = el.dataset.v; saveS();
+  if (S.view === 'calendar' && location.hash !== '#/tasks/calendar'){ location.hash = '#/tasks/calendar'; return; }
+  if (S.view !== 'calendar' && /^#\/tasks\/(?:calendar|month|week|plan)$/.test(location.hash)){ location.hash = '#/tasks'; return; }
+  const t = B.today(); if (S.view === 'shad'){ B.render(true); return; } anchor = S.view === 'month' ? (anchor || t).slice(0, 8) + '01' : (anchor && anchor.slice(0, 7) !== t.slice(0, 7) ? B.weekStart(anchor) : null); B.render(true); };
 B.acts.plToday = () => { anchor = null; B.render(true); };
 B.acts.plShift = el => {
   const k = +el.dataset.k, t = B.today();
@@ -455,12 +460,19 @@ function drop(st, target){
   if (was !== to) B.toast(to ? `Перенесено на ${B.fmtW(to)}` : 'Перенесено в «Когда-нибудь»', 1400);
 }
 /* перенос веба (вместе с ним сдвигается срок ДЗ) или только срока ДЗ */
-function moveShad(n, kind, to){
+function moveShad(n, kind, to, start){
   const p = B.shad.plan.find(x => x.n === n); if (!p) return;
   if (kind === 'web'){
-    if (p.wp && p.w.date === to) return;
+    if (p.wp && p.w.date === to && (start == null || start === p.w.from)) return;
     const k = B.diff(p.w.date, to), patch = {w: {date: to}};
-    if (p.wp && p.hp) patch.h = {date: B.add(p.h.date, k)};   // ДЗ едет за вебом, только если ему уже выбран день
+    if (start != null){
+      const minutes = s => s ? Number(s.slice(0,2))*60 + Number(s.slice(3,5)) : 0;
+      const duration = p.w.to && p.w.from ? Math.max(15,minutes(p.w.to)-minutes(p.w.from)) : 60;
+      const end = Math.min(1439, minutes(start)+duration);
+      patch.w.from = start;
+      patch.w.to = start ? B.pad(Math.floor(end/60))+':'+B.pad(end%60) : '';
+    }
+    if (k && p.wp && p.hp) patch.h = {date: B.add(p.h.date, k)};   // ДЗ едет за вебом, только если ему уже выбран день
     B.setShadOver(n, patch);
     B.toast(`${esc(p.code || 'Веб')} перенесён на ${B.fmtW(to)}${patch.h ? `, ДЗ до ${B.fmtW(patch.h.date)}` : ''}`);
   } else {
@@ -469,6 +481,7 @@ function moveShad(n, kind, to){
     B.toast(`ДЗ ${esc(p.code || '')}: до ${B.fmtW(to)}`);
   }
 }
+B.calendarMoveShad = moveShad;
 /* перенос с записью в историю: дело, переехавшее на более поздний день, считается переносом (без штрафа) */
 function moveTask(t, to, order){
   const patch = {due: to};
@@ -641,6 +654,7 @@ async function readFile(file){
   const data = await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(file); });
   return {type: file.type || 'application/octet-stream', data, size: file.size};
 }
+B.readPlannerFile = readFile;
 B.inputs.twFile = async (el, e) => {
   if (e.type !== 'change') return;
   const id = el.dataset.id;
@@ -768,7 +782,7 @@ B.acts.projSave = el => {
   const id = el.dataset.id || B.uid();
   const old = B.proj(id) || {id, order: B.projects().length + 1};
   B.put('p_' + id, Object.assign({}, old, {name, parent: parent || undefined, color}));
-  B.closeSheet(); S.cal = id; saveS(); location.hash = '#/tasks';
+  B.closeSheet(); S.cal = id; saveS(); if (S.view !== 'calendar') location.hash = '#/tasks';
   B.render(true);
 };
 B.acts.projDel = async el => {

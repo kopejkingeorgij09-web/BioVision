@@ -77,7 +77,7 @@ document.addEventListener('keydown', e => {
 
 document.addEventListener('keydown', e => {
   /* ⌥↑ ⌥↓ в планере: задача едет вверх или вниз внутри дня */
-  if (e.altKey && !e.metaKey && !e.ctrlKey && !e.shiftKey && (e.code === 'ArrowUp' || e.code === 'ArrowDown') && route() === 'tasks' && B.pl && !typing() && !modal()){
+  if (e.altKey && !e.metaKey && !e.ctrlKey && !e.shiftKey && (e.code === 'ArrowUp' || e.code === 'ArrowDown') && route() === 'tasks' && B.pl && B.pl.view() !== 'calendar' && !typing() && !modal()){
     const id = B.pl.target(), t = id && B.task(id);
     if (t && !t.deleted){ e.preventDefault(); if (!B.pl.reorder(t, e.code === 'ArrowUp' ? -1 : 1)) B.toast(e.code === 'ArrowUp' ? 'Уже первая в дне' : 'Уже последняя в дне', 900); }
     return;
@@ -94,7 +94,7 @@ document.addEventListener('keydown', e => {
   if (modal()) return;
   if (c === 'Slash'){ e.preventDefault(); if (e.shiftKey) B.acts.keysHelp(); else location.hash = '#/search'; return; }
   if (/^Digit[1-6]$/.test(c) && !e.shiftKey){ e.preventDefault(); location.hash = '#/' + SECTIONS[+c.slice(5) - 1]; return; }
-  if (v !== 'tasks' || !B.pl) return;
+  if (v !== 'tasks' || !B.pl || B.pl.view() === 'calendar') return;
   if (!e.shiftKey && (c === 'ArrowUp' || c === 'ArrowDown')){ if (B.pl.view() === 'shad') return; e.preventDefault(); B.pl.step(c === 'ArrowUp' ? -1 : 1); return; }
   const t = B.pl.target() && B.task(B.pl.target());
   if (t && !t.deleted){

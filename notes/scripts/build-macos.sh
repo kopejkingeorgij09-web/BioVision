@@ -9,6 +9,7 @@ cp "$source_dir/macos/Info.plist" "$app/Contents/Info.plist"
 bash "$source_dir/scripts/bundle-web.sh" "$app/Contents/Resources/Web"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
+xcrun swift -module-cache-path "$tmp/swift-cache" "$source_dir/scripts/render-icon.swift" "$source_dir/icon.svg" "$app/Contents/Resources/Polya.icns"
 for arch in arm64 x86_64; do
   xcrun swiftc -O -target "$arch-apple-macosx13.0" -module-cache-path "$tmp/swift-cache" \
     "$source_dir/macos/Notes.swift" -o "$tmp/Polya-$arch"

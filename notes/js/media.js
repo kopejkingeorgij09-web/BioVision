@@ -56,13 +56,14 @@ export async function openMedia(root, attachment, options) {
     paper.append(content);
     view.append(paper);
     pageView = paper;
-    createSurface(paper, attachment.marks[key] ?? { strokes: [], texts: [] }, {
+    const surface = createSurface(paper, attachment.marks[key] ?? { strokes: [], texts: [] }, {
       ...surfaceOptions, signal: paperSignal.signal, width,
       commit(mark, history) {
         attachment.marks[key] = mark;
         onMark(attachment, history);
       },
     });
+    options.onSurface?.(surface);
   }
 
   signal.addEventListener('abort', () => paperSignal?.abort(), { once: true });

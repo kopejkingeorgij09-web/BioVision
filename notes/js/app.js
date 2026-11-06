@@ -1,9 +1,10 @@
 import { edit, list, read } from './local.js';
 import { attachmentBlob, cloudEnabled, identity, libraryId, signIn, signInByCode, signOut, synchronize } from './cloud.js';
 import { createSurface } from './ink.js';
-import { describeFile, openMedia, pdfBase } from './media.js';
+import { boardFilesWithPositions, boardFileWidth, describeFile, mountBoardFile, openMedia, pdfBase } from './media.js';
 import { button, element, textEditor } from './text.js';
 import { cloudConfig } from './config.js';
+import { createPenButton, defaultPenButton } from './pen-button.js';
 
 const $ = id => document.getElementById(id);
 const kinds = {
@@ -17,7 +18,7 @@ const tools = { pen: 'Перо', highlight: 'Маркер', erase: 'Ластик
 const blank = () => ({ id: crypto.randomUUID(), strokes: [], texts: [] });
 const preferenceKey = 'biovision-notes-pen';
 const themes = { system: 'Как в системе', white: 'Белая', gray: 'Серая', warm: 'Тёплая белая', violet: 'Тёмно-фиолетовая', green: 'Тёмно-зелёная', black: 'Чёрная' };
-const appVersion = { name: '0.2.0', code: 2 };
+const appVersion = { name: '0.3.0', code: 3 };
 const releaseBase = cloudConfig.url + '/storage/v1/object/public/notes-releases/';
 const darkMode = matchMedia('(prefers-color-scheme: dark)');
 const existingPrefs = JSON.parse(localStorage.getItem(preferenceKey) ?? '{}');
@@ -33,6 +34,9 @@ let items = [];
 let current;
 let folder = null;
 let attachmentId = null;
+let boardFileId = null;
+let focusBoardFile = false;
+let moreInkTools = false;
 let editor = new AbortController();
 let writes = Promise.resolve();
 let syncTimer;
@@ -46,6 +50,57 @@ let failedWrite = false;
 let surfaces = [];
 let selectedText;
 let documentText;
+const notebookZoom = new Map();
+
+const buttonSettings = () => ({ ...defaultPenButton, ...prefs.penButton });
+let toolBeforeToggle;
+const penButton = createPenButton({
+  settings: buttonSettings,
+  enabled: () => Boolean(current && surfaces.length && !$('dialog').open),
+  changed: updateToolButtons,
+  activate(action) {
+    if (action === 'undo' || action === 'redo') { history(action === 'redo'); return; }
+    if (action === 'newText') { addTextBlock(); return; }
+    if (!tools[action] || action === 'hand' && !current?.data.pages?.length) return;
+    if (prefs.tool === action) {
+      chooseTool(toolBeforeToggle?.action === action ? toolBeforeToggle.previous : 'pen');
+      toolBeforeToggle = undefined;
+    } else {
+      toolBeforeToggle = { action, previous: prefs.tool };
+      chooseTool(action);
+    }
+  },
+});
+
+function chooseTool(tool) {
+  prefs.tool = tool;
+  remember();
+  updateToolButtons();
+}
+
+function updateToolButtons() {
+  const held = penButton.held();
+  const effective = held === 'none' ? prefs.tool : held;
+  for (const control of document.querySelectorAll('[data-ink-tool]')) {
+    control.setAttribute('aria-pressed', String(control.dataset.inkTool === effective));
+  }
+  const status = $('pen-button-status');
+  if (status) status.textContent = penButton.isPressed() ? 'Кнопка удерживается' : 'Кнопка отпущена';
+}
+
+window.notesPenButton = (down, contact, canceled, time) => penButton.input(down, contact, canceled, time);
+
+function sideTool(event, first) {
+  if (event.pointerType !== 'pen') return prefs.tool;
+  if (event.button === 5 || event.buttons & 32) return 'erase';
+  const native = window.NotesAndroid?.penButtonPressed;
+  const held = first && native ? window.NotesAndroid.penButtonPressed() : penButton.held() !== 'none';
+  if (held || (event.buttons & 2) || event.button === 2) {
+    const tool = buttonSettings().hold;
+    if (tool !== 'none') return tool;
+  }
+  return prefs.tool;
+}
 
 function message(text) {
   $('message').textContent = text;
@@ -85,6 +140,11 @@ function applyTheme() {
 function remember() {
   localStorage.setItem(preferenceKey, JSON.stringify(prefs));
   $('content').classList.toggle('finger', prefs.finger);
+  const focus = Boolean(current && prefs.focusMode);
+  $('app').classList.toggle('focus-mode', focus);
+  $('focus-mode').setAttribute('aria-pressed', String(focus));
+  $('focus-mode').setAttribute('aria-label', focus ? 'Вернуть библиотеку' : 'Во весь экран');
+  $('focus-mode').title = focus ? 'Вернуть библиотеку' : 'Во весь экран';
 }
 
 function numberControl(id, title, value, min, max, step, change) {
@@ -269,7 +329,8 @@ function open(id, { replace = false } = {}) {
   if (id && !item) { message('Заметка не найдена на этом устройстве'); return; }
   if (item?.data.kind === 'folder') { folder = item.id; current = null; }
   else { current = item; folder = item?.data.parent ?? null; }
-  attachmentId = null;
+  attachmentId = boardFileId = null;
+  focusBoardFile = false;
   back = [];
   forward = [];
   const hash = item ? '#note=' + item.id : location.pathname + location.search;
@@ -392,18 +453,16 @@ function recognition() {
 }
 
 function inkControls(board, surface, withLayout) {
-  const bar = $('tools');
+  const bar = $('tools'), extra = $('extra-tools');
   if (!board && prefs.tool === 'hand') prefs.tool = 'pen';
-  const activeButtons = [];
-  for (const [key, label] of Object.entries(tools)) {
+  for (const key of ['pen', 'erase', 'highlight', 'lasso', 'text', 'hand', 'line', 'rect', 'ellipse']) {
+    const label = tools[key];
     if (key === 'hand' && !board) continue;
     const control = button(label, () => {
-      prefs.tool = key;
-      remember();
-      for (const [id, item] of activeButtons) item.setAttribute('aria-pressed', String(id === key));
+      toolBeforeToggle = undefined;
+      chooseTool(key);
     });
-    activeButtons.push([key, control]);
-    control.setAttribute('aria-pressed', String(key === prefs.tool));
+    control.dataset.inkTool = key;
     bar.append(control);
   }
   const color = element('input');
@@ -426,8 +485,16 @@ function inkControls(board, surface, withLayout) {
   const straighten = button('Выровнять фигуру', () => shapeSelection?.());
   straighten.id = 'straighten';
   straighten.disabled = true;
-  bar.append(color, width, finger, recognize, straighten);
-  textControls(bar, prefs.textPt, true);
+  extra.append(color, width, finger, recognize, straighten);
+  textControls(extra, prefs.textPt, true);
+  const advanced = button('Дополнительно', () => {
+    moreInkTools = !moreInkTools;
+    extra.hidden = !moreInkTools;
+    advanced.setAttribute('aria-expanded', String(moreInkTools));
+  });
+  advanced.setAttribute('aria-expanded', String(moreInkTools));
+  extra.hidden = !moreInkTools;
+  bar.append(advanced);
   if (withLayout) {
     const paper = select(layouts, current.data.paper, 'Разметка');
     paper.onchange = () => {
@@ -437,17 +504,20 @@ function inkControls(board, surface, withLayout) {
         node.classList.add(paper.value);
       }
     };
-    bar.append(paper, numberControl('grid-size', 'Шаг разметки', current.data.gridSize ?? 24, 8, 100, 1, value => {
+    extra.append(paper, numberControl('grid-size', 'Шаг разметки', current.data.gridSize ?? 24, 8, 100, 1, value => {
       mutate({ ...current.data, gridSize: value });
       $('content').style.setProperty('--grid-size', value + 'px');
     }));
   }
+  updateToolButtons();
   if (board) bar.append(button('−', () => surface.zoom(.8)), button('＋', () => surface.zoom(1.25)), button('Уместить', surface.fit));
 }
 
 function commonSurface() {
   return {
     settings: () => prefs, signal: editor.signal,
+    sideTool,
+    penContact: () => penButton.use(),
     notifyText(text) {
       selectedText = text;
       $('text-pt').value = text.pt;
@@ -464,7 +534,57 @@ function commonSurface() {
   };
 }
 
+function notebookViewport(root, pages, id, signal) {
+  let scale = notebookZoom.get(id) ?? 1;
+  const apply = () => {
+    const base = Math.max(120, Math.min(794, root.clientWidth - 30));
+    pages.style.setProperty('--sheet-width', base * scale + 'px');
+  };
+  function setScale(value, x, y) {
+    const viewport = root.getBoundingClientRect();
+    x ??= viewport.left + viewport.width / 2;
+    y ??= viewport.top + viewport.height / 2;
+    const target = Array.from(pages.querySelectorAll('.page')).reduce((best, page) => {
+      const rect = page.getBoundingClientRect();
+      const distance = Math.max(rect.top - y, y - rect.bottom, 0);
+      return !best || distance < best.distance ? { page, rect, distance } : best;
+    }, null);
+    scale = Math.min(3, Math.max(.4, value));
+    notebookZoom.set(id, scale);
+    apply();
+    if (target) {
+      const next = target.page.getBoundingClientRect();
+      root.scrollLeft += next.left + (x - target.rect.left) * next.width / target.rect.width - x;
+      root.scrollTop += next.top + (y - target.rect.top) * next.height / target.rect.height - y;
+    }
+    update();
+  }
+  const zoomOut = button('−', () => setScale(scale / 1.2));
+  const zoomIn = button('＋', () => setScale(scale * 1.2));
+  const fit = button('По ширине', () => setScale(1));
+  zoomOut.setAttribute('aria-label', 'Уменьшить масштаб листа');
+  zoomIn.setAttribute('aria-label', 'Увеличить масштаб листа');
+  fit.setAttribute('aria-label', 'Масштаб по ширине');
+  function update() {
+    fit.textContent = scale === 1 ? 'По ширине' : Math.round(scale * 100) + '% · По ширине';
+    zoomOut.disabled = scale <= .4;
+    zoomIn.disabled = scale >= 3;
+  }
+  const resize = new ResizeObserver(apply);
+  resize.observe(root);
+  signal.addEventListener('abort', () => resize.disconnect(), { once: true });
+  root.addEventListener('wheel', event => {
+    if (!event.ctrlKey && !event.metaKey) return;
+    event.preventDefault();
+    setScale(scale * Math.exp(-event.deltaY * .008), event.clientX, event.clientY);
+  }, { passive: false, signal });
+  apply();
+  update();
+  return { controls: [zoomOut, zoomIn, fit], pinch: (factor, x, y) => setScale(scale * factor, x, y) };
+}
+
 function render() {
+  const previousBoard = surfaces.find(surface => surface.host.dataset.note === current?.id);
   editor.abort();
   editor = new AbortController();
   selectedStrokes = [];
@@ -472,9 +592,11 @@ function render() {
   shapeSelection = null;
   selectedText = documentText = undefined;
   surfaces = [];
-  const root = $('content'), bar = $('tools');
+  const root = $('content'), bar = $('tools'), extra = $('extra-tools');
   root.replaceChildren();
   bar.replaceChildren();
+  extra.replaceChildren();
+  extra.hidden = true;
   bar.hidden = !current;
   root.scrollTop = 0;
   root.style.setProperty('--grid-size', (current?.data.gridSize ?? 24) + 'px');
@@ -482,11 +604,12 @@ function render() {
   $('heading').hidden = Boolean(current);
   $('heading').textContent = items.find(item => item.id === folder)?.data.title ?? 'Все заметки';
   $('more').hidden = !current;
+  $('focus-mode').hidden = !current;
   renderLibrary();
   remember();
   if (!current) { welcome(); return; }
   $('title').value = current.data.title;
-  const attachment = current.data.attachments?.find(item => item.id === attachmentId);
+  const attachment = current.data.kind === 'board' ? null : current.data.attachments?.find(item => item.id === attachmentId);
   const files = fileBar();
   if (files.childElementCount && (current.data.kind !== 'board' || attachment)) root.append(files);
   const undo = button('↶', () => history());
@@ -534,6 +657,7 @@ function render() {
     const board = current.data.kind === 'board';
     const pages = board ? root : element('div', undefined, 'pages');
     if (!board) root.append(pages);
+    const notebook = board ? null : notebookViewport(root, pages, current.id, editor.signal);
     let surface;
     for (const [index, data] of current.data.pages.entries()) {
       const paper = element('div', undefined, 'paper ' + (board ? 'board ' : 'page ') + current.data.paper);
@@ -549,13 +673,49 @@ function render() {
         pages.append(wrap);
       }
       wrap.append(paper);
+      const worldLayers = board ? [element('div', undefined, 'board-world'), element('div', undefined, 'board-world board-world-controls')] : undefined;
+      if (worldLayers) {
+        paper.dataset.note = current.id;
+        paper.append(...worldLayers);
+      }
       surface = createSurface(paper, structuredClone(data), {
-        ...commonSurface(), board, width: 794,
+        ...commonSurface(), board, width: 794, worldLayers,
+        initialView: previousBoard?.view(),
+        pinch: notebook?.pinch,
         commit(next, history) {
           mutate({ ...current.data, pages: current.data.pages.map(page => page.id === data.id ? next : page) }, history);
         },
       });
       surfaces.push(surface);
+      if (worldLayers) {
+        const boardFiles = boardFilesWithPositions(current.data.attachments ?? []);
+        const nav = element('nav', undefined, 'board-file-nav');
+        nav.setAttribute('aria-label', 'Файлы на доске');
+        for (const file of boardFiles) {
+          void mountBoardFile(...worldLayers, structuredClone(file), {
+            signal: editor.signal, library: scope, host: paper, surfaceOptions: commonSurface(),
+            onMark(updated, history) {
+              mutate({ ...current.data, attachments: current.data.attachments.map(item => item.id === updated.id ? updated : item) }, history);
+            },
+            onSurface(frame) {
+              surfaces.unshift(frame);
+              return () => { surfaces = surfaces.filter(item => item !== frame); selectedText = undefined; };
+            },
+          });
+          const focus = () => {
+            boardFileId = file.id;
+            for (const chip of nav.children) chip.setAttribute('aria-pressed', String(chip.dataset.file === file.id));
+            surface.focus(file.boardPosition.x, file.boardPosition.y, boardFileWidth);
+          };
+          const chip = button('▣ ' + file.name, focus);
+          chip.dataset.file = file.id;
+          chip.setAttribute('aria-pressed', String(file.id === boardFileId));
+          nav.append(chip);
+          if (file.id === boardFileId && focusBoardFile) focus();
+        }
+        if (nav.childElementCount) root.append(nav);
+        focusBoardFile = false;
+      }
     }
     inkControls(board, surface, true);
     if (!board) {
@@ -564,14 +724,13 @@ function render() {
         render();
         root.scrollTop = root.scrollHeight;
       };
-      bar.append(button('＋ Страница', addPage));
+      bar.append(...notebook.controls, button('＋ Страница', addPage));
       pages.append(button('＋ Страница', addPage));
     }
-    if (board && files.childElementCount) {
-      for (const item of current.data.attachments) bar.append(button('▣ ' + item.name, () => { attachmentId = item.id; render(); }));
-    }
+
   }
-  bar.append(button('Прикрепить', () => $('file-picker').click()), undo, redo);
+  const attach = button('Прикрепить', () => $('file-picker').click());
+  bar.append(attach, undo, redo);
   updateUndo();
 }
 
@@ -608,9 +767,11 @@ function more(item) {
       } catch (error) { report(error); }
     };
     dialog.append(form);
-    if (attachmentId) dialog.append(button('Отсоединить вложение', () => {
-      mutate({ ...current.data, attachments: current.data.attachments.filter(file => file.id !== attachmentId) });
-      attachmentId = null;
+    const selectedFile = current?.data.kind === 'board' ? boardFileId : attachmentId;
+    if (selectedFile) dialog.append(button('Отсоединить вложение', () => {
+      const attachments = current.data.kind === 'board' ? boardFilesWithPositions(current.data.attachments) : current.data.attachments;
+      mutate({ ...current.data, attachments: attachments.filter(file => file.id !== selectedFile) });
+      attachmentId = boardFileId = null;
       close(); render();
     }));
     dialog.append(button('Удалить', async () => {
@@ -739,7 +900,16 @@ $('query').oninput = renderLibrary;
 $('more').onclick = () => { if (current) more(current); };
 $('account').onclick = account;
 $('sync').onclick = () => identity() ? runSync() : account();
-$('show-library').onclick = () => $('app').classList.add('library-open');
+$('show-library').onclick = () => {
+  prefs.focusMode = false;
+  remember();
+  $('app').classList.add('library-open');
+};
+$('focus-mode').onclick = () => {
+  prefs.focusMode = !prefs.focusMode;
+  $('app').classList.remove('library-open');
+  remember();
+};
 $('hide-library').onclick = () => $('app').classList.remove('library-open');
 $('title').onchange = () => {
   if (!current) return;
@@ -756,7 +926,10 @@ $('file-picker').onchange = async event => {
     if (current?.id !== target) break;
     try {
       const item = describeFile(file);
-      mutate({ ...current.data, attachments: [...current.data.attachments, item] }, true, {
+      const attachments = [...current.data.attachments, item];
+      const board = current.data.kind === 'board';
+      if (board) { boardFileId = item.id; focusBoardFile = true; }
+      mutate({ ...current.data, attachments: board ? boardFilesWithPositions(attachments) : attachments }, true, {
         library: scope, id: item.id, blob: file.slice(0, file.size, item.mime), remote: false,
       });
       await writes;
@@ -769,8 +942,12 @@ window.addEventListener('online', () => schedule(0));
 window.addEventListener('offline', () => { if (identity() && !failedWrite) $('sync').textContent = 'Офлайн · сохранено локально'; });
 window.addEventListener('focus', () => schedule(0));
 window.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && prefs.focusMode && !$('dialog').open) {
+    prefs.focusMode = false;
+    remember();
+  }
   if (!(event.metaKey || event.ctrlKey) || event.isComposing || event.altKey || $('dialog').open) return;
-  if (event.code === 'KeyK') { event.preventDefault(); $('app').classList.add('library-open'); $('query').focus(); }
+  if (event.code === 'KeyK') { event.preventDefault(); $('show-library').click(); $('query').focus(); }
   const input = event.target.matches?.('input, textarea');
   const editorInput = event.target.matches?.('.ink-text textarea, .text-note textarea');
   if (current && (!input || editorInput) && event.code === 'KeyZ') {
@@ -815,12 +992,38 @@ async function checkUpdates(status, check) {
   } finally { check.disabled = false; }
 }
 
+function penButtonSettings() {
+  choose('Кнопка S Pen', (dialog, close) => {
+    const hold = { none: 'Ничего', pen: 'Перо', erase: 'Ластик', highlight: 'Маркер', lasso: 'Лассо' };
+    const tap = { ...hold, text: 'Инструмент «Текст»', newText: 'Новое текстовое поле', undo: 'Отменить', redo: 'Повторить' };
+    for (const [gesture, title, choices] of [
+      ['hold', 'Удержание', hold], ['tap', 'Один короткий щелчок', tap], ['double', 'Двойной щелчок', tap],
+    ]) {
+      const control = select(choices, buttonSettings()[gesture], title);
+      control.onchange = () => {
+        prefs.penButton = { ...buttonSettings(), [gesture]: control.value };
+        remember();
+        updateToolButtons();
+      };
+      dialog.append(labelled(title, control));
+    }
+    const status = element('p', '', 'muted');
+    status.id = 'pen-button-status';
+    status.setAttribute('role', 'status');
+    dialog.append(element('p', 'Поднеси кончик пера к экрану. Чтобы переключить инструмент, нажми и отпусти кнопку рядом с экраном. Чтобы воспользоваться временным инструментом, удерживай кнопку и коснись экрана.', 'muted'), status,
+      button('По умолчанию', () => { delete prefs.penButton; remember(); penButtonSettings(); }),
+      button('Закрыть', close));
+    updateToolButtons();
+  });
+}
+
 $('settings').onclick = () => choose('Настройки', (dialog, close) => {
   const theme = select(themes, prefs.theme, 'Тема');
   theme.onchange = () => { prefs.theme = theme.value; applyTheme(); remember(); };
   dialog.append(labelled('Тема', theme), button('Цвет пера по теме', () => {
     prefs.autoColor = true; applyTheme(); remember();
   }), element('p', '⌘+/− меняет размер текста. ⌘Y добавляет текстовое поле. ⌘Z отменяет действие, ⇧⌘Z повторяет его. На других клавиатурах используй Ctrl.', 'muted'));
+  if (window.NotesAndroid) dialog.append(button('Кнопка S Pen', penButtonSettings));
   if (window.NotesAndroid || window.NotesMac) {
     const status = element('div', 'Версия ' + appVersion.name, 'muted');
     const check = button('Проверить обновления', () => void checkUpdates(status, check));

@@ -1,8 +1,8 @@
-const shell = 'biovision-notes-shell-v2';
+const shell = 'biovision-notes-shell-v3';
 const assets = 'biovision-notes-assets-v1';
 const files = [
   './', './index.html', './style.css', './icon.svg', './manifest.webmanifest',
-  './js/app.js', './js/cloud.js', './js/config.js', './js/ink.js', './js/local.js', './js/media.js', './js/text.js',
+  './js/app.js', './js/cloud.js', './js/config.js', './js/ink.js', './js/local.js', './js/media.js', './js/text.js', './js/pen-button.js',
 ];
 const vendor = /^https:\/\/cdn\.jsdelivr\.net\/npm\/(?:katex@0\.19\.1|pdfjs-dist@6\.5\.438)\//;
 

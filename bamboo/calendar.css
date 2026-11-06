@@ -1,0 +1,147 @@
+/* Часовая сетка «Календаря» в разделе задач. */
+.page.ac {
+  --ac-bg: var(--sheet);
+  --ac-muted: var(--ink-2);
+  --ac-line: var(--rule);
+  --ac-control: color-mix(in srgb,var(--ink) 7%,var(--ac-bg));
+  --ac-today: light-dark(#cf332b,#ff625b);
+  --ac-hour: 62px;
+  --ac-axis: 54px;
+  max-width: none;
+  font-family: system-ui,-apple-system,sans-serif;
+}
+:is(.ac,.ac-types,.ac-results) :where(button:not(.btn):not(.icon-btn)) {
+  appearance:none;border:0;background:transparent;font-family:inherit;color:inherit;cursor:pointer;
+}
+:is(.ac,.ac-types,.ac-results) button:focus-visible { outline:2px solid var(--accent);outline-offset:-2px }
+.ac-top,.ac-toolbar,.ac-top-tools,.ac-controls,.ac-nav { display:flex;align-items:center;gap:6px }
+.ac-top,.ac-toolbar { justify-content:space-between }
+.ac-top { margin-bottom:9px }
+.ac .pl-views { flex-wrap:wrap }
+.ac-shell { display:grid;min-width:0;background:var(--ac-bg);border:1px solid var(--ac-line);border-radius:17px;overflow:hidden }
+.ac-shell.with-side { grid-template-columns:216px minmax(0,1fr) }
+.ac-main { min-width:0 }
+.ac-main > h1 { font-size:clamp(23px,3vw,36px);font-family:inherit;font-weight:680;letter-spacing:-.045em;margin:0;padding:4px 16px 12px }
+.ac-toolbar { padding:10px 12px 5px }
+.ac-toolbar .icon-btn,.ac-top-tools .icon-btn { width:34px;height:34px }
+.ac-toolbar .ac-add { background:var(--ac-control);border-radius:50% }
+.ac-modes { display:inline-flex;align-items:center;gap:1px;border-radius:9px;background:var(--ac-control);padding:2px }
+.ac-modes button { padding:5px 10px;font-size:13px;font-weight:560;white-space:nowrap;border-radius:7px;cursor:pointer }
+.ac-modes button[aria-pressed=true] { background:var(--ac-bg,var(--sheet));box-shadow:0 1px 3px #0002 }
+.ac-types { justify-self:start;--ac-control:var(--paper-2) }
+.ac-scroll { max-height:calc(100dvh - 174px);min-height:min(420px,62dvh);overflow:auto;overscroll-behavior:contain;scrollbar-width:thin }
+.ac-time { min-width:calc(var(--ac-axis) + var(--ac-days) * 92px) }
+.ac-sticky { position:sticky;top:0;z-index:5;background:var(--ac-bg);box-shadow:0 1px 0 var(--ac-line) }
+.ac-head,.ac-all,.ac-hours { display:grid;grid-template-columns:var(--ac-axis) repeat(var(--ac-days),minmax(0,1fr)) }
+.ac-head { border-bottom:1px solid var(--ac-line) }
+.ac-head button { padding:9px 2px;font-size:14px;color:var(--ac-muted);white-space:nowrap }
+.ac-head button b,.ac-month-day > button:first-child { display:inline-grid;place-items:center;width:25px;height:25px;border-radius:50%;font-weight:600 }
+.ac-head button.now b,.ac-month-day > button.now,.ac-mini-days button.now { background:var(--ac-today);color:var(--ac-bg);font-weight:750 }
+.ac-all { max-height:145px;overflow:auto;scrollbar-width:thin }
+.ac-axis-label { padding:6px 2px;font-size:9px;white-space:nowrap;text-align:center;color:var(--ac-muted) }
+.ac-allday,.ac-col { border-left:1px solid var(--ac-line);min-width:0 }
+.ac-allday { padding:2px 2px 4px;min-height:29px;position:relative }
+.ac-allday .ac-item { margin:1px 0 }
+.ac-all-new { display:block;width:100%;height:16px;opacity:0;color:var(--ac-muted);font-size:11px }
+.ac-all-new .ic { width:12px;height:12px }
+.ac-allday:hover .ac-all-new,.ac-all-new:focus-visible { opacity:1 }
+.ac-hours { height:calc(var(--ac-hour) * 24);user-select:none }
+.ac-axis { position:relative;color:var(--ac-muted);font-size:10px;text-align:right;padding-right:7px }
+.ac-axis span { position:absolute;right:7px;transform:translateY(-50%);background:var(--ac-bg);padding:1px 0;white-space:nowrap }
+.ac-axis span:first-child { transform:translateY(2px) }
+.ac-col { position:relative;background:repeating-linear-gradient(to bottom,transparent 0 calc(var(--ac-hour) - 1px),var(--ac-line) calc(var(--ac-hour) - 1px) var(--ac-hour)) }
+.ac-col.now,.ac-allday.now { background-color:color-mix(in srgb,var(--ac-today) 4%,var(--ac-bg)) }
+.ac-now { position:absolute;left:0;right:0;height:1px;background:var(--ac-today);z-index:3;pointer-events:none }
+.ac-now::before { content:"";position:absolute;width:7px;height:7px;left:-3px;top:-3px;border-radius:50%;background:inherit }
+.ac-item {
+  --cal-color: var(--c-ink);
+  position:relative;display:flex;align-items:start;min-width:0;
+  border-radius:5px;border-left:3px solid var(--cal-color);
+  color:var(--ink);background:color-mix(in srgb,var(--cal-color) 18%,var(--ac-bg));
+  font-size:11px;line-height:1.25;
+}
+.ac-item.c-blue,.ac-filter .c-blue { --cal-color:var(--c-blue) }
+.ac-item.c-teal,.ac-filter .c-teal { --cal-color:var(--c-teal) }
+.ac-item.c-green,.ac-filter .c-green { --cal-color:var(--c-green) }
+.ac-item.c-amber,.ac-filter .c-amber { --cal-color:var(--c-amber) }
+.ac-item.c-red,.ac-filter .c-red { --cal-color:var(--c-red) }
+.ac-item.c-violet,.ac-filter .c-violet { --cal-color:var(--c-violet) }
+.ac-item.c-pink,.ac-filter .c-pink { --cal-color:var(--c-pink) }
+.ac-item.timed { position:absolute;top:var(--top);height:calc(var(--span) - 1px);min-height:15px;left:calc(var(--left) + 2px);width:calc(var(--width) - 3px);overflow:hidden;z-index:1 }
+.ac-open { display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;flex:1;min-width:0;text-align:left;color:inherit;padding:3px 4px;text-decoration:none;overflow:hidden;cursor:pointer }
+.ac-item.timed .ac-open { height:100%;padding-top:4px }
+.ac-open:hover { background:#8881 }
+.ac-title,.ac-open small { display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis }
+.ac-title { font-weight:650 }
+.ac-open small { font-size:10px;color:var(--ac-muted);margin-top:1px }
+.ac-check { flex:none;padding:2px 0 2px 3px;color:var(--ink);font-size:13px;line-height:1.2;cursor:pointer }
+.ac-item.done .ac-title { text-decoration:line-through;opacity:.68 }
+.ac-item.ghost { opacity:.55;border-left-style:dashed }
+.ac-resize { position:absolute;left:0;right:0;height:5px;z-index:2;cursor:ns-resize }
+.ac-resize.start { top:0 }.ac-resize.end { bottom:0 }
+.ac-preview,.ac-travel { position:absolute;left:2px;right:2px;border-radius:4px;pointer-events:none }
+.ac-preview { background:color-mix(in srgb,var(--accent) 30%,transparent);z-index:4;border:1px solid var(--accent);padding:2px 4px;font-size:10px;color:var(--ink);overflow:hidden;white-space:nowrap }
+.ac-travel { background:repeating-linear-gradient(135deg,var(--ac-line) 0 4px,transparent 4px 8px) }
+.ac-drag-target { background-color:var(--accent-soft)!important }
+.ac-side { min-width:0;padding:12px 10px;border-right:1px solid var(--ac-line);background:color-mix(in srgb,var(--paper-2) 50%,var(--ac-bg)) }
+.ac-mini-title,.ac-filter-title { display:flex;align-items:center;gap:3px;justify-content:space-between;font-size:13px }
+.ac-mini-title b,.ac-filter-title b { margin-right:auto }
+.ac-side .icon-btn { width:27px;height:27px }
+.ac-side .ic { width:14px;height:14px }
+.ac-filter-title { margin-top:20px }
+.ac-filter { display:flex;align-items:center;min-height:30px;font-size:13px }
+.ac-filter label { display:flex;align-items:center;gap:7px;min-width:0;flex:1;color:var(--ink) }
+.ac-filter input { accent-color:var(--cal-color,var(--c-ink));margin:0;flex:none }
+.ac-file-tools { display:flex;flex-wrap:wrap;gap:4px;margin-top:18px }
+.ac-mini-labels,.ac-mini-days { display:grid;grid-template-columns:repeat(7,minmax(0,1fr));text-align:center;gap:2px }
+.ac-mini-labels { color:var(--ac-muted);font-size:10px;padding:6px 0 }
+.ac-mini-days button { padding:4px 0;border-radius:5px;font-size:12px;position:relative }
+.ac-mini-days button.selected:not(.now) { background:var(--ac-control);font-weight:700 }
+.ac-mini-days button.other { color:var(--ink-3) }
+.ac-mini-days button.has::after { content:"";position:absolute;width:3px;height:3px;bottom:1px;left:calc(50% - 1px);background:currentColor;border-radius:50% }
+.ac-month-labels,.ac-month-days { display:grid;grid-template-columns:repeat(7,minmax(0,1fr)) }
+.ac-month-labels { text-align:right;color:var(--ac-muted);font-size:12px;padding:5px 0;border-bottom:1px solid var(--ac-line) }
+.ac-month-labels span { padding-right:9px }
+.ac-month-day { min-width:0;min-height:105px;padding:2px 3px 4px;border:solid var(--ac-line);border-width:0 1px 1px 0 }
+.ac-month-day.other { background:var(--ac-control);color:var(--ink-3) }
+.ac-month-day > button:first-child { display:grid;margin-left:auto;font-size:12px }
+.ac-month-day .ac-item { margin-bottom:2px }
+.ac-more { color:var(--ac-muted);font-size:10px;padding:2px }
+.ac-year { display:grid;grid-template-columns:repeat(auto-fit,minmax(172px,1fr));gap:18px;padding:10px 16px }
+.ac-year section > button { font-weight:680;color:var(--ac-today);font-size:14px }
+.ac-editor { display:grid;gap:9px }
+.ac-edit-row { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px }
+.ac-inline,.ac-weekdays label { display:flex;gap:5px;align-items:center;font-size:13px }
+.ac-editor .field { min-width:0;margin:0 }
+.ac-editor input,.ac-editor select { min-width:0 }
+.ac-repeat { display:grid;gap:8px;padding:8px;border:1px solid var(--rule);border-radius:8px }
+.ac-weekdays { display:flex;flex-wrap:wrap;gap:8px;border:0;padding:0;font-size:12px }
+.ac-month-pattern { display:grid;gap:6px }
+.ac-attachment { display:flex;justify-content:space-between;gap:8px;font-size:13px;overflow-wrap:anywhere }
+.ac-error { font-size:13px;color:var(--bad) }
+.ac-results { display:grid;gap:2px;max-height:53vh;overflow:auto }
+.ac-results button { text-align:left;padding:8px 5px;border-bottom:1px solid var(--rule);display:grid;gap:2px }
+.ac-results small { color:var(--ink-2) }
+.ac [hidden],.ac-editor [hidden] { display:none!important }
+
+@media(max-width:850px) {
+  .ac-shell.with-side { grid-template-columns:minmax(0,1fr) }
+  .ac-side { border-right:0;border-bottom:1px solid var(--ac-line);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px 10px }
+  .ac-mini-title,.ac-side .ac-mini,.ac-filter-title,.ac-file-tools { grid-column:1/-1 }
+  .ac-filter-title { margin-top:8px }
+  .ac-file-tools { margin-top:6px }
+}
+@media(max-width:560px) {
+  .page.ac { padding:8px 8px 12px;--ac-axis:40px;--ac-hour:57px }
+  .ac-top .pl-views button { font-size:11px;padding:5px }
+  .ac-top .pl-views .ic { display:none }
+  .ac-top-tools .icon-btn { width:28px }
+  .ac-toolbar { display:grid;grid-template-columns:1fr 1fr;padding:6px;gap:5px }
+  .ac-controls { grid-area:1/1 }
+  .ac-nav { grid-area:1/2;justify-content:end }
+  .ac-toolbar > .ac-modes { grid-area:2/1/auto/3;justify-self:center }
+  .ac-scroll { max-height:calc(100dvh - 246px);min-height:280px }
+  .ac-month { min-width:470px }
+  .ac-year { grid-template-columns:repeat(2,minmax(0,1fr));gap:14px }
+  .ac-all-new { opacity:.7 }
+}

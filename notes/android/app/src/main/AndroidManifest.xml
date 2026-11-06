@@ -4,7 +4,8 @@
     <application
         android:theme="@style/NotesTheme"
         android:label="Поля"
-        android:icon="@drawable/icon"
+        android:icon="@mipmap/polya_launcher"
+        android:roundIcon="@mipmap/polya_launcher"
         android:allowBackup="false"
         android:usesCleartextTraffic="false"
         android:supportsRtl="true">

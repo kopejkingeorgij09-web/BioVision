@@ -7,6 +7,8 @@ import android.graphics.Insets;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.SystemClock;
+import android.view.InputDevice;
 import android.view.MotionEvent;
 import android.view.WindowInsets;
 import android.webkit.JavascriptInterface;
@@ -34,6 +36,7 @@ public final class MainActivity extends Activity {
     private static final int PICK_FILES = 11;
     private WebView web;
     private ValueCallback<Uri[]> pendingFiles;
+    private volatile boolean penButtonDown;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -130,7 +133,61 @@ public final class MainActivity extends Activity {
         private final MotionEvent.PointerCoords[] coordinates = { new MotionEvent.PointerCoords() };
         PenWebView() { super(MainActivity.this); }
 
+        private boolean penButtonContact;
+        private int penSample;
+
+        private void publishPenButton(boolean down, boolean contact, boolean canceled, long time) {
+            boolean changed = down != penButtonDown || (down && contact && !penButtonContact);
+            penButtonDown = down;
+            penButtonContact = down && contact;
+            if (changed || canceled) {
+                evaluateJavascript("window.notesPenButton?.(" + down + "," + contact + "," + canceled + "," + time + ");", null);
+            }
+        }
+
+        private boolean observePenButton(MotionEvent event, boolean contact) {
+            boolean stylus = event.isFromSource(InputDevice.SOURCE_STYLUS);
+            for (int i = 0; !stylus && i < event.getPointerCount(); i++) {
+                int tool = event.getToolType(i);
+                stylus = tool == MotionEvent.TOOL_TYPE_STYLUS || tool == MotionEvent.TOOL_TYPE_ERASER;
+            }
+            if (!stylus) return false;
+            int sample = ++penSample;
+            int action = event.getActionMasked();
+            if (action == MotionEvent.ACTION_HOVER_EXIT) {
+                if (penButtonDown) postDelayed(() -> {
+                    if (sample == penSample) publishPenButton(false, false, true, SystemClock.uptimeMillis());
+                }, 170);
+                return false;
+            }
+            if (action == MotionEvent.ACTION_CANCEL) {
+                publishPenButton(false, false, true, event.getEventTime());
+                return false;
+            }
+            int mask = MotionEvent.BUTTON_STYLUS_PRIMARY | MotionEvent.BUTTON_STYLUS_SECONDARY | MotionEvent.BUTTON_SECONDARY;
+            int buttons = event.getButtonState();
+            if (action == MotionEvent.ACTION_BUTTON_PRESS) buttons |= event.getActionButton();
+            if (action == MotionEvent.ACTION_BUTTON_RELEASE) buttons &= ~event.getActionButton();
+            publishPenButton((buttons & mask) != 0, contact || penId >= 0, false, event.getEventTime());
+            return (action == MotionEvent.ACTION_BUTTON_PRESS || action == MotionEvent.ACTION_BUTTON_RELEASE)
+                && (event.getActionButton() & mask) != 0;
+        }
+
+        @Override public boolean dispatchGenericMotionEvent(MotionEvent event) {
+            if (observePenButton(event, false)) return true;
+            return super.dispatchGenericMotionEvent(event);
+        }
+
+        @Override public void onWindowFocusChanged(boolean focused) {
+            super.onWindowFocusChanged(focused);
+            if (!focused) {
+                ++penSample;
+                publishPenButton(false, false, true, SystemClock.uptimeMillis());
+            }
+        }
+
         @Override public boolean onTouchEvent(MotionEvent event) {
+            observePenButton(event, true);
             int action = event.getActionMasked();
             int index = event.getActionIndex();
             int type = event.getToolType(index);
@@ -185,6 +242,8 @@ public final class MainActivity extends Activity {
     }
 
     private final class InkBridge {
+        @JavascriptInterface public boolean penButtonPressed() { return penButtonDown; }
+
         @JavascriptInterface public void recognize(String points, String language) {
             if (points.length() > 2_000_000 || !("ru".equals(language) || "en".equals(language))) {
                 reply("", "Неподдерживаемый формат рукописи.");

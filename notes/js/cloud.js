@@ -11,6 +11,7 @@ let syncInFlight;
 
 function updateSession(next) {
   session = next?.access_token ? next : null;
+  if (session && !session.expires_at) session.expires_at = Math.floor(Date.now() / 1000) + session.expires_in;
   if (session) localStorage.setItem(sessionKey, JSON.stringify(session));
   else localStorage.removeItem(sessionKey);
 }
@@ -48,6 +49,13 @@ export async function signIn(email, password, create = false) {
   });
   updateSession(data);
   return Boolean(session);
+}
+
+export async function signInByCode(code) {
+  const normalized = code.toLowerCase().replace(/[\s-]/g, '');
+  if (!/^[a-f0-9]{32}$/.test(normalized)) throw new Error('Проверь формат персонального кода');
+  updateSession(await request('/functions/v1/notes-code', { method: 'POST', body: { code: normalized } }));
+  if (!session) throw new Error('Не удалось войти по коду');
 }
 
 export async function signOut() {

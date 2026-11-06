@@ -1,8 +1,10 @@
 import { edit, list, read } from './local.js';
-import { attachmentBlob, cloudEnabled, identity, libraryId, signIn, signOut, synchronize } from './cloud.js';
+import { attachmentBlob, cloudEnabled, identity, libraryId, signIn, signInByCode, signOut, synchronize } from './cloud.js';
 import { createSurface } from './ink.js';
-import { describeFile, openMedia, pdfBase } from './media.js';
+import { boardFilesWithPositions, boardFileWidth, describeFile, mountBoardFile, openMedia, pdfBase } from './media.js';
 import { button, element, textEditor } from './text.js';
+import { cloudConfig } from './config.js';
+import { createPenButton, defaultPenButton } from './pen-button.js';
 
 const $ = id => document.getElementById(id);
 const kinds = {
@@ -15,15 +17,26 @@ const layouts = { grid: 'Клетка', dots: 'Точка', lines: 'Линейк
 const tools = { pen: 'Перо', highlight: 'Маркер', erase: 'Ластик', lasso: 'Лассо', text: 'Текст', hand: 'Рука', line: 'Линия', rect: 'Прямоугольник', ellipse: 'Эллипс' };
 const blank = () => ({ id: crypto.randomUUID(), strokes: [], texts: [] });
 const preferenceKey = 'biovision-notes-pen';
+const themes = { system: 'Как в системе', white: 'Белая', gray: 'Серая', warm: 'Тёплая белая', violet: 'Тёмно-фиолетовая', green: 'Тёмно-зелёная', black: 'Чёрная' };
+const appVersion = { name: '0.3.0', code: 3 };
+const releaseBase = cloudConfig.url + '/storage/v1/object/public/notes-releases/';
+const darkMode = matchMedia('(prefers-color-scheme: dark)');
+const existingPrefs = JSON.parse(localStorage.getItem(preferenceKey) ?? '{}');
+const accountLabel = () => identity()?.app_metadata?.notes_access_code ? 'Аккаунт по коду' : identity()?.email ?? 'Войти';
 const prefs = {
   tool: 'pen', color: matchMedia('(prefers-color-scheme: dark)').matches ? '#eee9ff' : '#28223c',
-  width: 3, finger: false, ...JSON.parse(localStorage.getItem(preferenceKey) ?? '{}'),
+  width: 3, textPt: 12, finger: false, theme: 'system',
+  autoColor: !existingPrefs.color || ['#28223c', '#eee9ff'].includes(existingPrefs.color),
+  ...existingPrefs,
 };
 let scope = libraryId();
 let items = [];
 let current;
 let folder = null;
 let attachmentId = null;
+let boardFileId = null;
+let focusBoardFile = false;
+let moreInkTools = false;
 let editor = new AbortController();
 let writes = Promise.resolve();
 let syncTimer;
@@ -34,6 +47,60 @@ let selectedStrokes = [];
 let recognizedText;
 let shapeSelection;
 let failedWrite = false;
+let surfaces = [];
+let selectedText;
+let documentText;
+const notebookZoom = new Map();
+
+const buttonSettings = () => ({ ...defaultPenButton, ...prefs.penButton });
+let toolBeforeToggle;
+const penButton = createPenButton({
+  settings: buttonSettings,
+  enabled: () => Boolean(current && surfaces.length && !$('dialog').open),
+  changed: updateToolButtons,
+  activate(action) {
+    if (action === 'undo' || action === 'redo') { history(action === 'redo'); return; }
+    if (action === 'newText') { addTextBlock(); return; }
+    if (!tools[action] || action === 'hand' && !current?.data.pages?.length) return;
+    if (prefs.tool === action) {
+      chooseTool(toolBeforeToggle?.action === action ? toolBeforeToggle.previous : 'pen');
+      toolBeforeToggle = undefined;
+    } else {
+      toolBeforeToggle = { action, previous: prefs.tool };
+      chooseTool(action);
+    }
+  },
+});
+
+function chooseTool(tool) {
+  prefs.tool = tool;
+  remember();
+  updateToolButtons();
+}
+
+function updateToolButtons() {
+  const held = penButton.held();
+  const effective = held === 'none' ? prefs.tool : held;
+  for (const control of document.querySelectorAll('[data-ink-tool]')) {
+    control.setAttribute('aria-pressed', String(control.dataset.inkTool === effective));
+  }
+  const status = $('pen-button-status');
+  if (status) status.textContent = penButton.isPressed() ? 'Кнопка удерживается' : 'Кнопка отпущена';
+}
+
+window.notesPenButton = (down, contact, canceled, time) => penButton.input(down, contact, canceled, time);
+
+function sideTool(event, first) {
+  if (event.pointerType !== 'pen') return prefs.tool;
+  if (event.button === 5 || event.buttons & 32) return 'erase';
+  const native = window.NotesAndroid?.penButtonPressed;
+  const held = first && native ? window.NotesAndroid.penButtonPressed() : penButton.held() !== 'none';
+  if (held || (event.buttons & 2) || event.button === 2) {
+    const tool = buttonSettings().hold;
+    if (tool !== 'none') return tool;
+  }
+  return prefs.tool;
+}
 
 function message(text) {
   $('message').textContent = text;
@@ -65,9 +132,72 @@ function select(choices, value, label) {
   return control;
 }
 
+function applyTheme() {
+  document.documentElement.dataset.theme = prefs.theme === 'system' ? (darkMode.matches ? 'violet' : 'white') : prefs.theme;
+  if (prefs.autoColor) prefs.color = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim();
+  if ($('pen-color')) $('pen-color').value = prefs.color;
+}
 function remember() {
   localStorage.setItem(preferenceKey, JSON.stringify(prefs));
   $('content').classList.toggle('finger', prefs.finger);
+  const focus = Boolean(current && prefs.focusMode);
+  $('app').classList.toggle('focus-mode', focus);
+  $('focus-mode').setAttribute('aria-pressed', String(focus));
+  $('focus-mode').setAttribute('aria-label', focus ? 'Вернуть библиотеку' : 'Во весь экран');
+  $('focus-mode').title = focus ? 'Вернуть библиотеку' : 'Во весь экран';
+}
+
+function numberControl(id, title, value, min, max, step, change) {
+  const field = element('input');
+  field.type = 'number';
+  field.id = id;
+  field.min = min;
+  field.max = max;
+  field.step = step;
+  field.value = value;
+  field.setAttribute('aria-label', title);
+  field.onchange = () => {
+    const number = field.valueAsNumber;
+    const next = Number.isFinite(number) ? Math.min(max, Math.max(min, number)) : Number(value);
+    change(next);
+    field.value = next;
+  };
+  const label = labelled(title, field);
+  label.className = 'tool-number';
+  return label;
+}
+
+function addTextBlock() {
+  const host = $('content').getBoundingClientRect();
+  const visibleSurface = surfaces.map(surface => {
+    const rect = surface.host.getBoundingClientRect();
+    return { surface, size: Math.max(0, Math.min(rect.bottom, host.bottom) - Math.max(rect.top, host.top)) };
+  }).sort((a, b) => b.size - a.size)[0];
+  if (!visibleSurface) return;
+  const rect = visibleSurface.surface.host.getBoundingClientRect();
+  const top = Math.max(rect.top, host.top);
+  const bottom = Math.min(rect.bottom, host.bottom);
+  visibleSurface.surface.addTextNear(rect.left + Math.min(rect.width * .18, 115), top + Math.min((bottom - top) * .28, 140));
+}
+
+function setTextSize(pt) {
+  pt = Math.min(96, Math.max(6, pt));
+  if (selectedText) selectedText.edit({ pt });
+  else if (documentText) documentText(pt);
+  else { prefs.textPt = pt; remember(); }
+  if ($('text-pt')) $('text-pt').value = pt;
+}
+
+function textControls(bar, pt, withWidth) {
+  bar.append(numberControl('text-pt', 'Текст, pt', pt, 6, 96, 1, setTextSize));
+  if (withWidth) {
+    const width = numberControl('text-width', 'Ширина поля', 250, 48, 2200, 1, value => {
+      selectedText?.edit({ width: value });
+      queueMicrotask(() => { if ($('text-width') && selectedText) $('text-width').value = selectedText.width; });
+    });
+    width.querySelector('input').disabled = true;
+    bar.append(width);
+  }
 }
 
 function schedule(delay = 1200) {
@@ -117,8 +247,17 @@ function history(redo = false) {
   const [source, target] = redo ? [forward, back] : [back, forward];
   if (!current || !source.length) return;
   target.push(structuredClone(current.data));
+  const field = document.activeElement;
+  const id = field?.dataset.textId;
+  const textDocument = field?.matches('.text-note textarea');
+  const cursor = field?.selectionStart;
+  const scrollTop = $('content').scrollTop;
   save(source.pop());
   render();
+  $('content').scrollTop = scrollTop;
+  const focused = id ? $('content').querySelector('[data-text-id="' + id + '"]')
+    : textDocument ? $('content').querySelector('.text-note textarea') : null;
+  if (focused) { focused.focus(); focused.setSelectionRange(cursor, cursor); }
 }
 
 function updateUndo() {
@@ -190,7 +329,8 @@ function open(id, { replace = false } = {}) {
   if (id && !item) { message('Заметка не найдена на этом устройстве'); return; }
   if (item?.data.kind === 'folder') { folder = item.id; current = null; }
   else { current = item; folder = item?.data.parent ?? null; }
-  attachmentId = null;
+  attachmentId = boardFileId = null;
+  focusBoardFile = false;
   back = [];
   forward = [];
   const hash = item ? '#note=' + item.id : location.pathname + location.search;
@@ -313,27 +453,25 @@ function recognition() {
 }
 
 function inkControls(board, surface, withLayout) {
-  const bar = $('tools');
+  const bar = $('tools'), extra = $('extra-tools');
   if (!board && prefs.tool === 'hand') prefs.tool = 'pen';
-  const activeButtons = [];
-  for (const [key, label] of Object.entries(tools)) {
+  for (const key of ['pen', 'erase', 'highlight', 'lasso', 'text', 'hand', 'line', 'rect', 'ellipse']) {
+    const label = tools[key];
     if (key === 'hand' && !board) continue;
     const control = button(label, () => {
-      prefs.tool = key;
-      remember();
-      for (const [id, item] of activeButtons) item.setAttribute('aria-pressed', String(id === key));
+      toolBeforeToggle = undefined;
+      chooseTool(key);
     });
-    activeButtons.push([key, control]);
-    control.setAttribute('aria-pressed', String(key === prefs.tool));
+    control.dataset.inkTool = key;
     bar.append(control);
   }
   const color = element('input');
   color.type = 'color';
+  color.id = 'pen-color';
   color.value = prefs.color;
   color.setAttribute('aria-label', 'Цвет пера');
-  color.onchange = () => { prefs.color = color.value; remember(); };
-  const width = select({ 2: 'Тонкое', 3: 'Среднее', 6: 'Толстое', 10: 'Широкое' }, String(prefs.width), 'Толщина пера');
-  width.onchange = () => { prefs.width = Number(width.value); remember(); };
+  color.onchange = () => { prefs.color = color.value; prefs.autoColor = false; remember(); };
+  const width = numberControl('pen-width', 'Толщина пера', prefs.width, .5, 36, .1, value => { prefs.width = value; remember(); });
   const finger = button('Рисовать пальцем', () => {
     prefs.finger = !prefs.finger;
     finger.setAttribute('aria-pressed', String(prefs.finger));
@@ -347,7 +485,16 @@ function inkControls(board, surface, withLayout) {
   const straighten = button('Выровнять фигуру', () => shapeSelection?.());
   straighten.id = 'straighten';
   straighten.disabled = true;
-  bar.append(color, width, finger, recognize, straighten);
+  extra.append(color, width, finger, recognize, straighten);
+  textControls(extra, prefs.textPt, true);
+  const advanced = button('Дополнительно', () => {
+    moreInkTools = !moreInkTools;
+    extra.hidden = !moreInkTools;
+    advanced.setAttribute('aria-expanded', String(moreInkTools));
+  });
+  advanced.setAttribute('aria-expanded', String(moreInkTools));
+  extra.hidden = !moreInkTools;
+  bar.append(advanced);
   if (withLayout) {
     const paper = select(layouts, current.data.paper, 'Разметка');
     paper.onchange = () => {
@@ -357,14 +504,26 @@ function inkControls(board, surface, withLayout) {
         node.classList.add(paper.value);
       }
     };
-    bar.append(paper);
+    extra.append(paper, numberControl('grid-size', 'Шаг разметки', current.data.gridSize ?? 24, 8, 100, 1, value => {
+      mutate({ ...current.data, gridSize: value });
+      $('content').style.setProperty('--grid-size', value + 'px');
+    }));
   }
+  updateToolButtons();
   if (board) bar.append(button('−', () => surface.zoom(.8)), button('＋', () => surface.zoom(1.25)), button('Уместить', surface.fit));
 }
 
 function commonSurface() {
   return {
     settings: () => prefs, signal: editor.signal,
+    sideTool,
+    penContact: () => penButton.use(),
+    notifyText(text) {
+      selectedText = text;
+      $('text-pt').value = text.pt;
+      $('text-width').disabled = false;
+      $('text-width').value = text.width;
+    },
     notifySelection(strokes, insert, reshape) {
       selectedStrokes = strokes;
       recognizedText = insert;
@@ -375,26 +534,82 @@ function commonSurface() {
   };
 }
 
+function notebookViewport(root, pages, id, signal) {
+  let scale = notebookZoom.get(id) ?? 1;
+  const apply = () => {
+    const base = Math.max(120, Math.min(794, root.clientWidth - 30));
+    pages.style.setProperty('--sheet-width', base * scale + 'px');
+  };
+  function setScale(value, x, y) {
+    const viewport = root.getBoundingClientRect();
+    x ??= viewport.left + viewport.width / 2;
+    y ??= viewport.top + viewport.height / 2;
+    const target = Array.from(pages.querySelectorAll('.page')).reduce((best, page) => {
+      const rect = page.getBoundingClientRect();
+      const distance = Math.max(rect.top - y, y - rect.bottom, 0);
+      return !best || distance < best.distance ? { page, rect, distance } : best;
+    }, null);
+    scale = Math.min(3, Math.max(.4, value));
+    notebookZoom.set(id, scale);
+    apply();
+    if (target) {
+      const next = target.page.getBoundingClientRect();
+      root.scrollLeft += next.left + (x - target.rect.left) * next.width / target.rect.width - x;
+      root.scrollTop += next.top + (y - target.rect.top) * next.height / target.rect.height - y;
+    }
+    update();
+  }
+  const zoomOut = button('−', () => setScale(scale / 1.2));
+  const zoomIn = button('＋', () => setScale(scale * 1.2));
+  const fit = button('По ширине', () => setScale(1));
+  zoomOut.setAttribute('aria-label', 'Уменьшить масштаб листа');
+  zoomIn.setAttribute('aria-label', 'Увеличить масштаб листа');
+  fit.setAttribute('aria-label', 'Масштаб по ширине');
+  function update() {
+    fit.textContent = scale === 1 ? 'По ширине' : Math.round(scale * 100) + '% · По ширине';
+    zoomOut.disabled = scale <= .4;
+    zoomIn.disabled = scale >= 3;
+  }
+  const resize = new ResizeObserver(apply);
+  resize.observe(root);
+  signal.addEventListener('abort', () => resize.disconnect(), { once: true });
+  root.addEventListener('wheel', event => {
+    if (!event.ctrlKey && !event.metaKey) return;
+    event.preventDefault();
+    setScale(scale * Math.exp(-event.deltaY * .008), event.clientX, event.clientY);
+  }, { passive: false, signal });
+  apply();
+  update();
+  return { controls: [zoomOut, zoomIn, fit], pinch: (factor, x, y) => setScale(scale * factor, x, y) };
+}
+
 function render() {
+  const previousBoard = surfaces.find(surface => surface.host.dataset.note === current?.id);
   editor.abort();
   editor = new AbortController();
   selectedStrokes = [];
   recognizedText = null;
   shapeSelection = null;
-  const root = $('content'), bar = $('tools');
+  selectedText = documentText = undefined;
+  surfaces = [];
+  const root = $('content'), bar = $('tools'), extra = $('extra-tools');
   root.replaceChildren();
   bar.replaceChildren();
+  extra.replaceChildren();
+  extra.hidden = true;
   bar.hidden = !current;
   root.scrollTop = 0;
+  root.style.setProperty('--grid-size', (current?.data.gridSize ?? 24) + 'px');
   $('title').hidden = !current;
   $('heading').hidden = Boolean(current);
   $('heading').textContent = items.find(item => item.id === folder)?.data.title ?? 'Все заметки';
   $('more').hidden = !current;
+  $('focus-mode').hidden = !current;
   renderLibrary();
   remember();
   if (!current) { welcome(); return; }
   $('title').value = current.data.title;
-  const attachment = current.data.attachments?.find(item => item.id === attachmentId);
+  const attachment = current.data.kind === 'board' ? null : current.data.attachments?.find(item => item.id === attachmentId);
   const files = fileBar();
   if (files.childElementCount && (current.data.kind !== 'board' || attachment)) root.append(files);
   const undo = button('↶', () => history());
@@ -407,13 +622,27 @@ function render() {
     void openMedia(root, structuredClone(attachment), {
       library: scope, signal: editor.signal, surfaceOptions: commonSurface(), message,
       close() { attachmentId = null; render(); },
+      onSurface(surface) { surfaces = [surface]; selectedText = undefined; $('text-width').disabled = true; },
       onMark(updated, history) {
         mutate({ ...current.data, attachments: current.data.attachments.map(file => file.id === updated.id ? updated : file) }, history);
       },
     });
   } else if (current.data.kind === 'text') {
-    const field = textEditor(current.data.body, body => mutate({ ...current.data, body }, false), open);
+    let lastEdit = 0;
+    const field = textEditor(current.data.body, body => {
+      const now = Date.now();
+      mutate({ ...current.data, body }, now - lastEdit > 900);
+      lastEdit = now;
+    }, open);
+    function updateSize(pt) { field.root.style.setProperty('--note-font', pt + 'pt'); }
+    documentText = pt => {
+      mutate({ ...current.data, textPt: pt });
+      updateSize(pt);
+    };
+    const pt = current.data.textPt ?? 12;
+    updateSize(pt);
     root.append(field.root);
+    textControls(bar, pt, false);
     const fence = String.fromCharCode(96).repeat(3);
     const preview = button('Просмотр', () => {
       preview.textContent = field.toggle() ? 'Редактировать' : 'Просмотр';
@@ -428,6 +657,7 @@ function render() {
     const board = current.data.kind === 'board';
     const pages = board ? root : element('div', undefined, 'pages');
     if (!board) root.append(pages);
+    const notebook = board ? null : notebookViewport(root, pages, current.id, editor.signal);
     let surface;
     for (const [index, data] of current.data.pages.entries()) {
       const paper = element('div', undefined, 'paper ' + (board ? 'board ' : 'page ') + current.data.paper);
@@ -443,12 +673,49 @@ function render() {
         pages.append(wrap);
       }
       wrap.append(paper);
+      const worldLayers = board ? [element('div', undefined, 'board-world'), element('div', undefined, 'board-world board-world-controls')] : undefined;
+      if (worldLayers) {
+        paper.dataset.note = current.id;
+        paper.append(...worldLayers);
+      }
       surface = createSurface(paper, structuredClone(data), {
-        ...commonSurface(), board, width: 794,
+        ...commonSurface(), board, width: 794, worldLayers,
+        initialView: previousBoard?.view(),
+        pinch: notebook?.pinch,
         commit(next, history) {
           mutate({ ...current.data, pages: current.data.pages.map(page => page.id === data.id ? next : page) }, history);
         },
       });
+      surfaces.push(surface);
+      if (worldLayers) {
+        const boardFiles = boardFilesWithPositions(current.data.attachments ?? []);
+        const nav = element('nav', undefined, 'board-file-nav');
+        nav.setAttribute('aria-label', 'Файлы на доске');
+        for (const file of boardFiles) {
+          void mountBoardFile(...worldLayers, structuredClone(file), {
+            signal: editor.signal, library: scope, host: paper, surfaceOptions: commonSurface(),
+            onMark(updated, history) {
+              mutate({ ...current.data, attachments: current.data.attachments.map(item => item.id === updated.id ? updated : item) }, history);
+            },
+            onSurface(frame) {
+              surfaces.unshift(frame);
+              return () => { surfaces = surfaces.filter(item => item !== frame); selectedText = undefined; };
+            },
+          });
+          const focus = () => {
+            boardFileId = file.id;
+            for (const chip of nav.children) chip.setAttribute('aria-pressed', String(chip.dataset.file === file.id));
+            surface.focus(file.boardPosition.x, file.boardPosition.y, boardFileWidth);
+          };
+          const chip = button('▣ ' + file.name, focus);
+          chip.dataset.file = file.id;
+          chip.setAttribute('aria-pressed', String(file.id === boardFileId));
+          nav.append(chip);
+          if (file.id === boardFileId && focusBoardFile) focus();
+        }
+        if (nav.childElementCount) root.append(nav);
+        focusBoardFile = false;
+      }
     }
     inkControls(board, surface, true);
     if (!board) {
@@ -457,14 +724,13 @@ function render() {
         render();
         root.scrollTop = root.scrollHeight;
       };
-      bar.append(button('＋ Страница', addPage));
+      bar.append(...notebook.controls, button('＋ Страница', addPage));
       pages.append(button('＋ Страница', addPage));
     }
-    if (board && files.childElementCount) {
-      for (const item of current.data.attachments) bar.append(button('▣ ' + item.name, () => { attachmentId = item.id; render(); }));
-    }
+
   }
-  bar.append(button('Прикрепить', () => $('file-picker').click()), undo, redo);
+  const attach = button('Прикрепить', () => $('file-picker').click());
+  bar.append(attach, undo, redo);
   updateUndo();
 }
 
@@ -501,9 +767,11 @@ function more(item) {
       } catch (error) { report(error); }
     };
     dialog.append(form);
-    if (attachmentId) dialog.append(button('Отсоединить вложение', () => {
-      mutate({ ...current.data, attachments: current.data.attachments.filter(file => file.id !== attachmentId) });
-      attachmentId = null;
+    const selectedFile = current?.data.kind === 'board' ? boardFileId : attachmentId;
+    if (selectedFile) dialog.append(button('Отсоединить вложение', () => {
+      const attachments = current.data.kind === 'board' ? boardFilesWithPositions(current.data.attachments) : current.data.attachments;
+      mutate({ ...current.data, attachments: attachments.filter(file => file.id !== selectedFile) });
+      attachmentId = boardFileId = null;
       close(); render();
     }));
     dialog.append(button('Удалить', async () => {
@@ -554,17 +822,40 @@ async function changeAccount() {
   await writes.catch(() => {});
   scope = libraryId();
   items = await list('items', scope);
-  $('account').textContent = identity()?.email ?? 'Войти';
+  $('account').textContent = accountLabel();
   $('sync').textContent = identity() ? 'Сохранено локально' : 'Локальная библиотека';
   open(null, { replace: true });
   schedule(0);
+}
+
+function codeAccount() {
+  choose('Войти или создать аккаунт по коду', (dialog, close) => {
+    const form = element('form');
+    const code = element('input');
+    code.type = 'password';
+    code.required = true;
+    code.autocomplete = 'current-password';
+    code.placeholder = 'Персональный код';
+    const description = element('p', 'Введи выданный код. При первом входе появится аккаунт. Используй тот же код на всех устройствах.', 'muted');
+    const submit = element('button', 'Войти по коду', 'primary');
+    submit.type = 'submit';
+    form.append(description, labelled('Код доступа', code), submit, button('Войти по почте', emailAccount), button('Закрыть', close));
+    form.onsubmit = async event => {
+      event.preventDefault();
+      submit.disabled = true;
+      try { await signInByCode(code.value); close(); await changeAccount(); }
+      catch (error) { description.textContent = error.message; }
+      finally { submit.disabled = false; }
+    };
+    dialog.append(form);
+  });
 }
 
 function account() {
   if (!cloudEnabled) return message('Облачный проект пока не настроен');
   if (identity()) {
     choose('Аккаунт', (dialog, close) => {
-      dialog.append(element('p', identity().email), button('Синхронизировать', () => { close(); void runSync(); }));
+      dialog.append(element('p', accountLabel()), button('Синхронизировать', () => { close(); void runSync(); }));
       dialog.append(button('Выйти', async () => {
         close();
         await signOut();
@@ -573,7 +864,11 @@ function account() {
     });
     return;
   }
-  choose('Синхронизация заметок', (dialog, close) => {
+  codeAccount();
+}
+
+function emailAccount() {
+  choose('Вход по почте', (dialog, close) => {
     const form = element('form');
     const email = element('input'), password = element('input');
     email.type = 'email'; email.required = true; email.autocomplete = 'username';
@@ -583,7 +878,7 @@ function account() {
     const login = element('button', 'Войти', 'primary');
     const signup = element('button', 'Создать аккаунт');
     login.type = signup.type = 'submit';
-    actions.append(button('Закрыть', close), signup, login);
+    actions.append(button('Войти по коду', codeAccount), button('Закрыть', close), signup, login);
     form.append(description, labelled('Почта', email), labelled('Пароль', password), actions);
     form.onsubmit = async event => {
       event.preventDefault();
@@ -605,7 +900,16 @@ $('query').oninput = renderLibrary;
 $('more').onclick = () => { if (current) more(current); };
 $('account').onclick = account;
 $('sync').onclick = () => identity() ? runSync() : account();
-$('show-library').onclick = () => $('app').classList.add('library-open');
+$('show-library').onclick = () => {
+  prefs.focusMode = false;
+  remember();
+  $('app').classList.add('library-open');
+};
+$('focus-mode').onclick = () => {
+  prefs.focusMode = !prefs.focusMode;
+  $('app').classList.remove('library-open');
+  remember();
+};
 $('hide-library').onclick = () => $('app').classList.remove('library-open');
 $('title').onchange = () => {
   if (!current) return;
@@ -622,7 +926,10 @@ $('file-picker').onchange = async event => {
     if (current?.id !== target) break;
     try {
       const item = describeFile(file);
-      mutate({ ...current.data, attachments: [...current.data.attachments, item] }, true, {
+      const attachments = [...current.data.attachments, item];
+      const board = current.data.kind === 'board';
+      if (board) { boardFileId = item.id; focusBoardFile = true; }
+      mutate({ ...current.data, attachments: board ? boardFilesWithPositions(attachments) : attachments }, true, {
         library: scope, id: item.id, blob: file.slice(0, file.size, item.mime), remote: false,
       });
       await writes;
@@ -635,17 +942,101 @@ window.addEventListener('online', () => schedule(0));
 window.addEventListener('offline', () => { if (identity() && !failedWrite) $('sync').textContent = 'Офлайн · сохранено локально'; });
 window.addEventListener('focus', () => schedule(0));
 window.addEventListener('keydown', event => {
-  if (!(event.metaKey || event.ctrlKey) || event.isComposing || event.altKey) return;
-  if (event.code === 'KeyK') { event.preventDefault(); $('app').classList.add('library-open'); $('query').focus(); }
-  if (event.code === 'KeyZ' && !['INPUT', 'TEXTAREA'].includes(event.target.tagName)) {
+  if (event.key === 'Escape' && prefs.focusMode && !$('dialog').open) {
+    prefs.focusMode = false;
+    remember();
+  }
+  if (!(event.metaKey || event.ctrlKey) || event.isComposing || event.altKey || $('dialog').open) return;
+  if (event.code === 'KeyK') { event.preventDefault(); $('show-library').click(); $('query').focus(); }
+  const input = event.target.matches?.('input, textarea');
+  const editorInput = event.target.matches?.('.ink-text textarea, .text-note textarea');
+  if (current && (!input || editorInput) && event.code === 'KeyZ') {
+    const canUndo = (event.shiftKey ? forward : back).length;
+    if (canUndo) { event.preventDefault(); history(event.shiftKey); }
+  }
+  if (!current || (input && !editorInput)) return;
+  if (event.code === 'KeyY' && surfaces.length) { event.preventDefault(); addTextBlock(); }
+  if ($('text-pt') && ['Equal', 'Minus', 'NumpadAdd', 'NumpadSubtract'].includes(event.code)) {
     event.preventDefault();
-    history(event.shiftKey);
+    const plus = ['Equal', 'NumpadAdd'].includes(event.code);
+    setTextSize(Number($('text-pt').value) + (plus ? 1 : -1));
+  }
+  if (selectedText && ['KeyB', 'KeyI'].includes(event.code)) {
+    event.preventDefault();
+    const key = event.code === 'KeyB' ? 'bold' : 'italic';
+    selectedText.edit({ [key]: !selectedText[key] });
   }
 });
 
+async function checkUpdates(status, check) {
+  check.disabled = true;
+  status.textContent = 'Проверяю обновления…';
+  try {
+    const response = await fetch(releaseBase + 'latest.json', { cache: 'no-store', signal: AbortSignal.timeout(12000) });
+    if (!response.ok) throw new Error('Манифест обновлений недоступен');
+    const release = await response.json();
+    if (!Number.isSafeInteger(release.code) || !/^\d+\.\d+\.\d+$/.test(release.version)) throw new Error('Неверный манифест');
+    if (release.code <= appVersion.code) {
+      status.textContent = 'Установлена актуальная версия ' + appVersion.name;
+      return;
+    }
+    const android = Boolean(window.NotesAndroid);
+    const filename = android ? 'Polya-Android.apk' : 'Polya-macOS.zip';
+    const link = element('a', 'Скачать ' + release.version);
+    link.href = releaseBase + 'v' + release.version + '/' + filename;
+    status.replaceChildren(link, element('p', android
+      ? 'Открой скачанный APK и подтверди обновление.'
+      : 'Распакуй архив и замени старое приложение «Поля» новым.'));
+  } catch {
+    status.textContent = 'Не удалось проверить обновления. Попробуй ещё раз.';
+  } finally { check.disabled = false; }
+}
+
+function penButtonSettings() {
+  choose('Кнопка S Pen', (dialog, close) => {
+    const hold = { none: 'Ничего', pen: 'Перо', erase: 'Ластик', highlight: 'Маркер', lasso: 'Лассо' };
+    const tap = { ...hold, text: 'Инструмент «Текст»', newText: 'Новое текстовое поле', undo: 'Отменить', redo: 'Повторить' };
+    for (const [gesture, title, choices] of [
+      ['hold', 'Удержание', hold], ['tap', 'Один короткий щелчок', tap], ['double', 'Двойной щелчок', tap],
+    ]) {
+      const control = select(choices, buttonSettings()[gesture], title);
+      control.onchange = () => {
+        prefs.penButton = { ...buttonSettings(), [gesture]: control.value };
+        remember();
+        updateToolButtons();
+      };
+      dialog.append(labelled(title, control));
+    }
+    const status = element('p', '', 'muted');
+    status.id = 'pen-button-status';
+    status.setAttribute('role', 'status');
+    dialog.append(element('p', 'Поднеси кончик пера к экрану. Чтобы переключить инструмент, нажми и отпусти кнопку рядом с экраном. Чтобы воспользоваться временным инструментом, удерживай кнопку и коснись экрана.', 'muted'), status,
+      button('По умолчанию', () => { delete prefs.penButton; remember(); penButtonSettings(); }),
+      button('Закрыть', close));
+    updateToolButtons();
+  });
+}
+
+$('settings').onclick = () => choose('Настройки', (dialog, close) => {
+  const theme = select(themes, prefs.theme, 'Тема');
+  theme.onchange = () => { prefs.theme = theme.value; applyTheme(); remember(); };
+  dialog.append(labelled('Тема', theme), button('Цвет пера по теме', () => {
+    prefs.autoColor = true; applyTheme(); remember();
+  }), element('p', '⌘+/− меняет размер текста. ⌘Y добавляет текстовое поле. ⌘Z отменяет действие, ⇧⌘Z повторяет его. На других клавиатурах используй Ctrl.', 'muted'));
+  if (window.NotesAndroid) dialog.append(button('Кнопка S Pen', penButtonSettings));
+  if (window.NotesAndroid || window.NotesMac) {
+    const status = element('div', 'Версия ' + appVersion.name, 'muted');
+    const check = button('Проверить обновления', () => void checkUpdates(status, check));
+    dialog.append(status, check);
+  }
+  dialog.append(button('Закрыть', close));
+});
+darkMode.addEventListener('change', applyTheme);
+applyTheme();
+
 try {
   items = await list('items', scope);
-  $('account').textContent = identity()?.email ?? 'Войти';
+  $('account').textContent = accountLabel();
   const initial = location.hash.slice(6);
   if (initial && visible().some(item => item.id === initial)) open(initial, { replace: true });
   else render();

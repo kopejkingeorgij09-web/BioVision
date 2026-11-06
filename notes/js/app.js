@@ -1,11 +1,13 @@
 import { edit, list, read } from './local.js';
 import { attachmentBlob, cloudEnabled, identity, libraryId, signIn, signInByCode, signOut, synchronize } from './cloud.js';
 import { createSurface } from './ink.js';
-import { boardFilesWithPositions, boardFileWidth, describeFile, mountBoardFile, openMedia, pdfBase } from './media.js';
+import { boardFilesWithPositions, boardFileWidth, describeFile, mountBoardFile, openMedia, pdfBase, pdfSearchPages } from './media.js';
 import { button, element, textEditor } from './text.js';
 import { cloudConfig } from './config.js';
 import { createPenButton, defaultPenButton } from './pen-button.js';
 import { createUtilities } from './utilities.js';
+import { boardMap } from './board-map.js';
+import { handwritingLines, recognizeInk, searchText } from './note-search.js';
 
 const $ = id => document.getElementById(id);
 const kinds = {
@@ -19,7 +21,7 @@ const tools = { pen: 'Перо', highlight: 'Маркер', erase: 'Ластик
 const blank = () => ({ id: crypto.randomUUID(), strokes: [], texts: [] });
 const preferenceKey = 'biovision-notes-pen';
 const themes = { system: 'Как в системе', white: 'Белая', gray: 'Серая', warm: 'Тёплая белая', violet: 'Тёмно-фиолетовая', green: 'Тёмно-зелёная', black: 'Чёрная' };
-const appVersion = { name: '0.6.0', code: 7 };
+const appVersion = { name: '0.7.0', code: 8 };
 const releaseBase = cloudConfig.url + '/storage/v1/object/public/notes-releases/';
 const darkMode = matchMedia('(prefers-color-scheme: dark)');
 const existingPrefs = JSON.parse(localStorage.getItem(preferenceKey) ?? '{}');
@@ -56,6 +58,9 @@ let documentText;
 let objectClipboard;
 let selectionHost;
 const notebookZoom = new Map();
+const tabPositions = new Map();
+let tabIds = [], tabStamp;
+let pdfPage = 1;
 const utilities = createUtilities($('utilities'), $('timer-chip'), message);
 let fullscreen = false;
 
@@ -372,7 +377,6 @@ function inFolder(records, id) {
 function renderLibrary() {
   const nav = $('tree');
   const records = libraryItems();
-  const term = $('query').value.trim().toLocaleLowerCase('ru');
   nav.replaceChildren();
   function row(item, depth = 0) {
     const link = button(item ? kinds[item.data.kind][0] + '  ' + item.data.title : '⌂  Библиотека', () => open(item?.id));
@@ -382,21 +386,16 @@ function renderLibrary() {
     if (current?.id === item?.id && current || !current && (item?.id ?? null) === folder) link.setAttribute('aria-current', 'page');
     nav.append(link);
   }
-  if (term) {
-    for (const item of records.filter(item => [item.data.title, item.data.body ?? ''].some(value => value.toLocaleLowerCase('ru').includes(term)))) row(item);
-    if (!nav.childElementCount) nav.append(element('p', 'Ничего не найдено', 'muted'));
-  } else {
-    row(null);
-    const expanded = new Set(folderPath(folder, records).map(item => item.id));
-    function branch(parent, depth) {
-      for (const item of inFolder(records, parent).filter(item => item.data.kind === 'folder')) {
-        row(item, depth);
-        if (expanded.delete(item.id)) branch(item.id, depth + 1);
-      }
+  row(null);
+  const expanded = new Set(folderPath(folder, records).map(item => item.id));
+  function branch(parent, depth) {
+    for (const item of inFolder(records, parent).filter(item => item.data.kind === 'folder')) {
+      row(item, depth);
+      if (expanded.delete(item.id)) branch(item.id, depth + 1);
     }
-    branch(null, 0);
-    if (current) row(current);
   }
+  branch(null, 0);
+  if (current) row(current);
 }
 
 async function preload(item, owner) {
@@ -418,20 +417,74 @@ async function preload(item, owner) {
   }
 }
 
-function open(id, { replace = false } = {}) {
+const tabsKey = () => 'biovision-notes-tabs:' + scope;
+
+function loadTabs() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(tabsKey()));
+    tabIds = Array.isArray(saved?.ids) ? [...new Set(saved.ids)] : [];
+    return saved?.active;
+  } catch { tabIds = []; }
+}
+
+function renderTabs() {
+  const nav = $('note-tabs');
+  const byId = new Map(visible().filter(item => item.data.kind !== 'folder').map(item => [item.id, item]));
+  tabIds = tabIds.filter(id => byId.has(id));
+  const stamp = JSON.stringify([scope, current?.id, ...tabIds.map(id => [id, byId.get(id).data.title])]);
+  if (tabStamp === stamp) return;
+  tabStamp = stamp;
+  nav.replaceChildren();
+  nav.hidden = !tabIds.length;
+  for (const id of tabIds) {
+    const item = byId.get(id), active = id === current?.id;
+    const tab = element('div', undefined, 'note-tab');
+    const pick = button(kinds[item.data.kind][0] + ' ' + item.data.title, () => open(id));
+    pick.title = item.data.title;
+    if (active) pick.setAttribute('aria-current', 'page');
+    const dismiss = button('×', () => closeTab(id));
+    dismiss.setAttribute('aria-label', 'Закрыть вкладку «' + item.data.title + '»');
+    tab.append(pick, dismiss);
+    nav.append(tab);
+    if (active && (tab.offsetLeft < nav.scrollLeft || tab.offsetLeft + tab.offsetWidth > nav.scrollLeft + nav.clientWidth)) {
+      nav.scrollLeft = tab.offsetLeft - 8;
+    }
+  }
+  try { localStorage.setItem(tabsKey(), JSON.stringify({ ids: tabIds, active: current?.id ?? null })); } catch { /* Tabs still work in memory. */ }
+}
+
+function closeTab(id) {
+  const index = tabIds.indexOf(id);
+  tabIds = tabIds.filter(tab => tab !== id);
+  if (current?.id === id) open(tabIds[Math.min(index, tabIds.length - 1)] ?? folder);
+  else renderTabs();
+  tabPositions.delete(id);
+  $('note-tabs').querySelector('[aria-current]')?.focus({ preventScroll: true });
+}
+
+function open(id, { replace = false, target } = {}) {
   const item = items.find(entry => entry.id === id && !entry.deleted);
   if (id && !item) { message('Заметка не найдена на этом устройстве'); return; }
+  if (current && item?.id === current.id && !target && !replace) return;
+  if (current) tabPositions.set(current.id, { attachmentId, boardFileId, pdfPage, back, forward,
+    scroll: [$('content').scrollLeft, $('content').scrollTop] });
   if (item?.data.kind === 'folder') { folder = item.id; current = null; }
   else { current = item; folder = item?.data.parent ?? null; }
-  attachmentId = boardFileId = null;
+  if (current && !tabIds.includes(current.id)) tabIds.push(current.id);
+  const previous = current ? tabPositions.get(current.id) : undefined;
+  attachmentId = target ? target.file ?? null : previous?.attachmentId ?? null;
+  boardFileId = target ? target.file ?? null : previous?.boardFileId ?? null;
+  pdfPage = target?.pdfPage ?? previous?.pdfPage ?? 1;
   focusBoardFile = false;
-  back = [];
-  forward = [];
+  back = previous?.back ?? [];
+  forward = previous?.forward ?? [];
   const hash = item ? '#note=' + item.id : location.pathname + location.search;
   if (replace) window.history.replaceState(null, '', hash);
   else if ((item ? hash : '') !== location.hash) window.history.pushState(null, '', hash);
   $('app').classList.remove('library-open');
   render();
+  if (target) revealSearchResult(target);
+  else if (previous?.scroll) $('content').scrollTo(...previous.scroll);
   if (item) void preload(item, scope);
 }
 
@@ -546,7 +599,7 @@ function welcome() {
 function fileBar() {
   const bar = element('div', undefined, 'attachments');
   for (const item of current.data.attachments ?? []) {
-    const control = button(item.name, () => { attachmentId = item.id; render(); });
+    const control = button(item.name, () => { attachmentId = item.id; pdfPage = 1; render(); });
     control.setAttribute('aria-pressed', String(item.id === attachmentId));
     bar.append(control);
   }
@@ -578,20 +631,195 @@ function recognition() {
     const field = element('input');
     field.placeholder = 'Распознанный текст';
     const result = recognizedText;
-    const run = button('Распознать', () => {
-      if (!window.NotesAndroid?.recognize) { info.textContent = 'Распознавание доступно в Android-приложении.'; return; }
+    const strokes = selectedStrokes;
+    const run = button('Распознать', async () => {
       run.disabled = true;
-      window.notesInkResult = (text, error) => {
-        run.disabled = false;
-        if (error) info.textContent = error;
-        else field.value = text;
-      };
-      window.NotesAndroid.recognize(JSON.stringify(selectedStrokes.map(stroke => stroke.points)), lang.value);
+      try { field.value = await recognizeInk(strokes.map(stroke => stroke.points.map(([x, y, , time]) => [x, y, time])), lang.value); }
+      catch (error) { info.textContent = error.message; }
+      finally { run.disabled = false; }
     });
     dialog.append(info, lang, run, field, button('Вставить', () => {
       if (field.value.trim()) { result?.(field.value.trim()); close(); }
     }, 'primary'), button('Закрыть', close));
   });
+}
+
+function searchLibrary() {
+  choose('Поиск по заметкам', (dialog, close) => {
+    const owner = scope;
+    const field = element('input');
+    field.type = 'search'; field.placeholder = 'Слово или фраза'; field.setAttribute('aria-label', 'Запрос');
+    const state = element('p', 'Поиск по печатному тексту, PDF и распознанной рукописи.', 'muted');
+    const indexState = element('p', '', 'muted');
+    const results = element('div', undefined, 'search-results');
+    const indexControls = element('div', undefined, 'search-index');
+    const language = select({ ru: 'Русский', en: 'English' }, prefs.inkLanguage ?? 'ru', 'Язык распознавания');
+    language.onchange = () => { prefs.inkLanguage = language.value; remember(); };
+    let generation = 0, debounce;
+    let returnQuery;
+    const records = () => visible().filter(item => item.data.kind !== 'folder');
+    const openSearch = () => scope === owner && field.isConnected && dialog.open;
+
+    function result(item, text, source, target = {}, entry) {
+      const query = searchText(field.value);
+      const start = searchText(text).indexOf(query);
+      if (start < 0 || results.childElementCount >= 100) return;
+      const row = element('div', undefined, 'search-result');
+      const jump = button('', () => { close(); open(item.id, { target: { ...target, query } }); });
+      const snippet = text.slice(Math.max(0, start - 28), Math.min(text.length, start + query.length + 70));
+      jump.append(element('strong', item.data.title + ' · ' + source), element('small', snippet, 'muted'));
+      row.append(jump);
+      if (entry) row.append(button('Исправить', () => {
+        returnQuery = field.value;
+        choose('Исправить распознанный текст', (dialog, closeCorrection) => {
+          const form = element('form'), edit = element('input'), submit = element('button', 'Сохранить', 'primary');
+          edit.value = entry.text; submit.type = 'submit';
+          form.append(labelled('Текст рукописи', edit), submit, button('Отмена', () => { closeCorrection(); searchLibraryWith(returnQuery); }));
+          form.onsubmit = async event => {
+            event.preventDefault();
+            const latest = items.find(record => record.id === item.id && !record.deleted);
+            if (!latest) return;
+            try {
+              await save({ ...latest.data, handwriting: (latest.data.handwriting ?? []).map(line =>
+                line.key === entry.key ? { ...line, text: edit.value.trim(), corrected: true } : line) }, { item: latest });
+              closeCorrection(); searchLibraryWith(returnQuery);
+            } catch (error) { report(error); }
+          };
+          dialog.append(form);
+        });
+      }));
+      results.append(row);
+    }
+
+    async function search() {
+      if (!openSearch()) return;
+      const mine = ++generation, query = searchText(field.value);
+      results.replaceChildren();
+      if (!query) { state.textContent = 'Введи слово или фразу.'; return; }
+      const list = records(), pdfs = [];
+      for (const item of list) {
+        const { data } = item;
+        result(item, data.title, 'Название');
+        if (data.body) result(item, data.body, 'Текст', { text: true });
+        for (const [i, page] of (data.pages ?? []).entries()) {
+          const source = data.kind === 'board' ? 'Доска' : 'Страница ' + (i + 1);
+          for (const text of page.texts ?? []) result(item, text.text, source, { page: page.id, x: text.x, y: text.y, field: text.id });
+          const valid = (data.handwriting ?? []).filter(entry => entry.page === page.id);
+          if (valid.length) {
+            const lines = new Map(handwritingLines(page).map(line => [line.key, line]));
+            for (const entry of valid) {
+              const line = lines.get(entry.key);
+              if (line) result(item, entry.text, source + ' · рукопись', { page: line.page, x: line.x, y: line.y }, entry);
+            }
+          }
+        }
+        for (const bookmark of data.bookmarks ?? []) result(item, bookmark.label, 'Закладка', bookmark);
+        for (const file of data.attachments ?? []) {
+          result(item, file.name, 'Вложение', { file: file.id });
+          if (file.mime === 'application/pdf') pdfs.push([item, file]);
+        }
+      }
+      const live = () => mine === generation && openSearch();
+      let unavailable = 0, scans = 0;
+      if (pdfs.length) state.textContent = 'Ищу в текстовом слое PDF…';
+      for (let i = 0; i < pdfs.length && live(); i += 3) {
+        await Promise.all(pdfs.slice(i, i + 3).map(async ([item, file]) => {
+          try {
+            const pages = await pdfSearchPages(owner, file.id);
+            if (!live()) return;
+            if (!pages.some(Boolean)) scans++;
+            pages.forEach((text, index) => result(item, text, file.name + ' · стр. ' + (index + 1), { file: file.id, pdfPage: index + 1 }));
+          } catch { unavailable++; }
+        }));
+      }
+      if (live()) state.textContent = (results.childElementCount ? 'Найдено: ' + results.childElementCount : 'Ничего не найдено') +
+        (scans ? ' · PDF без текстового слоя: ' + scans : '') + (unavailable ? ' · Недоступно PDF: ' + unavailable : '');
+    }
+
+    const index = button('Распознать рукопись', async () => {
+      const lang = language.value;
+      index.disabled = language.disabled = true;
+      let completed = 0, processed = 0;
+      const work = records().filter(item => item.data.pages?.some(page => page.strokes?.length));
+      try {
+        for (const item of work) {
+          if (!openSearch()) break;
+          const saved = new Map((item.data.handwriting ?? []).map(entry => [entry.key, entry]));
+          const entries = [];
+          const lines = item.data.pages.flatMap(handwritingLines);
+          for (const { strokes, width, height, ...line } of lines) {
+            if (!openSearch()) break;
+            const existing = saved.get(line.key);
+            if (existing?.corrected || existing?.language === lang) entries.push(existing);
+            else {
+              indexState.textContent = item.data.title + ' · распознаю строку ' + (entries.length + 1) + ' из ' + lines.length;
+              const text = await recognizeInk(strokes, lang, width, height);
+              entries.push({ ...line, text, language: lang });
+              processed++;
+            }
+          }
+          const latest = items.find(entry => entry.id === item.id && !entry.deleted);
+          if (!openSearch()) break;
+          if (latest?.operation === item.operation && JSON.stringify(entries) !== JSON.stringify(item.data.handwriting ?? [])) {
+            await save({ ...latest.data, handwriting: entries }, { item: latest });
+          }
+          completed++;
+        }
+        indexState.textContent = 'Заметок проверено: ' + completed + ' · Новых строк: ' + processed;
+        if (openSearch()) void search();
+      } catch (error) { indexState.textContent = error.message; }
+      finally { index.disabled = language.disabled = false; }
+    });
+    if (window.NotesAndroid?.recognizeIndexed) indexControls.append(language, index);
+    else indexState.textContent = 'Рукопись для поиска можно распознать в приложении на Android.';
+    field.oninput = () => { generation++; clearTimeout(debounce); debounce = setTimeout(search, 180); };
+    dialog.append(field, state, indexControls, indexState, results, button('Закрыть', close));
+    field.focus();
+  });
+}
+
+function searchLibraryWith(query) {
+  searchLibrary();
+  const field = $('dialog').querySelector('input[type=search]');
+  field.value = query;
+  field.dispatchEvent(new Event('input'));
+}
+
+function revealSearchResult(target) {
+  const signal = editor.signal, root = $('content');
+  const board = surfaces.find(surface => surface.host.classList.contains('board'));
+  if (board && target.file) {
+    const find = () => {
+      const file = board.host.querySelector('.board-file[data-attachment="' + CSS.escape(target.file) + '"]');
+      if (!file) return false;
+      const sheet = target.pdfPage && file.querySelector('[data-page="' + target.pdfPage + '"]');
+      if (target.pdfPage && !sheet) return false;
+      board.focus(file.offsetLeft, file.offsetTop + (sheet?.offsetTop ?? 0), boardFileWidth);
+      (sheet || file).classList.add('search-landing');
+      return true;
+    };
+    if (!find()) {
+      const observer = new MutationObserver(() => { if (find()) { clearTimeout(stop); observer.disconnect(); } });
+      observer.observe(board.host, { subtree: true, childList: true });
+      const stop = setTimeout(() => { observer.disconnect(); if (!signal.aborted) message('Страница PDF ещё не загрузилась'); }, 20000);
+      signal.addEventListener('abort', () => { clearTimeout(stop); observer.disconnect(); }, { once: true });
+    }
+  } else if (board && Number.isFinite(target.x) && Number.isFinite(target.y)) {
+    board.jump(target.x, target.y, target.zoom);
+  } else if (!target.file && target.page) {
+    const page = root.querySelector('[data-page-id="' + CSS.escape(target.page) + '"]');
+    if (page) {
+      const rect = page.getBoundingClientRect();
+      root.scrollTop += rect.top - root.getBoundingClientRect().top + (target.y ?? 0) * rect.width / 794 - 75;
+      page.classList.add('search-landing');
+    }
+  }
+  const field = target.text ? root.querySelector('.text-note textarea') : target.field && root.querySelector('[data-text-id="' + CSS.escape(target.field) + '"]');
+  if (field) {
+    const start = searchText(field.value).indexOf(target.query);
+    field.focus({ preventScroll: true });
+    if (start >= 0) field.setSelectionRange(start, start + target.query.length);
+  }
 }
 
 function inkControls(board, surface, withLayout) {
@@ -614,6 +842,55 @@ function inkControls(board, surface, withLayout) {
   color.setAttribute('aria-label', 'Цвет пера');
   color.onchange = () => { prefs.color = color.value; prefs.autoColor = false; remember(); };
   const width = numberControl('pen-width', 'Толщина пера', prefs.width, .5, 36, .1, value => { prefs.width = value; remember(); });
+  const presets = element('div', undefined, 'pen-presets');
+  presets.setAttribute('aria-label', 'Избранные перья');
+  const colors = () => prefs.penPresets ?? [
+    { color: '#5b55d0', width: 2 }, { color: '#238561', width: 3 }, { color: '#d25c54', width: 5 },
+  ];
+  function drawPresets() {
+    presets.replaceChildren();
+    for (const [index, item] of colors().entries()) {
+      const control = button('', () => {
+        prefs.color = color.value = item.color;
+        prefs.width = width.querySelector('input').valueAsNumber = item.width;
+        prefs.autoColor = false;
+        chooseTool('pen');
+        drawPresets();
+        presets.children[index]?.focus();
+      });
+      control.title = 'Перо ' + (index + 1) + ' · ' + item.width;
+      control.setAttribute('aria-label', control.title);
+      const swatch = element('span', undefined, 'pen-swatch');
+      swatch.style.setProperty('--swatch', item.color);
+      swatch.style.setProperty('--tip', Math.min(8, item.width + 1) + 'px');
+      control.append(swatch);
+      presets.append(control);
+    }
+  }
+  drawPresets();
+  bar.append(presets);
+  const editPresets = button('Настроить перья', () => choose('Избранные перья', (dialog, close) => {
+    const form = element('form');
+    const fields = colors().map((item, i) => {
+      const row = element('div', undefined, 'preset-field');
+      const shade = element('input');
+      shade.type = 'color'; shade.value = item.color;
+      const size = element('input');
+      size.type = 'number'; size.min = '.5'; size.max = '36'; size.step = '.1'; size.value = item.width; size.required = true;
+      row.append(labelled('Цвет пера ' + (i + 1), shade), labelled('Толщина', size));
+      form.append(row);
+      return [shade, size];
+    });
+    const apply = element('button', 'Сохранить', 'primary');
+    apply.type = 'submit';
+    form.append(apply, button('Отмена', close));
+    form.onsubmit = event => {
+      event.preventDefault();
+      prefs.penPresets = fields.map(([shade, size]) => ({ color: shade.value, width: size.valueAsNumber }));
+      remember(); drawPresets(); close();
+    };
+    dialog.append(form);
+  }));
   const finger = button('Рисовать пальцем', () => {
     prefs.finger = !prefs.finger;
     finger.setAttribute('aria-pressed', String(prefs.finger));
@@ -630,7 +907,7 @@ function inkControls(board, surface, withLayout) {
   const paste = button('Вставить объекты', pasteObjects);
   paste.id = 'paste-objects';
   paste.disabled = !objectClipboard;
-  extra.append(color, width, finger, recognize, straighten, paste);
+  extra.append(color, width, editPresets, finger, recognize, straighten, paste);
   textControls(extra, prefs.textPt, true);
   const advanced = button('Дополнительно', () => {
     moreInkTools = !moreInkTools;
@@ -790,6 +1067,7 @@ function render() {
   $('fullscreen').hidden = !current && !fullscreen;
   if (!current && fullscreen) void setFullscreen(false);
   renderLibrary();
+  renderTabs();
   remember();
   if (!current) { welcome(); return; }
   $('title').value = current.data.title;
@@ -805,6 +1083,7 @@ function render() {
     inkControls(false, null, false);
     void openMedia(root, structuredClone(attachment), {
       library: scope, signal: editor.signal, surfaceOptions: commonSurface(), message,
+      initialPage: pdfPage, onPage: value => { pdfPage = value; },
       close() { attachmentId = null; render(); },
       onSurface(surface) { surfaces = [surface]; selectedText = undefined; $('text-width').disabled = true; },
       onMark(updated, history) {
@@ -842,9 +1121,10 @@ function render() {
     const pages = board ? root : element('div', undefined, 'pages');
     if (!board) root.append(pages);
     const notebook = board ? null : notebookViewport(root, pages, current.id, editor.signal);
-    let surface;
+    let surface, map;
     for (const [index, data] of current.data.pages.entries()) {
       const paper = element('div', undefined, 'paper ' + (board ? 'board ' : 'page ') + current.data.paper);
+      paper.dataset.pageId = data.id;
       const wrap = board ? pages : element('section', undefined, 'page-wrap');
       if (!board) {
         const label = element('div', 'Страница ' + (index + 1), 'page-label');
@@ -859,12 +1139,15 @@ function render() {
       wrap.append(paper);
       const worldLayers = board ? [element('div', undefined, 'board-world'), element('div', undefined, 'board-world board-world-controls')] : undefined;
       if (worldLayers) paper.append(...worldLayers);
+      const camera = board ? boardViewport(current.id, editor.signal) : {};
       surface = createSurface(paper, structuredClone(data), {
         ...commonSurface(), board, width: 794, worldLayers,
-        ...(board ? boardViewport(current.id, editor.signal) : {}),
+        ...camera,
+        onViewChange(view) { camera.onViewChange?.(view); map?.update(); },
         pinch: notebook?.pinch,
         commit(next, history) {
           mutate({ ...current.data, pages: current.data.pages.map(page => page.id === data.id ? next : page) }, history);
+          map?.update();
         },
       });
       surfaces.push(surface);
@@ -882,7 +1165,7 @@ function render() {
               surfaces.unshift(frame);
               return () => { surfaces = surfaces.filter(item => item !== frame); selectedText = undefined; };
             },
-          });
+          }).then(() => map?.update());
           const focus = () => {
             boardFileId = file.id;
             for (const chip of nav.children) chip.setAttribute('aria-pressed', String(chip.dataset.file === file.id));
@@ -899,6 +1182,18 @@ function render() {
       }
     }
     inkControls(board, surface, true);
+    if (board) {
+      map = boardMap(surface, () => current.data, bookmarks => mutate({ ...current.data, bookmarks }),
+        (title, value, done) => choose(title, (dialog, close) => {
+          const form = element('form'), field = element('input'), save = element('button', 'Сохранить', 'primary');
+          field.value = value; field.required = true; field.maxLength = 80; save.type = 'submit';
+          form.append(labelled('Название закладки', field), save, button('Отмена', close));
+          form.onsubmit = event => { event.preventDefault(); if (field.value.trim()) { done(field.value.trim()); close(); } };
+          dialog.append(form);
+        }), editor.signal);
+      bar.append(map.control);
+      root.append(map.panel);
+    }
     if (!board) {
       const addPage = () => {
         mutate({ ...current.data, pages: [...current.data.pages, blank()] });
@@ -917,7 +1212,7 @@ function render() {
 
 function more(item) {
   choose('Действия', (dialog, close) => {
-    if (current?.id === item.id) dialog.append(button('Инструменты', () => { close(); utilities.open(); }));
+    if (current?.id === item.id) dialog.append(button('Инструменты', () => { close(); utilities.open(); }), button('Поиск по заметкам', searchLibrary));
     const form = element('form');
     const title = element('input');
     title.value = item.data.title;
@@ -1005,6 +1300,7 @@ async function runSync() {
     } else {
       if (selected) current = selected;
       renderLibrary();
+      renderTabs();
       if (libraryChanged) welcome();
     }
     if (result.conflicts) message('Правки с двух устройств сохранены отдельными версиями');
@@ -1018,12 +1314,15 @@ async function runSync() {
 
 async function changeAccount() {
   await writes.catch(() => {});
+  current = null;
+  tabPositions.clear();
   scope = libraryId();
+  const active = loadTabs();
   objectClipboard = undefined;
   items = await list('items', scope);
   $('account').textContent = accountLabel();
   $('sync').textContent = identity() ? 'Сохранено локально' : 'Локальная библиотека';
-  open(null, { replace: true });
+  open(items.some(item => item.id === active && !item.deleted) ? active : null, { replace: true });
   schedule(0);
 }
 
@@ -1095,7 +1394,7 @@ function emailAccount() {
 }
 
 $('new-item').onclick = () => createDialog();
-$('query').oninput = renderLibrary;
+$('query').onclick = searchLibrary;
 $('back-to-folder').onclick = () => open(folder);
 $('more').onclick = () => { if (current) more(current); };
 $('account').onclick = account;
@@ -1115,7 +1414,7 @@ $('hide-library').onclick = () => $('app').classList.remove('library-open');
 $('title').onchange = () => {
   if (!current) return;
   const title = $('title').value.trim();
-  if (title) { mutate({ ...current.data, title }); renderLibrary(); }
+  if (title) { mutate({ ...current.data, title }); renderLibrary(); renderTabs(); }
   else $('title').value = current.data.title;
 };
 $('title').onkeydown = event => { if (event.key === 'Enter' && !event.isComposing) event.target.blur(); };
@@ -1157,7 +1456,14 @@ window.addEventListener('keydown', event => {
     remember();
   }
   if (!(event.metaKey || event.ctrlKey) || event.isComposing || event.altKey || $('dialog').open) return;
-  if (event.code === 'KeyK') { event.preventDefault(); $('show-library').click(); $('query').focus(); }
+  if (event.code === 'KeyK') { event.preventDefault(); searchLibrary(); }
+  if (event.code === 'PageUp' || event.code === 'PageDown') {
+    const index = tabIds.indexOf(current?.id);
+    if (tabIds.length > 1) {
+      event.preventDefault();
+      open(tabIds[(Math.max(0, index) + (event.code === 'PageDown' ? 1 : tabIds.length - 1)) % tabIds.length]);
+    }
+  }
   const input = event.target.matches?.('input, textarea');
   const editorInput = event.target.matches?.('.ink-text textarea, .text-note textarea');
   if (current && (!input || editorInput) && event.code === 'KeyZ') {
@@ -1277,7 +1583,8 @@ applyTheme();
 try {
   items = await list('items', scope);
   $('account').textContent = accountLabel();
-  const initial = location.hash.slice(6);
+  const active = loadTabs();
+  const initial = location.hash.slice(6) || active;
   if (initial && visible().some(item => item.id === initial)) open(initial, { replace: true });
   else render();
   schedule(0);

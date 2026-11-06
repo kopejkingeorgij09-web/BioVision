@@ -18,7 +18,7 @@
   <div id="app">
     <aside id="library" aria-label="Библиотека">
       <header class="brand"><img src="icon.svg" alt=""><div><b>Поля</b><small>Библиотека заметок</small></div><button id="hide-library" type="button" aria-label="Закрыть библиотеку">×</button></header>
-      <label class="search"><span aria-hidden="true">⌕</span><input id="query" type="search" placeholder="Поиск в библиотеке" aria-label="Поиск в библиотеке"></label>
+      <button id="query" type="button" class="search">⌕ Поиск по заметкам</button>
       <button id="new-item" type="button" class="primary">＋ Создать</button>
       <nav id="tree" aria-label="Папки и заметки"></nav>
       <footer><button id="sync" type="button">Локальная библиотека</button><button id="account" type="button">Войти</button></footer>
@@ -34,6 +34,7 @@
         <button id="settings" type="button" aria-label="Настройки">⚙</button>
         <button id="more" type="button" aria-label="Действия с заметкой" hidden>•••</button>
       </header>
+      <nav id="note-tabs" aria-label="Открытые заметки" hidden></nav>
       <div id="tools" hidden></div>
       <div id="extra-tools" hidden></div>
       <div id="content"></div>

@@ -36,7 +36,16 @@ function outline(points, width) {
 function shapeNode(stroke) {
   const { points, tool, width } = stroke;
   const legacyAuto = ['#28223c', '#eee9ff'].includes(stroke.color);
-  const color = stroke.color === 'auto' || legacyAuto ? (tool === 'highlight' ? '#e8af2d' : 'var(--ink)') : stroke.color;
+  let color = stroke.color === 'auto' || legacyAuto ? (tool === 'highlight' ? '#e8af2d' : 'var(--ink)') : stroke.color;
+  if (tool !== 'highlight' && !stroke.fixedColor && color !== '#25242d' && /^#[0-9a-f]{6}$/i.test(color)) {
+    const rgb = color.slice(1).match(/../g).map(value => {
+      const channel = parseInt(value, 16) / 255;
+      return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+    });
+    const luminance = rgb[0] * .2126 + rgb[1] * .7152 + rgb[2] * .0722;
+    if (luminance > .60) color = 'var(--light-ink-fallback,' + color + ')';
+    else if (luminance < .13) color = 'var(--dark-ink-fallback,' + color + ')';
+  }
   const [x1, y1] = points[0], [x2, y2] = points.at(-1);
   const attrs = { fill: 'none', stroke: color, 'stroke-width': width, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
   if (tool === 'line') return svg('line', { ...attrs, x1, y1, x2, y2 });
@@ -480,7 +489,8 @@ export function createSurface(host, content, options) {
     });
     active = {
       id: crypto.randomUUID(), pointer: event.pointerId, pointerType: event.pointerType, tool,
-      color: onPdf && tool !== 'highlight' ? '#25242d' : prefs.autoColor ? 'auto' : prefs.color, width: prefs.width, points: [point], erased: new Set(),
+      color: onPdf && tool !== 'highlight' ? '#25242d' : prefs.autoColor ? 'auto' : prefs.color,
+      fixedColor: onPdf, width: prefs.width, points: [point], erased: new Set(),
       screen: [event.clientX, event.clientY],
     };
     if (tool === 'erase') erase(point);
@@ -582,7 +592,7 @@ export function createSurface(host, content, options) {
 
   function finishStroke(event, save) {
     if (!active || active.pointer !== event.pointerId) return;
-    const { id, points, tool, color, width, erased, shape } = active;
+    const { id, points, tool, color, fixedColor, width, erased, shape } = active;
     clearTimeout(shapeTimer);
     active = null;
     preview.replaceChildren();
@@ -640,6 +650,7 @@ export function createSurface(host, content, options) {
     const stroke = shape
       ? { id, points: shape.points, tool: shape.tool, color, width, ...(shape.geometry ? { geometry: shape.geometry } : {}) }
       : { id, points: ['line', 'rect', 'ellipse'].includes(tool) ? [points[0], points.at(-1)] : points, tool, color, width };
+    if (fixedColor) stroke.fixedColor = true;
     update({ ...state, strokes: [...(state.strokes ?? []), stroke] });
   }
   for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) surface.addEventListener(type, end);
@@ -661,6 +672,16 @@ export function createSurface(host, content, options) {
   render();
   return {
     host,
+    camera() {
+      return { x: (width / 2 - view.x) / view.zoom, y: (height / 2 - view.y) / view.zoom,
+        zoom: view.zoom, width: width / view.zoom, height: height / view.zoom };
+    },
+    jump(x, y, zoom = view.zoom) {
+      if (!board) return;
+      zoom = limit(zoom, .15, 6);
+      view = { x: width / 2 - x * zoom, y: height / 2 - y * zoom, zoom };
+      renderView();
+    },
     deselect() { clearSelection(); render(); },
     paste(data) {
       const points = data.strokes.flatMap(stroke => stroke.points).concat(data.texts.map(text => [text.x, text.y]));

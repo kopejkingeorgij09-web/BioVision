@@ -30,6 +30,10 @@ import com.google.mlkit.vision.digitalink.recognition.DigitalInkRecognitionModel
 import com.google.mlkit.vision.digitalink.recognition.DigitalInkRecognizer;
 import com.google.mlkit.vision.digitalink.recognition.DigitalInkRecognizerOptions;
 import com.google.mlkit.vision.digitalink.recognition.Ink;
+import com.google.mlkit.vision.digitalink.recognition.RecognitionContext;
+import com.google.mlkit.vision.digitalink.recognition.WritingArea;
+import java.util.HashMap;
+import java.util.Map;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -42,6 +46,7 @@ public final class MainActivity extends Activity {
     private ValueCallback<Uri[]> pendingFiles;
     private volatile boolean penButtonDown;
     private boolean fullscreen;
+    private final Map<String, DigitalInkRecognizer> recognizers = new HashMap<>();
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -150,6 +155,8 @@ public final class MainActivity extends Activity {
     @Override protected void onDestroy() {
         if (pendingFiles != null) pendingFiles.onReceiveValue(null);
         pendingFiles = null;
+        for (DigitalInkRecognizer recognizer : recognizers.values()) recognizer.close();
+        recognizers.clear();
         web.destroy();
         super.onDestroy();
     }
@@ -290,53 +297,65 @@ public final class MainActivity extends Activity {
             runOnUiThread(() -> { if (!isDestroyed()) MainActivity.this.setFullscreen(enabled); });
         }
 
-        @JavascriptInterface public void recognize(String points, String language) {
+        @JavascriptInterface public void recognizeIndexed(int request, String points, String language, float width, float height) {
             if (points.length() > 2_000_000 || !("ru".equals(language) || "en".equals(language))) {
-                reply("", "Неподдерживаемый формат рукописи.");
+                reply(request, "", "Неподдерживаемый формат рукописи.");
                 return;
             }
-            runOnUiThread(() -> recognizeInk(points, language));
+            runOnUiThread(() -> recognizeInk(request, points, language, width, height));
         }
     }
 
-    private void recognizeInk(String points, String language) {
+    private void recognizeInk(int request, String points, String language, float width, float height) {
         try {
             Ink.Builder ink = Ink.builder();
             JSONArray strokes = new JSONArray(points);
+            long previousTime = 0;
             for (int i = 0; i < strokes.length(); i++) {
                 JSONArray samples = strokes.getJSONArray(i);
                 Ink.Stroke.Builder stroke = Ink.Stroke.builder();
                 for (int j = 0; j < samples.length(); j++) {
                     JSONArray sample = samples.getJSONArray(j);
-                    stroke.addPoint(Ink.Point.create((float) sample.getDouble(0), (float) sample.getDouble(1)));
+                    previousTime = Math.max(previousTime + 1, sample.optLong(2, previousTime + 1));
+                    stroke.addPoint(Ink.Point.create((float) sample.getDouble(0), (float) sample.getDouble(1), previousTime));
                 }
                 if (samples.length() > 0) ink.addStroke(stroke.build());
             }
             String tag = "ru".equals(language) ? "ru-RU" : "en-US";
+            DigitalInkRecognizer cached = recognizers.get(tag);
+            if (cached != null) {
+                recognizeWith(request, cached, ink.build(), width, height);
+                return;
+            }
             DigitalInkRecognitionModelIdentifier identifier = DigitalInkRecognitionModelIdentifier.fromLanguageTag(tag);
-            if (identifier == null) { reply("", "Языковая модель недоступна."); return; }
+            if (identifier == null) { reply(request, "", "Языковая модель недоступна."); return; }
             DigitalInkRecognitionModel model = DigitalInkRecognitionModel.builder(identifier).build();
             RemoteModelManager.getInstance().download(model, new DownloadConditions.Builder().build())
                 .addOnSuccessListener(unused -> {
-                    DigitalInkRecognizer recognizer = DigitalInkRecognition.getClient(DigitalInkRecognizerOptions.builder(model).build());
-                    recognizer.recognize(ink.build())
-                        .addOnSuccessListener(result -> {
-                            if (result.getCandidates().isEmpty()) reply("", "Не удалось распознать текст.");
-                            else reply(result.getCandidates().get(0).getText(), "");
-                        })
-                        .addOnFailureListener(error -> reply("", "Ошибка распознавания: " + error.getMessage()))
-                        .addOnCompleteListener(task -> recognizer.close());
+                    if (isDestroyed()) return;
+                    DigitalInkRecognizer recognizer = recognizers.computeIfAbsent(tag,
+                        key -> DigitalInkRecognition.getClient(DigitalInkRecognizerOptions.builder(model).build()));
+                    recognizeWith(request, recognizer, ink.build(), width, height);
                 })
-                .addOnFailureListener(error -> reply("", "Не удалось скачать языковую модель: " + error.getMessage()));
+                .addOnFailureListener(error -> reply(request, "", "Не удалось скачать языковую модель: " + error.getMessage()));
         } catch (Exception error) {
-            reply("", "Ошибка чтения штрихов: " + error.getMessage());
+            reply(request, "", "Ошибка чтения штрихов: " + error.getMessage());
         }
     }
 
-    private void reply(String text, String error) {
+    private void recognizeWith(int request, DigitalInkRecognizer recognizer, Ink ink, float width, float height) {
+        var task = width > 0 && height > 0
+            ? recognizer.recognize(ink, RecognitionContext.builder().setWritingArea(new WritingArea(width, height)).build())
+            : recognizer.recognize(ink);
+        task.addOnSuccessListener(result ->
+                reply(request, result.getCandidates().isEmpty() ? "" : result.getCandidates().get(0).getText(), ""))
+            .addOnFailureListener(error -> reply(request, "", "Ошибка распознавания: " + error.getMessage()));
+    }
+
+    private void reply(int request, String text, String error) {
         runOnUiThread(() -> {
             if (!isFinishing() && !isDestroyed()) web.evaluateJavascript(
-                "window.notesInkResult?.(" + JSONObject.quote(text) + "," + JSONObject.quote(error) + ");", null);
+                "window.notesIndexedInkResult?.(" + request + "," + JSONObject.quote(text) + "," + JSONObject.quote(error) + ");", null);
         });
     }
 }

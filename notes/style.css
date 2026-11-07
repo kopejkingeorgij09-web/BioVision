@@ -316,3 +316,8 @@ dialog :is(select, input) { min-width: 0; max-width: 100%; }
   .search-landing { animation: search-outline 1.4s ease-out forwards; }
   @keyframes search-outline { to { outline-color: transparent; } }
 }
+
+.trash-list { display: grid; gap: 6px; max-height: 50vh; overflow: auto; margin-bottom: 10px; }
+.trash-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.trash-row > span { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
+.erase-trail { stroke: rgba(127, 127, 140, .28); pointer-events: none; }

@@ -1,4 +1,5 @@
-import { edit, list, read } from './local.js';
+import { edit, list, put, read } from './local.js';
+import { exportBackup, readBackup, saveFile } from './backup.js';
 import { attachmentBlob, cloudEnabled, identity, libraryId, signIn, signInByCode, signOut, synchronize } from './cloud.js';
 import { createSurface } from './ink.js';
 import { boardFilesWithPositions, boardFileWidth, describeFile, mountBoardFile, openMedia, pdfResources, pdfSearchPages } from './media.js';
@@ -22,7 +23,7 @@ const tools = { pen: 'Перо', highlight: 'Маркер', erase: 'Ластик
 const blank = () => ({ id: crypto.randomUUID(), strokes: [], texts: [] });
 const preferenceKey = 'biovision-notes-pen';
 const themes = { system: 'Как в системе', white: 'Белая', gray: 'Серая', warm: 'Тёплая белая', violet: 'Тёмно-фиолетовая', green: 'Тёмно-зелёная', black: 'Чёрная' };
-const appVersion = { name: '0.7.1', code: 9 };
+const appVersion = { name: '0.8.0', code: 10 };
 const releaseBase = cloudConfig.url + '/storage/v1/object/public/notes-releases/';
 const darkMode = matchMedia('(prefers-color-scheme: dark)');
 const existingPrefs = JSON.parse(localStorage.getItem(preferenceKey) ?? '{}');
@@ -1043,7 +1044,9 @@ function inkControls(board, surface, withLayout) {
   const paste = button('Вставить объекты', pasteObjects);
   paste.id = 'paste-objects';
   paste.disabled = !objectClipboard;
-  extra.append(color, width, editPresets, finger, recognize, straighten, paste);
+  const eraser = select({ stroke: 'Ластик: штрих целиком', partial: 'Ластик: частично', highlight: 'Ластик: только маркер' }, prefs.eraseMode ?? 'stroke', 'Режим ластика');
+  eraser.onchange = () => { prefs.eraseMode = eraser.value; remember(); chooseTool('erase'); };
+  extra.append(color, width, eraser, editPresets, finger, recognize, straighten, paste);
   textControls(extra, prefs.textPt, true);
   const advanced = button('Дополнительно', () => {
     moreInkTools = !moreInkTools;
@@ -1778,6 +1781,82 @@ function penButtonSettings() {
   });
 }
 
+function trash() {
+  choose('Корзина', (dialog, close) => {
+    const removed = items.filter(item => item.deleted && !item.data.purged)
+      .sort((a, b) => (b.modified ?? 0) - (a.modified ?? 0));
+    if (!removed.length) dialog.append(element('p', 'Корзина пуста', 'muted'));
+    const list = element('div', undefined, 'trash-list');
+    for (const item of removed) {
+      const row = element('div', undefined, 'trash-row');
+      const when = item.modified ? new Date(item.modified).toLocaleDateString('ru-RU') : '';
+      row.append(element('span', item.data.title + (when ? ' · ' + when : '')),
+        button('Вернуть', async () => {
+          try {
+            const parent = visible().some(entry => entry.id === item.data.parent && entry.data.kind === 'folder') ? item.data.parent : null;
+            await save({ ...item.data, parent }, { item, deleted: false });
+            row.remove(); render();
+          } catch (error) { report(error); }
+        }),
+        button('Удалить навсегда', async () => {
+          if (!confirm('Удалить «' + item.data.title + '» навсегда? Вернуть будет нельзя.')) return;
+          try {
+            // Запись остаётся как метка удаления, чтобы другие устройства тоже её убрали.
+            await save({ kind: item.data.kind, title: item.data.title, parent: null, purged: true }, { item, deleted: true });
+            row.remove();
+          } catch (error) { report(error); }
+        }));
+      list.append(row);
+    }
+    dialog.append(list, button('Закрыть', close));
+  });
+}
+
+async function backupLibrary() {
+  try {
+    message('Готовлю резервную копию…');
+    flushWrites();
+    const records = items.filter(item => !item.data.purged);
+    const owner = scope;
+    const { blob, missing, count } = await exportBackup(records, id => attachmentBlob(owner, id));
+    const date = new Date().toISOString().slice(0, 10);
+    const saved = await saveFile(blob, 'Polya-' + date + '.polya');
+    if (saved) message('Сохранено заметок: ' + count + (missing.length ? '. Не скачаны вложения: ' + missing.slice(0, 3).join(', ') + (missing.length > 3 ? '…' : '') : ''));
+  } catch (error) { report(error); }
+}
+
+function restoreLibrary() {
+  const input = element('input');
+  input.type = 'file';
+  input.accept = '.polya,application/octet-stream';
+  input.onchange = async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      const backup = await readBackup(file);
+      if (!confirm('Восстановить ' + backup.items.length + ' записей из копии? Более новые версии на устройстве останутся.')) return;
+      const owner = scope;
+      for (const entry of backup.files) {
+        if (!await read('files', owner, entry.id)) await put('files', { library: owner, id: entry.id, blob: entry.blob });
+      }
+      let added = 0, updated = 0;
+      for (const entry of backup.items) {
+        const existing = items.find(item => item.id === entry.id);
+        if (!existing) {
+          await save(entry.data, { item: { id: entry.id, library: owner, revision: 0 }, deleted: Boolean(entry.deleted) });
+          added += 1;
+        } else if ((entry.modified ?? 0) > (existing.modified ?? 0) && JSON.stringify(entry.data) !== JSON.stringify(existing.data)) {
+          await save(entry.data, { item: existing, deleted: Boolean(entry.deleted) });
+          updated += 1;
+        }
+      }
+      render(); schedule(0);
+      message('Восстановлено: новых ' + added + ', обновлено ' + updated);
+    } catch (error) { report(error); }
+  };
+  input.click();
+}
+
 $('settings').onclick = () => choose('Настройки', (dialog, close) => {
   const theme = select(themes, prefs.theme, 'Тема');
   theme.onchange = () => { prefs.theme = theme.value; applyTheme(); remember(); };
@@ -1791,6 +1870,7 @@ $('settings').onclick = () => choose('Настройки', (dialog, close) => {
   void storageStatus(storage);
   if (window.NotesAndroid) dialog.append(button('Кнопка S Pen', penButtonSettings));
   dialog.append(button('Инструменты', () => { close(); utilities.open(); }));
+  dialog.append(button('Корзина', trash), button('Сохранить резервную копию', () => { close(); void backupLibrary(); }), button('Восстановить из копии', () => { close(); restoreLibrary(); }));
   if (window.NotesAndroid || window.NotesMac) {
     const status = element('div', 'Версия ' + appVersion.name, 'muted');
     const check = button('Проверить обновления', () => void checkUpdates(status, check));

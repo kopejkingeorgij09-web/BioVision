@@ -74,6 +74,21 @@ function segmentDistance(p, a, b) {
   return distance(p, [a[0] + t * x, a[1] + t * y]);
 }
 
+// Частичный ластик: точки штриха под следом ластика выпадают, остаток делится на отдельные штрихи.
+function splitStroke(stroke, trail, radius) {
+  const reach = radius + (stroke.width ?? 2) * (stroke.tool === 'highlight' ? 1 : .5);
+  const hit = point => trail.some((p, i) => segmentDistance(point, p, trail[i + 1] ?? p) < reach);
+  const pieces = [];
+  let piece = [];
+  for (const point of stroke.points) {
+    if (hit(point)) { if (piece.length > 1) pieces.push(piece); piece = []; }
+    else piece.push(point);
+  }
+  if (piece.length > 1) pieces.push(piece);
+  if (pieces.length === 1 && pieces[0].length === stroke.points.length) return [stroke];
+  return pieces.map((points, index) => ({ ...stroke, id: crypto.randomUUID(), points }));
+}
+
 function segments(stroke) {
   const [a, b] = [stroke.points[0], stroke.points.at(-1)];
   if (stroke.tool === 'rect') return [a, [b[0], a[1]], b, [a[0], b[1]], a];
@@ -570,7 +585,22 @@ export function createSurface(host, content, options) {
 
   function erase(point) {
     active.grid ??= eraseIndex();
-    const radius = 16 / viewport().scale;
+    const radius = active.radius ??= 16 / viewport().scale;
+    const mode = active.eraseMode ??= settings().eraseMode ?? 'stroke';
+    (active.trail ??= []).push(point);
+    if (mode === 'partial') {
+      let path = preview.querySelector('.erase-trail');
+      if (!path) {
+        path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('class', 'erase-trail');
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke-linecap', 'round');
+        path.setAttribute('stroke-linejoin', 'round');
+        path.setAttribute('stroke-width', String(radius * 2));
+        preview.append(path);
+      }
+      path.setAttribute('d', 'M' + active.trail.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L'));
+    }
     const seen = new Set();
     for (let gx = Math.floor((point[0] - radius) / cell); gx <= Math.floor((point[0] + radius) / cell); gx++) {
       for (let gy = Math.floor((point[1] - radius) / cell); gy <= Math.floor((point[1] + radius) / cell); gy++) {
@@ -578,9 +608,10 @@ export function createSurface(host, content, options) {
           const { stroke, points, pad } = entry;
           if (seen.has(entry) || active.erased.has(stroke.id)) continue;
           seen.add(entry);
+          if (mode === 'highlight' && stroke.tool !== 'highlight') continue;
           if (points.some((p, i) => segmentDistance(point, p, points[i + 1] ?? p) < radius + pad / 2)) {
             active.erased.add(stroke.id);
-            nodes.get(stroke)?.setAttribute('opacity', '0.18');
+            if (mode !== 'partial' || !['pen', 'highlight'].includes(stroke.tool)) nodes.get(stroke)?.setAttribute('opacity', '0.18');
           }
         }
       }
@@ -838,7 +869,7 @@ export function createSurface(host, content, options) {
 
   function finishStroke(event, save) {
     if (!active || active.pointer !== event.pointerId) return;
-    const { id, points, tool, color, fixedColor, width, erased, shape } = active;
+    const { id, points, tool, color, fixedColor, width, erased, shape, trail, eraseMode, radius } = active;
     clearTimeout(shapeTimer);
     const wasWet = wet.owner === active;
     if (wasWet) wet.owner = null;
@@ -852,7 +883,10 @@ export function createSurface(host, content, options) {
     if (distance(endPoint, points.at(-1)) > 0.2) points.push(endPoint);
     if (tool === 'hand') return;
     if (tool === 'erase') {
-      if (erased.size) update({ ...state, strokes: (state.strokes ?? []).filter(stroke => !erased.has(stroke.id)) });
+      if (!erased.size) return;
+      const partial = trail && eraseMode === 'partial';
+      update({ ...state, strokes: (state.strokes ?? []).flatMap(stroke => !erased.has(stroke.id) ? [stroke]
+        : partial && (stroke.tool === 'pen' || stroke.tool === 'highlight') ? splitStroke(stroke, trail, radius) : []) });
       return;
     }
     if (tool === 'lasso') {

@@ -32,6 +32,12 @@ import com.google.mlkit.vision.digitalink.recognition.DigitalInkRecognizerOption
 import com.google.mlkit.vision.digitalink.recognition.Ink;
 import com.google.mlkit.vision.digitalink.recognition.RecognitionContext;
 import com.google.mlkit.vision.digitalink.recognition.WritingArea;
+import android.util.Base64;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
 import org.json.JSONArray;
@@ -40,6 +46,7 @@ import org.json.JSONObject;
 public final class MainActivity extends Activity {
     private static final String HOST = "appassets.androidplatform.net";
     private static final int PICK_FILES = 11;
+    private static final int SAVE_FILE = 12;
     private static final int STYLUS_BUTTONS = MotionEvent.BUTTON_STYLUS_PRIMARY | MotionEvent.BUTTON_STYLUS_SECONDARY;
     private static final int PEN_BUTTONS = STYLUS_BUTTONS | MotionEvent.BUTTON_SECONDARY;
     private PenWebView web;
@@ -47,6 +54,11 @@ public final class MainActivity extends Activity {
     private volatile boolean penButtonDown;
     private boolean fullscreen;
     private final Map<String, DigitalInkRecognizer> recognizers = new HashMap<>();
+    private final Object saveLock = new Object();
+    private int saveRequest = -1;
+    private File saveTemp;
+    private FileOutputStream saveStream;
+    private String saveName, saveMime;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -116,6 +128,39 @@ public final class MainActivity extends Activity {
         if (code == PICK_FILES && pendingFiles != null) {
             pendingFiles.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(result, data));
             pendingFiles = null;
+        }
+        if (code == SAVE_FILE) {
+            final Uri target = result == RESULT_OK && data != null ? data.getData() : null;
+            final int request;
+            final File temp;
+            synchronized (saveLock) { request = saveRequest; temp = saveTemp; saveRequest = -1; saveTemp = null; }
+            if (temp == null) return;
+            if (target == null) { temp.delete(); saved(request, false, ""); return; }
+            new Thread(() -> {
+                String error = "";
+                try (InputStream in = new FileInputStream(temp); OutputStream out = getContentResolver().openOutputStream(target)) {
+                    if (out == null) throw new java.io.IOException("Файл недоступен");
+                    byte[] buffer = new byte[65536];
+                    for (int n; (n = in.read(buffer)) > 0; ) out.write(buffer, 0, n);
+                } catch (Exception problem) { error = "Не удалось сохранить файл: " + problem.getMessage(); }
+                temp.delete();
+                saved(request, error.isEmpty(), error);
+            }).start();
+        }
+    }
+
+    private void saved(int request, boolean ok, String error) {
+        runOnUiThread(() -> {
+            if (!isFinishing() && !isDestroyed()) web.evaluateJavascript(
+                "window.notesFileSaved?.(" + request + "," + ok + "," + JSONObject.quote(error) + ");", null);
+        });
+    }
+
+    private void cancelSave() {
+        synchronized (saveLock) {
+            if (saveStream != null) try { saveStream.close(); } catch (Exception ignored) { }
+            if (saveTemp != null) saveTemp.delete();
+            saveStream = null; saveTemp = null; saveRequest = -1;
         }
     }
 
@@ -320,6 +365,42 @@ public final class MainActivity extends Activity {
         @JavascriptInterface public boolean penButtonPressed() { return penButtonDown; }
         @JavascriptInterface public void setFullscreen(boolean enabled) {
             runOnUiThread(() -> { if (!isDestroyed()) MainActivity.this.setFullscreen(enabled); });
+        }
+
+        @JavascriptInterface public boolean beginSave(int request, String name, String mime) {
+            cancelSave();
+            synchronized (saveLock) {
+                try {
+                    saveTemp = File.createTempFile("save", ".part", getCacheDir());
+                    saveStream = new FileOutputStream(saveTemp);
+                    saveRequest = request;
+                    saveName = name == null || name.isEmpty() ? "Поля" : name;
+                    saveMime = mime == null || mime.isEmpty() ? "application/octet-stream" : mime;
+                    return true;
+                } catch (Exception error) { cancelSave(); return false; }
+            }
+        }
+        @JavascriptInterface public boolean appendSave(int request, String chunk) {
+            synchronized (saveLock) {
+                if (request != saveRequest || saveStream == null) return false;
+                try { saveStream.write(Base64.decode(chunk, Base64.DEFAULT)); return true; }
+                catch (Exception error) { cancelSave(); return false; }
+            }
+        }
+        @JavascriptInterface public void finishSave(int request) {
+            final String name, mime;
+            synchronized (saveLock) {
+                if (request != saveRequest || saveStream == null) { saved(request, false, "Сохранение прервано"); return; }
+                try { saveStream.close(); } catch (Exception error) { cancelSave(); saved(request, false, "Не удалось записать файл"); return; }
+                saveStream = null;
+                name = saveName; mime = saveMime;
+            }
+            runOnUiThread(() -> {
+                Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
+                    .setType(mime).putExtra(Intent.EXTRA_TITLE, name);
+                try { startActivityForResult(intent, SAVE_FILE); }
+                catch (ActivityNotFoundException error) { cancelSave(); saved(request, false, "Нет приложения для сохранения файлов"); }
+            });
         }
 
         @JavascriptInterface public void recognizeIndexed(int request, String points, String language, float width, float height) {

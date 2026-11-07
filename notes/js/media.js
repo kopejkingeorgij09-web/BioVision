@@ -1,6 +1,7 @@
 import { attachmentBlob } from './cloud.js';
 import { createSurface, showExistingMarks } from './ink.js';
 import { button, element } from './text.js';
+import { saveFile } from './backup.js';
 
 // PDF.js 6.5.438 лежит в репозитории (vendor/pdfjs, контрольные суммы в SHA256SUMS): без CDN и целиком офлайн.
 export const pdfResources = new URL('./vendor/pdfjs/', location.href).href;
@@ -129,6 +130,10 @@ export async function openMedia(root, attachment, options) {
     const download = element('a', 'Скачать оригинал');
     download.href = url;
     download.download = attachment.name;
+    if (window.NotesAndroid?.beginSave) download.onclick = event => {
+      event.preventDefault();
+      saveFile(blob, attachment.name).catch(error => alert(error.message));
+    };
     controls.append(download);
 
     if (attachment.mime === 'application/pdf') {

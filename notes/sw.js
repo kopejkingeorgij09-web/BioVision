@@ -5,7 +5,7 @@ const pdfjs = 'biovision-notes-pdfjs-6.5.438';
 const assets = 'biovision-notes-assets-v1';
 const files = [
   './', './index.html', './style.css', './icon.svg', './manifest.webmanifest',
-  './js/app.js', './js/cloud.js', './js/config.js', './js/ink.js', './js/local.js', './js/media.js', './js/merge.js',
+  './js/app.js', './js/backup.js', './js/cloud.js', './js/config.js', './js/ink.js', './js/local.js', './js/media.js', './js/merge.js',
   './js/text.js', './js/pen-button.js', './js/utilities.js', './js/board-map.js', './js/note-search.js',
 ];
 const vendor = /^https:\/\/cdn\.jsdelivr\.net\/npm\/katex@0\.19\.1\//;

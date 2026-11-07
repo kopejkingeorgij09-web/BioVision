@@ -8,6 +8,7 @@ const today = () => ymd(new Date());
 const days = (d,n) => Array.from({length:n}, (_,i) => add(d,i));
 const hour = 60;
 const dragStep = 5;
+let dragging = false, redrawAfterDrag = false;
 const snap = n => Math.round(n / dragStep) * dragStep;
 const monthStart = d => d.slice(0,7) + '-01';
 const moveMonth = (d,n) => ymd(new Date(parse(d).getFullYear(),parse(d).getMonth()+n,1,12));
@@ -47,27 +48,34 @@ const ranges = () => {
 function taskItem(t,d,ghost=false){
   const start = t.time ? d+'T'+t.time : d;
   return {kind:'task', id:t.id, proj:projectOf(t), title:t.title, start, on:d, done:t.done, ghost,
-    end:t.time ? C.at(d,C.minuteOf(start) + Math.max(15,t.est || 30)) : add(d,1)};
+    end:t.time ? C.at(d,C.minuteOf(start) + Math.max(dragStep,t.est || 30)) : add(d,1)};
 }
 function itemsBetween(from,to){
   const items = C.events().filter(e => visible(projectOf(e))).flatMap(e =>
     C.occurrences(e,from,to).map(x => ({...x,kind:'event',proj:projectOf(x)})));
+  const inView = e => e.start<add(to,1)&&e.end>(e.end.length===10?from:from+'T00:00');
   B.tasks().forEach(t => {
     if (!C.validDate(t.due) || t.due > to || !visible(projectOf(t)) || !visible('@tasks')) return;
-    if (t.due >= from) items.push(taskItem(t,t.due));
+    const item=taskItem(t,t.due);
+    if (inView(item)) items.push(item);
     if (!t.rep || t.done) return;
     for (let d=B.nextRep(t.due,t.rep), i=0; d && d<=to && i<5000; d=B.nextRep(d,t.rep), i++){
       if (d>=from) items.push(taskItem(t,d,true));
     }
   });
-  if (visible('@shad') || visible('@phagi')) for (let d=from; d<=to; d=add(d,1)){
-    if (visible('@shad')) for (const it of B.shadOn(d)){
-      const start = it.from ? d+'T'+it.from : d;
-      const end = it.to && it.to > it.from ? d+'T'+it.to : it.from ? C.at(d,C.minuteOf(start)+60) : add(d,1);
-      items.push({kind:'shad', id:it.p.n, part:it.kind, start,end,on:d,proj:'@shad',
-        title:(it.kind === 'hw' ? 'ДЗ · ' : '') + it.p.t,done:B.shadStage(it.p.n)>=it.need});
+  if (visible('@shad')) for (const p of B.shad.plan){
+    for(const [part,slot,placed,stage] of [['web',p.w,p.wp,2],['hw',p.h,p.hp,3]]){
+      if(!placed||!C.validDate(slot?.date))continue;
+      const d=slot.date, start=slot.from?d+'T'+slot.from:d;
+      const end=slot.from&&slot.to ? (slot.endDate||(slot.to>slot.from?d:add(d,1)))+'T'+slot.to :
+        slot.from?C.at(d,C.minuteOf(start)+60):add(d,1);
+      const item={kind:'shad',id:p.n,part,start,end,on:d,proj:'@shad',
+        title:(part==='hw'?'ДЗ · ':'')+p.t,done:B.shadStage(p.n)>=stage};
+      if(inView(item))items.push(item);
     }
-    if (visible('@phagi')) for (const it of B.phxOn(d).filter(x=>!x.shad||x.fix)){
+  }
+  if (visible('@phagi')) for (let d=from; d<=to; d=add(d,1)){
+    for (const it of B.phxOn(d).filter(x=>!x.shad||x.fix)){
       items.push({kind:'phagi',id:it.id,title:it.t,start:d,end:add(d,1),on:d,proj:'@phagi',done:it.done});
     }
   }
@@ -93,13 +101,15 @@ function chip(e,style='',segment=null){
   const title = esc(e.title || 'Без названия');
   const interval = timed ? `${e.start.slice(11)}–${e.end.slice(11)}` : '';
   const task = e.kind==='task' && !e.ghost;
+  const movable=task||e.kind==='event'||e.kind==='shad';
   const contents = `<span class="ac-title">${title}${e.repeat ? '<span aria-label="Повторяется"> ↻</span>' : ''}</span>${timed ? `<small>${interval}${e.location ? ' · '+esc(e.location) : ''}</small>` : ''}`;
   return `<div class="ac-item c-${esc(color(e.proj))}${timed?' timed':''}${e.done?' done':''}${e.ghost?' ghost':''}" ${attrs} ${style? `style="${style}"` : ''}>
     ${task ? `<button class="ac-check" data-act="toggleTask" data-id="${esc(e.id)}" aria-label="${e.done?'Вернуть задачу':'Выполнить задачу'}" aria-pressed="${!!e.done}">${e.done?'✓':'○'}</button>` : ''}
     ${e.kind==='phagi' ? `<a class="ac-open" href="${esc(phagiHref(e.id))}" title="${title}">${contents}</a>` :
       `<button class="ac-open" data-act="acOpen" ${attrs} title="${title}">${contents}</button>`}
-    ${timed && e.kind === 'event' && segment.last ? '<span class="ac-resize end" data-resize="end" aria-hidden="true"></span>' : ''}
-    ${timed && e.kind === 'event' && segment.first ? '<span class="ac-resize start" data-resize="start" aria-hidden="true"></span>' : ''}
+    ${timed && movable && segment.last ? '<span class="ac-resize end" data-resize="end" aria-hidden="true"></span>' : ''}
+    ${timed && movable && segment.first ? '<span class="ac-resize start" data-resize="start" aria-hidden="true"></span>' : ''}
+    ${movable && (!timed || segment.first) ? '<span class="ac-grab" title="Перенести запись" aria-hidden="true">⠿</span>' : ''}
   </div>`;
 }
 
@@ -248,28 +258,45 @@ const allDayOf = e => e.start.length===10;
 const option=(v,label,selected)=>`<option value="${esc(v)}" ${String(v)===String(selected)?'selected':''}>${esc(label)}</option>`;
 const projectOptions = e => projects().map(p=>option(p.id,B.projName(p.id),projectOf(e))).join('');
 const scopeOptions = () => option('one','Это событие','one')+option('future','Это и будущие','one')+option('all','Вся серия','one');
-function editor(e, original=null, task=false){
-  editContext={e,original,task};
-  const all=allDayOf(e), r=e.repeat||{}, active=!!r.freq, spanStart=C.dateOf(e.start);
+const near = el => {
+  const box=el.getBoundingClientRect();
+  return {x:box.right,y:box.top};
+};
+function intervalLabel(e,task){
+  const first=C.dateOf(e.start), last=allDayOf(e)?add(e.end,-1):C.dateOf(e.end);
+  if(allDayOf(e)) return (first===last||task?fmt(first):fmt(first)+' – '+fmt(last))+' · Весь день';
+  return fmt(first)+', '+e.start.slice(11)+(task?'':' – '+(first===last?'':fmt(last)+', ')+e.end.slice(11));
+}
+function markDraft(e,task){
+  document.querySelectorAll('.ac-draft').forEach(el=>el.remove());
+  const d=C.dateOf(e.start), all=allDayOf(e);
+  const cell=B.$(all?`[data-all="${d}"]`:`[data-col="${d}"]`);
+  if(!cell)return;
+  const mark=document.createElement('span');
+  mark.className='ac-draft '+(all?'all':'timed');
+  mark.textContent=e.title||(task?'Новая задача':'Новое событие');
+  if(!all){
+    const start=C.minuteOf(e.start), end=C.dateOf(e.end)===d?C.minuteOf(e.end):C.DAY;
+    mark.style.top=start/C.DAY*100+'%';
+    mark.style.height=Math.max(dragStep,end-start)/C.DAY*100+'%';
+  }
+  cell.append(mark);
+}
+function editor(e, original=null, task=false, anchor=null, selected=false){
+  editContext={e,original,task,anchor,selected};
+  const r=e.repeat||{}, active=!!r.freq, spanStart=C.dateOf(e.start);
   const monthly = r.freq==='monthly'||r.freq==='yearly', pattern = r.days?.length&&monthly?'weekdays':'dates';
-  const alertChoices = v => [['','Без напоминания'],[0,'В момент начала'],[5,'За 5 минут'],[15,'За 15 минут'],[30,'За 30 минут'],[60,'За час'],[120,'За 2 часа'],[1440,'За день'],[2880,'За 2 дня'],[10080,'За неделю']]
-    .concat(v!=null && ![0,5,15,30,60,120,1440,2880,10080].includes(v)?[[v,'За '+v+' мин']]:[]).map(([n,l])=>option(n,l,v??'')).join('');
-  B.sheet(`<h2>${original ? 'Событие' : 'Новая запись'}</h2>
-    ${original?'':`<div class="ac-modes ac-types" role="group" aria-label="Тип записи"><button data-act="acType" data-v="event" aria-pressed="${!task}">Событие</button><button data-act="acType" data-v="task" aria-pressed="${task}">Задача</button></div>`}
-    <form id="acEditor" class="ac-editor">
-      <label class="field">Название<input name="title" value="${esc(e.title)}" placeholder="${task?'Новая задача':'Новое событие'}" maxlength="240" required autofocus></label>
-      <label class="field">Календарь<select name="project">${projectOptions(e)}</select></label>
+  const floating=!!anchor&&matchMedia('(min-width: 700px) and (pointer: fine)').matches;
+  B.sheet(`<h2 class="ac-card-title">Календарь</h2>
+    <form id="acEditor" class="ac-editor ac-quick ${floating?'ac-floating':''}">
+      ${original?'':`<div class="ac-modes ac-types" role="group" aria-label="Тип записи"><button type="button" data-act="acType" data-v="event" aria-pressed="${!task}">Событие</button><button type="button" data-act="acType" data-v="task" aria-pressed="${task}">Задача</button></div>`}
+      <input aria-label="Название" class="ac-quick-name" name="title" value="${esc(e.title)}" placeholder="${task?'Новая задача':'Новое событие'}" maxlength="240" required autofocus>
+      <p class="ac-interval">${esc(intervalLabel(e,task))}</p>
+      <label class="ac-project c-${esc(color(projectOf(e)))}"><span class="ac-project-dot" aria-hidden="true"></span>
+        <select name="project" aria-label="Календарь">${projectOptions(e)}</select></label>
       ${original?.repeat?`<label class="field">Изменить<select name="scope">${scopeOptions()}</select></label>`:''}
-      <label class="ac-inline"><input type="checkbox" name="all" ${all?'checked':''}>${task?'Без времени':'Весь день'}</label>
-      <div class="ac-edit-row">
-        <label class="field">${task?'Дата':'Начало'}<input type="date" name="start" min="1900-01-01" max="2199-12-30" value="${spanStart}" required></label>
-        <label class="field ac-with-time" ${all?'hidden':''}>Время<input type="time" name="from" value="${e.start.slice(11)||'09:00'}"></label>
-      </div>
-      ${task?'':`<div class="ac-edit-row">
-        <label class="field">Конец<input type="date" name="end" min="1900-01-01" max="2199-12-30" value="${all?add(e.end,-1):C.dateOf(e.end)}" required></label>
-        <label class="field ac-with-time" ${all?'hidden':''}>Время<input type="time" name="to" value="${e.end.slice(11)||'10:00'}"></label>
-      </div>
-      <label class="field">Повтор<select name="frequency">${option('','Никогда',r.freq||'')}${Object.entries(FREQ).map(([k,v])=>option(k,v,r.freq)).join('')}</select></label>
+      <details class="ac-extra"><summary>Подробности</summary><div>
+      ${task?'':`      <label class="field">Повтор<select name="frequency">${option('','Никогда',r.freq||'')}${Object.entries(FREQ).map(([k,v])=>option(k,v,r.freq)).join('')}</select></label>
       <div class="ac-repeat" ${active?'':'hidden'}>
         <div class="ac-edit-row">
           <label class="field">Интервал<input type="number" name="every" value="${r.every||1}" min="1" max="365"></label>
@@ -287,10 +314,6 @@ function editor(e, original=null, task=false){
         <label class="field ac-repeat-count" ${r.count?'':'hidden'}>Число событий<input type="number" name="count" value="${r.count||10}" min="1" max="10000"></label>
       </div>
       <div class="ac-edit-row">
-        <label class="field">Напоминание<select name="alert">${alertChoices(e.alerts?.[0])}</select></label>
-        <label class="field">Второе напоминание<select name="alert2">${alertChoices(e.alerts?.[1])}</select></label>
-      </div>
-      <div class="ac-edit-row">
         <label class="field">Место<input name="place" value="${esc(e.location||'')}" maxlength="240"></label>
         <label class="field">Время в пути, мин<input type="number" name="travel" min="0" max="1440" value="${e.travel||0}"></label>
       </div>
@@ -301,14 +324,25 @@ function editor(e, original=null, task=false){
         `<div class="ac-attachment"><a href="${esc(f.data)}" download="${esc(f.name)}">${esc(f.name)}</a>
           <label><input type="checkbox" name="detach" value="${esc(f.id)}"> Убрать</label></div>`).join('')}`}
       <label class="field">Заметки<textarea name="notes" rows="2" maxlength="10000">${esc(e.notes||'')}</textarea></label>
+      </div></details>
       <p class="ac-error" role="alert" hidden></p>
       <div class="row between">${original?`<div class="row"><button type="button" class="btn danger ghost sm" data-act="acDelete">Удалить</button><button type="button" class="btn ghost sm" data-act="acDuplicate">Дублировать</button></div>`:'<span></span>'}
         <button type="submit" class="btn primary">Сохранить</button></div>
-    </form>`,()=>{editContext=null});
-  const form=B.$('#acEditor');
+    </form>`,()=>{
+      editContext=null;
+      document.querySelectorAll('.ac-draft').forEach(el=>el.remove());
+    });
+  const form=B.$('#acEditor'), sheet=B.$('#sheet');
+  if(floating){
+    const width=sheet.offsetWidth, height=sheet.offsetHeight;
+    const left=anchor.x+width+16<=innerWidth?anchor.x+10:anchor.x-width-10;
+    sheet.style.setProperty('--ac-pop-left',B.clamp(left,8,innerWidth-width-8)+'px');
+    sheet.style.setProperty('--ac-pop-top',B.clamp(anchor.y-20,8,Math.max(8,innerHeight-height-8))+'px');
+  }
+  if(selected)markDraft(e,task);
   form.addEventListener('change',ev=>{
-    const f=form.elements, field=ev.target.name;
-    form.querySelectorAll('.ac-with-time').forEach(el=>el.hidden=f.all.checked);
+    const f=form.elements;
+    if(ev.target===f.project) form.querySelector('.ac-project').className='ac-project c-'+color(f.project.value);
     if (!task){
       form.querySelector('.ac-repeat').hidden=!f.frequency.value;
       const m=f.frequency.value==='monthly'||f.frequency.value==='yearly', w=f.monthPattern.value==='weekdays';
@@ -318,21 +352,16 @@ function editor(e, original=null, task=false){
       form.querySelector('.ac-weekdays').hidden=f.frequency.value!=='weekly'&&!(m&&w);
       form.querySelector('.ac-repeat-date').hidden=f.repeatEnd.value!=='until';
       form.querySelector('.ac-repeat-count').hidden=f.repeatEnd.value!=='count';
-      if(field==='start'&&C.validDate(f.start.value)&&C.validDate(f.end.value)) f.end.value=add(f.end.value,diff(form.dataset.start||spanStart,f.start.value));
-      form.dataset.start=f.start.value;
     }
   });
   form.addEventListener('submit',ev=>{ev.preventDefault();submitEditor(form);});
 }
-function draftFrom(form,task){
-  const f=form.elements;
-  const start=f.all.checked?f.start.value:f.start.value+'T'+f.from.value;
-  const end=task?(f.all.checked?add(f.start.value,1):C.at(f.start.value,C.minuteOf(start)+30)):
-    f.all.checked?add(f.end.value,1):f.end.value+'T'+f.to.value;
+function draftFrom(form,ctx){
+  const f=form.elements, {start,end}=ctx.e;
   if (!C.valid(start)||!C.valid(end)||end<=start) throw Error('Конец должен быть позже начала.');
   const draft={title:f.title.value.trim(),proj:f.project.value||'inbox',start,end,notes:f.notes.value.trim()};
   if (!draft.title) throw Error('Введи название.');
-  if (task) return draft;
+  if (ctx.task) return draft;
   const freq=f.frequency.value, until=f.repeatEnd.value==='until'?f.until.value:'';
   if (freq && f.repeatEnd.value==='until' && (!C.validDate(until)||until<C.dateOf(start))) throw Error('Выбери дату окончания повтора после начала.');
   if (f.url.value && !/^https?:\/\//i.test(f.url.value)) throw Error('Ссылка должна начинаться с http:// или https://.');
@@ -345,7 +374,7 @@ function draftFrom(form,task){
     days:weekDays,monthDays,pos:weekdays?Number(f.position.value):0,
     month:freq==='yearly'&&monthDays.length+weekDays.length ? Number(start.slice(5,7)) : 0}:null;
   return {...draft,repeat,location:f.place.value.trim(),travel:Number(f.travel.value)||0,url:f.url.value.trim(),
-    alerts:[...new Set([f.alert.value,f.alert2.value].filter(x=>x!=='').map(Number))]};
+    alerts:ctx.e.alerts||[]};
 }
 function writeOccurrence(original, on, draft, scope){
   const fresh=get(original.id);
@@ -376,8 +405,8 @@ async function submitEditor(form){
   if (!ctx||submit.disabled) return;
   submit.disabled=true;
   try {
-    const draft=draftFrom(form,ctx.task), d=C.dateOf(draft.start);
-    if(ctx.task) B.saveTask(B.newTask({title:draft.title,proj:draft.proj,due:d,time:draft.start.slice(11),notes:draft.notes}));
+    const draft=draftFrom(form,ctx), d=C.dateOf(draft.start);
+    if(ctx.task) B.saveTask(B.newTask({title:draft.title,proj:draft.proj,due:d,time:draft.start.slice(11),est:allDayOf(draft)?0:C.span(draft.start,draft.end),notes:draft.notes}));
     else {
       const removed=new Set([...form.querySelectorAll('[name=detach]:checked')].map(el=>el.value));
       const files=[]; let size=0;
@@ -396,16 +425,15 @@ async function submitEditor(form){
       pruneFiles([...removed]);
     }
     B.closeSheet(); change(d); B.toast(ctx.task?'Задача сохранена':'Событие сохранено');
-    if(!ctx.task && draft.alerts.length) requestNotifications();
   }catch(e){ const err=form.querySelector('.ac-error');err.textContent=e.message;err.hidden=false; }
   finally { submit.disabled=false; }
 }
 B.acts.acType=el=>{
-  const f=B.$('#acEditor').elements, e=editContext.e;
-  editor({...e,title:f.title.value,proj:f.project.value,notes:f.notes.value},null,el.dataset.v==='task');
+  const f=B.$('#acEditor').elements, {e,anchor,selected}=editContext;
+  editor({...e,title:f.title.value,proj:f.project.value,notes:f.notes.value},null,el.dataset.v==='task',anchor,selected);
 };
 B.acts.acAdd=()=>editor(newTimed(date));
-B.acts.acNewDay=el=>editor(newAll(el.dataset.d));
+B.acts.acNewDay=el=>editor(newAll(el.dataset.d),null,false,near(el),true);
 function fromNode(el){
   const {k,id,on,start,end,part}=el.dataset;
   return {kind:k,id,on,start,end,part};
@@ -414,7 +442,7 @@ B.acts.acOpen=el=>{
   const x=fromNode(el);
   if(x.kind==='task') return B.openTask(x.id);
   if(x.kind==='shad') return B.acts.shadOpen({dataset:{n:x.id}});
-  const e=get(x.id); if(e) editor({...e,start:x.start,end:x.end,on:x.on},e);
+  const e=get(x.id); if(e) editor({...e,start:x.start,end:x.end,on:x.on},e,false,near(el));
 };
 B.acts.acDuplicate=()=>{
   const ctx=editContext; if(!ctx) return;
@@ -550,7 +578,7 @@ addEventListener('focus',fireAlerts);
 
 const minuteAt=(col,y,end=false)=>B.clamp(snap((y-col.getBoundingClientRect().top)/col.offsetHeight*C.DAY),0,C.DAY-(end?0:dragStep));
 function rangePointer(e,root){
-  if(e.pointerType==='touch'||e.button!==0||e.target.closest('.ac-check,a')) return;
+  if((e.pointerType==='touch'&&!e.target.closest('.ac-resize,.ac-grab'))||e.button!==0||e.target.closest('.ac-check,a')) return;
   const col=e.target.closest('[data-col]'), all=e.target.closest('[data-all]');
   if(!col&&!all) return;
   const item=e.target.closest('.ac-item'), x=item&&fromNode(item);
@@ -558,33 +586,40 @@ function rangePointer(e,root){
   if(!item&&e.target.closest('button')) return;
   const origin=col?.dataset.col||all.dataset.all, start=col?minuteAt(col,e.clientY):null;
   const edge=e.target.dataset.resize, id=e.pointerId, sx=e.clientX,sy=e.clientY;
-  let active=false, target=origin, minute=start, selectedCol=col;
+  let active=false, validDrop=false, target=origin, minute=start, selectedCol=col;
   const preview=document.createElement('span'); preview.className='ac-preview';
   const offset=x ? diff(origin,C.dateOf(x.start)) : 0;
   const grab=x&&start!=null ? start-(offset===0?C.minuteOf(x.start):0) : 0;
+  const edgeOffset=edge&&start!=null ? start-C.span(origin+'T00:00',x[edge]) : 0;
+  dragging=true;
   function proposed(){
     if(!x){
       if(start==null||minute==null) return null;
       const a=C.at(origin,start), b=C.at(target,minute);
       const from=a<b?a:b, to=a<b?b:a;
-      return {start:from,end:C.at(C.dateOf(to),C.minuteOf(to)+dragStep)};
+      return {start:from,end:from===to?C.at(C.dateOf(to),C.minuteOf(to)+dragStep):to};
     }
     if(edge && minute!=null){
-      const next={start:x.start,end:x.end,[edge]:C.at(target,minute)};
+      const next={start:x.start,end:x.end,[edge]:C.at(target,minute-edgeOffset)};
       return next.end>next.start ? next : null;
     }
     const d=add(target,offset);
     const dest=minute==null?(root.dataset.calMode==='month'?d+x.start.slice(10):d):
       C.at(d,B.clamp(minute-grab,0,C.DAY-dragStep));
+    if(x.kind==='task' && x.start.length===10 && dest.length>10){
+      const length=Math.max(dragStep,B.task(x.id)?.est||30);
+      return {start:dest,end:C.at(d,C.minuteOf(dest)+length)};
+    }
     return C.move(x,dest);
   }
   function update(ev){
     if(ev.pointerId!==id)return;
     if(!active&&Math.hypot(ev.clientX-sx,ev.clientY-sy)<3)return;
-    active=true;
+    active=true;dragging=true;
     const hit=document.elementFromPoint(ev.clientX,ev.clientY);
     const c=hit?.closest('[data-col]'), a=hit?.closest('[data-all]');
-    if(!root.contains(c||a)||(!x && col && !c)||(!x && all && !a))return;
+    validDrop=root.contains(c||a)&&!(!x && col && !c)&&!(!x && all && !a)&&!(edge&&!c);
+    if(!validDrop){preview.remove();root.querySelector('.ac-drag-target')?.classList.remove('ac-drag-target');return;}
     selectedCol=c; target=c?.dataset.col||a.dataset.all;minute=c?minuteAt(c,ev.clientY,edge==='end'):null;
     root.querySelector('.ac-drag-target')?.classList.remove('ac-drag-target');
     (c||a).classList.add('ac-drag-target');
@@ -604,36 +639,84 @@ function rangePointer(e,root){
     window.removeEventListener('pointerup',finish);
     window.removeEventListener('pointercancel',cleanup);
     preview.remove();root.querySelector('.ac-drag-target')?.classList.remove('ac-drag-target');
+    dragging=false;
+    if(redrawAfterDrag){redrawAfterDrag=false;requestAnimationFrame(()=>B.render());}
   }
   function finish(ev){
     if(ev.pointerId!==id)return;
+    if(active)update(ev);
     cleanup();
     if(!active)return;
     draggedAt=Date.now();
+    if(!validDrop)return;
+    const anchor={x:ev.clientX,y:ev.clientY};
     if(!x){
       if(col&&selectedCol){
         const next=proposed();
-        if(next) editor(newDraft(next.start,next.end));
-      }else if(all) editor(newAll(origin<target?origin:target,add(origin<target?target:origin,1)));
+        if(next) editor(newDraft(next.start,next.end),null,false,anchor,true);
+      }else if(all) editor(newAll(origin<target?origin:target,add(origin<target?target:origin,1)),null,false,anchor,true);
       return;
     }
+    const next=proposed();
+    if(!next || (next.start===x.start&&next.end===x.end))return;
     if(x.kind==='event'){
       const event=get(x.id); if(!event)return;
-      const next=proposed();
-      if(!next || (next.start===x.start&&next.end===x.end))return;
       const draft={...event,start:next.start,end:next.end};
-      if(event.repeat) editor({...draft,on:x.on},event); else save(draft);
-    }else if(x.kind==='task'){
-      const task=B.task(x.id); if(!task)return;
-      if(task.due!==target) B.pl.move(task,target);
-      if(minute!=null||col) B.updTask(task.id,{time:minute==null?'':C.time(minute)});
-    }else if(x.kind==='shad'){
-      B.calendarMoveShad(Number(x.id),x.part,target,minute==null?(root.dataset.calMode==='month'?undefined:''):C.time(minute));
-    }
+      if(event.repeat) editor({...draft,on:x.on},event,false,anchor,true); else save(draft);
+    }else if(x.kind==='task') B.calendarMoveTask(x.id,next.start,next.end);
+    else if(x.kind==='shad') B.calendarMoveShad(Number(x.id),x.part,next.start,next.end);
   }
   window.addEventListener('pointermove',update);
   window.addEventListener('pointerup',finish);
   window.addEventListener('pointercancel',cleanup,{once:true});
+}
+let wheel = {last:0, distance:0, done:false};
+function canPan(sc,n){
+  return n>0 ? sc.scrollLeft<sc.scrollWidth-sc.clientWidth-2 : sc.scrollLeft>2;
+}
+function swipePeriod(direction){
+  scrollLeft=0;
+  B.acts.acShift({dataset:{n:String(direction)}});
+}
+function mountGestures(sc){
+  sc.addEventListener('wheel',e=>{
+    if(e.ctrlKey||e.metaKey)return;
+    const x=e.shiftKey&&!e.deltaX?e.deltaY:e.deltaX;
+    if(!x||(!e.shiftKey&&Math.abs(x)<Math.abs(e.deltaY)*1.2))return;
+    const now=performance.now(), direction=Math.sign(x);
+    if(now-wheel.last>180)wheel={last:now,distance:0,done:false};
+    wheel.last=now;
+    if(wheel.done){e.preventDefault();return;}
+    if(canPan(sc,direction))return;
+    e.preventDefault();
+    wheel.distance+=x*(e.deltaMode===1?16:e.deltaMode===2?100:1);
+    if(Math.abs(wheel.distance)>=38){wheel.done=true;swipePeriod(direction);}
+  },{passive:false});
+  let touch=null;
+  sc.addEventListener('touchstart',e=>{
+    if(e.touches.length!==1||e.target.closest('.ac-resize,.ac-grab')){touch=null;return;}
+    const p=e.touches[0];
+    touch={id:p.identifier,x:p.clientX,y:p.clientY,start:performance.now(),target:e.target,
+      left:canPan(sc,-1),right:canPan(sc,1)};
+  },{passive:true});
+  sc.addEventListener('touchcancel',()=>{touch=null;},{passive:true});
+  sc.addEventListener('touchend',e=>{
+    const p=[...e.changedTouches].find(p=>p.identifier===touch?.id), g=touch;
+    if(!p)return;
+    touch=null;
+    const dx=p.clientX-g.x,dy=p.clientY-g.y;
+    if(Math.abs(dx)>=48&&Math.abs(dx)>1.3*Math.abs(dy)){
+      const direction=dx<0?1:-1;
+      if(!(direction>0?g.right:g.left)){
+        draggedAt=Date.now();swipePeriod(direction);
+      }
+      return;
+    }
+    if(Math.hypot(dx,dy)<8&&performance.now()-g.start<450&&!g.target.closest('button,a,.ac-item')){
+      const col=g.target.closest('[data-col]');
+      if(col)editor(newTimed(col.dataset.col,minuteAt(col,p.clientY)),null,false,null,true);
+    }
+  },{passive:true});
 }
 function mount(){
   const root=B.$('.ac'), sc=root?.querySelector('.ac-scroll');
@@ -645,6 +728,8 @@ function mount(){
     sc.scrollLeft=scrollLeft;
     sc.addEventListener('scroll',()=>{scroll=sc.scrollTop;scrollLeft=sc.scrollLeft},{passive:true});
   }
+  mountGestures(sc);
+  if(editContext?.selected)markDraft(editContext.e,editContext.task);
   root.addEventListener('pointerdown',e=>rangePointer(e,root));
   root.addEventListener('click',e=>{
     if(Date.now()-draggedAt<350&&e.target.closest('[data-col],[data-all]')){e.stopImmediatePropagation();e.preventDefault();}
@@ -652,8 +737,9 @@ function mount(){
   root.addEventListener('dblclick',e=>{
     if(e.target.closest('.ac-item,button,a'))return;
     const col=e.target.closest('[data-col]'), all=e.target.closest('[data-all]');
-    if(col) editor(newTimed(col.dataset.col,minuteAt(col,e.clientY)));
-    else if(all) editor(newAll(all.dataset.all));
+    const anchor={x:e.clientX,y:e.clientY};
+    if(col) editor(newTimed(col.dataset.col,minuteAt(col,e.clientY)),null,false,anchor,true);
+    else if(all) editor(newAll(all.dataset.all),null,false,anchor,true);
   });
 }
 document.addEventListener('keydown',e=>{
@@ -663,5 +749,5 @@ document.addEventListener('keydown',e=>{
     KeyT:B.acts.acToday,KeyN:B.acts.acAdd,Slash:B.acts.acSearch}[e.code];
   if(act){e.preventDefault();e.stopImmediatePropagation();act();}
 },true);
-B.calendarView={render,mount};
+B.calendarView={render,mount,deferRender(){if(!dragging)return false;redrawAfterDrag=true;return true;}};
 })();

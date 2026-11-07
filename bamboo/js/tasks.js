@@ -460,31 +460,29 @@ function drop(st, target){
   if (was !== to) B.toast(to ? `Перенесено на ${B.fmtW(to)}` : 'Перенесено в «Когда-нибудь»', 1400);
 }
 /* перенос веба (вместе с ним сдвигается срок ДЗ) или только срока ДЗ */
-function moveShad(n, kind, to, start){
+function moveShad(n, kind, to, slot){
   const p = B.shad.plan.find(x => x.n === n); if (!p) return;
-  if (kind === 'web'){
-    if (p.wp && p.w.date === to && (start == null || start === p.w.from)) return;
-    const k = B.diff(p.w.date, to), patch = {w: {date: to}};
-    if (start != null){
-      const minutes = s => s ? Number(s.slice(0,2))*60 + Number(s.slice(3,5)) : 0;
-      const duration = p.w.to && p.w.from ? Math.max(15,minutes(p.w.to)-minutes(p.w.from)) : 60;
-      const end = Math.min(1439, minutes(start)+duration);
-      patch.w.from = start;
-      patch.w.to = start ? B.pad(Math.floor(end/60))+':'+B.pad(end%60) : '';
-    }
-    if (k && p.wp && p.hp) patch.h = {date: B.add(p.h.date, k)};   // ДЗ едет за вебом, только если ему уже выбран день
-    B.setShadOver(n, patch);
-    B.toast(`${esc(p.code || 'Веб')} перенесён на ${B.fmtW(to)}${patch.h ? `, ДЗ до ${B.fmtW(patch.h.date)}` : ''}`);
-  } else {
-    if (p.hp && p.h.date === to) return;
-    B.setShadOver(n, {h: {date: to}});
-    B.toast(`ДЗ ${esc(p.code || '')}: до ${B.fmtW(to)}`);
+  const key = kind === 'web' ? 'w' : 'h', old = p[key];
+  if (!old || (!slot && (key==='w'?p.wp:p.hp) && old.date===to)) return;
+  const k = B.diff(old.date, to);
+  const endDate = old.endDate ? B.add(old.endDate,k) : '';
+  const patch = {[key]:{date:to,...(endDate?{endDate}:{}),...slot}};
+  // При переносе веба на другой день сохраняем расстояние до уже назначенного ДЗ.
+  if (k && key==='w' && p.wp && p.hp){
+    patch.h={date:B.add(p.h.date,k)};
+    if (p.h.endDate) patch.h.endDate=B.add(p.h.endDate,k);
   }
+  B.setShadOver(n,patch);
+  if (slot?.from) B.toast(`${esc(p.code || 'ШАД')} · ${B.fmtW(to)}, ${slot.from}–${slot.to}`);
+  else B.toast(`${esc(p.code || 'ШАД')} · ${B.fmtW(to)}`);
 }
-B.calendarMoveShad = moveShad;
+B.calendarMoveShad = (n,kind,start,end) => {
+  const date=start.slice(0,10), from=start.slice(11);
+  moveShad(n,kind,date,{from,to:from?end.slice(11):'',endDate:from&&end.slice(0,10)!==date?end.slice(0,10):''});
+};
 /* перенос с записью в историю: дело, переехавшее на более поздний день, считается переносом (без штрафа) */
-function moveTask(t, to, order){
-  const patch = {due: to};
+function moveTask(t, to, order, slot){
+  const patch = {due: to,...slot};
   if (!t.done && (t.due || '') !== to && t.due && (!to || to > t.due)) patch.postpones = (t.postpones || []).concat({from: t.due, to, why: '', at: Date.now()});
   if (t.remind && t.remind.at && t.due && to && t.due !== to){ const d = new Date(t.remind.at); d.setDate(d.getDate() + B.diff(t.due, to)); patch.remind = {at: localISO(d)}; }
   if (!to) patch.time = '';
@@ -493,6 +491,13 @@ function moveTask(t, to, order){
   else B.updTask(t.id, {ord: (to ? onDate(to) : someday()).reduce((m, x) => Math.max(m, x.ord ?? 0), 0) + 10}, true);
   B.changed();
 }
+B.calendarMoveTask = (id,start,end) => {
+  const t=B.task(id); if(!t)return;
+  const date=start.slice(0,10), time=start.slice(11);
+  const slot={time,est:time?B.calData.span(start,end):t.est||0};
+  if(t.due===date) B.updTask(id,slot);
+  else moveTask(t,date,null,slot);
+};
 document.addEventListener('click', e => { if (Date.now() - justDragged < 350 && e.target.closest('.pl-t,.pl-shad')){ e.stopPropagation(); e.preventDefault(); } }, true);
 
 /* ---------- карточка задачи ---------- */

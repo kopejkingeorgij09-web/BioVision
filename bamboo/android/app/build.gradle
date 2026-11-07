@@ -1,0 +1,56 @@
+plugins {
+    id 'com.android.application' version '8.9.2'
+}
+
+def signingStore = providers.environmentVariable('ZOV_SIGNING_STORE').orNull
+
+android {
+    namespace 'org.biovision.zovlesa'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'org.biovision.zovlesa'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '1.0.0'
+    }
+    if (signingStore != null) {
+        signingConfigs {
+            release {
+                storeFile file(signingStore)
+                storePassword providers.environmentVariable('ZOV_SIGNING_PASSWORD').get()
+                keyAlias 'zov-lesa'
+                keyPassword storePassword
+            }
+        }
+        buildTypes.release.signingConfig signingConfigs.release
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    sourceSets.main.assets.srcDir(layout.buildDirectory.dir('generated/zovAssets'))
+}
+
+def bamboo = rootProject.projectDir.parentFile
+def repo = bamboo.parentFile
+def web = layout.buildDirectory.dir('generated/zovAssets/www')
+tasks.register('bundleZovWeb', Sync) {
+    into(web)
+    from(bamboo) {
+        include 'style.css', 'calendar.css', 'js/**', 'icons/**', 'manifest.webmanifest'
+        into 'bamboo'
+    }
+    from(new File(bamboo, 'index.html')) {
+        into 'bamboo'
+        filter { line -> line.replace('</body>', '<script src="android-download.js"></script></body>') }
+    }
+    from(rootProject.file('web/android-download.js')) { into 'bamboo' }
+    from(new File(repo, 'bioviz/x/cloud.js')) { into 'bioviz/x' }
+    from(new File(repo, 'shad/plan.json')) { into 'shad' }
+}
+tasks.named('preBuild') { dependsOn 'bundleZovWeb' }
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.12.1'
+}

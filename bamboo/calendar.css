@@ -145,3 +145,38 @@
   .ac-year { grid-template-columns:repeat(2,minmax(0,1fr));gap:14px }
   .ac-all-new { opacity:.7 }
 }
+
+/* Карточка над сеткой на компьютере и короткий лист на телефоне. */
+.sheet:has(.ac-quick) { max-width:368px;gap:7px;padding:12px 14px 14px }
+.ac-card-title { font:600 12px system-ui,sans-serif!important;color:var(--ink-2);margin:0 }
+.ac-quick { gap:7px }
+.ac-quick .ac-types { width:100%;justify-content:stretch;margin:3px 0 }
+.ac-quick .ac-types button { flex:1 }
+.ac-quick-name,.ac-project select { width:100%;min-width:0 }
+.ac-quick-name { padding:8px 10px;border:1px solid var(--rule);border-radius:9px;background:var(--paper-2);color:var(--ink) }
+.ac-interval { padding:6px 8px;color:var(--ink-2);font-size:12px;margin:0 }
+.ac-project { display:flex;align-items:center;gap:8px;padding:4px 7px;border-radius:8px;background:var(--paper-2) }
+.ac-project select { border:0;background:transparent;color:var(--ink);padding:5px 2px;font:inherit;font-size:13px }
+.ac-project-dot { width:9px;height:9px;border-radius:50%;background:currentColor;flex:none }
+.ac-extra { border-top:1px solid var(--rule);font-size:12px;padding-top:5px }
+.ac-extra summary { cursor:pointer;color:var(--ink-2);padding:3px 2px }
+.ac-extra > div { display:grid;gap:7px;padding:5px 0 }
+.ac-draft { pointer-events:none;display:block;z-index:4;border-radius:5px;background:var(--accent);color:var(--accent-ink);font:600 11px system-ui,sans-serif;padding:3px 5px;overflow:hidden }
+.ac-draft.timed { position:absolute;left:2px;right:2px }
+.ac-grab { display:none }
+.ac-scroll { overscroll-behavior-x:contain }
+@media (min-width:700px) and (pointer:fine) {
+  #scrim:has(.ac-floating) { background:transparent }
+  .sheet:has(.ac-floating) {
+    position:fixed;inset:auto;left:var(--ac-pop-left,12px);top:var(--ac-pop-top,12px);
+    width:min(330px,calc(100vw - 16px));max-height:calc(100dvh - var(--ac-pop-top,12px) - 8px);
+    border:1px solid var(--rule-2);border-radius:14px;transform:none;box-shadow:0 12px 42px #0005;
+  }
+}
+@media(pointer:coarse) {
+  .ac-resize,.ac-grab { touch-action:none }
+  .ac-resize { height:8px }
+  .ac-item:not(.timed) .ac-grab { position:static;padding:2px 5px;flex:none }
+  .ac-grab { display:block;position:absolute;right:0;top:8px;padding:2px 4px;color:var(--ac-muted);z-index:2 }
+  .sheet:has(.ac-quick) { padding-bottom:calc(14px + env(safe-area-inset-bottom,0px)) }
+}

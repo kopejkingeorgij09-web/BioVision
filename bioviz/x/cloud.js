@@ -20,12 +20,19 @@ async function rpc(fn,args){
 
 /* --- кто вошёл --- */
 let me=null;               // {role:'student'|'admin', id, name}
-const ready=(async()=>{const c=getCode();if(!c)return null;
-  try{me=await rpc('bv_login',{p_code:c});if(!me)setCode('')}catch(e){me=null}
-  return me})();
+async function restore(){
+  const code=getCode();if(!code)return null;
+  try{
+    const result=await rpc('bv_login',{p_code:code});
+    if(code!==getCode())return me;
+    me=result;if(!me)setCode('');return me;
+  }catch(e){return null}
+}
+const ready=restore();
 
 const AUTH=window.BVAUTH={
   ready,
+  restore,
   get me(){return me},
   async login(code){
     const c=String(code||'').trim().toUpperCase();if(!c)throw new Error('Введите код.');
@@ -53,11 +60,22 @@ const db={
     /* один раз прочитать всю коллекцию: [{id, data}] */
     list:()=>rpc('bv_list',{p_code:getCode(),p_col:col}).then(l=>l||[]),
     /* живого канала нет: опрашиваем раз в 20 секунд и сразу после изменений на этой странице */
-    onSnapshot(cb,err){let stop=false,last='';
-      const tick=async()=>{if(stop)return;try{const l=await rpc('bv_list',{p_code:getCode(),p_col:col});const sig=JSON.stringify(l);if(sig!==last){last=sig;cb(snapDocs(l))}}catch(e){err&&err(e)}};
-      tick();const t=setInterval(()=>{if(!document.hidden)tick()},20000);
-      const poke=()=>setTimeout(tick,400);addEventListener('bv-cloud-write',poke);
-      return()=>{stop=true;clearInterval(t);removeEventListener('bv-cloud-write',poke)}}}}};
+    onSnapshot(cb,err){
+      let stop=false,last='',version=0,queued;
+      const tick=async()=>{
+        if(stop)return;
+        const request=++version;
+        try{
+          const list=await rpc('bv_list',{p_code:getCode(),p_col:col});
+          if(stop||request!==version)return;
+          const sig=JSON.stringify(list);
+          if(sig!==last){last=sig;cb(snapDocs(list))}
+        }catch(e){if(!stop&&request===version&&err)err(e)}
+      };
+      tick();const timer=setInterval(()=>{if(!document.hidden)tick()},20000);
+      const poke=()=>{version++;clearTimeout(queued);queued=setTimeout(tick,400)};
+      addEventListener('bv-cloud-write',poke);
+      return()=>{stop=true;clearTimeout(queued);clearInterval(timer);removeEventListener('bv-cloud-write',poke)}}}}};
 
 const user={
   async id(){await ready;return me?me.id:null},

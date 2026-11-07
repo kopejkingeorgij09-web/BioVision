@@ -1,10 +1,13 @@
 import { edit, list, read } from './local.js';
 import { attachmentBlob, cloudEnabled, identity, libraryId, signIn, signInByCode, signOut, synchronize } from './cloud.js';
 import { createSurface } from './ink.js';
-import { boardFilesWithPositions, boardFileWidth, describeFile, mountBoardFile, openMedia, pdfBase } from './media.js';
+import { boardFilesWithPositions, boardFileWidth, describeFile, mountBoardFile, openMedia, pdfBase, pdfSearchPages } from './media.js';
 import { button, element, textEditor } from './text.js';
 import { cloudConfig } from './config.js';
 import { createPenButton, defaultPenButton } from './pen-button.js';
+import { createUtilities } from './utilities.js';
+import { boardMap } from './board-map.js';
+import { handwritingLines, recognizeInk, searchText } from './note-search.js';
 
 const $ = id => document.getElementById(id);
 const kinds = {
@@ -18,17 +21,19 @@ const tools = { pen: 'Перо', highlight: 'Маркер', erase: 'Ластик
 const blank = () => ({ id: crypto.randomUUID(), strokes: [], texts: [] });
 const preferenceKey = 'biovision-notes-pen';
 const themes = { system: 'Как в системе', white: 'Белая', gray: 'Серая', warm: 'Тёплая белая', violet: 'Тёмно-фиолетовая', green: 'Тёмно-зелёная', black: 'Чёрная' };
-const appVersion = { name: '0.3.0', code: 3 };
+const appVersion = { name: '0.7.0', code: 8 };
 const releaseBase = cloudConfig.url + '/storage/v1/object/public/notes-releases/';
 const darkMode = matchMedia('(prefers-color-scheme: dark)');
 const existingPrefs = JSON.parse(localStorage.getItem(preferenceKey) ?? '{}');
 const accountLabel = () => identity()?.app_metadata?.notes_access_code ? 'Аккаунт по коду' : identity()?.email ?? 'Войти';
 const prefs = {
   tool: 'pen', color: matchMedia('(prefers-color-scheme: dark)').matches ? '#eee9ff' : '#28223c',
-  width: 3, textPt: 12, finger: false, theme: 'system',
+  width: 3, textPt: 12, finger: false, theme: 'system', holdShapes: true,
   autoColor: !existingPrefs.color || ['#28223c', '#eee9ff'].includes(existingPrefs.color),
   ...existingPrefs,
+  penButtonsVersion: 2,
 };
+if (!existingPrefs.penButtonsVersion && prefs.tool === 'lasso') prefs.tool = 'pen';
 let scope = libraryId();
 let items = [];
 let current;
@@ -50,29 +55,43 @@ let failedWrite = false;
 let surfaces = [];
 let selectedText;
 let documentText;
+let objectClipboard;
+let selectionHost;
 const notebookZoom = new Map();
+const tabPositions = new Map();
+let tabIds = [], tabStamp;
+let pdfPage = 1;
+const utilities = createUtilities($('utilities'), $('timer-chip'), message);
+let fullscreen = false;
 
 const buttonSettings = () => ({ ...defaultPenButton, ...prefs.penButton });
-let toolBeforeToggle;
+const holdActions = { none: 'Без действия', pen: 'Перо', erase: 'Ластик', highlight: 'Маркер', lasso: 'Лассо' };
+const pressActions = { ...holdActions, text: 'Текст', newText: 'Новое текстовое поле', undo: 'Отменить', redo: 'Повторить' };
+let gestureTool;
+let penSettingsDraft;
+const baseTool = () => gestureTool ?? prefs.tool;
 const penButton = createPenButton({
-  settings: buttonSettings,
-  enabled: () => Boolean(current && surfaces.length && !$('dialog').open),
+  settings: () => penSettingsDraft ?? buttonSettings(),
+  enabled: () => Boolean(penSettingsDraft || current && surfaces.length && !$('dialog').open),
   changed: updateToolButtons,
-  activate(action) {
+  activate(action, gesture) {
+    if (penSettingsDraft) {
+      $('pen-button-status').textContent = (gesture === 'double' ? 'Двойное нажатие' : 'Короткое нажатие') + ' → ' + pressActions[action];
+      return;
+    }
     if (action === 'undo' || action === 'redo') { history(action === 'redo'); return; }
     if (action === 'newText') { addTextBlock(); return; }
-    if (!tools[action] || action === 'hand' && !current?.data.pages?.length) return;
-    if (prefs.tool === action) {
-      chooseTool(toolBeforeToggle?.action === action ? toolBeforeToggle.previous : 'pen');
-      toolBeforeToggle = undefined;
-    } else {
-      toolBeforeToggle = { action, previous: prefs.tool };
-      chooseTool(action);
-    }
+    if (!tools[action]) return;
+    const previous = baseTool();
+    gestureTool = gestureTool === action ? undefined : action;
+    if (previous === 'lasso' && baseTool() !== 'lasso') surfaces.forEach(surface => surface.deselect());
+    updateToolButtons();
   },
 });
 
 function chooseTool(tool) {
+  if (baseTool() === 'lasso' && tool !== 'lasso') surfaces.forEach(surface => surface.deselect());
+  gestureTool = undefined;
   prefs.tool = tool;
   remember();
   updateToolButtons();
@@ -80,26 +99,36 @@ function chooseTool(tool) {
 
 function updateToolButtons() {
   const held = penButton.held();
-  const effective = held === 'none' ? prefs.tool : held;
+  const effective = held === 'none' ? baseTool() : held;
   for (const control of document.querySelectorAll('[data-ink-tool]')) {
     control.setAttribute('aria-pressed', String(control.dataset.inkTool === effective));
   }
+  $('content').classList.toggle('lasso-mode', effective === 'lasso');
   const status = $('pen-button-status');
-  if (status) status.textContent = penButton.isPressed() ? 'Кнопка удерживается' : 'Кнопка отпущена';
+  if (status) status.textContent = penButton.isPressed()
+    ? 'Кнопка нажата → ' + holdActions[held] : 'Кнопка отпущена';
 }
 
-window.notesPenButton = (down, contact, canceled, time) => penButton.input(down, contact, canceled, time);
-
-function sideTool(event, first) {
-  if (event.pointerType !== 'pen') return prefs.tool;
-  if (event.button === 5 || event.buttons & 32) return 'erase';
-  const native = window.NotesAndroid?.penButtonPressed;
-  const held = first && native ? window.NotesAndroid.penButtonPressed() : penButton.held() !== 'none';
-  if (held || (event.buttons & 2) || event.button === 2) {
-    const tool = buttonSettings().hold;
-    if (tool !== 'none') return tool;
+window.notesPenButton = (down, contact, canceled, time, source) => {
+  penButton.input(down, contact, canceled, time);
+  const diagnostic = $('pen-button-signal');
+  const channel = { button: 'событие кнопки', touch: 'касание', hover: 'наведение' }[source];
+  if (diagnostic && channel) {
+    diagnostic.textContent = 'Сигнал Android · ' + channel + ' · ' + (down ? 'нажата' : 'отпущена');
   }
-  return prefs.tool;
+};
+
+function sideTool(event) {
+  if (event.pointerType !== 'pen') return baseTool();
+  const bridge = window.NotesAndroid;
+  const pointerButton = Boolean(event.buttons & 2) || event.button === 2;
+  const held = pointerButton || (bridge?.penButtonPressed ? bridge.penButtonPressed() : penButton.isPressed());
+  if (held) {
+    const tool = buttonSettings().hold;
+    return tool === 'none' ? baseTool() : tool;
+  }
+  if (event.button === 5 || event.buttons & 32) return 'erase';
+  return baseTool();
 }
 
 function message(text) {
@@ -112,10 +141,10 @@ function report(error) { message(error.message ?? String(error)); }
 
 function choose(title, populate) {
   const dialog = $('dialog');
-  if (dialog.open) dialog.close();
   dialog.replaceChildren(element('h2', title));
   populate(dialog, () => dialog.close());
-  dialog.showModal();
+  if (dialog.open) dialog.querySelector('input, select, button')?.focus();
+  else dialog.showModal();
 }
 
 function labelled(label, input) {
@@ -143,8 +172,62 @@ function remember() {
   const focus = Boolean(current && prefs.focusMode);
   $('app').classList.toggle('focus-mode', focus);
   $('focus-mode').setAttribute('aria-pressed', String(focus));
-  $('focus-mode').setAttribute('aria-label', focus ? 'Вернуть библиотеку' : 'Во весь экран');
-  $('focus-mode').title = focus ? 'Вернуть библиотеку' : 'Во весь экран';
+  $('focus-mode').setAttribute('aria-label', focus ? 'Вернуть библиотеку' : 'Скрыть библиотеку');
+  $('focus-mode').title = focus ? 'Вернуть библиотеку' : 'Скрыть библиотеку';
+}
+
+function updateFullscreen(active) {
+  fullscreen = Boolean(active);
+  const control = $('fullscreen');
+  control.hidden = !current && !fullscreen;
+  control.setAttribute('aria-pressed', String(fullscreen));
+  control.title = fullscreen ? 'Выйти из полного экрана' : 'Полный экран';
+  control.setAttribute('aria-label', control.title);
+  $('app').classList.toggle('fullscreen', fullscreen);
+  $('app').classList.remove('library-open');
+}
+window.notesFullscreenChanged = updateFullscreen;
+document.addEventListener('fullscreenchange', () => updateFullscreen(Boolean(document.fullscreenElement)));
+
+async function setFullscreen(active) {
+  if (window.NotesAndroid?.setFullscreen) { window.NotesAndroid.setFullscreen(active); return; }
+  if (window.webkit?.messageHandlers?.notesFullscreen) {
+    window.webkit.messageHandlers.notesFullscreen.postMessage(active);
+    return;
+  }
+  try {
+    if (active) {
+      await document.documentElement.requestFullscreen();
+    } else if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    } else updateFullscreen(false);
+  } catch {
+    updateFullscreen(active);
+    if (active) message('Этот браузер оставляет свою панель на экране.');
+  }
+}
+
+function boardViewport(id, signal) {
+  const key = 'biovision-notes-board-view:' + scope + ':' + id;
+  let initialView, pending, timer;
+  try {
+    const view = JSON.parse(localStorage.getItem(key));
+    if (view && [view.x, view.y, view.zoom].every(Number.isFinite) && view.zoom >= .15 && view.zoom <= 6) initialView = view;
+  } catch { /* Storage can be unavailable in a private session. */ }
+  function flush() {
+    clearTimeout(timer);
+    timer = undefined;
+    if (!pending) return;
+    try { localStorage.setItem(key, JSON.stringify(pending)); } catch { /* The board remains usable. */ }
+    pending = undefined;
+  }
+  signal.addEventListener('abort', flush, { once: true });
+  window.addEventListener('pagehide', flush, { signal });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); }, { signal });
+  return { initialView, onViewChange(view) {
+    pending = view;
+    timer ??= setTimeout(flush, 180);
+  } };
 }
 
 function numberControl(id, title, value, min, max, step, change) {
@@ -267,42 +350,52 @@ function updateUndo() {
 
 function visible() { return items.filter(item => !item.deleted); }
 
+const folderColors = { violet: 'Сиреневый', blue: 'Голубой', green: 'Зелёный', gold: 'Янтарный', rose: 'Розовый' };
+
+function libraryItems() {
+  return visible().sort((a, b) => a.data.title.localeCompare(b.data.title, 'ru', { numeric: true }));
+}
+
+function folderPath(id, records = libraryItems()) {
+  const path = [];
+  const seen = new Set();
+  while (id && !seen.has(id)) {
+    seen.add(id);
+    const entry = records.find(item => item.id === id && item.data.kind === 'folder');
+    if (!entry) break;
+    path.unshift(entry);
+    id = entry.data.parent;
+  }
+  return path;
+}
+
+function inFolder(records, id) {
+  const parents = new Set(records.filter(item => item.data.kind === 'folder').map(item => item.id));
+  return records.filter(item => (parents.has(item.data.parent) ? item.data.parent : null) === id);
+}
+
 function renderLibrary() {
   const nav = $('tree');
+  const records = libraryItems();
   nav.replaceChildren();
-  const term = $('query').value.trim().toLocaleLowerCase('ru');
-  const records = visible().sort((a, b) => {
-    const fa = a.data.kind === 'folder', fb = b.data.kind === 'folder';
-    return fa === fb ? a.data.title.localeCompare(b.data.title, 'ru') : fa ? -1 : 1;
-  });
-  const parents = new Set(records.filter(item => item.data.kind === 'folder').map(item => item.id));
-  function row(item, depth) {
-    const line = element('div', undefined, 'tree-row');
-    line.style.paddingLeft = Math.min(depth, 6) * 12 + 'px';
-    const link = button(kinds[item.data.kind][0] + '  ' + item.data.title, () => open(item.id));
-    link.title = item.data.title;
-    if (current?.id === item.id || folder === item.id && !current) link.setAttribute('aria-current', 'true');
-    line.append(link);
-    nav.append(line);
+  function row(item, depth = 0) {
+    const link = button(item ? kinds[item.data.kind][0] + '  ' + item.data.title : '⌂  Библиотека', () => open(item?.id));
+    link.className = 'library-link';
+    link.style.setProperty('--depth', depth);
+    if (item) link.title = item.data.title;
+    if (current?.id === item?.id && current || !current && (item?.id ?? null) === folder) link.setAttribute('aria-current', 'page');
+    nav.append(link);
   }
-  if (term) {
-    for (const item of records.filter(item => [item.data.title, item.data.body ?? ''].some(value => value.toLocaleLowerCase('ru').includes(term)))) row(item, 0);
-  } else {
-    const seen = new Set();
-    function branch(parent, depth) {
-      for (const item of records) {
-        if (seen.has(item.id)) continue;
-        const actual = parents.has(item.data.parent) ? item.data.parent : null;
-        if (actual !== parent) continue;
-        seen.add(item.id);
-        row(item, depth);
-        if (item.data.kind === 'folder') branch(item.id, depth + 1);
-      }
+  row(null);
+  const expanded = new Set(folderPath(folder, records).map(item => item.id));
+  function branch(parent, depth) {
+    for (const item of inFolder(records, parent).filter(item => item.data.kind === 'folder')) {
+      row(item, depth);
+      if (expanded.delete(item.id)) branch(item.id, depth + 1);
     }
-    branch(null, 0);
-    for (const item of records) if (!seen.has(item.id)) row(item, 0);
   }
-  if (!nav.childElementCount) nav.append(element('p', term ? 'Ничего не найдено' : 'Библиотека пуста', 'muted'));
+  branch(null, 0);
+  if (current) row(current);
 }
 
 async function preload(item, owner) {
@@ -324,29 +417,84 @@ async function preload(item, owner) {
   }
 }
 
-function open(id, { replace = false } = {}) {
+const tabsKey = () => 'biovision-notes-tabs:' + scope;
+
+function loadTabs() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(tabsKey()));
+    tabIds = Array.isArray(saved?.ids) ? [...new Set(saved.ids)] : [];
+    return saved?.active;
+  } catch { tabIds = []; }
+}
+
+function renderTabs() {
+  const nav = $('note-tabs');
+  const byId = new Map(visible().filter(item => item.data.kind !== 'folder').map(item => [item.id, item]));
+  tabIds = tabIds.filter(id => byId.has(id));
+  const stamp = JSON.stringify([scope, current?.id, ...tabIds.map(id => [id, byId.get(id).data.title])]);
+  if (tabStamp === stamp) return;
+  tabStamp = stamp;
+  nav.replaceChildren();
+  nav.hidden = !tabIds.length;
+  for (const id of tabIds) {
+    const item = byId.get(id), active = id === current?.id;
+    const tab = element('div', undefined, 'note-tab');
+    const pick = button(kinds[item.data.kind][0] + ' ' + item.data.title, () => open(id));
+    pick.title = item.data.title;
+    if (active) pick.setAttribute('aria-current', 'page');
+    const dismiss = button('×', () => closeTab(id));
+    dismiss.setAttribute('aria-label', 'Закрыть вкладку «' + item.data.title + '»');
+    tab.append(pick, dismiss);
+    nav.append(tab);
+    if (active && (tab.offsetLeft < nav.scrollLeft || tab.offsetLeft + tab.offsetWidth > nav.scrollLeft + nav.clientWidth)) {
+      nav.scrollLeft = tab.offsetLeft - 8;
+    }
+  }
+  try { localStorage.setItem(tabsKey(), JSON.stringify({ ids: tabIds, active: current?.id ?? null })); } catch { /* Tabs still work in memory. */ }
+}
+
+function closeTab(id) {
+  const index = tabIds.indexOf(id);
+  tabIds = tabIds.filter(tab => tab !== id);
+  if (current?.id === id) open(tabIds[Math.min(index, tabIds.length - 1)] ?? folder);
+  else renderTabs();
+  tabPositions.delete(id);
+  $('note-tabs').querySelector('[aria-current]')?.focus({ preventScroll: true });
+}
+
+function open(id, { replace = false, target } = {}) {
   const item = items.find(entry => entry.id === id && !entry.deleted);
   if (id && !item) { message('Заметка не найдена на этом устройстве'); return; }
+  if (current && item?.id === current.id && !target && !replace) return;
+  if (current) tabPositions.set(current.id, { attachmentId, boardFileId, pdfPage, back, forward,
+    scroll: [$('content').scrollLeft, $('content').scrollTop] });
   if (item?.data.kind === 'folder') { folder = item.id; current = null; }
   else { current = item; folder = item?.data.parent ?? null; }
-  attachmentId = boardFileId = null;
+  if (current && !tabIds.includes(current.id)) tabIds.push(current.id);
+  const previous = current ? tabPositions.get(current.id) : undefined;
+  attachmentId = target ? target.file ?? null : previous?.attachmentId ?? null;
+  boardFileId = target ? target.file ?? null : previous?.boardFileId ?? null;
+  pdfPage = target?.pdfPage ?? previous?.pdfPage ?? 1;
   focusBoardFile = false;
-  back = [];
-  forward = [];
+  back = previous?.back ?? [];
+  forward = previous?.forward ?? [];
   const hash = item ? '#note=' + item.id : location.pathname + location.search;
   if (replace) window.history.replaceState(null, '', hash);
-  else if (hash !== location.hash) window.history.pushState(null, '', hash);
+  else if ((item ? hash : '') !== location.hash) window.history.pushState(null, '', hash);
   $('app').classList.remove('library-open');
   render();
+  if (target) revealSearchResult(target);
+  else if (previous?.scroll) $('content').scrollTo(...previous.scroll);
   if (item) void preload(item, scope);
 }
 
-async function create(kind, title, paper) {
+async function create(kind, title, paper, color) {
   const item = { id: crypto.randomUUID(), library: scope, revision: 0 };
   const data = { kind, title, parent: folder, paper };
   if (kind === 'pages' || kind === 'board') data.pages = [blank()];
   if (kind === 'text') data.body = '';
   if (kind !== 'folder') data.attachments = [];
+  else data.color = color;
   await save(data, { item });
   open(item.id);
   if (kind === 'text') $('content').querySelector('textarea')?.focus();
@@ -362,19 +510,24 @@ function createDialog(defaultKind = 'pages') {
     title.required = true;
     const paper = select(layouts, 'dots', 'Разметка');
     const pattern = labelled('Разметка', paper);
-    const toggle = () => { pattern.hidden = kind.value === 'folder' || kind.value === 'text'; };
+    const color = select(folderColors, 'violet', 'Цвет папки');
+    const folderColor = labelled('Цвет папки', color);
+    const toggle = () => {
+      pattern.hidden = kind.value === 'folder' || kind.value === 'text';
+      folderColor.hidden = kind.value !== 'folder';
+    };
     kind.addEventListener('change', toggle);
     toggle();
     const actions = element('div', undefined, 'dialog-actions');
     const submit = element('button', 'Создать', 'primary');
     submit.type = 'submit';
     actions.append(button('Отмена', close), submit);
-    form.append(labelled('Тип', kind), labelled('Название', title), pattern, actions);
+    form.append(labelled('Тип', kind), labelled('Название', title), pattern, folderColor, actions);
     form.onsubmit = async event => {
       event.preventDefault();
       if (!title.value.trim()) return;
       submit.disabled = true;
-      try { await create(kind.value, title.value.trim(), paper.value); close(); }
+      try { await create(kind.value, title.value.trim(), paper.value, color.value); close(); }
       catch (error) { report(error); submit.disabled = false; }
     };
     dialog.append(form);
@@ -383,28 +536,70 @@ function createDialog(defaultKind = 'pages') {
 }
 
 function welcome() {
-  const section = element('section', undefined, 'welcome');
-  const currentFolder = items.find(item => item.id === folder && !item.deleted);
-  section.append(element('h1', currentFolder?.data.title ?? 'Мои заметки'));
-  section.append(element('p', currentFolder ? 'Открой заметку в библиотеке или создай новую в этой папке.' : 'Тетради для рукописи, доски для схем и конспекты для клавиатуры.'));
-  const cards = element('div', undefined, 'cards');
-  for (const [kind, [icon, label, description]] of Object.entries(kinds)) {
-    const card = button('', () => createDialog(kind));
-    card.append(element('strong', icon + '  ' + label), element('span', description, 'muted'));
-    cards.append(card);
+  const records = libraryItems();
+  const path = folderPath(folder, records);
+  const currentFolder = path.at(-1);
+  const section = element('section', undefined, 'library-view');
+  const breadcrumbs = element('nav', undefined, 'library-path');
+  breadcrumbs.setAttribute('aria-label', 'Путь к папке');
+  breadcrumbs.append(button('Библиотека', () => open(null)));
+  for (const entry of path) {
+    breadcrumbs.append(element('span', '›', 'muted'), button(entry.data.title, () => open(entry.id)));
   }
-  section.append(cards);
-  if (currentFolder) {
-    section.append(button('← ' + (currentFolder.data.parent ? 'На уровень выше' : 'Все заметки'), () => open(currentFolder.data.parent)));
-    section.append(button('Действия с папкой', () => more(currentFolder)));
+  breadcrumbs.lastElementChild.setAttribute('aria-current', 'page');
+  const title = element('div', undefined, 'library-title');
+  title.append(element('h1', currentFolder?.data.title ?? 'Мои заметки'));
+  const actions = element('div', undefined, 'library-actions');
+  actions.append(button('Новая папка', () => createDialog('folder')),
+    button('Новая заметка', () => createDialog(), 'primary'));
+  if (currentFolder) actions.append(button('Действия с папкой', () => more(currentFolder)));
+  title.append(actions);
+  section.append(breadcrumbs, title);
+
+  const controls = element('div', undefined, 'library-actions library-view-options');
+  const mode = select({ grid: 'Плитки', list: 'Список' }, prefs.libraryLayout ?? 'grid', 'Вид библиотеки');
+  mode.onchange = () => { prefs.libraryLayout = mode.value; remember(); welcome(); $('content').querySelector('[aria-label="Вид библиотеки"]').focus(); };
+  controls.append(labelled('Вид', mode));
+  section.append(controls);
+  const entries = inFolder(records, currentFolder?.id ?? null);
+  for (const [label, group] of [
+    ['Папки', entries.filter(item => item.data.kind === 'folder')],
+    ['Заметки', entries.filter(item => item.data.kind !== 'folder')],
+  ]) {
+    if (!group.length) continue;
+    section.append(element('h2', label));
+    const cards = element('div', undefined, 'library-items ' + (prefs.libraryLayout === 'list' ? 'library-list' : ''));
+    for (const item of group) {
+      const card = element('article', undefined, 'library-card');
+      const itemKind = item.data.kind;
+      const openItem = button('', () => open(item.id));
+      openItem.className = 'library-card-open';
+      openItem.setAttribute('aria-label', item.data.title);
+      const icon = element('span', itemKind === 'folder' ? '' : kinds[itemKind][0], 'library-item-icon');
+      icon.setAttribute('aria-hidden', 'true');
+      icon.dataset.color = itemKind === 'folder' ? item.data.color ?? 'violet' : 'note';
+      const info = element('span', undefined, 'library-item-text');
+      const childCount = itemKind === 'folder' ? inFolder(records, item.id).length : 0;
+      info.append(element('strong', item.data.title), element('small', itemKind === 'folder' ? 'Объектов · ' + childCount : kinds[itemKind][1], 'muted'));
+      openItem.append(icon, info);
+      const actions = button('⋯', () => more(item));
+      actions.className = 'library-card-menu';
+      actions.setAttribute('aria-label', 'Действия с «' + item.data.title + '»');
+      card.append(openItem, actions);
+      cards.append(card);
+    }
+    section.append(cards);
   }
-  $('content').append(section);
+  if (!entries.length) section.append(element('p', 'Здесь пока пусто. Создай заметку или папку.', 'library-empty muted'));
+  const previous = $('content').querySelector('.library-view');
+  if (previous) previous.replaceWith(section);
+  else $('content').append(section);
 }
 
 function fileBar() {
   const bar = element('div', undefined, 'attachments');
   for (const item of current.data.attachments ?? []) {
-    const control = button(item.name, () => { attachmentId = item.id; render(); });
+    const control = button(item.name, () => { attachmentId = item.id; pdfPage = 1; render(); });
     control.setAttribute('aria-pressed', String(item.id === attachmentId));
     bar.append(control);
   }
@@ -436,20 +631,195 @@ function recognition() {
     const field = element('input');
     field.placeholder = 'Распознанный текст';
     const result = recognizedText;
-    const run = button('Распознать', () => {
-      if (!window.NotesAndroid?.recognize) { info.textContent = 'Распознавание доступно в Android-приложении.'; return; }
+    const strokes = selectedStrokes;
+    const run = button('Распознать', async () => {
       run.disabled = true;
-      window.notesInkResult = (text, error) => {
-        run.disabled = false;
-        if (error) info.textContent = error;
-        else field.value = text;
-      };
-      window.NotesAndroid.recognize(JSON.stringify(selectedStrokes.map(stroke => stroke.points)), lang.value);
+      try { field.value = await recognizeInk(strokes.map(stroke => stroke.points.map(([x, y, , time]) => [x, y, time])), lang.value); }
+      catch (error) { info.textContent = error.message; }
+      finally { run.disabled = false; }
     });
     dialog.append(info, lang, run, field, button('Вставить', () => {
       if (field.value.trim()) { result?.(field.value.trim()); close(); }
     }, 'primary'), button('Закрыть', close));
   });
+}
+
+function searchLibrary() {
+  choose('Поиск по заметкам', (dialog, close) => {
+    const owner = scope;
+    const field = element('input');
+    field.type = 'search'; field.placeholder = 'Слово или фраза'; field.setAttribute('aria-label', 'Запрос');
+    const state = element('p', 'Поиск по печатному тексту, PDF и распознанной рукописи.', 'muted');
+    const indexState = element('p', '', 'muted');
+    const results = element('div', undefined, 'search-results');
+    const indexControls = element('div', undefined, 'search-index');
+    const language = select({ ru: 'Русский', en: 'English' }, prefs.inkLanguage ?? 'ru', 'Язык распознавания');
+    language.onchange = () => { prefs.inkLanguage = language.value; remember(); };
+    let generation = 0, debounce;
+    let returnQuery;
+    const records = () => visible().filter(item => item.data.kind !== 'folder');
+    const openSearch = () => scope === owner && field.isConnected && dialog.open;
+
+    function result(item, text, source, target = {}, entry) {
+      const query = searchText(field.value);
+      const start = searchText(text).indexOf(query);
+      if (start < 0 || results.childElementCount >= 100) return;
+      const row = element('div', undefined, 'search-result');
+      const jump = button('', () => { close(); open(item.id, { target: { ...target, query } }); });
+      const snippet = text.slice(Math.max(0, start - 28), Math.min(text.length, start + query.length + 70));
+      jump.append(element('strong', item.data.title + ' · ' + source), element('small', snippet, 'muted'));
+      row.append(jump);
+      if (entry) row.append(button('Исправить', () => {
+        returnQuery = field.value;
+        choose('Исправить распознанный текст', (dialog, closeCorrection) => {
+          const form = element('form'), edit = element('input'), submit = element('button', 'Сохранить', 'primary');
+          edit.value = entry.text; submit.type = 'submit';
+          form.append(labelled('Текст рукописи', edit), submit, button('Отмена', () => { closeCorrection(); searchLibraryWith(returnQuery); }));
+          form.onsubmit = async event => {
+            event.preventDefault();
+            const latest = items.find(record => record.id === item.id && !record.deleted);
+            if (!latest) return;
+            try {
+              await save({ ...latest.data, handwriting: (latest.data.handwriting ?? []).map(line =>
+                line.key === entry.key ? { ...line, text: edit.value.trim(), corrected: true } : line) }, { item: latest });
+              closeCorrection(); searchLibraryWith(returnQuery);
+            } catch (error) { report(error); }
+          };
+          dialog.append(form);
+        });
+      }));
+      results.append(row);
+    }
+
+    async function search() {
+      if (!openSearch()) return;
+      const mine = ++generation, query = searchText(field.value);
+      results.replaceChildren();
+      if (!query) { state.textContent = 'Введи слово или фразу.'; return; }
+      const list = records(), pdfs = [];
+      for (const item of list) {
+        const { data } = item;
+        result(item, data.title, 'Название');
+        if (data.body) result(item, data.body, 'Текст', { text: true });
+        for (const [i, page] of (data.pages ?? []).entries()) {
+          const source = data.kind === 'board' ? 'Доска' : 'Страница ' + (i + 1);
+          for (const text of page.texts ?? []) result(item, text.text, source, { page: page.id, x: text.x, y: text.y, field: text.id });
+          const valid = (data.handwriting ?? []).filter(entry => entry.page === page.id);
+          if (valid.length) {
+            const lines = new Map(handwritingLines(page).map(line => [line.key, line]));
+            for (const entry of valid) {
+              const line = lines.get(entry.key);
+              if (line) result(item, entry.text, source + ' · рукопись', { page: line.page, x: line.x, y: line.y }, entry);
+            }
+          }
+        }
+        for (const bookmark of data.bookmarks ?? []) result(item, bookmark.label, 'Закладка', bookmark);
+        for (const file of data.attachments ?? []) {
+          result(item, file.name, 'Вложение', { file: file.id });
+          if (file.mime === 'application/pdf') pdfs.push([item, file]);
+        }
+      }
+      const live = () => mine === generation && openSearch();
+      let unavailable = 0, scans = 0;
+      if (pdfs.length) state.textContent = 'Ищу в текстовом слое PDF…';
+      for (let i = 0; i < pdfs.length && live(); i += 3) {
+        await Promise.all(pdfs.slice(i, i + 3).map(async ([item, file]) => {
+          try {
+            const pages = await pdfSearchPages(owner, file.id);
+            if (!live()) return;
+            if (!pages.some(Boolean)) scans++;
+            pages.forEach((text, index) => result(item, text, file.name + ' · стр. ' + (index + 1), { file: file.id, pdfPage: index + 1 }));
+          } catch { unavailable++; }
+        }));
+      }
+      if (live()) state.textContent = (results.childElementCount ? 'Найдено: ' + results.childElementCount : 'Ничего не найдено') +
+        (scans ? ' · PDF без текстового слоя: ' + scans : '') + (unavailable ? ' · Недоступно PDF: ' + unavailable : '');
+    }
+
+    const index = button('Распознать рукопись', async () => {
+      const lang = language.value;
+      index.disabled = language.disabled = true;
+      let completed = 0, processed = 0;
+      const work = records().filter(item => item.data.pages?.some(page => page.strokes?.length));
+      try {
+        for (const item of work) {
+          if (!openSearch()) break;
+          const saved = new Map((item.data.handwriting ?? []).map(entry => [entry.key, entry]));
+          const entries = [];
+          const lines = item.data.pages.flatMap(handwritingLines);
+          for (const { strokes, width, height, ...line } of lines) {
+            if (!openSearch()) break;
+            const existing = saved.get(line.key);
+            if (existing?.corrected || existing?.language === lang) entries.push(existing);
+            else {
+              indexState.textContent = item.data.title + ' · распознаю строку ' + (entries.length + 1) + ' из ' + lines.length;
+              const text = await recognizeInk(strokes, lang, width, height);
+              entries.push({ ...line, text, language: lang });
+              processed++;
+            }
+          }
+          const latest = items.find(entry => entry.id === item.id && !entry.deleted);
+          if (!openSearch()) break;
+          if (latest?.operation === item.operation && JSON.stringify(entries) !== JSON.stringify(item.data.handwriting ?? [])) {
+            await save({ ...latest.data, handwriting: entries }, { item: latest });
+          }
+          completed++;
+        }
+        indexState.textContent = 'Заметок проверено: ' + completed + ' · Новых строк: ' + processed;
+        if (openSearch()) void search();
+      } catch (error) { indexState.textContent = error.message; }
+      finally { index.disabled = language.disabled = false; }
+    });
+    if (window.NotesAndroid?.recognizeIndexed) indexControls.append(language, index);
+    else indexState.textContent = 'Рукопись для поиска можно распознать в приложении на Android.';
+    field.oninput = () => { generation++; clearTimeout(debounce); debounce = setTimeout(search, 180); };
+    dialog.append(field, state, indexControls, indexState, results, button('Закрыть', close));
+    field.focus();
+  });
+}
+
+function searchLibraryWith(query) {
+  searchLibrary();
+  const field = $('dialog').querySelector('input[type=search]');
+  field.value = query;
+  field.dispatchEvent(new Event('input'));
+}
+
+function revealSearchResult(target) {
+  const signal = editor.signal, root = $('content');
+  const board = surfaces.find(surface => surface.host.classList.contains('board'));
+  if (board && target.file) {
+    const find = () => {
+      const file = board.host.querySelector('.board-file[data-attachment="' + CSS.escape(target.file) + '"]');
+      if (!file) return false;
+      const sheet = target.pdfPage && file.querySelector('[data-page="' + target.pdfPage + '"]');
+      if (target.pdfPage && !sheet) return false;
+      board.focus(file.offsetLeft, file.offsetTop + (sheet?.offsetTop ?? 0), boardFileWidth);
+      (sheet || file).classList.add('search-landing');
+      return true;
+    };
+    if (!find()) {
+      const observer = new MutationObserver(() => { if (find()) { clearTimeout(stop); observer.disconnect(); } });
+      observer.observe(board.host, { subtree: true, childList: true });
+      const stop = setTimeout(() => { observer.disconnect(); if (!signal.aborted) message('Страница PDF ещё не загрузилась'); }, 20000);
+      signal.addEventListener('abort', () => { clearTimeout(stop); observer.disconnect(); }, { once: true });
+    }
+  } else if (board && Number.isFinite(target.x) && Number.isFinite(target.y)) {
+    board.jump(target.x, target.y, target.zoom);
+  } else if (!target.file && target.page) {
+    const page = root.querySelector('[data-page-id="' + CSS.escape(target.page) + '"]');
+    if (page) {
+      const rect = page.getBoundingClientRect();
+      root.scrollTop += rect.top - root.getBoundingClientRect().top + (target.y ?? 0) * rect.width / 794 - 75;
+      page.classList.add('search-landing');
+    }
+  }
+  const field = target.text ? root.querySelector('.text-note textarea') : target.field && root.querySelector('[data-text-id="' + CSS.escape(target.field) + '"]');
+  if (field) {
+    const start = searchText(field.value).indexOf(target.query);
+    field.focus({ preventScroll: true });
+    if (start >= 0) field.setSelectionRange(start, start + target.query.length);
+  }
 }
 
 function inkControls(board, surface, withLayout) {
@@ -459,11 +829,11 @@ function inkControls(board, surface, withLayout) {
     const label = tools[key];
     if (key === 'hand' && !board) continue;
     const control = button(label, () => {
-      toolBeforeToggle = undefined;
       chooseTool(key);
     });
     control.dataset.inkTool = key;
-    bar.append(control);
+    if (['line', 'rect', 'ellipse'].includes(key)) extra.append(control);
+    else bar.append(control);
   }
   const color = element('input');
   color.type = 'color';
@@ -472,6 +842,55 @@ function inkControls(board, surface, withLayout) {
   color.setAttribute('aria-label', 'Цвет пера');
   color.onchange = () => { prefs.color = color.value; prefs.autoColor = false; remember(); };
   const width = numberControl('pen-width', 'Толщина пера', prefs.width, .5, 36, .1, value => { prefs.width = value; remember(); });
+  const presets = element('div', undefined, 'pen-presets');
+  presets.setAttribute('aria-label', 'Избранные перья');
+  const colors = () => prefs.penPresets ?? [
+    { color: '#5b55d0', width: 2 }, { color: '#238561', width: 3 }, { color: '#d25c54', width: 5 },
+  ];
+  function drawPresets() {
+    presets.replaceChildren();
+    for (const [index, item] of colors().entries()) {
+      const control = button('', () => {
+        prefs.color = color.value = item.color;
+        prefs.width = width.querySelector('input').valueAsNumber = item.width;
+        prefs.autoColor = false;
+        chooseTool('pen');
+        drawPresets();
+        presets.children[index]?.focus();
+      });
+      control.title = 'Перо ' + (index + 1) + ' · ' + item.width;
+      control.setAttribute('aria-label', control.title);
+      const swatch = element('span', undefined, 'pen-swatch');
+      swatch.style.setProperty('--swatch', item.color);
+      swatch.style.setProperty('--tip', Math.min(8, item.width + 1) + 'px');
+      control.append(swatch);
+      presets.append(control);
+    }
+  }
+  drawPresets();
+  bar.append(presets);
+  const editPresets = button('Настроить перья', () => choose('Избранные перья', (dialog, close) => {
+    const form = element('form');
+    const fields = colors().map((item, i) => {
+      const row = element('div', undefined, 'preset-field');
+      const shade = element('input');
+      shade.type = 'color'; shade.value = item.color;
+      const size = element('input');
+      size.type = 'number'; size.min = '.5'; size.max = '36'; size.step = '.1'; size.value = item.width; size.required = true;
+      row.append(labelled('Цвет пера ' + (i + 1), shade), labelled('Толщина', size));
+      form.append(row);
+      return [shade, size];
+    });
+    const apply = element('button', 'Сохранить', 'primary');
+    apply.type = 'submit';
+    form.append(apply, button('Отмена', close));
+    form.onsubmit = event => {
+      event.preventDefault();
+      prefs.penPresets = fields.map(([shade, size]) => ({ color: shade.value, width: size.valueAsNumber }));
+      remember(); drawPresets(); close();
+    };
+    dialog.append(form);
+  }));
   const finger = button('Рисовать пальцем', () => {
     prefs.finger = !prefs.finger;
     finger.setAttribute('aria-pressed', String(prefs.finger));
@@ -485,7 +904,10 @@ function inkControls(board, surface, withLayout) {
   const straighten = button('Выровнять фигуру', () => shapeSelection?.());
   straighten.id = 'straighten';
   straighten.disabled = true;
-  extra.append(color, width, finger, recognize, straighten);
+  const paste = button('Вставить объекты', pasteObjects);
+  paste.id = 'paste-objects';
+  paste.disabled = !objectClipboard;
+  extra.append(color, width, editPresets, finger, recognize, straighten, paste);
   textControls(extra, prefs.textPt, true);
   const advanced = button('Дополнительно', () => {
     moreInkTools = !moreInkTools;
@@ -513,10 +935,47 @@ function inkControls(board, surface, withLayout) {
   if (board) bar.append(button('−', () => surface.zoom(.8)), button('＋', () => surface.zoom(1.25)), button('Уместить', surface.fit));
 }
 
+function selectionActions(selection) {
+  const menu = $('selection-actions');
+  if (!selection) { menu.hidden = true; selectionHost = undefined; return; }
+  if (selectionHost !== selection.host || menu.hidden) {
+    menu.replaceChildren(button('Дублировать', selection.duplicate), button('Вырезать', selection.cut), button('Удалить', selection.delete));
+    selectionHost = selection.host;
+  }
+  const area = $('content').getBoundingClientRect();
+  menu.hidden = selection.bottom < area.top || selection.top > area.bottom;
+  if (menu.hidden) return;
+  const width = menu.offsetWidth, height = menu.offsetHeight;
+  const minX = Math.max(6, area.left + 5), maxX = Math.max(minX, area.right - width - 5);
+  const left = Math.max(minX, Math.min(maxX, selection.x - width / 2));
+  const preferred = selection.top - height - 8 >= area.top ? selection.top - height - 8 : selection.bottom + 8;
+  const top = Math.max(area.top + 5, Math.min(area.bottom - height - 5, preferred));
+  menu.style.left = left + 'px';
+  menu.style.top = top + 'px';
+}
+
+function pasteObjects() {
+  if (!objectClipboard) return;
+  const area = $('content').getBoundingClientRect();
+  const visible = surface => {
+    const rect = surface.host.getBoundingClientRect();
+    return Math.max(0, Math.min(rect.bottom, area.bottom) - Math.max(rect.top, area.top));
+  };
+  const target = surfaces.find(surface => surface.host === selectionHost) ??
+    [...surfaces].sort((a, b) => visible(b) - visible(a))[0];
+  target?.paste(objectClipboard);
+}
+
 function commonSurface() {
   return {
-    settings: () => prefs, signal: editor.signal,
+    settings: () => ({ ...prefs, tool: baseTool() }), signal: editor.signal,
     sideTool,
+    showSelection: selectionActions,
+    clipboard: { write(data) {
+      objectClipboard = structuredClone(data);
+      if ($('paste-objects')) $('paste-objects').disabled = false;
+      message('Вырезано. Вставь через «Дополнительно» или ⌘V / Ctrl+V.');
+    } },
     penContact: () => penButton.use(),
     notifyText(text) {
       selectedText = text;
@@ -584,7 +1043,6 @@ function notebookViewport(root, pages, id, signal) {
 }
 
 function render() {
-  const previousBoard = surfaces.find(surface => surface.host.dataset.note === current?.id);
   editor.abort();
   editor = new AbortController();
   selectedStrokes = [];
@@ -602,10 +1060,14 @@ function render() {
   root.style.setProperty('--grid-size', (current?.data.gridSize ?? 24) + 'px');
   $('title').hidden = !current;
   $('heading').hidden = Boolean(current);
-  $('heading').textContent = items.find(item => item.id === folder)?.data.title ?? 'Все заметки';
+  $('heading').textContent = 'Библиотека';
+  $('back-to-folder').hidden = !current;
   $('more').hidden = !current;
   $('focus-mode').hidden = !current;
+  $('fullscreen').hidden = !current && !fullscreen;
+  if (!current && fullscreen) void setFullscreen(false);
   renderLibrary();
+  renderTabs();
   remember();
   if (!current) { welcome(); return; }
   $('title').value = current.data.title;
@@ -621,6 +1083,7 @@ function render() {
     inkControls(false, null, false);
     void openMedia(root, structuredClone(attachment), {
       library: scope, signal: editor.signal, surfaceOptions: commonSurface(), message,
+      initialPage: pdfPage, onPage: value => { pdfPage = value; },
       close() { attachmentId = null; render(); },
       onSurface(surface) { surfaces = [surface]; selectedText = undefined; $('text-width').disabled = true; },
       onMark(updated, history) {
@@ -658,9 +1121,10 @@ function render() {
     const pages = board ? root : element('div', undefined, 'pages');
     if (!board) root.append(pages);
     const notebook = board ? null : notebookViewport(root, pages, current.id, editor.signal);
-    let surface;
+    let surface, map;
     for (const [index, data] of current.data.pages.entries()) {
       const paper = element('div', undefined, 'paper ' + (board ? 'board ' : 'page ') + current.data.paper);
+      paper.dataset.pageId = data.id;
       const wrap = board ? pages : element('section', undefined, 'page-wrap');
       if (!board) {
         const label = element('div', 'Страница ' + (index + 1), 'page-label');
@@ -674,16 +1138,16 @@ function render() {
       }
       wrap.append(paper);
       const worldLayers = board ? [element('div', undefined, 'board-world'), element('div', undefined, 'board-world board-world-controls')] : undefined;
-      if (worldLayers) {
-        paper.dataset.note = current.id;
-        paper.append(...worldLayers);
-      }
+      if (worldLayers) paper.append(...worldLayers);
+      const camera = board ? boardViewport(current.id, editor.signal) : {};
       surface = createSurface(paper, structuredClone(data), {
         ...commonSurface(), board, width: 794, worldLayers,
-        initialView: previousBoard?.view(),
+        ...camera,
+        onViewChange(view) { camera.onViewChange?.(view); map?.update(); },
         pinch: notebook?.pinch,
         commit(next, history) {
           mutate({ ...current.data, pages: current.data.pages.map(page => page.id === data.id ? next : page) }, history);
+          map?.update();
         },
       });
       surfaces.push(surface);
@@ -701,7 +1165,7 @@ function render() {
               surfaces.unshift(frame);
               return () => { surfaces = surfaces.filter(item => item !== frame); selectedText = undefined; };
             },
-          });
+          }).then(() => map?.update());
           const focus = () => {
             boardFileId = file.id;
             for (const chip of nav.children) chip.setAttribute('aria-pressed', String(chip.dataset.file === file.id));
@@ -718,6 +1182,18 @@ function render() {
       }
     }
     inkControls(board, surface, true);
+    if (board) {
+      map = boardMap(surface, () => current.data, bookmarks => mutate({ ...current.data, bookmarks }),
+        (title, value, done) => choose(title, (dialog, close) => {
+          const form = element('form'), field = element('input'), save = element('button', 'Сохранить', 'primary');
+          field.value = value; field.required = true; field.maxLength = 80; save.type = 'submit';
+          form.append(labelled('Название закладки', field), save, button('Отмена', close));
+          form.onsubmit = event => { event.preventDefault(); if (field.value.trim()) { done(field.value.trim()); close(); } };
+          dialog.append(form);
+        }), editor.signal);
+      bar.append(map.control);
+      root.append(map.panel);
+    }
     if (!board) {
       const addPage = () => {
         mutate({ ...current.data, pages: [...current.data.pages, blank()] });
@@ -736,13 +1212,14 @@ function render() {
 
 function more(item) {
   choose('Действия', (dialog, close) => {
+    if (current?.id === item.id) dialog.append(button('Инструменты', () => { close(); utilities.open(); }), button('Поиск по заметкам', searchLibrary));
     const form = element('form');
     const title = element('input');
     title.value = item.data.title;
     title.required = true;
     title.maxLength = 150;
     const folders = visible().filter(entry => entry.data.kind === 'folder');
-    const choices = { '': 'Все заметки' };
+    const choices = { '': 'Библиотека' };
     for (const entry of folders) {
       let ancestor = entry;
       const seen = new Set();
@@ -750,24 +1227,36 @@ function more(item) {
         seen.add(ancestor.id);
         ancestor = folders.find(candidate => candidate.id === ancestor.data.parent);
       }
-      if (!ancestor) choices[entry.id] = entry.data.title;
+      if (!ancestor) choices[entry.id] = folderPath(entry.id, folders).map(item => item.data.title).join(' › ');
     }
-    const destination = select(choices, item.data.parent ?? '', 'Папка');
+    const destination = select(choices, item.data.parent ?? '', 'Переместить в папку');
     const controls = element('div', undefined, 'dialog-actions');
     const submit = element('button', 'Сохранить', 'primary');
     submit.type = 'submit';
     controls.append(button('Закрыть', close), submit);
-    form.append(labelled('Название', title), labelled('Папка', destination), controls);
+    const color = select(folderColors, item.data.color ?? 'violet', 'Цвет папки');
+    form.append(labelled('Название', title), labelled('Переместить в папку', destination));
+    if (item.data.kind === 'folder') form.append(labelled('Цвет папки', color));
+    form.append(controls);
     form.onsubmit = async event => {
       event.preventDefault();
       if (!title.value.trim()) return;
       try {
-        await save({ ...item.data, title: title.value.trim(), parent: destination.value || null }, { item });
+        const latest = items.find(entry => entry.id === item.id && !entry.deleted);
+        if (!latest) { close(); return; }
+        const parent = destination.value || null;
+        if (latest.data.kind === 'folder' && folderPath(parent).some(entry => entry.id === latest.id)) {
+          return message('Выбери папку вне этой ветки');
+        }
+        const data = { ...latest.data, title: title.value.trim(), parent };
+        if (latest.data.kind === 'folder') data.color = color.value;
+        await save(data, { item: latest });
+        if (current?.id === latest.id) folder = parent;
         close(); render();
       } catch (error) { report(error); }
     };
     dialog.append(form);
-    const selectedFile = current?.data.kind === 'board' ? boardFileId : attachmentId;
+    const selectedFile = current?.id === item.id ? current.data.kind === 'board' ? boardFileId : attachmentId : null;
     if (selectedFile) dialog.append(button('Отсоединить вложение', () => {
       const attachments = current.data.kind === 'board' ? boardFilesWithPositions(current.data.attachments) : current.data.attachments;
       mutate({ ...current.data, attachments: attachments.filter(file => file.id !== selectedFile) });
@@ -801,13 +1290,18 @@ async function runSync() {
     if (owner !== scope || writes !== flushed) { schedule(); return; }
     const selected = updated.find(item => item.id === current?.id);
     const refresh = selected && selected.operation !== current.operation && !selected.pending;
+    const libraryChanged = !current && (items.length !== updated.length ||
+      updated.some(item => !items.some(local => local.id === item.id && local.operation === item.operation)));
     items = updated;
+    if (folder && !items.some(item => item.id === folder && !item.deleted)) folder = null;
     if (refresh) {
       if (selected.deleted) open(selected.data.parent);
       else { current = selected; back = []; forward = []; render(); }
     } else {
       if (selected) current = selected;
       renderLibrary();
+      renderTabs();
+      if (libraryChanged) welcome();
     }
     if (result.conflicts) message('Правки с двух устройств сохранены отдельными версиями');
     if (result.error) throw result.error;
@@ -820,11 +1314,15 @@ async function runSync() {
 
 async function changeAccount() {
   await writes.catch(() => {});
+  current = null;
+  tabPositions.clear();
   scope = libraryId();
+  const active = loadTabs();
+  objectClipboard = undefined;
   items = await list('items', scope);
   $('account').textContent = accountLabel();
   $('sync').textContent = identity() ? 'Сохранено локально' : 'Локальная библиотека';
-  open(null, { replace: true });
+  open(items.some(item => item.id === active && !item.deleted) ? active : null, { replace: true });
   schedule(0);
 }
 
@@ -896,7 +1394,8 @@ function emailAccount() {
 }
 
 $('new-item').onclick = () => createDialog();
-$('query').oninput = renderLibrary;
+$('query').onclick = searchLibrary;
+$('back-to-folder').onclick = () => open(folder);
 $('more').onclick = () => { if (current) more(current); };
 $('account').onclick = account;
 $('sync').onclick = () => identity() ? runSync() : account();
@@ -910,11 +1409,12 @@ $('focus-mode').onclick = () => {
   $('app').classList.remove('library-open');
   remember();
 };
+$('fullscreen').onclick = () => void setFullscreen(!fullscreen);
 $('hide-library').onclick = () => $('app').classList.remove('library-open');
 $('title').onchange = () => {
   if (!current) return;
   const title = $('title').value.trim();
-  if (title) { mutate({ ...current.data, title }); renderLibrary(); }
+  if (title) { mutate({ ...current.data, title }); renderLibrary(); renderTabs(); }
   else $('title').value = current.data.title;
 };
 $('title').onkeydown = event => { if (event.key === 'Enter' && !event.isComposing) event.target.blur(); };
@@ -942,12 +1442,28 @@ window.addEventListener('online', () => schedule(0));
 window.addEventListener('offline', () => { if (identity() && !failedWrite) $('sync').textContent = 'Офлайн · сохранено локально'; });
 window.addEventListener('focus', () => schedule(0));
 window.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !$('dialog').open && utilities.close()) { event.preventDefault(); return; }
+  if (event.key === 'Escape' && fullscreen && !$('dialog').open && !document.fullscreenElement) {
+    void setFullscreen(false);
+    return;
+  }
+  if (event.key === 'Escape' && selectionHost && !$('selection-actions').hidden) {
+    surfaces.find(surface => surface.host === selectionHost)?.deselect();
+    return;
+  }
   if (event.key === 'Escape' && prefs.focusMode && !$('dialog').open) {
     prefs.focusMode = false;
     remember();
   }
   if (!(event.metaKey || event.ctrlKey) || event.isComposing || event.altKey || $('dialog').open) return;
-  if (event.code === 'KeyK') { event.preventDefault(); $('show-library').click(); $('query').focus(); }
+  if (event.code === 'KeyK') { event.preventDefault(); searchLibrary(); }
+  if (event.code === 'PageUp' || event.code === 'PageDown') {
+    const index = tabIds.indexOf(current?.id);
+    if (tabIds.length > 1) {
+      event.preventDefault();
+      open(tabIds[(Math.max(0, index) + (event.code === 'PageDown' ? 1 : tabIds.length - 1)) % tabIds.length]);
+    }
+  }
   const input = event.target.matches?.('input, textarea');
   const editorInput = event.target.matches?.('.ink-text textarea, .text-note textarea');
   if (current && (!input || editorInput) && event.code === 'KeyZ') {
@@ -955,6 +1471,7 @@ window.addEventListener('keydown', event => {
     if (canUndo) { event.preventDefault(); history(event.shiftKey); }
   }
   if (!current || (input && !editorInput)) return;
+  if (!input && event.code === 'KeyV' && objectClipboard && surfaces.length) { event.preventDefault(); pasteObjects(); }
   if (event.code === 'KeyY' && surfaces.length) { event.preventDefault(); addTextBlock(); }
   if ($('text-pt') && ['Equal', 'Minus', 'NumpadAdd', 'NumpadSubtract'].includes(event.code)) {
     event.preventDefault();
@@ -986,7 +1503,7 @@ async function checkUpdates(status, check) {
     link.href = releaseBase + 'v' + release.version + '/' + filename;
     status.replaceChildren(link, element('p', android
       ? 'Открой скачанный APK и подтверди обновление.'
-      : 'Распакуй архив и замени старое приложение «Поля» новым.'));
+      : 'Распакуй архив. Заверши «Поля» через ⌘Q, замени приложение в «Программах» и открой новую копию.'));
   } catch {
     status.textContent = 'Не удалось проверить обновления. Попробуй ещё раз.';
   } finally { check.disabled = false; }
@@ -994,25 +1511,51 @@ async function checkUpdates(status, check) {
 
 function penButtonSettings() {
   choose('Кнопка S Pen', (dialog, close) => {
-    const hold = { none: 'Ничего', pen: 'Перо', erase: 'Ластик', highlight: 'Маркер', lasso: 'Лассо' };
-    const tap = { ...hold, text: 'Инструмент «Текст»', newText: 'Новое текстовое поле', undo: 'Отменить', redo: 'Повторить' };
-    for (const [gesture, title, choices] of [
-      ['hold', 'Удержание', hold], ['tap', 'Один короткий щелчок', tap], ['double', 'Двойной щелчок', tap],
+    const draft = buttonSettings();
+    penSettingsDraft = draft;
+    penButton.reset();
+    const table = element('div', undefined, 'pen-bindings');
+    const fields = [];
+    for (const [gesture, title, hint, choices] of [
+      ['hold', 'Удержание', 'Временный инструмент, пока кнопка нажата', holdActions],
+      ['tap', 'Одно нажатие', 'Отпусти кнопку рядом с экраном', pressActions],
+      ['double', 'Два нажатия', 'Нажми и отпусти кнопку дважды', pressActions],
     ]) {
-      const control = select(choices, buttonSettings()[gesture], title);
-      control.onchange = () => {
-        prefs.penButton = { ...buttonSettings(), [gesture]: control.value };
-        remember();
-        updateToolButtons();
-      };
-      dialog.append(labelled(title, control));
+      const field = select(choices, draft[gesture], title);
+      const row = element('label', undefined, 'pen-binding');
+      const text = element('span');
+      text.append(element('strong', title), element('small', hint, 'muted'));
+      row.append(text, field);
+      field.onchange = () => { draft[gesture] = field.value; penButton.reset(); };
+      fields.push([gesture, field]);
+      table.append(row);
     }
-    const status = element('p', '', 'muted');
+    const status = element('p', 'Поднеси перо к экрану и нажми кнопку для проверки', 'pen-test');
     status.id = 'pen-button-status';
     status.setAttribute('role', 'status');
-    dialog.append(element('p', 'Поднеси кончик пера к экрану. Чтобы переключить инструмент, нажми и отпусти кнопку рядом с экраном. Чтобы воспользоваться временным инструментом, удерживай кнопку и коснись экрана.', 'muted'), status,
-      button('По умолчанию', () => { delete prefs.penButton; remember(); penButtonSettings(); }),
-      button('Закрыть', close));
+    const signal = element('small', 'Сигнал Android · ожидаю нажатия', 'muted');
+    signal.id = 'pen-button-signal';
+    function finish() {
+      if (penSettingsDraft !== draft) return;
+      penSettingsDraft = undefined;
+      penButton.reset();
+      updateToolButtons();
+    }
+    const actions = element('div', undefined, 'dialog-actions');
+    actions.append(button('Сбросить', () => {
+      Object.assign(draft, defaultPenButton);
+      for (const [gesture, field] of fields) field.value = draft[gesture];
+      penButton.reset();
+    }), button('Отмена', close), button('Применить', () => {
+      prefs.penButton = { ...draft };
+      if (gestureTool === 'lasso') surfaces.forEach(surface => surface.deselect());
+      gestureTool = undefined;
+      remember();
+      finish();
+      close();
+    }, 'primary'));
+    dialog.append(table, status, signal, actions);
+    dialog.addEventListener('close', finish, { once: true });
     updateToolButtons();
   });
 }
@@ -1020,10 +1563,13 @@ function penButtonSettings() {
 $('settings').onclick = () => choose('Настройки', (dialog, close) => {
   const theme = select(themes, prefs.theme, 'Тема');
   theme.onchange = () => { prefs.theme = theme.value; applyTheme(); remember(); };
-  dialog.append(labelled('Тема', theme), button('Цвет пера по теме', () => {
+  const shapes = select({ on: 'Включено', off: 'Выключено' }, prefs.holdShapes ? 'on' : 'off', 'Фигуры при удержании');
+  shapes.onchange = () => { prefs.holdShapes = shapes.value === 'on'; remember(); };
+  dialog.append(labelled('Тема', theme), labelled('Фигуры при удержании', shapes), button('Цвет пера по теме', () => {
     prefs.autoColor = true; applyTheme(); remember();
   }), element('p', '⌘+/− меняет размер текста. ⌘Y добавляет текстовое поле. ⌘Z отменяет действие, ⇧⌘Z повторяет его. На других клавиатурах используй Ctrl.', 'muted'));
   if (window.NotesAndroid) dialog.append(button('Кнопка S Pen', penButtonSettings));
+  dialog.append(button('Инструменты', () => { close(); utilities.open(); }));
   if (window.NotesAndroid || window.NotesMac) {
     const status = element('div', 'Версия ' + appVersion.name, 'muted');
     const check = button('Проверить обновления', () => void checkUpdates(status, check));
@@ -1037,7 +1583,8 @@ applyTheme();
 try {
   items = await list('items', scope);
   $('account').textContent = accountLabel();
-  const initial = location.hash.slice(6);
+  const active = loadTabs();
+  const initial = location.hash.slice(6) || active;
   if (initial && visible().some(item => item.id === initial)) open(initial, { replace: true });
   else render();
   schedule(0);

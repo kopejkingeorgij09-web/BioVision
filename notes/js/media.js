@@ -1,10 +1,10 @@
 import { attachmentBlob } from './cloud.js';
 import { createSurface, showExistingMarks } from './ink.js';
 import { button, element } from './text.js';
+import { saveFile } from './backup.js';
 
-const pdfResources = document.documentElement.dataset.bundled === 'true'
-  ? new URL('./vendor/pdfjs/', location.href).href
-  : 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.5.438/';
+// PDF.js 6.5.438 лежит в репозитории (vendor/pdfjs, контрольные суммы в SHA256SUMS): без CDN и целиком офлайн.
+export const pdfResources = new URL('./vendor/pdfjs/', location.href).href;
 export const pdfBase = pdfResources + 'legacy/build/';
 export const maxFile = 50 * 1024 * 1024;
 const extensions = {
@@ -37,6 +37,59 @@ async function pdfDocument(blob) {
   });
 }
 
+const indexedPdfs = new Map();
+export function pdfSearchPages(library, id) {
+  const key = library + ':' + id;
+  if (!indexedPdfs.has(key)) {
+    const pending = (async () => {
+      const task = await pdfDocument(await attachmentBlob(library, id));
+      try {
+        const pdf = await task.promise;
+        const pages = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          pages.push(content.items.map(item => item.str ?? '').join(' ').trim());
+          page.cleanup();
+        }
+        return pages;
+      } finally { await task.destroy(); }
+    })().catch(error => { indexedPdfs.delete(key); throw error; });
+    if (indexedPdfs.size >= 24) indexedPdfs.delete(indexedPdfs.keys().next().value);
+    indexedPdfs.set(key, pending);
+  }
+  return indexedPdfs.get(key);
+}
+
+// Разобранный PDF живёт ещё полминуты после закрытия: отмена правки или возврат к доске
+// перерисовывают экран, и разбирать файл заново на каждый шаг незачем.
+const openDocuments = new Map();
+async function sharedPdf(id, blob, signal) {
+  const key = id + ':' + blob.size;
+  let entry = openDocuments.get(key);
+  if (!entry) {
+    entry = { users: 0, timer: 0, task: null };
+    entry.promise = pdfDocument(blob).then(task => { entry.task = task; return task.promise; });
+    entry.promise.catch(() => openDocuments.delete(key));
+    openDocuments.set(key, entry);
+  }
+  clearTimeout(entry.timer);
+  entry.users += 1;
+  const release = () => {
+    entry.users -= 1;
+    if (entry.users > 0) return;
+    entry.timer = setTimeout(() => {
+      if (entry.users > 0) return;
+      openDocuments.delete(key);
+      void entry.task?.destroy().catch(() => {});
+    }, 30000);
+  };
+  signal.addEventListener('abort', release, { once: true });
+  return entry.promise;
+}
+
+const sharpness = () => Math.min(2.5, Math.max(1, window.devicePixelRatio || 1));
+
 export async function openMedia(root, attachment, options) {
   const { library, signal, surfaceOptions, onMark, close, message } = options;
   const view = element('div', undefined, 'viewer');
@@ -52,7 +105,7 @@ export async function openMedia(root, attachment, options) {
     paperSignal?.abort();
     paperSignal = new AbortController();
     pageView?.remove();
-    const paper = element('div', undefined, 'paper mark-file');
+    const paper = element('div', undefined, 'paper mark-file' + (attachment.mime === 'application/pdf' ? ' pdf-paper' : ''));
     paper.append(content);
     view.append(paper);
     pageView = paper;
@@ -77,15 +130,16 @@ export async function openMedia(root, attachment, options) {
     const download = element('a', 'Скачать оригинал');
     download.href = url;
     download.download = attachment.name;
+    if (window.NotesAndroid?.beginSave) download.onclick = event => {
+      event.preventDefault();
+      saveFile(blob, attachment.name).catch(error => alert(error.message));
+    };
     controls.append(download);
 
     if (attachment.mime === 'application/pdf') {
       loading.textContent = 'Подготовка страниц PDF…';
       view.append(loading);
-      const task = await pdfDocument(blob);
-      if (signal.aborted) { await task.destroy(); return; }
-      signal.addEventListener('abort', () => void task.destroy(), { once: true });
-      const document = await task.promise;
+      const document = await sharedPdf(attachment.id, blob, signal);
       if (signal.aborted) return;
       let page = 1, generation = 0, painting;
       const number = element('span');
@@ -95,6 +149,7 @@ export async function openMedia(root, attachment, options) {
       async function draw(index) {
         if (index < 1 || index > document.numPages || signal.aborted) return;
         page = index;
+        options.onPage?.(page);
         number.textContent = page + ' / ' + document.numPages;
         prev.disabled = page === 1;
         next.disabled = page === document.numPages;
@@ -103,7 +158,7 @@ export async function openMedia(root, attachment, options) {
         const content = await document.getPage(index);
         if (signal.aborted || mine !== generation) return;
         const canvas = element('canvas');
-        const viewport = content.getViewport({ scale: 1300 / content.getViewport({ scale: 1 }).width });
+        const viewport = content.getViewport({ scale: Math.min(3000, Math.max(1300, view.clientWidth * sharpness())) / content.getViewport({ scale: 1 }).width });
         canvas.width = Math.round(viewport.width);
         canvas.height = Math.round(viewport.height);
         painting = content.render({ canvas, canvasContext: canvas.getContext('2d'), viewport });
@@ -115,7 +170,7 @@ export async function openMedia(root, attachment, options) {
       function report(error) {
         if (!signal.aborted && error.name !== 'RenderingCancelledException') message(error.message);
       }
-      await draw(1);
+      await draw(Math.min(document.numPages, Math.max(1, options.initialPage ?? 1)));
       return;
     }
 
@@ -236,10 +291,7 @@ export async function mountBoardFile(content, controls, file, { signal, library,
     status.remove();
 
     if (file.mime === 'application/pdf') {
-      const task = await pdfDocument(blob);
-      if (signal.aborted) { await task.destroy(); return; }
-      signal.addEventListener('abort', () => void task.destroy().catch(() => {}), { once: true });
-      const pdf = await task.promise;
+      const pdf = await sharedPdf(file.id, blob, signal);
       if (signal.aborted) return;
       const queued = new WeakMap();
       const observer = new IntersectionObserver(entries => {
@@ -276,7 +328,7 @@ export async function mountBoardFile(content, controls, file, { signal, library,
             async render() {
               if (state.canvas || state.task || state.failed || signal.aborted) return;
               const canvas = element('canvas');
-              const viewport = page.getViewport({ scale: 1100 / natural.width });
+              const viewport = page.getViewport({ scale: Math.max(1100, boardFileWidth * sharpness()) / natural.width });
               canvas.width = Math.ceil(viewport.width);
               canvas.height = Math.ceil(viewport.height);
               try {

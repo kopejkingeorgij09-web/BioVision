@@ -43,8 +43,8 @@ async function request(path, { token, body, method = 'GET', type = 'application/
   return response.json();
 }
 
-export async function signIn(email, password, create = false) {
-  const data = await request(create ? '/auth/v1/signup' : '/auth/v1/token?grant_type=password', {
+export async function signIn(email, password) {
+  const data = await request('/auth/v1/token?grant_type=password', {
     method: 'POST', body: { email, password },
   });
   updateSession(data);
@@ -60,6 +60,9 @@ export async function signInByCode(code) {
 
 export async function signOut() {
   if (syncInFlight) await syncInFlight.catch(() => {});
+  const token = session?.access_token;
+  // Отзываем refresh-токен этого устройства на сервере, а не только забываем его локально.
+  if (token) await request('/auth/v1/logout?scope=local', { method: 'POST', token }).catch(() => {});
   updateSession(null);
 }
 
@@ -153,6 +156,7 @@ export function synchronize(library) {
         if (response.saved) await acknowledge(library, item, response.item);
         else if (await preserveConflict(library, item, response.item)) conflicts += 1;
       } catch (problem) {
+        if (problem.code === '42501' || problem.status === 403) problem.message = 'Доступ к облаку «Полей» закрыт для этого аккаунта. Заметки остаются на устройстве.';
         error ??= problem;
         if (problem instanceof TypeError || problem.name === 'TimeoutError' || problem.status === 401) break;
       }

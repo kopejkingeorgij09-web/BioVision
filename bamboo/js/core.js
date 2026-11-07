@@ -416,7 +416,10 @@ B.proj = id => docs['p_' + id];
 B.projName = id => { const p = B.proj(id); if (!p) return ''; const par = p.parent && B.proj(p.parent); return par ? par.name + ' · ' + p.name : p.name; };
 B.tasks = () => B.list('t_').filter(t => !t.deleted);   // удалённые из планов прошлых дней остаются скрытыми, чтобы итоги дней не менялись
 B.task = id => docs['t_' + id];
-B.saveTask = (t, quiet) => B.put('t_' + t.id, t, quiet);
+B.saveTask = (t, quiet) => {
+  B.put('t_' + t.id, t, quiet);
+  if (quiet) B.androidReminders?.queue();
+};
 B.day = date => docs['d_' + date] || {};
 B.dayDates = () => Object.keys(docs).filter(k => k.startsWith('d_')).map(k => k.slice(2)).sort();
 B.datesWith = id => Object.keys(docs).filter(k => k.startsWith('d_') && (docs[k].top || []).includes(id)).map(k => k.slice(2));

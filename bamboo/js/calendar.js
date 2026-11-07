@@ -296,7 +296,8 @@ function editor(e, original=null, task=false, anchor=null, selected=false){
         <select name="project" aria-label="Календарь">${projectOptions(e)}</select></label>
       ${original?.repeat?`<label class="field">Изменить<select name="scope">${scopeOptions()}</select></label>`:''}
       <details class="ac-extra"><summary>Подробности</summary><div>
-      ${task?'':`      <label class="field">Повтор<select name="frequency">${option('','Никогда',r.freq||'')}${Object.entries(FREQ).map(([k,v])=>option(k,v,r.freq)).join('')}</select></label>
+      ${task?'':`      ${B.androidReminders?.eventField(e)||''}
+      <label class="field">Повтор<select name="frequency">${option('','Никогда',r.freq||'')}${Object.entries(FREQ).map(([k,v])=>option(k,v,r.freq)).join('')}</select></label>
       <div class="ac-repeat" ${active?'':'hidden'}>
         <div class="ac-edit-row">
           <label class="field">Интервал<input type="number" name="every" value="${r.every||1}" min="1" max="365"></label>
@@ -374,7 +375,7 @@ function draftFrom(form,ctx){
     days:weekDays,monthDays,pos:weekdays?Number(f.position.value):0,
     month:freq==='yearly'&&monthDays.length+weekDays.length ? Number(start.slice(5,7)) : 0}:null;
   return {...draft,repeat,location:f.place.value.trim(),travel:Number(f.travel.value)||0,url:f.url.value.trim(),
-    alerts:ctx.e.alerts||[]};
+    alerts:f.androidAlert?B.androidReminders.eventAlerts(f.androidAlert,ctx.e):ctx.e.alerts||[]};
 }
 function writeOccurrence(original, on, draft, scope){
   const fresh=get(original.id);
@@ -423,6 +424,8 @@ async function submitEditor(form){
       if(ctx.original) writeOccurrence(ctx.original,ctx.e.on,draft,form.elements.scope?.value||'all');
       else save({...draft,id:B.uid(),skip:[]});
       pruneFiles([...removed]);
+      if(form.elements.androidAlert?.value && form.elements.androidAlert.value!==form.elements.androidAlert.dataset.current)
+        B.androidReminders.enable();
     }
     B.closeSheet(); change(d); B.toast(ctx.task?'Задача сохранена':'Событие сохранено');
   }catch(e){ const err=form.querySelector('.ac-error');err.textContent=e.message;err.hidden=false; }
@@ -544,11 +547,13 @@ B.acts.acExport=()=>{
 };
 
 function requestNotifications(){
+  if(B.androidReminders) return;
   if('Notification' in window && Notification.permission==='default') Notification.requestPermission().catch(()=>{});
 }
 let notified={};
 try { notified=JSON.parse(localStorage.getItem('bamboo-calendar-alerts')||'{}')||{}; }catch(_){}
 function fireAlerts(){
+  if(B.androidReminders) return;
   const now=Date.now(), t=today(), from=add(t,-1);
   let dirty=false;
   const events=C.events().filter(e=>e.alerts?.length);
@@ -749,5 +754,15 @@ document.addEventListener('keydown',e=>{
     KeyT:B.acts.acToday,KeyN:B.acts.acAdd,Slash:B.acts.acSearch}[e.code];
   if(act){e.preventDefault();e.stopImmediatePropagation();act();}
 },true);
-B.calendarView={render,mount,deferRender(){if(!dragging)return false;redrawAfterDrag=true;return true;}};
+function openReminder(id,on){
+  const e=get(id);
+  if(!e) return false;
+  if(!C.validDate(on)) on=C.dateOf(e.start);
+  const x=C.occurrences(e,on,on).find(item=>item.on===on);
+  if(!x) return false;
+  change(on);
+  editor(x,e);
+  return true;
+}
+B.calendarView={render,mount,openReminder,deferRender(){if(!dragging)return false;redrawAfterDrag=true;return true;}};
 })();

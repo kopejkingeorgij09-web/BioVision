@@ -1,12 +1,15 @@
 package org.biovision.zovlesa;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Insets;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.util.Base64;
 import android.view.WindowInsets;
 import android.webkit.ValueCallback;
@@ -19,6 +22,7 @@ import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
+import androidx.webkit.JavaScriptReplyProxy;
 import androidx.webkit.WebViewAssetLoader;
 import androidx.webkit.WebViewCompat;
 import androidx.webkit.WebViewFeature;
@@ -37,7 +41,7 @@ public final class MainActivity extends Activity {
     private static final String BAMBOO = ASSETS + "bamboo/";
     private static final String HOME = ORIGIN + BAMBOO + "index.html";
     private static final String SITE = "https://kopejkingeorgij09-web.github.io/BioVision/";
-    private static final int PICK = 1, SAVE = 2, MAX_BASE64 = 8 * 1024 * 1024;
+    private static final int PICK = 1, SAVE = 2, NOTIFICATIONS = 3, MAX_BASE64 = 8 * 1024 * 1024;
 
     private WebView web;
     private ValueCallback<Uri[]> picker;
@@ -51,6 +55,7 @@ public final class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        ReminderScheduler.createChannel(this);
         WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
                 .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this)).build();
         web = new WebView(this);
@@ -106,6 +111,13 @@ public final class MainActivity extends Activity {
                             receiveDownload(message.getData());
                         }
                     });
+            WebViewCompat.addWebMessageListener(web, "ZovReminder", Collections.singleton(ORIGIN),
+                    (view, message, origin, mainFrame, reply) -> {
+                        String current = view.getUrl();
+                        if (mainFrame && local(origin) && current != null && current.startsWith(ORIGIN + BAMBOO)) {
+                            receiveReminder(message.getData(), reply);
+                        }
+                    });
         }
         FrameLayout root = new FrameLayout(this);
         root.addView(web, new FrameLayout.LayoutParams(-1, -1));
@@ -119,6 +131,91 @@ public final class MainActivity extends Activity {
         } else root.setFitsSystemWindows(true);
         setContentView(root);
         if (state == null || web.restoreState(state) == null) web.loadUrl(HOME);
+    }
+
+    private void receiveReminder(String text, JavaScriptReplyProxy reply) {
+        if (text == null || text.length() > 750000) return;
+        try {
+            JSONObject packet = new JSONObject(text);
+            switch (packet.getString("op")) {
+                case "sync":
+                    ReminderScheduler.replace(this, packet.getJSONArray("items"));
+                    break;
+                case "status":
+                    JSONObject status = new JSONObject()
+                            .put("enabled", ReminderScheduler.enabled(this))
+                            .put("exact", ReminderScheduler.exact(this));
+                    Intent intent = getIntent();
+                    if (ReminderScheduler.OPEN.equals(intent.getAction())) {
+                        String kind = intent.getStringExtra("kind"), id = intent.getStringExtra("id");
+                        String date = intent.getStringExtra("date");
+                        if (ReminderScheduler.validTarget(kind, id, date)) {
+                            status.put("open", new JSONObject().put("kind", kind).put("id", id).put("date", date));
+                        }
+                        setIntent(new Intent(this, MainActivity.class));
+                    }
+                    reply.postMessage(status.toString());
+                    break;
+                case "enable":
+                    enableNotifications();
+                    break;
+                case "exact":
+                    if (Build.VERSION.SDK_INT >= 31 && !ReminderScheduler.exact(this)) {
+                        openSettings(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                                Uri.fromParts("package", getPackageName(), null)));
+                    }
+                    break;
+                case "test":
+                    ReminderScheduler.test(this);
+                    break;
+                default:
+                    break;
+            }
+        } catch (JSONException ignored) { }
+    }
+
+    private void enableNotifications() {
+        if (ReminderScheduler.enabled(this)) return;
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            android.content.SharedPreferences prefs = getPreferences(MODE_PRIVATE);
+            if (!prefs.getBoolean("askedNotifications", false)
+                    || shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+                prefs.edit().putBoolean("askedNotifications", true).apply();
+                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATIONS);
+                return;
+            }
+        }
+        openSettings(new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName()));
+    }
+
+    private void openSettings(Intent intent) {
+        try { startActivity(intent); }
+        catch (ActivityNotFoundException e) { toast("Открой настройки приложения в Android"); }
+    }
+
+    private void refreshReminderStatus() {
+        if (web != null) web.evaluateJavascript("window.B?.androidReminders?.refresh()", null);
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        ReminderScheduler.refresh(this);
+        refreshReminderStatus();
+    }
+
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        refreshReminderStatus();
+    }
+
+    @Override public void onRequestPermissionsResult(int request, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(request, permissions, results);
+        if (request != NOTIFICATIONS) return;
+        ReminderScheduler.refresh(this);
+        refreshReminderStatus();
     }
 
     private void openExternal(Uri url) {

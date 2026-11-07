@@ -133,6 +133,7 @@ B.views.settings = {
               <div class="add-line"><input id="code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="T-XXXX-XXXX-XXXX-XXXX" data-enter="login"><button class="btn primary" data-act="login">${icon('key')} Войти</button></div>
               <p class="hint" id="loginMsg" aria-live="polite"></p>`}
           </section>
+          ${B.androidReminders?.settings()||''}
           <section class="card">
             <h2>${icon('sun')}Тема</h2>
             <div class="toggle wide themes">${THEMES.map(([k, l]) => `<button class="${theme === k ? 'on' : ''}" data-act="theme" data-v="${k}">${l}</button>`).join('')}</div>

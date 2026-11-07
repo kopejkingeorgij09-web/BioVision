@@ -124,10 +124,17 @@ B.phRow = it => `<div class="pl-ph ${it.k} ${it.role || ''} ${it.done ? 'ok' : '
   </div>`;
 function dayList(date, list, min, gh){
   const shad = S.cal === 'all' || S.cal === 'shad' ? B.shadOn(date) : [], ph = phList(date);
-  const n = list.length + (gh || []).length + shad.length + ph.length;
-  const empties = Math.max(1, min - n);
+  const rows = [
+    ...ph.filter(x => x.k === 'ev').map(x => ({time: x.from, html: B.phRow(x)})),
+    ...list.map(t => ({time: t.time, html: row(t)})),
+    ...(gh || []).map(t => ({time: t.time, html: row(t, {ghost: true})})),
+    ...shad.map(x => ({time: x.from, html: shadRow(x)})),
+    ...ph.filter(x => x.k === 'dl').map(x => ({time: x.from, html: B.phRow(x)}))
+  ];
+  if (date) rows.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+  const empties = Math.max(1, min - rows.length);
   return `<div class="pl-list" data-d="${date}">
-    ${ph.filter(x => x.k === 'ev').map(B.phRow).join('')}${list.map(t => row(t)).join('')}${(gh || []).map(t => row(t, {ghost: true})).join('')}${shad.map(shadRow).join('')}${ph.filter(x => x.k === 'dl').map(B.phRow).join('')}
+    ${rows.map(x => x.html).join('')}
     ${adding === date ? `<div class="pl-add"><input class="pl-in" data-d="${date}" placeholder="Новая задача" autocomplete="off" enterkeyhint="done"></div>` : ''}
     ${Array.from({length: adding === date ? Math.max(0, empties - 1) : empties}, (_, i) => `<button class="pl-empty" data-act="plAdd" data-d="${date}" ${i ? 'tabindex="-1"' : ''} aria-label="Добавить задачу${date ? ' на ' + B.fmt(date) : ''}"></button>`).join('')}
   </div>`;
@@ -609,7 +616,8 @@ B.acts.twColor = el => { B.updTask(el.dataset.id, {color: el.dataset.c || ''}, t
 B.inputs.twColorC = (el, e) => { if (e.type !== 'change') return; B.updTask(el.dataset.id, {color: el.value}, true); B.openTask(el.dataset.id, true); };
 function setRemind(id, at){
   B.updTask(id, {remind: at ? {at} : null}, true);
-  if (at && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
+  if (at && B.androidReminders) B.androidReminders.enable();
+  else if (at && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
   pop = ''; B.openTask(id, true);
   if (at) B.toast(`${icon('bell')} Напомню ${fmtRemind(at)}`);
 }
@@ -747,6 +755,7 @@ B.acts.edDone = el => { const t = B.task(el.dataset.id); if (!t) return; const b
 
 /* ---------- напоминания ---------- */
 function checkReminders(){
+  if (B.androidReminders) return;
   const now = localISO(new Date());
   B.tasks().forEach(t => {
     if (!t.remind || !t.remind.at || t.remind.fired || t.done || t.remind.at > now) return;

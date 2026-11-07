@@ -2,9 +2,8 @@ import { attachmentBlob } from './cloud.js';
 import { createSurface, showExistingMarks } from './ink.js';
 import { button, element } from './text.js';
 
-const pdfResources = document.documentElement.dataset.bundled === 'true'
-  ? new URL('./vendor/pdfjs/', location.href).href
-  : 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.5.438/';
+// PDF.js 6.5.438 лежит в репозитории (vendor/pdfjs, контрольные суммы в SHA256SUMS): без CDN и целиком офлайн.
+export const pdfResources = new URL('./vendor/pdfjs/', location.href).href;
 export const pdfBase = pdfResources + 'legacy/build/';
 export const maxFile = 50 * 1024 * 1024;
 const extensions = {

@@ -18,15 +18,14 @@ package() {
   mkdir -p "$temp/$name"
   tar -xzf "$cache/$name.tgz" --strip-components 1 -C "$temp/$name"
 }
-package pdfjs https://registry.npmjs.org/pdfjs-dist/-/pdfjs-dist-6.5.438.tgz 7461aefcd27c4ef0dd76f9ca5760f09466eb6b3f934432670c12132e7b3d6faa
 package katex https://registry.npmjs.org/katex/-/katex-0.19.1.tgz 24da5a599eb2fcede2e270b99a6ff48bca816beecc95feeb84e8cccbd1bb34fd
 
 for item in js style.css icon.svg manifest.webmanifest sw.js; do cp -R "$source_dir/$item" "$output/"; done
 sed -e 's/<html lang="ru">/<html lang="ru" data-bundled="true">/' \
     -e 's|https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/|vendor/katex/|g' \
     "$source_dir/index.html" > "$output/index.html"
-for item in cmaps standard_fonts wasm LICENSE; do cp -R "$temp/pdfjs/$item" "$output/vendor/pdfjs/"; done
-mkdir -p "$output/vendor/pdfjs/legacy/build"
-cp "$temp/pdfjs/legacy/build/pdf.mjs" "$temp/pdfjs/legacy/build/pdf.worker.mjs" "$output/vendor/pdfjs/legacy/build/"
+# PDF.js 6.5.438 лежит в репозитории; перед копированием сверяем контрольные суммы.
+(cd "$source_dir/vendor/pdfjs" && shasum -a 256 --check --status SHA256SUMS)
+cp -R "$source_dir/vendor/pdfjs/." "$output/vendor/pdfjs/"
 for item in katex.min.js katex.min.css fonts; do cp -R "$temp/katex/dist/$item" "$output/vendor/katex/"; done
 cp "$temp/katex/LICENSE" "$output/vendor/katex/"

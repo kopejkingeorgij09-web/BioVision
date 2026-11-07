@@ -1,13 +1,14 @@
 import { edit, list, read } from './local.js';
 import { attachmentBlob, cloudEnabled, identity, libraryId, signIn, signInByCode, signOut, synchronize } from './cloud.js';
 import { createSurface } from './ink.js';
-import { boardFilesWithPositions, boardFileWidth, describeFile, mountBoardFile, openMedia, pdfBase, pdfSearchPages } from './media.js';
+import { boardFilesWithPositions, boardFileWidth, describeFile, mountBoardFile, openMedia, pdfResources, pdfSearchPages } from './media.js';
 import { button, element, textEditor } from './text.js';
 import { cloudConfig } from './config.js';
 import { createPenButton, defaultPenButton } from './pen-button.js';
 import { createUtilities } from './utilities.js';
 import { boardMap } from './board-map.js';
 import { handwritingLines, recognizeInk, searchText } from './note-search.js';
+import { rebase } from './merge.js';
 
 const $ = id => document.getElementById(id);
 const kinds = {
@@ -51,7 +52,12 @@ let back = [], forward = [];
 let selectedStrokes = [];
 let recognizedText;
 let shapeSelection;
-let failedWrite = false;
+const failedWrites = new Map();
+const failedWrite = () => failedWrites.size > 0;
+let pendingWrites = 0;
+let staleView = false;
+const activePointers = new Set();
+const channel = 'BroadcastChannel' in window ? new BroadcastChannel('polya-notes') : null;
 let surfaces = [];
 let selectedText;
 let documentText;
@@ -288,20 +294,64 @@ function schedule(delay = 1200) {
   if (identity() && navigator.onLine) syncTimer = setTimeout(runSync, delay);
 }
 
-function queue(work) {
+function writeStatus() {
+  if (failedWrite()) {
+    $('sync').textContent = 'Не сохранено на устройстве: ' + failedWrites.size;
+    return;
+  }
+  $('sync').textContent = identity() ? 'Сохранено локально' : 'Сохранено на устройстве';
+}
+
+function queue(work, id) {
   const pending = writes.catch(() => {}).then(work);
   writes = pending;
-  $('sync').textContent = 'Сохраняется на устройстве…';
+  pendingWrites += 1;
+  if (!failedWrite()) $('sync').textContent = 'Сохраняется на устройстве…';
   pending.then(() => {
-    failedWrite = false;
-    $('sync').textContent = identity() ? 'Сохранено локально' : 'Сохранено на устройстве';
+    // Каждая запись — полный снимок заметки, поэтому успешная запись той же заметки закрывает прошлую ошибку.
+    failedWrites.delete(id);
+    writeStatus();
     schedule();
   }, error => {
-    failedWrite = true;
-    $('sync').textContent = 'Ошибка локального сохранения';
-    report(error);
-  });
+    failedWrites.set(id, error);
+    writeStatus();
+    void storageWarning(error);
+  }).finally(() => { pendingWrites -= 1; });
   return pending;
+}
+
+async function storageWarning(error) {
+  let detail = '';
+  try {
+    const { usage, quota } = await navigator.storage.estimate();
+    if (quota) detail = ' Занято ' + Math.round(usage / 1048576) + ' из ' + Math.round(quota / 1048576) + ' МБ.';
+  } catch {}
+  const full = error?.name === 'QuotaExceededError' || /quota/i.test(error?.message ?? '');
+  message((full ? 'На устройстве закончилось место для заметок.' : 'Не удалось сохранить на устройстве: ' + (error?.message ?? error) + '.')
+    + detail + ' Не закрывай приложение, пока статус не станет «Сохранено».');
+}
+
+const busy = () => activePointers.size > 0 || Boolean(document.activeElement?.closest?.('#content') && document.activeElement.matches('textarea, input'));
+
+// Экран должен показывать ровно current: правки строятся от него. Поэтому чужие изменения
+// подставляются вместе с перерисовкой, когда человек не пишет и не набирает текст.
+function refreshWhenIdle() {
+  staleView = true;
+  if (busy()) return;
+  staleView = false;
+  void (async () => {
+    await writes.catch(() => {});
+    if (!current || busy()) { staleView = Boolean(current); return; }
+    const fresh = await read('items', scope, current.id);
+    if (!fresh || fresh.operation === current.operation) return;
+    const index = items.findIndex(entry => entry.id === fresh.id);
+    if (index >= 0) items[index] = fresh; else items.push(fresh);
+    if (fresh.deleted) { open(fresh.data.parent); return; }
+    const scrollTop = $('content').scrollTop;
+    current = fresh; back = []; forward = [];
+    render();
+    $('content').scrollTop = scrollTop;
+  })().catch(report);
 }
 
 function save(data, { deleted = false, file, item = current } = {}) {
@@ -314,9 +364,22 @@ function save(data, { deleted = false, file, item = current } = {}) {
   const index = items.findIndex(entry => entry.id === local.id);
   if (index < 0) items.push(local);
   else items[index] = local;
-  return queue(() => edit(owner, item.id, existing => ({
-    ...local, revision: existing?.revision ?? 0,
-  }), file));
+  let merged = false;
+  return queue(() => edit(owner, item.id, existing => {
+    // Сверка версии: запись на устройстве должна быть той, от которой построена правка.
+    // Иначе её успели изменить другая вкладка или облако, и мы сливаем, а не затираем.
+    const result = rebase(existing, item, local);
+    merged = result.merged;
+    return result.record;
+  }, file), item.id).then(next => {
+    channel?.postMessage({ library: owner, id: item.id, operation: next?.operation });
+    if (merged && owner === scope) {
+      const at = items.findIndex(entry => entry.id === next.id);
+      if (at >= 0 && items[at].operation === local.operation) items[at] = next;
+      if (current?.id === next.id) refreshWhenIdle();
+    }
+    return next;
+  });
 }
 
 function mutate(data, history = true, file) {
@@ -398,21 +461,32 @@ function renderLibrary() {
   if (current) row(current);
 }
 
+let pdfOffline;
+// PDF.js лежит в vendor/pdfjs. Кладём в кеш все его файлы, включая шрифты, CMap и wasm,
+// иначе часть PDF откроется онлайн, но не офлайн.
+function preparePdfOffline() {
+  if (!('caches' in window) || window.NotesAndroid || window.NotesMac) return Promise.resolve();
+  pdfOffline ??= (async () => {
+    const manifest = await (await fetch(pdfResources + 'files.json')).json();
+    const cache = await caches.open('biovision-notes-pdfjs-' + manifest.version);
+    const missing = [];
+    for (const path of manifest.files) if (!await cache.match(pdfResources + path)) missing.push(pdfResources + path);
+    for (let index = 0; index < missing.length; index += 12) await cache.addAll(missing.slice(index, index + 12));
+  })().catch(error => { pdfOffline = null; throw error; });
+  return pdfOffline;
+}
+
 async function preload(item, owner) {
+  if (navigator.onLine && (item.data.attachments ?? []).some(file => file.mime === 'application/pdf')) {
+    preparePdfOffline().catch(() => message('Просмотр PDF офлайн ещё не подготовлен'));
+  }
   if (!identity() || !navigator.onLine) return;
   for (const file of item.data.attachments ?? []) {
     if (owner !== scope) return;
     try {
       await attachmentBlob(owner, file.id);
-      if (file.mime === 'application/pdf') {
-        const cache = await caches.open('biovision-notes-assets-v1');
-        await Promise.all(['pdf.mjs', 'pdf.worker.mjs'].map(async path => {
-          if (!await cache.match(pdfBase + path)) await cache.add(pdfBase + path);
-        }));
-      }
     } catch (error) {
       if (!await read('files', owner, file.id)) message('Не удалось сохранить для офлайн: ' + file.name);
-      else if (file.mime === 'application/pdf') message('Просмотр PDF офлайн ещё не подготовлен');
     }
   }
 }
@@ -1293,7 +1367,7 @@ function more(item) {
 
 async function runSync() {
   if (syncing || !identity()) return;
-  if (!navigator.onLine) { if (!failedWrite) $('sync').textContent = 'Офлайн · сохранено локально'; return; }
+  if (!navigator.onLine) { if (!failedWrite()) $('sync').textContent = 'Офлайн · сохранено локально'; return; }
   syncing = true;
   const owner = scope;
   try {
@@ -1306,25 +1380,22 @@ async function runSync() {
     const updated = await list('items', owner);
     if (owner !== scope || writes !== flushed) { schedule(); return; }
     const selected = updated.find(item => item.id === current?.id);
-    const refresh = selected && selected.operation !== current.operation && !selected.pending;
+    const refresh = selected && selected.operation !== current.operation;
     const libraryChanged = !current && (items.length !== updated.length ||
       updated.some(item => !items.some(local => local.id === item.id && local.operation === item.operation)));
     items = updated;
     if (folder && !items.some(item => item.id === folder && !item.deleted)) folder = null;
-    if (refresh) {
-      if (selected.deleted) open(selected.data.parent);
-      else { current = selected; back = []; forward = []; render(); }
-    } else {
-      if (selected) current = selected;
-      renderLibrary();
-      renderTabs();
-      if (libraryChanged) welcome();
-    }
+    // Чужие изменения открытой заметки подставляются, только когда человек не пишет (refreshWhenIdle).
+    if (refresh) refreshWhenIdle();
+    else if (selected) current = selected;
+    renderLibrary();
+    renderTabs();
+    if (libraryChanged) welcome();
     if (result.conflicts) message('Правки с двух устройств сохранены отдельными версиями');
     if (result.error) throw result.error;
     $('sync').textContent = updated.some(item => item.pending) ? 'Сохранено локально · есть правки' : 'Синхронизировано';
   } catch (error) {
-    if (!failedWrite) $('sync').textContent = 'Сохранено локально · повторим';
+    if (!failedWrite()) $('sync').textContent = 'Сохранено локально · повторим';
     $('sync').title = error.message;
   } finally { syncing = false; }
 }
@@ -1344,7 +1415,7 @@ async function changeAccount() {
 }
 
 function codeAccount() {
-  choose('Войти или создать аккаунт по коду', (dialog, close) => {
+  choose('Войти по коду', (dialog, close) => {
     const form = element('form');
     const code = element('input');
     code.type = 'password';
@@ -1388,23 +1459,22 @@ function emailAccount() {
     const email = element('input'), password = element('input');
     email.type = 'email'; email.required = true; email.autocomplete = 'username';
     password.type = 'password'; password.required = true; password.minLength = 6; password.autocomplete = 'current-password';
-    const description = element('p', 'Войди с одним аккаунтом на всех устройствах. Заметки без входа хранятся в отдельной локальной библиотеке.', 'muted');
+    const description = element('p', 'Вход для уже созданных аккаунтов. Новые аккаунты создаются по персональному коду. Заметки без входа хранятся в отдельной локальной библиотеке.', 'muted');
     const actions = element('div', undefined, 'dialog-actions');
     const login = element('button', 'Войти', 'primary');
-    const signup = element('button', 'Создать аккаунт');
-    login.type = signup.type = 'submit';
-    actions.append(button('Войти по коду', codeAccount), button('Закрыть', close), signup, login);
+    login.type = 'submit';
+    actions.append(button('Войти по коду', codeAccount), button('Закрыть', close), login);
     form.append(description, labelled('Почта', email), labelled('Пароль', password), actions);
     form.onsubmit = async event => {
       event.preventDefault();
-      login.disabled = signup.disabled = true;
+      login.disabled = true;
       try {
-        if (await signIn(email.value, password.value, event.submitter === signup)) {
+        if (await signIn(email.value, password.value)) {
           close();
           await changeAccount();
-        } else description.textContent = 'Подтверди почту по ссылке из письма и войди.';
+        } else description.textContent = 'Не удалось войти. Проверь почту и пароль.';
       } catch (error) { description.textContent = error.message; }
-      finally { login.disabled = signup.disabled = false; }
+      finally { login.disabled = false; }
     };
     dialog.append(form);
   });
@@ -1443,6 +1513,7 @@ $('file-picker').onchange = async event => {
     if (current?.id !== target) break;
     try {
       const item = describeFile(file);
+      if (item.mime === 'application/pdf') preparePdfOffline().catch(() => message('Просмотр PDF офлайн ещё не подготовлен'));
       const attachments = [...current.data.attachments, item];
       const board = current.data.kind === 'board';
       if (board) { boardFileId = item.id; focusBoardFile = true; }
@@ -1454,9 +1525,29 @@ $('file-picker').onchange = async event => {
   }
   if (target && current?.id === target) render();
 };
+$('content').addEventListener('pointerdown', event => activePointers.add(event.pointerId), true);
+for (const type of ['pointerup', 'pointercancel']) {
+  window.addEventListener(type, event => {
+    activePointers.delete(event.pointerId);
+    if (staleView) setTimeout(() => { if (staleView && !busy()) refreshWhenIdle(); }, 300);
+  }, true);
+}
+document.addEventListener('focusout', () => setTimeout(() => { if (staleView && !busy()) refreshWhenIdle(); }, 300));
+channel?.addEventListener('message', async ({ data }) => {
+  if (data?.library !== scope || !data.id) return;
+  const fresh = await read('items', scope, data.id).catch(() => null);
+  if (!fresh) return;
+  if (current?.id === fresh.id) {
+    if (fresh.operation !== current.operation) refreshWhenIdle();
+    return;
+  }
+  const index = items.findIndex(entry => entry.id === fresh.id);
+  if (index >= 0) items[index] = fresh; else items.push(fresh);
+  renderLibrary();
+});
 window.addEventListener('popstate', () => open(location.hash.slice(6) || null, { replace: true }));
 window.addEventListener('online', () => schedule(0));
-window.addEventListener('offline', () => { if (identity() && !failedWrite) $('sync').textContent = 'Офлайн · сохранено локально'; });
+window.addEventListener('offline', () => { if (identity() && !failedWrite()) $('sync').textContent = 'Офлайн · сохранено локально'; });
 window.addEventListener('focus', () => schedule(0));
 window.addEventListener('keydown', event => {
   if (event.key === 'Escape' && !$('dialog').open && utilities.close()) { event.preventDefault(); return; }
@@ -1526,6 +1617,27 @@ async function checkUpdates(status, check) {
   } finally { check.disabled = false; }
 }
 
+const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const appleWeb = () => /iPad|iPhone|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document && !window.NotesMac;
+
+async function persistStorage() {
+  if (!navigator.storage?.persist) return false;
+  if (await navigator.storage.persisted()) return true;
+  return navigator.storage.persist().catch(() => false);
+}
+
+async function storageStatus(target) {
+  if (window.NotesAndroid || window.NotesMac) { target.textContent = 'Заметки хранятся в приложении.'; return; }
+  const persisted = await persistStorage();
+  let text = persisted ? 'Хранилище постоянное: браузер не удалит заметки сам.' : 'Браузер может очистить заметки при нехватке места или долгом простое.';
+  if (!persisted && appleWeb() && !standalone()) text += ' На iPad добавь «Поля» на экран «Домой» (Поделиться → На экран «Домой»): Safari удаляет данные сайтов через 7 дней без посещений.';
+  try {
+    const { usage, quota } = await navigator.storage.estimate();
+    if (quota) text += ' Занято ' + Math.round(usage / 1048576) + ' МБ из ' + Math.round(quota / 1048576) + ' МБ.';
+  } catch {}
+  target.textContent = text;
+}
+
 function penButtonSettings() {
   choose('Кнопка S Pen', (dialog, close) => {
     const draft = buttonSettings();
@@ -1585,6 +1697,9 @@ $('settings').onclick = () => choose('Настройки', (dialog, close) => {
   dialog.append(labelled('Тема', theme), labelled('Фигуры при удержании', shapes), button('Цвет пера по теме', () => {
     prefs.autoColor = true; applyTheme(); remember();
   }), element('p', '⌘+/− меняет размер текста. ⌘Y добавляет текстовое поле. ⌘Z отменяет действие, ⇧⌘Z повторяет его. На других клавиатурах используй Ctrl.', 'muted'));
+  const storage = element('p', 'Проверяю хранилище…', 'muted');
+  dialog.append(storage);
+  void storageStatus(storage);
   if (window.NotesAndroid) dialog.append(button('Кнопка S Pen', penButtonSettings));
   dialog.append(button('Инструменты', () => { close(); utilities.open(); }));
   if (window.NotesAndroid || window.NotesMac) {
@@ -1606,7 +1721,8 @@ try {
   else render();
   schedule(0);
   setInterval(runSync, 15000);
+  void persistStorage();
   if ('serviceWorker' in navigator && !window.NotesAndroid && !window.NotesMac) {
-    navigator.serviceWorker.register('./sw.js').catch(report);
+    navigator.serviceWorker.register('./sw.js?v=' + appVersion.name).catch(report);
   }
 } catch (error) { report(error); }

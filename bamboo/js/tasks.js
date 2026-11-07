@@ -119,7 +119,7 @@ B.acts.shadChk = async el => {
    кроме работы над ошибками */
 const phList = date => S.cal === 'all' ? B.phxOn(date).filter(x => x.k === 'ev' || !x.shad || x.fix) : [];
 B.phRow = it => `<div class="pl-ph ${it.k} ${it.role || ''} ${it.done ? 'ok' : ''} ${it.cancel ? 'cancel' : ''}">
-    <a class="pl-open" href="${B.PHAGI}" target="_blank" rel="noopener" title="${esc(it.t)} · открыть на Фагах">${it.from ? `<span class="pl-time">${it.from}</span>` : ''}${it.k === 'dl' ? `<span class="pl-phk">${it.fix ? 'РнО' : 'ДЗ'}</span>` : ''}<span class="pl-tt">${esc(it.t)}</span></a>
+    <a class="pl-open" href="${B.phagiTask(it.id)}" target="_blank" rel="noopener" title="${esc(it.t)} · открыть на Фагах">${it.from ? `<span class="pl-time">${it.from}</span>` : ''}${it.k === 'dl' ? `<span class="pl-phk">${it.fix ? 'РнО' : 'ДЗ'}</span>` : ''}<span class="pl-tt">${esc(it.t)}</span></a>
     ${it.k === 'dl' ? `<span class="pl-phs" title="${it.done ? (it.checked ? 'Сдано и проверено' : 'Сдано') : 'Не сдано'}">${it.done ? (it.checked ? '✓✓' : '✓') : ''}</span>` : `<span class="pl-phs" title="${it.role === 'teach' ? 'Урок с ученицей' : 'Занятие'} на Фагах">${it.role === 'teach' ? '👩‍🏫' : '📘'}</span>`}
   </div>`;
 function dayList(date, list, min, gh){

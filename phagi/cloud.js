@@ -17,7 +17,7 @@ async function rpc(fn,args){
   try{r=await fetch(URL+'/rest/v1/rpc/'+fn,{method:'POST',headers:{'Content-Type':'application/json',apikey:KEY,Authorization:'Bearer '+KEY},body:JSON.stringify(args||{})})}
   catch(e){throw {code:'unavailable',message:'Нет связи с облаком'}}
   const t=await r.text();let j=null;try{j=t?JSON.parse(t):null}catch(e){}
-  if(!r.ok){const den=r.status===403||(j&&j.code==='42501');throw {code:den||(j&&j.code==='22023')?'invalid_argument':'unavailable',message:(j&&j.message)||('HTTP '+r.status)}}
+  if(!r.ok){const den=r.status===403||(j&&j.code==='42501');throw {code:j?.code==='40001'?'40001':den||j?.code==='22023'?'invalid_argument':'unavailable',message:(j&&j.message)||('HTTP '+r.status)}}
   return j}
 
 /* ---------- вход ---------- */
@@ -199,6 +199,18 @@ gate.then(()=>{const go=()=>bar();document.readyState==='loading'?document.addEv
 window.PHCLOUD={rpc,teacherLogin:()=>loginScreen(true),get me(){return me},sync,codes:()=>me&&me.isOwner&&codes(),fresh:path=>rpc('ph_get',{p_code:getCode(),p_path:path}),
   /* тот ли код входа, с которым открыта страница: в другой вкладке могли выйти или войти под другим кодом */
   session:()=>getCode()===BOOT,
+  async retake(uid, task, attempt){
+    const r = await rpc('ph_test_retake', {p_code:getCode(), p_uid:uid, p_task:task, p_attempt:attempt});
+    const changed = [r.path];
+    put(r.path, r.archived, r.at);
+    if (r.reset){
+      for (const path of [`subs/${uid}/items/${task}`, `grades/${uid}/items/${task}`]){
+        if (put(path, null, r.at)) changed.push(path);
+      }
+    }
+    notify(changed);
+    sync();
+  },
   /* запись «только если в базе та же версия» (ph_set_if, supabase/migrations/20261028_ph_set_if_rev.sql, применена 28.10.2026).
      Остров пишется одной атомарной записью; false вернёт обычный ph_set. План и откат: supabase/proposals/CAS-PLAN-RU.md */
   CAS:true,

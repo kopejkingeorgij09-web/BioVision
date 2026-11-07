@@ -189,6 +189,46 @@ function straighten(stroke) {
   return { ...stroke, tool: 'ellipse', points: [[left, top], [right, bottom]] };
 }
 
+// «Мокрые» чернила: активный штрих рисуется на одном общем холсте с низкой задержкой
+// (desynchronized), только новыми отрезками. В SVG он попадает один раз — при отрыве пера.
+const wet = { canvas: null, predicted: null, context: null, guess: null, owner: null, generation: 0 };
+
+function wetLayer(host) {
+  if (!wet.canvas) {
+    wet.canvas = document.createElement('canvas');
+    wet.predicted = document.createElement('canvas');
+    for (const canvas of [wet.canvas, wet.predicted]) canvas.className = 'wet-ink';
+    const options = { desynchronized: true, alpha: true };
+    wet.context = wet.canvas.getContext('2d', options);
+    wet.guess = wet.predicted.getContext('2d', options);
+  }
+  if (wet.canvas.parentNode !== host) host.append(wet.canvas, wet.predicted);
+  const ratio = Math.min(3, window.devicePixelRatio || 1);
+  const w = Math.max(1, Math.round(host.clientWidth * ratio)), h = Math.max(1, Math.round(host.clientHeight * ratio));
+  for (const canvas of [wet.canvas, wet.predicted]) {
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  }
+  clearWet();
+  return ratio;
+}
+
+function clearWet() {
+  wet.generation += 1;
+  for (const [canvas, context] of [[wet.canvas, wet.context], [wet.predicted, wet.guess]]) {
+    if (!canvas) continue;
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.clearRect(0, 0, canvas.width, canvas.height);
+  }
+}
+
+// Убираем мокрый штрих через два кадра: к этому моменту SVG-узел уже нарисован, мигания нет.
+function clearWetLater() {
+  const generation = wet.generation;
+  requestAnimationFrame(() => requestAnimationFrame(() => { if (generation === wet.generation) clearWet(); }));
+}
+
+const radiusAt = (width, pressure) => width * (0.22 + pressure * 0.64);
+
 export function showExistingMarks(host, mark, width, height) {
   if (!mark) return;
   const scale = width / 1000;
@@ -233,6 +273,16 @@ export function createSurface(host, content, options) {
   let gesture;
   let width, height;
   let newTextId;
+  // Узлы штрихов создаются один раз на объект штриха: перерисовка — это перестановка готовых узлов.
+  const nodes = new WeakMap();
+  let drawnStrokes = [];
+  let drawnTexts;
+  let frame = 0;
+  const nodeOf = stroke => {
+    let node = nodes.get(stroke);
+    if (!node) { node = shapeNode(stroke); nodes.set(stroke, node); }
+    return node;
+  };
 
   function viewport() {
     const scale = board ? view.zoom : host.clientWidth / options.width;
@@ -265,13 +315,32 @@ export function createSurface(host, content, options) {
     positionSelection();
   }
 
+  function renderInk() {
+    const strokes = state.strokes ?? [];
+    const prefix = drawnStrokes.length <= strokes.length && drawnStrokes.every((stroke, i) => strokes[i] === stroke)
+      && ink.childElementCount === drawnStrokes.length;
+    if (prefix) for (let i = drawnStrokes.length; i < strokes.length; i++) ink.append(nodeOf(strokes[i]));
+    else ink.replaceChildren(...strokes.map(nodeOf));
+    // Сбрасываем следы жестов: полупрозрачность ластика и сдвиг живого перетаскивания.
+    for (const stroke of strokes) { const node = nodes.get(stroke); node.removeAttribute('opacity'); node.removeAttribute('transform'); }
+    drawnStrokes = strokes.slice();
+  }
+
   function render() {
-    ink.replaceChildren(...(state.strokes ?? []).map(shapeNode));
+    renderInk();
     overlay.replaceChildren();
     if (selectedOutline.length) overlay.append(svg('polygon', {
       points: selectedOutline.map(line).join(' '), fill: '#7e80f02a', stroke: '#7775e7',
       'stroke-width': 1.5, 'stroke-dasharray': '5 4', 'vector-effect': 'non-scaling-stroke',
     }));
+    // Текстовые поля пересоздаются только при изменении их списка: штрих не сбивает набор и фокус.
+    if (drawnTexts === state.texts && !newTextId) {
+      for (const box of typing.children) { box.classList.toggle('lasso-target', settings().tool === 'lasso'); box.style.transform = ''; }
+      return;
+    }
+    drawnTexts = state.texts;
+    const focused = typing.contains(document.activeElement) ? document.activeElement : null;
+    const keep = focused && { id: focused.dataset.textId, start: focused.selectionStart, end: focused.selectionEnd };
     typing.replaceChildren();
     for (const item of state.texts ?? []) {
       const box = document.createElement('div');
@@ -314,7 +383,17 @@ export function createSurface(host, content, options) {
         notifyText?.({ id: item.id, pt: item.pt ?? 12, width, bold: item.bold, italic: item.italic, edit: editFormat });
       }
       field.addEventListener('focus', notify);
-      field.addEventListener('blur', () => { snapshotTaken = false; });
+      field.addEventListener('blur', () => {
+        snapshotTaken = false;
+        // Пустое поле, которое так и не заполнили, не остаётся на листе.
+        if (!field.value.trim() && (state.texts ?? []).includes(item)) {
+          setTimeout(() => {
+            // Поле пересоздано перерисовкой или снова в фокусе — его судьбу решит новый узел.
+            if (!field.isConnected || document.activeElement?.dataset?.textId === item.id) return;
+            update({ ...state, texts: state.texts.filter(entry => entry !== item) }, false);
+          }, 0);
+        }
+      });
       field.addEventListener('input', () => {
         item.text = field.value;
         commit(state, !snapshotTaken);
@@ -350,6 +429,11 @@ export function createSurface(host, content, options) {
       measure();
     }
     newTextId = undefined;
+    if (keep) {
+      const field = Array.from(typing.querySelectorAll('textarea')).find(node => node.dataset.textId === keep.id);
+      field?.focus({ preventScroll: true });
+      field?.setSelectionRange(keep.start, keep.end);
+    }
   }
 
   function clearSelection() {
@@ -442,9 +526,9 @@ export function createSurface(host, content, options) {
     typing.lastElementChild?.querySelector('textarea')?.focus();
   }
 
-  function update(next) {
+  function update(next, history = true) {
     state = next;
-    commit(next);
+    commit(next, history);
     render();
   }
 
@@ -462,18 +546,101 @@ export function createSurface(host, content, options) {
     renderView();
   }
 
-  function erase(point) {
-    const radius = 16 / viewport().scale;
+  // Сетка по рамкам штрихов строится один раз на жест ластика: проверяются только штрихи рядом с пером.
+  const cell = 96;
+  function eraseIndex() {
+    const grid = new Map();
     for (const stroke of state.strokes ?? []) {
       const points = segments(stroke);
-      if (points.some((p, i) => segmentDistance(point, p, points[i + 1] ?? p) < radius)) active.erased.add(stroke.id);
+      const pad = (stroke.width ?? 2) * (stroke.tool === 'highlight' ? 2 : 1);
+      let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+      for (const [x, y] of points) { left = Math.min(left, x); top = Math.min(top, y); right = Math.max(right, x); bottom = Math.max(bottom, y); }
+      const entry = { stroke, points, pad };
+      for (let gx = Math.floor((left - pad) / cell); gx <= Math.floor((right + pad) / cell); gx++) {
+        for (let gy = Math.floor((top - pad) / cell); gy <= Math.floor((bottom + pad) / cell); gy++) {
+          const key = gx + ':' + gy;
+          let list = grid.get(key);
+          if (!list) grid.set(key, list = []);
+          list.push(entry);
+        }
+      }
     }
-    Array.from(ink.children).forEach((node, i) => {
-      if (active.erased.has(state.strokes[i].id)) node.setAttribute('opacity', '0.18');
-    });
+    return grid;
+  }
+
+  function erase(point) {
+    active.grid ??= eraseIndex();
+    const radius = 16 / viewport().scale;
+    const seen = new Set();
+    for (let gx = Math.floor((point[0] - radius) / cell); gx <= Math.floor((point[0] + radius) / cell); gx++) {
+      for (let gy = Math.floor((point[1] - radius) / cell); gy <= Math.floor((point[1] + radius) / cell); gy++) {
+        for (const entry of active.grid.get(gx + ':' + gy) ?? []) {
+          const { stroke, points, pad } = entry;
+          if (seen.has(entry) || active.erased.has(stroke.id)) continue;
+          seen.add(entry);
+          if (points.some((p, i) => segmentDistance(point, p, points[i + 1] ?? p) < radius + pad / 2)) {
+            active.erased.add(stroke.id);
+            nodes.get(stroke)?.setAttribute('opacity', '0.18');
+          }
+        }
+      }
+    }
+  }
+
+  // Цвет мокрого штриха берём у того же SVG-узла, что появится в конце: так совпадают тема и подмена цветов.
+  function wetColor() {
+    const probe = shapeNode({ ...active, points: [[0, 0, .5], [1, 1, .5]] });
+    preview.append(probe);
+    const style = getComputedStyle(probe);
+    const color = active.tool === 'highlight' ? style.stroke : style.fill;
+    probe.remove();
+    return color && color !== 'none' ? color : '#28223c';
+  }
+
+  function beginWet() {
+    wet.owner = active;
+    active.ratio = wetLayer(host);
+    active.drawn = 0;
+    active.paint = wetColor();
+    const opacity = active.tool === 'highlight' ? '0.28' : '1';
+    wet.canvas.style.opacity = wet.predicted.style.opacity = opacity;
+  }
+
+  function wetSegments(context, points, from, extra = []) {
+    const { scale, left, top } = viewport();
+    const ratio = active.ratio;
+    context.setTransform(ratio * scale, 0, 0, ratio * scale, ratio * left, ratio * top);
+    context.strokeStyle = context.fillStyle = active.paint;
+    context.lineCap = context.lineJoin = 'round';
+    const all = extra.length ? points.concat(extra) : points;
+    const highlight = active.tool === 'highlight';
+    for (let i = Math.max(1, from); i < all.length; i++) {
+      const a = all[i - 1], b = all[i];
+      context.lineWidth = highlight ? active.width * 4 : 2 * radiusAt(active.width, (a[2] + b[2]) / 2);
+      context.beginPath();
+      context.moveTo(a[0], a[1]);
+      context.lineTo(b[0], b[1]);
+      context.stroke();
+    }
+    if (all.length === 1 && from === 0) {
+      context.beginPath();
+      context.arc(all[0][0], all[0][1], highlight ? active.width * 2 : radiusAt(active.width, all[0][2]), 0, Math.PI * 2);
+      context.fill();
+    }
   }
 
   function strokePreview() {
+    if (!active) return;
+    if (active.shape && wet.owner === active) { wet.owner = null; clearWet(); }
+    if (!active.shape && (active.tool === 'pen' || active.tool === 'highlight')) {
+      if (wet.owner !== active) beginWet();
+      wetSegments(wet.context, active.points, active.drawn);
+      active.drawn = active.points.length;
+      wet.guess.setTransform(1, 0, 0, 1, 0, 0);
+      wet.guess.clearRect(0, 0, wet.predicted.width, wet.predicted.height);
+      if (active.predicted?.length) wetSegments(wet.guess, [active.points.at(-1)], 1, active.predicted);
+      return;
+    }
     preview.replaceChildren(active.tool === 'lasso' || active.tool === 'move'
       ? svg('polyline', {
         fill: 'none', stroke: '#7775e7', 'stroke-width': 1.5, 'stroke-dasharray': '5 4',
@@ -495,6 +662,12 @@ export function createSurface(host, content, options) {
       stroke.shape = shape;
       strokePreview();
     }, 500);
+  }
+
+  // Не чаще одного раза за кадр: pointermove может приходить быстрее частоты экрана.
+  function schedulePreview() {
+    if (frame) return;
+    frame = requestAnimationFrame(() => { frame = 0; strokePreview(); });
   }
 
   function beginStroke(event, tool) {
@@ -549,7 +722,10 @@ export function createSurface(host, content, options) {
         clearTimeout(shapeTimer);
         pointers.delete(pointerId);
         gesture = null;
-        if (active?.pointer === pointerId) { active = null; preview.replaceChildren(); render(); }
+        if (active?.pointer === pointerId) {
+          if (wet.owner === active) { wet.owner = null; clearWet(); }
+          active = null; preview.replaceChildren(); render();
+        }
         offerPaste(clientX, clientY);
       }, 500) };
     } else cancelHold();
@@ -641,8 +817,12 @@ export function createSurface(host, content, options) {
       if (active.tool === 'erase') erase(point);
       else if (distance(point, active.points.at(-1)) > 0.2) active.points.push(point);
     }
+    if (active.tool === 'pen' || active.tool === 'highlight') {
+      // Предсказанные точки только рисуются поверх, в штрих они не попадают.
+      active.predicted = (event.getPredictedEvents?.() ?? []).slice(0, 3).map(localPoint);
+    }
     if (active.tool !== 'erase') {
-      strokePreview();
+      schedulePreview();
       waitForShape(event);
     }
   });
@@ -660,9 +840,13 @@ export function createSurface(host, content, options) {
     if (!active || active.pointer !== event.pointerId) return;
     const { id, points, tool, color, fixedColor, width, erased, shape } = active;
     clearTimeout(shapeTimer);
+    const wasWet = wet.owner === active;
+    if (wasWet) wet.owner = null;
     active = null;
+    if (frame) { cancelAnimationFrame(frame); frame = 0; }
     preview.replaceChildren();
-    if (!save) { render(); positionSelection(); return; }
+    if (!save) { if (wasWet) clearWet(); render(); positionSelection(); return; }
+    if (wasWet) clearWetLater();
     if (tool === 'text') { addText(points[0]); return; }
     const endPoint = localPoint(event);
     if (distance(endPoint, points.at(-1)) > 0.2) points.push(endPoint);
@@ -717,7 +901,7 @@ export function createSurface(host, content, options) {
     }
     const stroke = shape
       ? { id, points: shape.points, tool: shape.tool, color, width, ...(shape.geometry ? { geometry: shape.geometry } : {}) }
-      : { id, points: ['line', 'rect', 'ellipse'].includes(tool) ? [points[0], points.at(-1)] : points, tool, color, width };
+      : { id, points: ['line', 'rect', 'ellipse'].includes(tool) ? [points[0], points.at(-1)] : points.slice(), tool, color, width };
     if (fixedColor) stroke.fixedColor = true;
     update({ ...state, strokes: [...(state.strokes ?? []), stroke] });
   }

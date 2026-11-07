@@ -69,6 +69,9 @@ let tabIds = [], tabStamp;
 let pdfPage = 1;
 const utilities = createUtilities($('utilities'), $('timer-chip'), message);
 let fullscreen = false;
+window.addEventListener('notes-db-outdated', () => {
+  message('«Поля» обновились в другой вкладке. Перезагрузи эту вкладку, чтобы продолжить работу.');
+});
 
 const buttonSettings = () => ({ ...defaultPenButton, ...prefs.penButton });
 const holdActions = { none: 'Без действия', pen: 'Перо', erase: 'Ластик', highlight: 'Маркер', lasso: 'Лассо' };
@@ -354,24 +357,81 @@ function refreshWhenIdle() {
   })().catch(report);
 }
 
+// Снимок заметки отделён от объектов, которые правит экран. Штрихи после завершения не меняются,
+// поэтому их копии общие для всех снимков: шаг отмены стоит ссылок, а не полной копии заметки.
+const strokeCopies = new WeakMap();
+function snapshotOf(value) {
+  if (Array.isArray(value)) return value.map(snapshotOf);
+  if (!value || typeof value !== 'object') return value;
+  if (Object.getPrototypeOf(value) !== Object.prototype) return value instanceof Blob ? value : structuredClone(value);
+  const stroke = Array.isArray(value.points) && typeof value.id === 'string';
+  if (stroke && strokeCopies.has(value)) return strokeCopies.get(value);
+  const copy = {};
+  for (const key of Object.keys(value)) copy[key] = snapshotOf(value[key]);
+  if (stroke) { strokeCopies.set(value, copy); strokeCopies.set(copy, copy); }
+  return copy;
+}
+
+// Большая заметка пишется в IndexedDB сотни миллисекунд: это блокирует поток, где рисуется перо.
+// Поэтому запись ждёт паузы (перо поднято и 300 мс тишины, но не дольше 2 с), а несколько правок
+// подряд сливаются в одну запись. Базой слитой записи остаётся версия до первой из них.
+const unsaved = new Map();
+const idleWaiters = new Set();
+let lastChange = 0;
+let flushNow = false;
+function writeWhenIdle() {
+  const started = Date.now();
+  return new Promise(resolve => {
+    const done = () => { idleWaiters.delete(done); resolve(); };
+    idleWaiters.add(done);
+    (function check() {
+      if (!idleWaiters.has(done)) return;
+      if (flushNow || (!activePointers.size && (Date.now() - started > 2000 || Date.now() - lastChange >= 300))) done();
+      else setTimeout(check, 100);
+    })();
+  });
+}
+function flushWrites() {
+  flushNow = true;
+  for (const done of [...idleWaiters]) done();
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushWrites(); else flushNow = false;
+});
+window.addEventListener('pagehide', flushWrites);
+
 function save(data, { deleted = false, file, item = current } = {}) {
   const owner = scope;
-  const snapshot = structuredClone(data);
+  const urgent = Boolean(file) || deleted || current?.id !== item.id;
+  const snapshot = snapshotOf(data);
   const operation = crypto.randomUUID();
-  const modified = Date.now();
+  const modified = lastChange = Date.now();
   const local = { ...item, data: snapshot, deleted, modified, operation, pending: owner !== 'local' };
   if (current?.id === local.id) current = local;
   const index = items.findIndex(entry => entry.id === local.id);
   if (index < 0) items.push(local);
   else items[index] = local;
+  const previous = unsaved.get(item.id);
+  const replaces = previous && previous.local === item && !previous.file && previous.owner === owner;
+  const entry = { owner, local, file, base: replaces ? previous.base : item };
+  if (replaces) previous.superseded = entry;
+  unsaved.set(item.id, entry);
   let merged = false;
-  return queue(() => edit(owner, item.id, existing => {
-    // Сверка версии: запись на устройстве должна быть той, от которой построена правка.
-    // Иначе её успели изменить другая вкладка или облако, и мы сливаем, а не затираем.
-    const result = rebase(existing, item, local);
-    merged = result.merged;
-    return result.record;
-  }, file), item.id).then(next => {
+  const base = entry.base;
+  const written = queue(async () => {
+    if (entry.superseded) return;
+    if (!urgent) await writeWhenIdle();
+    if (entry.superseded) return;
+    if (unsaved.get(item.id) === entry) unsaved.delete(item.id);
+    return edit(owner, item.id, existing => {
+      // Сверка версии: запись на устройстве должна быть той, от которой построена правка.
+      // Иначе её успели изменить другая вкладка или облако, и мы сливаем, а не затираем.
+      const result = rebase(existing, base, local);
+      merged = result.merged;
+      return result.record;
+    }, file, { operation: base.operation, revision: base.revision, record: { ...local, revision: base.revision } });
+  }, item.id).then(next => {
+    if (entry.superseded) return entry.superseded.promise;
     channel?.postMessage({ library: owner, id: item.id, operation: next?.operation });
     if (merged && owner === scope) {
       const at = items.findIndex(entry => entry.id === next.id);
@@ -380,11 +440,13 @@ function save(data, { deleted = false, file, item = current } = {}) {
     }
     return next;
   });
+  entry.promise = written;
+  return written;
 }
 
 function mutate(data, history = true, file) {
   if (!current) return;
-  if (history) { back.push(structuredClone(current.data)); if (back.length > 40) back.shift(); forward = []; }
+  if (history) { back.push(current.data); if (back.length > 100) back.shift(); forward = []; }
   save(data, { file });
   updateUndo();
 }
@@ -392,7 +454,7 @@ function mutate(data, history = true, file) {
 function history(redo = false) {
   const [source, target] = redo ? [forward, back] : [back, forward];
   if (!current || !source.length) return;
-  target.push(structuredClone(current.data));
+  target.push(current.data);
   const field = document.activeElement;
   const id = field?.dataset.textId;
   const textDocument = field?.matches('.text-note textarea');
@@ -1133,6 +1195,30 @@ function notebookViewport(root, pages, id, signal) {
   return { controls: [zoomOut, zoomIn, fit], pinch: (factor, x, y) => setScale(scale * factor, x, y) };
 }
 
+// Длинная тетрадь: листы далеко от экрана не держат SVG и поля ввода, только место под себя.
+const lazyPages = 8;
+function lazyPage(paper, mount, notebook) {
+  notebook.pageObserver ??= new IntersectionObserver(entries => {
+    for (const entry of entries) entry.target.lazyToggle?.(entry.isIntersecting);
+  }, { root: $('content'), rootMargin: '150% 0px' });
+  let page;
+  paper.lazyToggle = visible => {
+    if (visible && !page) {
+      const controller = new AbortController();
+      editor.signal.addEventListener('abort', () => controller.abort(), { once: true, signal: controller.signal });
+      page = { controller, surface: mount(controller.signal) };
+      surfaces.push(page.surface);
+    } else if (!visible && page && !paper.contains(document.activeElement) && !activePointers.size) {
+      page.controller.abort();
+      surfaces = surfaces.filter(item => item !== page.surface);
+      paper.replaceChildren();
+      page = null;
+    }
+  };
+  notebook.pageObserver.observe(paper);
+  editor.signal.addEventListener('abort', () => notebook.pageObserver.disconnect(), { once: true });
+}
+
 function render() {
   editor.abort();
   editor = new AbortController();
@@ -1231,8 +1317,8 @@ function render() {
       const worldLayers = board ? [element('div', undefined, 'board-world'), element('div', undefined, 'board-world board-world-controls')] : undefined;
       if (worldLayers) paper.append(...worldLayers);
       const camera = board ? boardViewport(current.id, editor.signal) : {};
-      surface = createSurface(paper, structuredClone(data), {
-        ...commonSurface(), board, width: 794, worldLayers,
+      const mount = signal => createSurface(paper, structuredClone(current.data.pages.find(page => page.id === data.id) ?? data), {
+        ...commonSurface(), board, width: 794, worldLayers, signal,
         ...camera,
         onViewChange(view) { camera.onViewChange?.(view); map?.update(); },
         pinch: notebook?.pinch,
@@ -1241,7 +1327,10 @@ function render() {
           map?.update();
         },
       });
-      surfaces.push(surface);
+      if (board || current.data.pages.length <= lazyPages) {
+        surface = mount(editor.signal);
+        surfaces.push(surface);
+      } else lazyPage(paper, mount, notebook);
       if (worldLayers) {
         const boardFiles = boardFilesWithPositions(current.data.attachments ?? []);
         const nav = element('nav', undefined, 'board-file-nav');

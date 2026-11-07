@@ -148,6 +148,7 @@ public final class MainActivity extends Activity {
     }
 
     @Override public boolean dispatchGenericMotionEvent(MotionEvent event) {
+        if (web != null) web.trackHover(event);
         if (web != null && web.observePenButton(event, false)) return true;
         return super.dispatchGenericMotionEvent(event);
     }
@@ -172,6 +173,27 @@ public final class MainActivity extends Activity {
         private boolean touchReportsButton;
         private int penSample;
         private long lastButtonEdge = -1000;
+        // Ладонь ложится на экран, пока перо висит над ним: такие касания пальцем не пропускаем.
+        private boolean penHovering;
+        private long penHoverEnd;
+        private static final long PALM_GRACE_MS = 300;
+
+        private void trackHover(MotionEvent event) {
+            int tool = event.getToolType(0);
+            if (tool != MotionEvent.TOOL_TYPE_STYLUS && tool != MotionEvent.TOOL_TYPE_ERASER) return;
+            int action = event.getActionMasked();
+            if (action == MotionEvent.ACTION_HOVER_ENTER || action == MotionEvent.ACTION_HOVER_MOVE) penHovering = true;
+            else if (action == MotionEvent.ACTION_HOVER_EXIT) {
+                penHovering = false;
+                penHoverEnd = SystemClock.uptimeMillis();
+            }
+        }
+
+        private boolean palm(MotionEvent event, int index) {
+            if (penHovering || SystemClock.uptimeMillis() - penHoverEnd < PALM_GRACE_MS) return true;
+            float density = getResources().getDisplayMetrics().density;
+            return event.getTouchMajor(index) > 48 * density;
+        }
 
         private void publishPenButton(boolean down, boolean contact, boolean canceled, long time, String source) {
             boolean changed = down != penButtonDown || (down && contact && !penButtonContact);
@@ -241,7 +263,10 @@ public final class MainActivity extends Activity {
             int action = event.getActionMasked();
             int index = event.getActionIndex();
             int type = event.getToolType(index);
-            if (action == MotionEvent.ACTION_DOWN) suppressFingers = false;
+            if (action == MotionEvent.ACTION_DOWN) {
+                boolean finger = type == MotionEvent.TOOL_TYPE_FINGER || type == MotionEvent.TOOL_TYPE_UNKNOWN;
+                suppressFingers = finger && palm(event, index);
+            }
             if (penId < 0 && (type == MotionEvent.TOOL_TYPE_STYLUS || type == MotionEvent.TOOL_TYPE_ERASER)
                     && (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN)) {
                 penId = event.getPointerId(index);

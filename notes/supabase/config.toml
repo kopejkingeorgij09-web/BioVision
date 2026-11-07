@@ -18,10 +18,10 @@ file_size_limit = "50MiB"
 [auth]
 enabled = true
 site_url = "http://127.0.0.1:8080"
-enable_signup = true
+enable_signup = false
 
 [auth.email]
-enable_signup = true
+enable_signup = false
 enable_confirmations = false
 
 [functions.notes-code]

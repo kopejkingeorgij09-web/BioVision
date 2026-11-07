@@ -224,6 +224,7 @@ export function createSurface(host, content, options) {
   let lastView = { ...view };
   let active;
   let shapeTimer;
+  let hold;
   let selected = [];
   let selectedTexts = [];
   let selectedOutline = [];
@@ -385,7 +386,7 @@ export function createSurface(host, content, options) {
     });
   }
 
-  function appendCopies(data, dx, dy) {
+  function appendCopies(data, dx, dy, selectCopy = false) {
     const copy = shifted(data, dx, dy, true);
     clearSelection();
     update({
@@ -393,6 +394,21 @@ export function createSurface(host, content, options) {
       strokes: [...(state.strokes ?? []), ...copy.strokes],
       texts: [...(state.texts ?? []), ...copy.texts],
     });
+    if (selectCopy) {
+      selected = copy.strokes;
+      selectedTexts = copy.texts;
+      const xs = [], ys = [];
+      for (const stroke of selected) for (const [x, y] of segments(stroke)) { xs.push(x); ys.push(y); }
+      for (const text of selectedTexts) {
+        const box = typing.querySelector('[data-text-id="' + CSS.escape(text.id) + '"]').parentElement;
+        xs.push(text.x, text.x + box.offsetWidth); ys.push(text.y, text.y + box.offsetHeight);
+      }
+      const bounds = values => values.reduce(([min, max], value) => [Math.min(min, value), Math.max(max, value)], [Infinity, -Infinity]);
+      const [l, r] = bounds(xs), [t, b] = bounds(ys);
+      selectedOutline = [[l - 8, t - 8], [r + 8, t - 8], [r + 8, b + 8], [l - 8, b + 8]];
+      render();
+      positionSelection();
+    }
   }
 
   function positionSelection() {
@@ -411,7 +427,8 @@ export function createSurface(host, content, options) {
       bottom: rect.top + (top + maxY * scale) * outer,
       duplicate: () => appendCopies(selectionData(), 18, 18),
       delete: removeSelected,
-      cut: () => { clipboard?.write(selectionData()); removeSelected(); },
+      copy: () => clipboard?.write(selectionData(), false),
+      cut: () => { clipboard?.write(selectionData(), true); removeSelected(); },
     });
   }
 
@@ -493,13 +510,50 @@ export function createSurface(host, content, options) {
       fixedColor: onPdf, width: prefs.width, points: [point], erased: new Set(),
       screen: [event.clientX, event.clientY],
     };
-    if (tool === 'erase') erase(point);
-    else if (tool !== 'hand') strokePreview();
+    if (tool === 'move') {
+      const ids = new Set(selected.map(stroke => stroke.id));
+      const textIds = new Set(selectedTexts.map(text => text.id));
+      active.ink = Array.from(ink.children).filter((_, index) => ids.has(state.strokes[index].id));
+      active.text = Array.from(typing.children).filter(box => textIds.has(box.firstElementChild.dataset.textId));
+    } else if (tool === 'erase') erase(point);
+    else if (tool !== 'hand' && tool !== 'text') strokePreview();
+  }
+
+  function cancelHold() {
+    clearTimeout(hold?.timer);
+    hold = undefined;
+  }
+
+  function pasteAt(data, targetX, targetY) {
+    const points = data.strokes.flatMap(stroke => stroke.points).concat(data.texts.map(text => [text.x, text.y]));
+    if (!points.length) return;
+    const left = points.reduce((min, point) => Math.min(min, point[0]), Infinity);
+    const top = points.reduce((min, point) => Math.min(min, point[1]), Infinity);
+    appendCopies(data, targetX - left, targetY - top, true);
+  }
+
+  function offerPaste(x, y) {
+    if (!clipboard?.has()) return;
+    clipboard.offer(host, x, y, data => pasteAt(data, ...coordinates(x, y)));
   }
 
   surface.addEventListener('pointerdown', event => {
     const prefs = settings();
-    if (event.pointerType === 'touch' && (board || !prefs.finger)) {
+    clipboard?.dismiss();
+    const point = localPoint(event);
+    const inside = prefs.tool === 'lasso' && selectedOutline.length && within(point, selectedOutline);
+    if (event.pointerType === 'touch' && !active && !pointers.size && clipboard?.has()) {
+      const { pointerId, clientX, clientY } = event;
+      hold = { pointerId, clientX, clientY, timer: setTimeout(() => {
+        cancelHold();
+        clearTimeout(shapeTimer);
+        pointers.delete(pointerId);
+        gesture = null;
+        if (active?.pointer === pointerId) { active = null; preview.replaceChildren(); render(); }
+        offerPaste(clientX, clientY);
+      }, 500) };
+    } else cancelHold();
+    if (event.pointerType === 'touch' && !inside && (board || !prefs.finger)) {
       if (active?.pointerType === 'pen') return;
       event.preventDefault();
       pointers.set(event.pointerId, [event.clientX, event.clientY]);
@@ -515,11 +569,13 @@ export function createSurface(host, content, options) {
       gesture = null;
       penContact?.();
     }
-    const point = localPoint(event);
     let tool = sideTool?.(event, true) ?? prefs.tool;
     if (tool === 'text') {
       event.preventDefault();
-      addText(point);
+      if (hold) {
+        surface.setPointerCapture(event.pointerId);
+        beginStroke(event, 'text');
+      } else addText(point);
       return;
     }
     if (board && (event.shiftKey || tool === 'hand')) tool = 'hand';
@@ -534,6 +590,7 @@ export function createSurface(host, content, options) {
   });
 
   surface.addEventListener('pointermove', event => {
+    if (hold?.pointerId === event.pointerId && Math.hypot(event.clientX - hold.clientX, event.clientY - hold.clientY) > 9) cancelHold();
     if (pointers.has(event.pointerId)) {
       pointers.set(event.pointerId, [event.clientX, event.clientY]);
       const p = [...pointers.values()];
@@ -554,6 +611,14 @@ export function createSurface(host, content, options) {
       return;
     }
     if (!active || event.pointerId !== active.pointer) return;
+    if (active.tool === 'text') return;
+    if (active.tool === 'move') {
+      const [x, y] = localPoint(event), [startX, startY] = active.points[0];
+      const dx = x - startX, dy = y - startY;
+      for (const node of [...active.ink, overlay.firstElementChild]) node?.setAttribute('transform', `translate(${dx} ${dy})`);
+      for (const node of active.text) node.style.transform = `translate(${dx}px, ${dy}px)`;
+      return;
+    }
     if (event.pointerType === 'pen') {
       const next = sideTool?.(event);
       if (next !== active.tool && ['pen', 'highlight', 'erase'].includes(next) &&
@@ -583,6 +648,7 @@ export function createSurface(host, content, options) {
   });
 
   function end(event) {
+    if (hold?.pointerId === event.pointerId) cancelHold();
     if (pointers.delete(event.pointerId)) {
       const p = [...pointers.values()];
       gesture = p.length ? { center: p.length > 1 ? center(...p) : p[0], distance: p.length > 1 ? distance(...p) : 0 } : null;
@@ -597,6 +663,7 @@ export function createSurface(host, content, options) {
     active = null;
     preview.replaceChildren();
     if (!save) { render(); positionSelection(); return; }
+    if (tool === 'text') { addText(points[0]); return; }
     const endPoint = localPoint(event);
     if (distance(endPoint, points.at(-1)) > 0.2) points.push(endPoint);
     if (tool === 'hand') return;
@@ -633,6 +700,7 @@ export function createSurface(host, content, options) {
     if (tool === 'move') {
       const last = points.at(-1);
       const dx = last[0] - points[0][0], dy = last[1] - points[0][1];
+      if (Math.hypot(dx, dy) <= .2) { render(); positionSelection(); return; }
       const moved = shifted(selectionData(), dx, dy, false);
       const strokes = new Map(moved.strokes.map(item => [item.id, item]));
       const texts = new Map(moved.texts.map(item => [item.id, item]));
@@ -654,7 +722,10 @@ export function createSurface(host, content, options) {
     update({ ...state, strokes: [...(state.strokes ?? []), stroke] });
   }
   for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) surface.addEventListener(type, end);
-  surface.addEventListener('contextmenu', event => event.preventDefault());
+  surface.addEventListener('contextmenu', event => {
+    event.preventDefault();
+    if (event.pointerType !== 'touch' && event.button === 2) offerPaste(event.clientX, event.clientY);
+  });
   if (board) surface.addEventListener('wheel', event => {
     event.preventDefault();
     if (event.ctrlKey || event.metaKey) zoom(event.clientX, event.clientY, view.zoom * Math.exp(-event.deltaY * 0.006));
@@ -667,7 +738,7 @@ export function createSurface(host, content, options) {
   const resize = new ResizeObserver(renderView);
   resize.observe(host);
   host.closest('#content')?.addEventListener('scroll', positionSelection, { passive: true, signal });
-  signal?.addEventListener('abort', () => { clearTimeout(shapeTimer); resize.disconnect(); showSelection?.(null); }, { once: true });
+  signal?.addEventListener('abort', () => { cancelHold(); clearTimeout(shapeTimer); resize.disconnect(); showSelection?.(null); }, { once: true });
   renderView();
   render();
   return {
@@ -684,14 +755,9 @@ export function createSurface(host, content, options) {
     },
     deselect() { clearSelection(); render(); },
     paste(data) {
-      const points = data.strokes.flatMap(stroke => stroke.points).concat(data.texts.map(text => [text.x, text.y]));
-      if (!points.length) return;
-      const left = points.reduce((min, point) => Math.min(min, point[0]), Infinity);
-      const top = points.reduce((min, point) => Math.min(min, point[1]), Infinity);
       const rect = host.getBoundingClientRect(), area = host.closest('#content').getBoundingClientRect();
       const x = Math.max(rect.left, area.left), y = Math.max(rect.top, area.top);
-      const [targetX, targetY] = coordinates(x + 26, y + 60);
-      appendCopies(data, targetX - left, targetY - top);
+      pasteAt(data, ...coordinates(x + 26, y + 60));
     },
     addTextNear(clientX, clientY) {
       const point = coordinates(clientX, clientY);

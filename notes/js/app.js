@@ -21,7 +21,7 @@ const tools = { pen: 'Перо', highlight: 'Маркер', erase: 'Ластик
 const blank = () => ({ id: crypto.randomUUID(), strokes: [], texts: [] });
 const preferenceKey = 'biovision-notes-pen';
 const themes = { system: 'Как в системе', white: 'Белая', gray: 'Серая', warm: 'Тёплая белая', violet: 'Тёмно-фиолетовая', green: 'Тёмно-зелёная', black: 'Чёрная' };
-const appVersion = { name: '0.7.0', code: 8 };
+const appVersion = { name: '0.7.1', code: 9 };
 const releaseBase = cloudConfig.url + '/storage/v1/object/public/notes-releases/';
 const darkMode = matchMedia('(prefers-color-scheme: dark)');
 const existingPrefs = JSON.parse(localStorage.getItem(preferenceKey) ?? '{}');
@@ -938,8 +938,14 @@ function inkControls(board, surface, withLayout) {
 function selectionActions(selection) {
   const menu = $('selection-actions');
   if (!selection) { menu.hidden = true; selectionHost = undefined; return; }
-  if (selectionHost !== selection.host || menu.hidden) {
-    menu.replaceChildren(button('Дублировать', selection.duplicate), button('Вырезать', selection.cut), button('Удалить', selection.delete));
+  const mode = selection.paste ? 'paste' : 'selection';
+  if (!selection.paste && !menu.hidden && menu.dataset.mode === 'paste') return;
+  if (selectionHost !== selection.host || menu.hidden || menu.dataset.mode !== mode) {
+    const previous = surfaces.find(surface => surface.host === selectionHost && surface.host !== selection.host);
+    previous?.deselect();
+    menu.dataset.mode = mode;
+    menu.replaceChildren(...(selection.paste ? [button('Вставить', selection.paste)] :
+      [button('Копировать', selection.copy), button('Вырезать', selection.cut), button('Дублировать', selection.duplicate), button('Удалить', selection.delete)]));
     selectionHost = selection.host;
   }
   const area = $('content').getBoundingClientRect();
@@ -963,7 +969,7 @@ function pasteObjects() {
   };
   const target = surfaces.find(surface => surface.host === selectionHost) ??
     [...surfaces].sort((a, b) => visible(b) - visible(a))[0];
-  target?.paste(objectClipboard);
+  if (target) { chooseTool('lasso'); target.paste(objectClipboard); }
 }
 
 function commonSurface() {
@@ -971,10 +977,21 @@ function commonSurface() {
     settings: () => ({ ...prefs, tool: baseTool() }), signal: editor.signal,
     sideTool,
     showSelection: selectionActions,
-    clipboard: { write(data) {
+    clipboard: {
+      has: () => Boolean(objectClipboard),
+      dismiss() {
+        if ($('selection-actions').dataset.mode === 'paste') selectionActions(null);
+      },
+      offer(host, x, y, paste) {
+        selectionActions({ host, x, top: y - 8, bottom: y + 8, paste() {
+          selectionActions(null);
+          if (objectClipboard) { chooseTool('lasso'); paste(objectClipboard); }
+        } });
+      },
+      write(data, cut) {
       objectClipboard = structuredClone(data);
       if ($('paste-objects')) $('paste-objects').disabled = false;
-      message('Вырезано. Вставь через «Дополнительно» или ⌘V / Ctrl+V.');
+      message((cut ? 'Вырезано. ' : 'Скопировано. ') + 'Зажми палец на листе или нажми ⌘V / Ctrl+V.');
     } },
     penContact: () => penButton.use(),
     notifyText(text) {

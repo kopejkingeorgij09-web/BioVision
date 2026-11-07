@@ -36,6 +36,35 @@ async function pdfDocument(blob) {
   });
 }
 
+// Разобранный PDF живёт ещё полминуты после закрытия: отмена правки или возврат к доске
+// перерисовывают экран, и разбирать файл заново на каждый шаг незачем.
+const openDocuments = new Map();
+async function sharedPdf(id, blob, signal) {
+  const key = id + ':' + blob.size;
+  let entry = openDocuments.get(key);
+  if (!entry) {
+    entry = { users: 0, timer: 0, task: null };
+    entry.promise = pdfDocument(blob).then(task => { entry.task = task; return task.promise; });
+    entry.promise.catch(() => openDocuments.delete(key));
+    openDocuments.set(key, entry);
+  }
+  clearTimeout(entry.timer);
+  entry.users += 1;
+  const release = () => {
+    entry.users -= 1;
+    if (entry.users > 0) return;
+    entry.timer = setTimeout(() => {
+      if (entry.users > 0) return;
+      openDocuments.delete(key);
+      void entry.task?.destroy().catch(() => {});
+    }, 30000);
+  };
+  signal.addEventListener('abort', release, { once: true });
+  return entry.promise;
+}
+
+const sharpness = () => Math.min(2.5, Math.max(1, window.devicePixelRatio || 1));
+
 export async function openMedia(root, attachment, options) {
   const { library, signal, surfaceOptions, onMark, close, message } = options;
   const view = element('div', undefined, 'viewer');
@@ -81,10 +110,7 @@ export async function openMedia(root, attachment, options) {
     if (attachment.mime === 'application/pdf') {
       loading.textContent = 'Подготовка страниц PDF…';
       view.append(loading);
-      const task = await pdfDocument(blob);
-      if (signal.aborted) { await task.destroy(); return; }
-      signal.addEventListener('abort', () => void task.destroy(), { once: true });
-      const document = await task.promise;
+      const document = await sharedPdf(attachment.id, blob, signal);
       if (signal.aborted) return;
       let page = 1, generation = 0, painting;
       const number = element('span');
@@ -102,7 +128,7 @@ export async function openMedia(root, attachment, options) {
         const content = await document.getPage(index);
         if (signal.aborted || mine !== generation) return;
         const canvas = element('canvas');
-        const viewport = content.getViewport({ scale: 1300 / content.getViewport({ scale: 1 }).width });
+        const viewport = content.getViewport({ scale: Math.min(3000, Math.max(1300, view.clientWidth * sharpness())) / content.getViewport({ scale: 1 }).width });
         canvas.width = Math.round(viewport.width);
         canvas.height = Math.round(viewport.height);
         painting = content.render({ canvas, canvasContext: canvas.getContext('2d'), viewport });
@@ -235,10 +261,7 @@ export async function mountBoardFile(content, controls, file, { signal, library,
     status.remove();
 
     if (file.mime === 'application/pdf') {
-      const task = await pdfDocument(blob);
-      if (signal.aborted) { await task.destroy(); return; }
-      signal.addEventListener('abort', () => void task.destroy().catch(() => {}), { once: true });
-      const pdf = await task.promise;
+      const pdf = await sharedPdf(file.id, blob, signal);
       if (signal.aborted) return;
       const queued = new WeakMap();
       const observer = new IntersectionObserver(entries => {
@@ -275,7 +298,7 @@ export async function mountBoardFile(content, controls, file, { signal, library,
             async render() {
               if (state.canvas || state.task || state.failed || signal.aborted) return;
               const canvas = element('canvas');
-              const viewport = page.getViewport({ scale: 1100 / natural.width });
+              const viewport = page.getViewport({ scale: Math.max(1100, boardFileWidth * sharpness()) / natural.width });
               canvas.width = Math.ceil(viewport.width);
               canvas.height = Math.ceil(viewport.height);
               try {

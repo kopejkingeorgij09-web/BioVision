@@ -135,6 +135,27 @@ public final class MainActivity extends Activity {
 
         private boolean penButtonContact;
         private int penSample;
+        // Ладонь ложится на экран, пока перо висит над ним: такие касания пальцем не пропускаем.
+        private boolean penHovering;
+        private long penHoverEnd;
+        private static final long PALM_GRACE_MS = 300;
+
+        private void trackHover(MotionEvent event) {
+            int tool = event.getToolType(0);
+            if (tool != MotionEvent.TOOL_TYPE_STYLUS && tool != MotionEvent.TOOL_TYPE_ERASER) return;
+            int action = event.getActionMasked();
+            if (action == MotionEvent.ACTION_HOVER_ENTER || action == MotionEvent.ACTION_HOVER_MOVE) penHovering = true;
+            else if (action == MotionEvent.ACTION_HOVER_EXIT) {
+                penHovering = false;
+                penHoverEnd = SystemClock.uptimeMillis();
+            }
+        }
+
+        private boolean palm(MotionEvent event, int index) {
+            if (penHovering || SystemClock.uptimeMillis() - penHoverEnd < PALM_GRACE_MS) return true;
+            float density = getResources().getDisplayMetrics().density;
+            return event.getTouchMajor(index) > 48 * density;
+        }
 
         private void publishPenButton(boolean down, boolean contact, boolean canceled, long time) {
             boolean changed = down != penButtonDown || (down && contact && !penButtonContact);
@@ -174,6 +195,7 @@ public final class MainActivity extends Activity {
         }
 
         @Override public boolean dispatchGenericMotionEvent(MotionEvent event) {
+            trackHover(event);
             if (observePenButton(event, false)) return true;
             return super.dispatchGenericMotionEvent(event);
         }
@@ -191,7 +213,10 @@ public final class MainActivity extends Activity {
             int action = event.getActionMasked();
             int index = event.getActionIndex();
             int type = event.getToolType(index);
-            if (action == MotionEvent.ACTION_DOWN) suppressFingers = false;
+            if (action == MotionEvent.ACTION_DOWN) {
+                boolean finger = type == MotionEvent.TOOL_TYPE_FINGER || type == MotionEvent.TOOL_TYPE_UNKNOWN;
+                suppressFingers = finger && palm(event, index);
+            }
             if (penId < 0 && (type == MotionEvent.TOOL_TYPE_STYLUS || type == MotionEvent.TOOL_TYPE_ERASER)
                     && (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN)) {
                 penId = event.getPointerId(index);
@@ -249,7 +274,8 @@ public final class MainActivity extends Activity {
                 reply("", "Неподдерживаемый формат рукописи.");
                 return;
             }
-            runOnUiThread(() -> recognizeInk(points, language));
+            // Разбор штрихов идёт в потоке моста, а не в потоке интерфейса: большой выбор не подвешивает перо.
+            recognizeInk(points, language);
         }
     }
 
@@ -262,7 +288,9 @@ public final class MainActivity extends Activity {
                 Ink.Stroke.Builder stroke = Ink.Stroke.builder();
                 for (int j = 0; j < samples.length(); j++) {
                     JSONArray sample = samples.getJSONArray(j);
-                    stroke.addPoint(Ink.Point.create((float) sample.getDouble(0), (float) sample.getDouble(1)));
+                    float x = (float) sample.getDouble(0), y = (float) sample.getDouble(1);
+                    // Время точки помогает ML Kit различать порядок и скорость письма.
+                    stroke.addPoint(sample.length() > 3 ? Ink.Point.create(x, y, sample.getLong(3)) : Ink.Point.create(x, y));
                 }
                 if (samples.length() > 0) ink.addStroke(stroke.build());
             }

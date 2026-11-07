@@ -1,13 +1,23 @@
 const database = new Promise((resolve, reject) => {
-  const request = indexedDB.open('biovision-notes-v1', 1);
-  request.onupgradeneeded = () => {
+  const request = indexedDB.open('biovision-notes-v1', 2);
+  request.onupgradeneeded = event => {
     const db = request.result;
-    for (const name of ['items', 'files']) {
-      const store = db.createObjectStore(name, { keyPath: ['library', 'id'] });
-      store.createIndex('library', 'library');
+    if (event.oldVersion < 1) {
+      for (const name of ['items', 'files']) {
+        const store = db.createObjectStore(name, { keyPath: ['library', 'id'] });
+        store.createIndex('library', 'library');
+      }
     }
+    // Версия 2: индекс «запись + её версия». По нему проверяем, что запись не менялась,
+    // не читая всю заметку целиком — у большой тетради это сотни миллисекунд на каждый штрих.
+    if (event.oldVersion < 2) request.transaction.objectStore('items').createIndex('head', ['library', 'id', 'operation', 'revision']);
   };
-  request.onsuccess = () => resolve(request.result);
+  request.onsuccess = () => {
+    const db = request.result;
+    // Новая версия приложения в другой вкладке обновляет базу: эта вкладка уступает и просит перезагрузку.
+    db.onversionchange = () => { db.close(); window.dispatchEvent(new CustomEvent('notes-db-outdated')); };
+    resolve(db);
+  };
   request.onerror = () => reject(request.error);
 });
 
@@ -41,11 +51,27 @@ export const put = (name, value) => transact([name], 'readwrite', tx => {
   tx.objectStore(name).put(value);
 });
 
-export function edit(library, id, mutate, file) {
+// expected — { operation, revision, record }: если запись в хранилище ровно этой версии,
+// кладём record без чтения заметки. Иначе читаем и вызываем mutate, как обычно.
+export function edit(library, id, mutate, file, expected) {
   return transact(file ? ['items', 'files'] : ['items'], 'readwrite', (tx, result) => {
     const items = tx.objectStore('items');
-    const request = items.get([library, id]);
-    request.onsuccess = () => {
+    const full = () => {
+      const request = items.get([library, id]);
+      request.onsuccess = () => apply(request);
+    };
+    const head = expected && typeof expected.revision === 'number' && typeof expected.operation === 'string'
+      && items.indexNames.contains('head');
+    if (head) {
+      const count = items.index('head').count([library, id, expected.operation, expected.revision]);
+      count.onsuccess = () => {
+        if (count.result !== 1) { full(); return; }
+        items.put(expected.record);
+        if (file) tx.objectStore('files').put(file);
+        result(expected.record);
+      };
+    } else full();
+    function apply(request) {
       try {
         const next = mutate(request.result);
         if (!next) return;
@@ -55,7 +81,7 @@ export function edit(library, id, mutate, file) {
       } catch {
         tx.abort();
       }
-    };
+    }
   });
 }
 

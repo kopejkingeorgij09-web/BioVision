@@ -201,16 +201,50 @@ function applyOver(){
 }
 B.shadBase = n => B.shad.base.find(p => p.n === n);
 const shadKeep = v => v.s || v.note || v.o;
-async function shadWrite(n, v){
-  if (db){
-    try {
-      if (!shadKeep(v)) await db.doc('shad/w' + pad(n)).delete();
-      else await db.doc('shad/w' + pad(n)).set(v);
-    } catch (e) { B.toast('Изменение ШАДа не сохранилось в облаке'); }
-  } else {
-    try { localStorage.setItem(LS_SHADMARKS, JSON.stringify(B.shad.marks)); } catch (e) {}
+const LS_SHAD_QUEUE = 'bamboo-shad-pending';
+let shadQueue = {};
+const shadSending = new Set(), shadTimers = {};
+try { shadQueue = JSON.parse(localStorage.getItem(LS_SHAD_QUEUE) || '{}') || {}; } catch (_) {}
+function cacheShad(){
+  try {
+    localStorage.setItem(LS_SHADMARKS, JSON.stringify(B.shad.marks));
+    localStorage.setItem(LS_SHAD_QUEUE, JSON.stringify(shadQueue));
+  } catch (_) {}
+}
+function shadWrite(n,v){
+  if (db || localStorage.getItem('bv_code')) shadQueue[n]=v;
+  cacheShad();
+  return flushShad(n);
+}
+async function flushShad(n){
+  if (!db || !shadQueue[n] || shadSending.has(n)) return;
+  clearTimeout(shadTimers[n]);
+  shadSending.add(n);
+  const v = shadQueue[n];
+  let saved = false;
+  try {
+    const ref = db.doc('shad/w' + pad(n));
+    if (!shadKeep(v)) await ref.delete();
+    else await ref.set(v);
+    saved = true;
+    if (shadQueue[n] === v) delete shadQueue[n];
+    cacheShad();
+  } catch (_) {
+    shadTimers[n] = setTimeout(() => flushShad(n),15000);
+  } finally {
+    shadSending.delete(n);
+    if (saved && shadQueue[n]) flushShad(n);
   }
 }
+function overlayShad(m){
+  for (const n in shadQueue){
+    const v = shadQueue[n];
+    if (shadKeep(v)) m[n]=v;
+    else delete m[n];
+  }
+  return m;
+}
+function flushShadQueue(){ Object.keys(shadQueue).forEach(flushShad); }
 /* patch: {t, w: {date, from, to}, h: {date}}; null убирает все правки, веб снова как в плане */
 B.shadRestore = (n, v) => {
   const m = Object.assign({}, B.shad.marks);
@@ -233,7 +267,7 @@ B.setShadOver = (n, patch) => {
     o = JSON.parse(JSON.stringify(o));
     if (!Object.keys(o).length) o = null;
   }
-  const v = {s: cur.s || 0, note: cur.note || '', at: Date.now()}; if (o) v.o = o;
+  const v = {...cur, s: cur.s || 0, note: cur.note || ''}; if (o) v.o = o; else delete v.o;
   B.recordShad(n, B.shad.marks[n], v);
   B.shad.marks = Object.assign({}, B.shad.marks, {[n]: v});
   applyOver(); changed(); shadWrite(n, v);
@@ -248,7 +282,8 @@ async function loadShadPlan(){
 function onShad(snap){
   const m = {};
   snap.docs.forEach(d => { const n = parseInt(d.id.slice(1), 10); const v = d.data() || {}; if (n){ m[n] = {s: v.s || 0, note: v.note || '', at: v.at || 0}; if (v.o) m[n].o = v.o; } });
-  if (JSON.stringify(m) !== JSON.stringify(B.shad.marks)){ B.shad.marks = m; applyOver(); changed(); }
+  overlayShad(m);
+  if (JSON.stringify(m) !== JSON.stringify(B.shad.marks)){ B.shad.marks = m; cacheShad(); applyOver(); changed(); }
 }
 /* бонус за качество ДЗ с «Фагов» (до +10 за веб): его пишет сервер в коллекцию 'shadx', когда ДЗ проверено */
 B.shad.bonus = {};
@@ -329,28 +364,43 @@ B.shadLate = () => {
 };
 
 /* ---------- подключение ---------- */
-B.connect = async () => {
-  loadShadPlan();
-  const me = window.BVAUTH ? await BVAUTH.ready : null;
+let connecting = false;
+B.connect = async (retry = false) => {
+  if (db || connecting) return;
+  connecting = true;
+  if (!retry) loadShadPlan();
+  const me = window.BVAUTH ? await (retry ? BVAUTH.restore() : BVAUTH.ready) : null;
   if (me && me.role === 'admin' && window.claude){
     try { db = await window.claude.use('db'); } catch (e) { db = null; }
   }
+  connecting = false;
   B.cloud = !!db;
   if (db){
     setSync('cloud', 'Синхронизирую…');
     db.collection('bamboo').onSnapshot(onRemote, () => setSync('error', navigator.onLine ? 'Облако не ответило, копия на устройстве' : 'Нет интернета, копия на устройстве'));
     db.collection('shad').onSnapshot(onShad, () => {});
+    flushShadQueue();
     db.collection('shadx').onSnapshot(onShadX, () => {});
     db.collection('phx').onSnapshot(onPhx, () => {});
   } else {
     if (!docs.cfg) seed();
-    try { B.shad.marks = JSON.parse(localStorage.getItem(LS_SHADMARKS) || '{}') || {}; } catch (e) {}
+    try { B.shad.marks = overlayShad(JSON.parse(localStorage.getItem(LS_SHADMARKS) || '{}') || {}); } catch (e) {}
     applyOver();
     let had = ''; try { had = localStorage.getItem('bv_code') || ''; } catch (e) {}
     setSync(had ? 'error' : 'local', had ? 'Нет связи с облаком, записи пока только здесь' : 'Только на этом устройстве · войди кодом для синхронизации');
     changed();
   }
 };
+let lastRefresh = 0;
+function refreshCloud(){
+  if (Date.now() - lastRefresh < 1800) return;
+  lastRefresh = Date.now();
+  if (db){ flushShadQueue(); dispatchEvent(new Event('bv-cloud-write')); }
+  else if (localStorage.getItem('bv_code')) B.connect(true);
+}
+addEventListener('online', refreshCloud);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshCloud(); });
+
 B.exportAll = () => ({app: 'bamboo', at: new Date().toISOString(), docs});
 B.importAll = obj => {
   if (!obj || obj.app !== 'bamboo' || !obj.docs) throw new Error('Это не резервная копия «Зова леса»');

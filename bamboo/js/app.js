@@ -65,6 +65,7 @@ function route(){
 }
 let lastKey = '', pending = false;
 B.render = force => {
+  if (force !== true && B.calendarView?.deferRender()) return;
   const main = document.getElementById('main');
   const a = document.activeElement;
   if (force === true && a && main.contains(a)) a.blur();
@@ -216,7 +217,7 @@ B.connect().then(() => {
   B.clearUndo();
   B.render(); if (!special()) shared();
 });
-if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+if (location.hostname !== 'appassets.androidplatform.net' && 'serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 /* новый день наступает в 4 утра: перерисовать, если вкладка висела открытой */
 let lastDay = B.today();
 setInterval(() => { if (B.today() !== lastDay){ lastDay = B.today(); B.render(); } }, 60000);

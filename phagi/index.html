@@ -2098,11 +2098,15 @@ function navHTML(){
   return items.map(([v,l,n],i)=>`<button data-act="go" data-v="${v}" aria-current="${cur===v}" aria-label="${l}${n?`, ${n}`:''}" title="${l}${i<9?` (${kb}${i+1})`:''}"><span class="ni" aria-hidden="true"><svg viewBox="0 0 24 24">${IC[v]}</svg></span><span class="nl">${l}</span>${n?`<span class="badge">${n}</span>`:''}</button>`).join('');
 }
 
+function forestDue(t){
+  return t?.kind!=='material'&&t?.to?.length===1&&/^shad-w[1-9][0-9]*$/.test(t.lesson?.eventId||'');
+}
+
 /* срок рядом с заданием: близкий или прошедший цветной меткой, дальний обычным текстом */
 function dueTag(t){
   const d=diffDays(today(),t.due),plain=` <span class="muted small">до ${fmtDay(t.due)}</span>`;
   const open=T()?(t.to||[]).some(u=>['todo','late'].includes(status(t,u).k)):!ownAsg(t)&&['todo','late'].includes(status(t,meId()).k);
-  if(!open||d>3||(d<0&&T()))return plain;
+  if(!open||d>3||(d<0&&(T()||forestDue(t))))return plain;
   const dn=n=>`${n} ${plural(n,'день','дня','дней')}`;
   const[c,l]=d<0?['late','просрочено на '+dn(-d)]:d===0?['now','сдать сегодня']:d===1?['soon','сдать завтра']:['soon','через '+dn(d)];
   return ` <span class="dtag ${c}" title="Срок ${fmtDay(t.due)}">${l}</span>`}
@@ -2114,7 +2118,7 @@ function taskRow(t,fu){
     else if(fu){const s=status(t,fu);right=s.k==='graded'&&s.g.score!=null?markHTML(s.g,maxOf(t),'sm'):`<span class="st ${s.k}">${esc(s.k==='todo'?'Не сдано':s.l)}</span>`}
     else{const to=t.to||[];const done=to.filter(u=>['sub','graded'].includes(status(t,u).k)).length;right=`<span class="st">${done} из ${to.length} сдали</span>`}
   }else if(ownAsg(t))right=`<span class="st">для: ${toNames(t)}</span>`;
-  else{const s=status(t,meId()),nr=t.due&&['todo','late'].includes(s.k)&&diffDays(today(),t.due)<=3;right=s.k==='graded'&&s.g.score!=null?markHTML(s.g,maxOf(t),'sm'):`<span class="st ${s.k}">${esc(nr?'Не сдано':s.l)}</span>`}
+  else{const s=status(t,meId()),nr=t.due&&['todo','late'].includes(s.k)&&diffDays(today(),t.due)<=3&&!forestDue(t);right=s.k==='graded'&&s.g.score!=null?markHTML(s.g,maxOf(t),'sm'):`<span class="st ${s.k}">${esc(nr?'Не сдано':s.l)}</span>`}
   return `<button class="item trow" style="--c:${sc(t.subject)}" data-act="open" data-id="${t.id}"><span class="grow"><span class="t">${esc(t.title)}</span><br>${subj(t.subject)}${byTag(t)}${kindL&&t.kind!=='material'?` <span class="muted small">${kindL}</span>`:''}${t.due&&t.kind!=='material'?dueTag(t):''}</span>${right}</button>`;
 }
 function postsHTML(){
@@ -4336,6 +4340,7 @@ const TEST_HINT=`? Какой органоид синтезирует АТФ?
 * 2`;
 
 function openTaskDialog(t,preset={}){
+  const syncedDue=forestDue(t);
   const to=new Set(t?(t.to||[]):(preset.to||[]));
   const kind=t?t.kind:(preset.kind||'task');
   const tfiles=(t&&t.files||[]).slice();dlgFiles=tfiles;
@@ -4351,7 +4356,7 @@ function openTaskDialog(t,preset={}){
 ${esc(TEST_HINT)}</div>${S.assets?`<label class="upl" style="margin:-4px 0 12px"><input type="file" accept="image/*" data-dact="qimg"><span class="btn ghost sm">Вставить картинку в вопрос</span></label>`:''}</div>
   ${S.assets?`<div style="margin-bottom:12px"><span class="small muted">Файлы к заданию</span><div id="tfiles">${filesHTML(t&&t.files,'data-dact="rmtf"')}</div><label class="upl"><input type="file" multiple data-dact="addtf"><span class="btn ghost sm">Прикрепить файл или картинку</span></label></div>`:''}
   <label id="linksbox">Ссылки, по одной в строке<textarea name="links" rows="2" placeholder="https://">${esc(t?(t.links||[]).join('\n'):'')}</textarea></label>
-  <div class="row"><label class="grow">Срок сдачи<input type="date" name="due" value="${esc(t?t.due:(preset.due||''))}"></label><label class="grow" id="maxbox" ${kind==='test'?'hidden':''}>Максимальный балл<input type="number" name="max" min="1" max="100" value="${esc(t?(t.max??''):'5')}"></label></div>
+  <div class="row"><label class="grow">Срок сдачи<input type="date" name="due" value="${esc(t?t.due:(preset.due||''))}" ${syncedDue?'readonly aria-describedby="forest-due-note"':''}>${syncedDue?'<span class="muted small" id="forest-due-note">Дата ДЗ из «Зова леса».</span>':''}</label><label class="grow" id="maxbox" ${kind==='test'?'hidden':''}>Максимальный балл<input type="number" name="max" min="1" max="100" value="${esc(t?(t.max??''):'5')}"></label></div>
   ${toBox(to)}
   <p class="err"></p>
   <div class="actions"><button class="btn ghost" data-dact="cancel">Отмена</button><button class="btn" data-dact="save">${t?'Сохранить':'Создать'}</button></div>`,{

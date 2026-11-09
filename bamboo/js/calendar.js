@@ -8,7 +8,8 @@ const today = () => ymd(new Date());
 const days = (d,n) => Array.from({length:n}, (_,i) => add(d,i));
 const hour = 60;
 const dragStep = 5;
-let dragging = false, redrawAfterDrag = false;
+const weekBuffer = 14;
+let dragging = false, redrawAfterInteraction = false, weekScrollTimer = 0, weekResize;
 const snap = n => Math.round(n / dragStep) * dragStep;
 const monthStart = d => d.slice(0,7) + '-01';
 const moveMonth = (d,n) => ymd(new Date(parse(d).getFullYear(),parse(d).getMonth()+n,1,12));
@@ -19,6 +20,7 @@ let prefs = {};
 try { prefs = JSON.parse(localStorage.getItem(prefsKey) || '{}') || {}; } catch (_) {}
 let mode = Object.hasOwn(MODES,prefs.mode) ? prefs.mode : (innerWidth < 650 ? 'day' : 'week');
 let date = today(), side = prefs.side ?? innerWidth >= 950;
+let weekFrom = null, weekFraction = 0;
 let scroll = null, scrollLeft = 0, draggedAt = 0, editContext = null;
 const hidden = new Set(Array.isArray(prefs.hidden) ? prefs.hidden : []);
 const projects = () => B.projects();
@@ -40,7 +42,11 @@ function pruneFiles(ids){
 }
 const ranges = () => {
   if (mode === 'day') return [date, date];
-  if (mode === 'week'){ const d = B.weekStart(date); return [d, add(d,6)]; }
+  if (mode === 'week'){
+    const d = weekFrom || B.weekStart(date);
+    const first = add(d,-weekBuffer), last = add(d,6+weekBuffer);
+    return [C.validDate(first)?first:'1900-01-01', C.validDate(last)?last:'2199-12-31'];
+  }
   if (mode === 'year') return [date.slice(0,4)+'-01-01',date.slice(0,4)+'-12-31'];
   const d = B.weekStart(monthStart(date)); return [d,add(d,41)];
 };
@@ -222,6 +228,9 @@ function render(toggle){
 }
 function change(d,m=mode,reset=false){
   if (!C.validDate(d)) return;
+  if (m!=='week'||mode!=='week'||reset||!weekFrom||d<weekFrom||d>add(weekFrom,6)){
+    weekFrom=null; weekFraction=0;
+  }
   date=d; mode=m;
   if (reset){ scroll=null; scrollLeft=0; }
   savePrefs(); B.render(true);
@@ -235,7 +244,12 @@ B.acts.acToday=()=>change(today(),mode,true);
 B.acts.acMiniMove=el=>change(moveMonth(date,+el.dataset.n));
 B.acts.acShift=el=>{
   const n=+el.dataset.n;
-  change(mode==='day'||mode==='week'?add(date,n*(mode==='week'?7:1)):moveMonth(date,n*(mode==='year'?12:1)));
+  if(mode==='week'){
+    const d=add(weekFrom||B.weekStart(date),n*7);
+    if(!C.validDate(d))return;
+    date=weekFrom=d; weekFraction=0;
+    B.render(true);
+  }else change(mode==='day'?add(date,n):moveMonth(date,n*(mode==='year'?12:1)));
 };
 B.inputs.acFilter=(el,e)=>{
   if(e.type!=='change')return;
@@ -645,7 +659,7 @@ function rangePointer(e,root){
     window.removeEventListener('pointercancel',cleanup);
     preview.remove();root.querySelector('.ac-drag-target')?.classList.remove('ac-drag-target');
     dragging=false;
-    if(redrawAfterDrag){redrawAfterDrag=false;requestAnimationFrame(()=>B.render());}
+    if(redrawAfterInteraction){redrawAfterInteraction=false;requestAnimationFrame(()=>B.render());}
   }
   function finish(ev){
     if(ev.pointerId!==id)return;
@@ -683,8 +697,8 @@ function swipePeriod(direction){
   scrollLeft=0;
   B.acts.acShift({dataset:{n:String(direction)}});
 }
-function mountGestures(sc){
-  sc.addEventListener('wheel',e=>{
+function mountGestures(sc,weekly){
+  if(!weekly)sc.addEventListener('wheel',e=>{
     if(e.ctrlKey||e.metaKey)return;
     const x=e.shiftKey&&!e.deltaX?e.deltaY:e.deltaX;
     if(!x||(!e.shiftKey&&Math.abs(x)<Math.abs(e.deltaY)*1.2))return;
@@ -712,7 +726,7 @@ function mountGestures(sc){
     const dx=p.clientX-g.x,dy=p.clientY-g.y;
     if(Math.abs(dx)>=48&&Math.abs(dx)>1.3*Math.abs(dy)){
       const direction=dx<0?1:-1;
-      if(!(direction>0?g.right:g.left)){
+      if(!weekly&&!(direction>0?g.right:g.left)){
         draggedAt=Date.now();swipePeriod(direction);
       }
       return;
@@ -723,17 +737,83 @@ function mountGestures(sc){
     }
   },{passive:true});
 }
+function mountWeekPan(root,sc){
+  const cols=[...sc.querySelectorAll('.ac-col')], first=cols[0].dataset.col, last=cols.at(-1).dataset.col;
+  const heading=root.querySelector('h1'), head=[...sc.querySelectorAll('.ac-head button')];
+  const all=[...sc.querySelectorAll('.ac-allday')];
+  let viewport=0, axis=0, offsets=[], left=0, visibleFrom=-1, visibleTo=-1;
+  const renderedFrom=weekFrom||B.weekStart(date);
+  const firstVisible=()=>Math.max(0,offsets.findLastIndex(x=>x<=left+1));
+  function updateVisible(start){
+    const end=offsets.findLastIndex(x=>x<left+viewport-axis-1)+1;
+    if(start===visibleFrom&&end===visibleTo)return;
+    visibleFrom=start; visibleTo=end;
+    cols.forEach((col,i)=>{col.inert=head[i].inert=all[i].inert=i<start||i>=end;});
+  }
+  function restorePosition(){
+    if(!sc.clientWidth||sc.clientWidth===viewport)return;
+    viewport=sc.clientWidth;
+    const origin=head[0].getBoundingClientRect().left;
+    axis=head[0].previousElementSibling.getBoundingClientRect().width;
+    // Берём координаты столбцов, поскольку браузеры округляют ширины сетки по-разному.
+    offsets=head.map(el=>el.getBoundingClientRect().left-origin);
+    const index=diff(first,weekFrom||B.weekStart(date));
+    const width=cols[index].getBoundingClientRect().width;
+    sc.scrollLeft=Math.round(offsets[index]+weekFraction*width);
+    left=sc.scrollLeft;
+    updateVisible(firstVisible());
+  }
+  restorePosition();
+  const resize=new ResizeObserver(()=>{
+    if(sc.isConnected)restorePosition();
+    else resize.disconnect();
+  });
+  resize.observe(sc); weekResize=resize;
+  sc.addEventListener('wheel',e=>{
+    if(e.shiftKey&&!e.deltaX&&e.deltaY&&!e.ctrlKey&&!e.metaKey){
+      e.preventDefault();
+      sc.scrollLeft+=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?sc.clientWidth:1);
+    }
+  },{passive:false});
+  sc.addEventListener('scroll',()=>{
+    if(!viewport||Math.abs(left-sc.scrollLeft)<.5)return;
+    left=sc.scrollLeft;
+    const day=firstVisible();
+    const width=(offsets[day+1]??(offsets[day]+cols[day].offsetWidth))-offsets[day];
+    weekFraction=Math.max(0,(left-offsets[day])/width);
+    const next=cols[day].dataset.col;
+    if(next!==(weekFrom||B.weekStart(date))){
+      date=next;
+      heading.textContent=monthTitle(date)+' г.';
+    }
+    weekFrom=next;
+    updateVisible(day);
+    clearTimeout(weekScrollTimer);
+    weekScrollTimer=setTimeout(()=>{
+      weekScrollTimer=0;
+      if(!sc.isConnected||dragging)return;
+      // Переносим буфер дат за краем экрана, сохраняя дробный сдвиг.
+      const nearEdge=(day<7&&first>'1900-01-01')||(diff(next,last)<14&&last<'2199-12-31');
+      if(nearEdge||(side&&next!==renderedFrom)||redrawAfterInteraction){
+        redrawAfterInteraction=false;
+        B.render();
+      }
+    },180);
+  },{passive:true});
+}
 function mount(){
   const root=B.$('.ac'), sc=root?.querySelector('.ac-scroll');
   if(!sc)return;
+  clearTimeout(weekScrollTimer); weekScrollTimer=0;
+  weekResize?.disconnect(); weekResize=null;
   const axis=root.querySelector('.ac-axis');
   if(axis){
     const workday=8*60;
     sc.scrollTop=scroll??Math.max(0,axis.offsetHeight*workday/C.DAY-20);
-    sc.scrollLeft=scrollLeft;
-    sc.addEventListener('scroll',()=>{scroll=sc.scrollTop;scrollLeft=sc.scrollLeft},{passive:true});
+    if(mode==='week')mountWeekPan(root,sc); else sc.scrollLeft=scrollLeft;
+    sc.addEventListener('scroll',()=>{scroll=sc.scrollTop;if(mode!=='week')scrollLeft=sc.scrollLeft;},{passive:true});
   }
-  mountGestures(sc);
+  mountGestures(sc,mode==='week');
   if(editContext?.selected)markDraft(editContext.e,editContext.task);
   root.addEventListener('pointerdown',e=>rangePointer(e,root));
   root.addEventListener('click',e=>{
@@ -764,5 +844,9 @@ function openReminder(id,on){
   editor(x,e);
   return true;
 }
-B.calendarView={render,mount,openReminder,deferRender(){if(!dragging)return false;redrawAfterDrag=true;return true;}};
+B.calendarView={render,mount,openReminder,deferRender(){
+  if(!dragging&&!weekScrollTimer)return false;
+  redrawAfterInteraction=true;
+  return true;
+}};
 })();

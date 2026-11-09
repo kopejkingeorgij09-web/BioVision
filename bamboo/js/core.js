@@ -340,17 +340,15 @@ B.shadOn = date => {
   });
   return out.sort((a, b) => a.from.localeCompare(b.from));
 };
-/* блок «ШАД на неделю»: вебы и ДЗ недели ws без своего дня; на текущей неделе туда же попадают хвосты прошлых недель */
+/* блок «ШАД на неделю»: вебы и ДЗ этой недели, которым ещё не выбран день */
 B.shadWeek = ws => {
-  const cur = ws === B.weekStart(B.today()), out = [];
+  const out = [];
   B.shad.plan.forEach(p => {
-    const s = B.shadStage(p.n);
-    if (p.w && !p.wp && (p.wk === ws || (cur && p.wk < ws && s < 2))) out.push({p, kind: 'web', need: 2, old: p.wk < ws});
-    if (p.h && p.h.date && !p.hp && (p.hk === ws || (cur && p.hk < ws && s < 3))) out.push({p, kind: 'hw', need: 3, old: p.hk < ws});
+    if (p.w && !p.wp && p.wk === ws) out.push({p, kind: 'web', need: 2});
+    if (p.h && p.h.date && !p.hp && p.hk === ws) out.push({p, kind: 'hw', need: 3});
   });
-  return out.sort((a, b) => b.old - a.old || a.p.n - b.p.n || (a.kind === 'web' ? -1 : 1));
+  return out.sort((a, b) => a.p.n - b.p.n || (a.kind === 'web' ? -1 : 1));
 };
-/* всё, что относится к неделе ws: поставленное на её дни и лежащее в блоке */
 B.shadWeekAll = ws => {
   const we = B.add(ws, 6), out = B.shadWeek(ws);
   B.shad.plan.forEach(p => {

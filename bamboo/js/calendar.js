@@ -776,6 +776,8 @@ function mountWeekPan(root,sc){
     }
   },{passive:false});
   sc.addEventListener('scroll',()=>{
+    if(!sc.isConnected)return;
+    if(sc.clientWidth!==viewport){restorePosition();return;}
     if(!viewport||Math.abs(left-sc.scrollLeft)<.5)return;
     left=sc.scrollLeft;
     const day=firstVisible();
@@ -811,7 +813,11 @@ function mount(){
     const workday=8*60;
     sc.scrollTop=scroll??Math.max(0,axis.offsetHeight*workday/C.DAY-20);
     if(mode==='week')mountWeekPan(root,sc); else sc.scrollLeft=scrollLeft;
-    sc.addEventListener('scroll',()=>{scroll=sc.scrollTop;if(mode!=='week')scrollLeft=sc.scrollLeft;},{passive:true});
+    sc.addEventListener('scroll',()=>{
+      if(!sc.isConnected)return;
+      scroll=sc.scrollTop;
+      if(mode!=='week')scrollLeft=sc.scrollLeft;
+    },{passive:true});
   }
   mountGestures(sc,mode==='week');
   if(editContext?.selected)markDraft(editContext.e,editContext.task);

@@ -49,7 +49,12 @@
 .ac-axis { position:relative;color:var(--ac-muted);font-size:10px;text-align:right;padding-right:7px }
 .ac-axis span { position:absolute;right:7px;transform:translateY(-50%);background:var(--ac-bg);padding:1px 0;white-space:nowrap }
 .ac-axis span:first-child { transform:translateY(2px) }
-.ac[data-cal-mode=week] .ac-scroll { container-type:inline-size }
+.ac[data-cal-mode=week] .ac-scroll {
+  container-type:inline-size;
+  scroll-snap-type:x mandatory;
+  scroll-padding-inline-start:var(--ac-axis);
+}
+.ac[data-cal-mode=week] .ac-col { scroll-snap-align:start }
 .ac[data-cal-mode=week] .ac-time {
   --ac-day-width:max(92px,calc((100cqw - var(--ac-axis)) / 7));
   width:calc(var(--ac-axis) + var(--ac-days) * var(--ac-day-width));

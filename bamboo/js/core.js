@@ -272,12 +272,26 @@ B.setShadOver = (n, patch) => {
   B.shad.marks = Object.assign({}, B.shad.marks, {[n]: v});
   applyOver(); changed(); shadWrite(n, v);
 };
+let shadPlanJSON = '', shadPlanLoading = false;
 async function loadShadPlan(){
-  try { const c = JSON.parse(localStorage.getItem(LS_SHADPLAN) || 'null'); if (c) usePlan(c); } catch (e) {}
+  if (shadPlanLoading) return;
+  shadPlanLoading = true;
+  if (!shadPlanJSON){
+    try {
+      const saved = localStorage.getItem(LS_SHADPLAN);
+      if (saved){ usePlan(JSON.parse(saved)); shadPlanJSON = saved; }
+    } catch (e) {}
+  }
   try {
-    const r = await fetch('../shad/plan.json', {cache: 'no-cache'});
-    if (r.ok){ const d = await r.json(); usePlan(d); try { localStorage.setItem(LS_SHADPLAN, JSON.stringify(d)); } catch (e) {} }
-  } catch (e) {}
+    const r = await fetch('../shad/plan.json?v=2', {cache: 'no-cache'});
+    if (!r.ok) return;
+    const data = await r.json(), json = JSON.stringify(data);
+    if (json !== shadPlanJSON){
+      usePlan(data);
+      shadPlanJSON = json;
+      localStorage.setItem(LS_SHADPLAN, json);
+    }
+  } catch (e) {} finally { shadPlanLoading = false; }
 }
 function onShad(snap){
   const m = {};
@@ -395,6 +409,7 @@ let lastRefresh = 0;
 function refreshCloud(){
   if (Date.now() - lastRefresh < 1800) return;
   lastRefresh = Date.now();
+  loadShadPlan();
   if (db){ flushShadQueue(); dispatchEvent(new Event('bv-cloud-write')); }
   else if (localStorage.getItem('bv_code')) B.connect(true);
 }

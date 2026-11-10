@@ -3,6 +3,7 @@ export const defaultPenButton = { hold: 'erase', tap: 'none', double: 'lasso' };
 export function createPenButton({ settings, enabled, changed, activate }) {
   const doubleDelay = 360;
   const tapLimit = 280;
+  const tapMinimum = 18;
   let pressed = false;
   let start = 0;
   let drew = false;
@@ -16,7 +17,7 @@ export function createPenButton({ settings, enabled, changed, activate }) {
 
   function finishTap() {
     clearTap();
-    if (enabled()) activate(settings().tap);
+    if (enabled()) activate(settings().tap, 'tap');
   }
 
   return {
@@ -43,18 +44,28 @@ export function createPenButton({ settings, enabled, changed, activate }) {
         }
         return;
       }
-      if (drew || contact || now - start > tapLimit || !enabled()) {
+      if (drew || contact || !enabled()) {
         clearTap();
         return;
       }
-      if (pending !== null) {
+      const duration = now - start;
+      if (duration > tapLimit) {
         clearTap();
-        activate(settings().double);
+        return;
+      }
+      if (duration < tapMinimum) {
+        if (pending !== null) timer = setTimeout(finishTap, Math.max(0, doubleDelay - (now - pending)));
+        return;
+      }
+      if (pending !== null && start - pending <= doubleDelay) {
+        clearTap();
+        activate(settings().double, 'double');
       } else {
         pending = now;
         timer = setTimeout(finishTap, doubleDelay);
       }
     },
+    reset() { clearTap(); },
     isPressed() { return pressed; },
     held() { return pressed ? settings().hold : 'none'; },
     use() { if (pressed) drew = true; },

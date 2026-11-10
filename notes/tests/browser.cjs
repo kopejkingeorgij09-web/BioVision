@@ -21,12 +21,18 @@ const root = path.resolve(__dirname, '../..');
     });
     const page = await context.newPage();
     const errors = [];
-    page.on('pageerror', error => errors.push(error.message));
+    page.on('pageerror', error => { errors.push(error.message); console.error('PAGE ERROR:', error.message); });
     await page.goto('http://localhost:3333/notes/');
-    await page.getByRole('button', { name: /Доска.*Бесконечное/ }).click();
+    await page.locator('#new-item').click();
+    await page.getByLabel('Тип', { exact: true }).selectOption('board');
     await page.getByPlaceholder('Название', { exact: true }).fill('Проверка планшета');
     await page.getByRole('button', { name: 'Создать', exact: true }).click();
     await page.locator('.board .ink').waitFor();
+    await page.getByRole('button', { name: 'Карта', exact: true }).click();
+    await page.getByRole('complementary', { name: 'Карта доски', exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Скрыть карту', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Открытые заметки', exact: true }).waitFor();
+    console.log('PASS existing 0.7.1 minimap and tabs');
     // Native paste event: a screenshot received as a File, no file picker.
     await page.evaluate(async () => {
       const canvas = document.createElement('canvas'); canvas.width = 400; canvas.height = 240;

@@ -38,6 +38,30 @@ async function pdfDocument(blob) {
   });
 }
 
+const indexedPdfs = new Map();
+export function pdfSearchPages(library, id) {
+  const key = library + ':' + id;
+  if (!indexedPdfs.has(key)) {
+    const pending = (async () => {
+      const task = await pdfDocument(await attachmentBlob(library, id));
+      try {
+        const pdf = await task.promise;
+        const pages = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          pages.push(content.items.map(item => item.str ?? '').join(' ').trim());
+          page.cleanup();
+        }
+        return pages;
+      } finally { await task.destroy(); }
+    })().catch(error => { indexedPdfs.delete(key); throw error; });
+    if (indexedPdfs.size >= 24) indexedPdfs.delete(indexedPdfs.keys().next().value);
+    indexedPdfs.set(key, pending);
+  }
+  return indexedPdfs.get(key);
+}
+
 export async function openMedia(root, attachment, options) {
   const { library, signal, surfaceOptions, onMark, close, message } = options;
   const view = element('div', undefined, 'viewer');
@@ -53,7 +77,7 @@ export async function openMedia(root, attachment, options) {
     paperSignal?.abort();
     paperSignal = new AbortController();
     pageView?.remove();
-    const paper = element('div', undefined, 'paper mark-file');
+    const paper = element('div', undefined, 'paper mark-file' + (attachment.mime === 'application/pdf' ? ' pdf-paper' : ''));
     paper.append(content);
     view.append(paper);
     pageView = paper;
@@ -96,6 +120,7 @@ export async function openMedia(root, attachment, options) {
       async function draw(index) {
         if (index < 1 || index > document.numPages || signal.aborted) return;
         page = index;
+        options.onPage?.(page);
         number.textContent = page + ' / ' + document.numPages;
         prev.disabled = page === 1;
         next.disabled = page === document.numPages;
@@ -116,7 +141,7 @@ export async function openMedia(root, attachment, options) {
       function report(error) {
         if (!signal.aborted && error.name !== 'RenderingCancelledException') message(error.message);
       }
-      await draw(1);
+      await draw(Math.min(document.numPages, Math.max(1, options.initialPage ?? 1)));
       return;
     }
 

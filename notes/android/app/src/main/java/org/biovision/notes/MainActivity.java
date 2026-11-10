@@ -25,7 +25,9 @@ import android.os.Bundle;
 import android.os.SystemClock;
 import android.view.InputDevice;
 import android.view.MotionEvent;
+import android.view.View;
 import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -43,13 +45,16 @@ import com.google.mlkit.vision.digitalink.recognition.DigitalInkRecognitionModel
 import com.google.mlkit.vision.digitalink.recognition.DigitalInkRecognizer;
 import com.google.mlkit.vision.digitalink.recognition.DigitalInkRecognizerOptions;
 import com.google.mlkit.vision.digitalink.recognition.Ink;
+import com.google.mlkit.vision.digitalink.recognition.RecognitionContext;
+import com.google.mlkit.vision.digitalink.recognition.WritingArea;
+import java.util.HashMap;
+import java.util.Map;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 public final class MainActivity extends Activity {
     private static final String HOST = "appassets.androidplatform.net";
     private static final int PICK_FILES = 11;
-    private WebView web;
     private static final long MAX_CLIP_FILE = 50L * 1024 * 1024;
     private final ExecutorService clipboardWorker = Executors.newSingleThreadExecutor();
     private final ConcurrentHashMap<String, ClipboardFile> clipboardFiles = new ConcurrentHashMap<>();
@@ -60,8 +65,13 @@ public final class MainActivity extends Activity {
         final String mime;
         ClipboardFile(File file, String mime) { this.file = file; this.mime = mime; }
     }
+    private static final int STYLUS_BUTTONS = MotionEvent.BUTTON_STYLUS_PRIMARY | MotionEvent.BUTTON_STYLUS_SECONDARY;
+    private static final int PEN_BUTTONS = STYLUS_BUTTONS | MotionEvent.BUTTON_SECONDARY;
+    private PenWebView web;
     private ValueCallback<Uri[]> pendingFiles;
     private volatile boolean penButtonDown;
+    private boolean fullscreen;
+    private final Map<String, DigitalInkRecognizer> recognizers = new HashMap<>();
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -156,8 +166,31 @@ public final class MainActivity extends Activity {
     }
 
     @Override public void onBackPressed() {
-        if (web.canGoBack()) web.goBack();
+        if (fullscreen) setFullscreen(false);
+        else if (web.canGoBack()) web.goBack();
         else super.onBackPressed();
+    }
+
+    private void setFullscreen(boolean enabled) {
+        fullscreen = enabled;
+        if (Build.VERSION.SDK_INT >= 30) {
+            WindowInsetsController controller = getWindow().getInsetsController();
+            if (controller != null) {
+                controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                if (enabled) controller.hide(WindowInsets.Type.systemBars());
+                else controller.show(WindowInsets.Type.systemBars());
+            }
+        } else {
+            getWindow().getDecorView().setSystemUiVisibility(enabled
+                ? View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                : 0);
+        }
+        web.evaluateJavascript("window.notesFullscreenChanged?.(" + fullscreen + ");", null);
+    }
+
+    @Override public boolean dispatchGenericMotionEvent(MotionEvent event) {
+        if (web != null && web.observePenButton(event, false)) return true;
+        return super.dispatchGenericMotionEvent(event);
     }
 
     @Override protected void onDestroy() {
@@ -167,6 +200,8 @@ public final class MainActivity extends Activity {
         clipboardWorker.shutdownNow();
         for (ClipboardFile entry : clipboardFiles.values()) entry.file.delete();
         clipboardFiles.clear();
+        for (DigitalInkRecognizer recognizer : recognizers.values()) recognizer.close();
+        recognizers.clear();
         web.destroy();
         super.onDestroy();
     }
@@ -179,55 +214,70 @@ public final class MainActivity extends Activity {
         PenWebView() { super(MainActivity.this); }
 
         private boolean penButtonContact;
+        private boolean touchReportsButton;
         private int penSample;
+        private long lastButtonEdge = -1000;
 
-        private void publishPenButton(boolean down, boolean contact, boolean canceled, long time) {
+        private void publishPenButton(boolean down, boolean contact, boolean canceled, long time, String source) {
             boolean changed = down != penButtonDown || (down && contact && !penButtonContact);
             penButtonDown = down;
             penButtonContact = down && contact;
             if (changed || canceled) {
-                evaluateJavascript("window.notesPenButton?.(" + down + "," + contact + "," + canceled + "," + time + ");", null);
+                evaluateJavascript("window.notesPenButton?.(" + down + "," + contact + "," + canceled + "," + time
+                    + "," + JSONObject.quote(source) + ");", null);
             }
         }
 
         private boolean observePenButton(MotionEvent event, boolean contact) {
-            boolean stylus = event.isFromSource(InputDevice.SOURCE_STYLUS);
+            int action = event.getActionMasked();
+            boolean stylus = event.isFromSource(InputDevice.SOURCE_STYLUS)
+                || ((event.getButtonState() | event.getActionButton()) & STYLUS_BUTTONS) != 0;
             for (int i = 0; !stylus && i < event.getPointerCount(); i++) {
                 int tool = event.getToolType(i);
                 stylus = tool == MotionEvent.TOOL_TYPE_STYLUS || tool == MotionEvent.TOOL_TYPE_ERASER;
             }
             if (!stylus) return false;
             int sample = ++penSample;
-            int action = event.getActionMasked();
             if (action == MotionEvent.ACTION_HOVER_EXIT) {
-                if (penButtonDown) postDelayed(() -> {
-                    if (sample == penSample) publishPenButton(false, false, true, SystemClock.uptimeMillis());
+                postDelayed(() -> {
+                    if (sample != penSample) return;
+                    lastButtonEdge = -1000;
+                    if (penButtonDown) publishPenButton(false, false, true, SystemClock.uptimeMillis(), "reset");
                 }, 170);
                 return false;
             }
             if (action == MotionEvent.ACTION_CANCEL) {
-                publishPenButton(false, false, true, event.getEventTime());
+                lastButtonEdge = -1000;
+                touchReportsButton = false;
+                publishPenButton(false, false, true, event.getEventTime(), "reset");
                 return false;
             }
-            int mask = MotionEvent.BUTTON_STYLUS_PRIMARY | MotionEvent.BUTTON_STYLUS_SECONDARY | MotionEvent.BUTTON_SECONDARY;
-            int buttons = event.getButtonState();
-            if (action == MotionEvent.ACTION_BUTTON_PRESS) buttons |= event.getActionButton();
-            if (action == MotionEvent.ACTION_BUTTON_RELEASE) buttons &= ~event.getActionButton();
-            publishPenButton((buttons & mask) != 0, contact || penId >= 0, false, event.getEventTime());
-            return (action == MotionEvent.ACTION_BUTTON_PRESS || action == MotionEvent.ACTION_BUTTON_RELEASE)
-                && (event.getActionButton() & mask) != 0;
-        }
-
-        @Override public boolean dispatchGenericMotionEvent(MotionEvent event) {
-            if (observePenButton(event, false)) return true;
-            return super.dispatchGenericMotionEvent(event);
+            long time = event.getEventTime();
+            boolean explicit = (action == MotionEvent.ACTION_BUTTON_PRESS || action == MotionEvent.ACTION_BUTTON_RELEASE)
+                && (event.getActionButton() & PEN_BUTTONS) != 0;
+            boolean down = (event.getButtonState() & PEN_BUTTONS) != 0;
+            if (explicit) {
+                lastButtonEdge = time;
+                down = action == MotionEvent.ACTION_BUTTON_PRESS;
+            } else if (contact) {
+                if (penId < 0) touchReportsButton = false;
+                touchReportsButton |= down;
+                // On some pens, hover and button events carry a mask but tip events omit it.
+                if (!touchReportsButton) down = penButtonDown;
+            } else if (time - lastButtonEdge < 40) {
+                // Some devices echo the pre-edge mask in the next hover event.
+                down = penButtonDown;
+            }
+            publishPenButton(down, contact || penId >= 0, false, time, explicit ? "button" : contact ? "touch" : "hover");
+            return explicit;
         }
 
         @Override public void onWindowFocusChanged(boolean focused) {
             super.onWindowFocusChanged(focused);
             if (!focused) {
                 ++penSample;
-                publishPenButton(false, false, true, SystemClock.uptimeMillis());
+                lastButtonEdge = -1000;
+                publishPenButton(false, false, true, SystemClock.uptimeMillis(), "reset");
             }
         }
 
@@ -265,7 +315,7 @@ public final class MainActivity extends Activity {
             else event.getPointerCoords(penIndex, coordinates[0]);
             MotionEvent pen = MotionEvent.obtain(event.getDownTime(),
                 history > 0 ? event.getHistoricalEventTime(0) : event.getEventTime(),
-                penAction, 1, properties, coordinates, event.getMetaState(), event.getButtonState(),
+                penAction, 1, properties, coordinates, event.getMetaState(), event.getButtonState() & ~PEN_BUTTONS,
                 event.getXPrecision(), event.getYPrecision(), event.getDeviceId(), event.getEdgeFlags(),
                 event.getSource(), event.getFlags());
             if (history > 0) {
@@ -293,13 +343,16 @@ public final class MainActivity extends Activity {
         }
 
         @JavascriptInterface public boolean penButtonPressed() { return penButtonDown; }
+        @JavascriptInterface public void setFullscreen(boolean enabled) {
+            runOnUiThread(() -> { if (!isDestroyed()) MainActivity.this.setFullscreen(enabled); });
+        }
 
-        @JavascriptInterface public void recognize(String points, String language) {
+        @JavascriptInterface public void recognizeIndexed(int request, String points, String language, float width, float height) {
             if (points.length() > 2_000_000 || !("ru".equals(language) || "en".equals(language))) {
-                reply("", "Неподдерживаемый формат рукописи.");
+                reply(request, "", "Неподдерживаемый формат рукописи.");
                 return;
             }
-            runOnUiThread(() -> recognizeInk(points, language));
+            runOnUiThread(() -> recognizeInk(request, points, language, width, height));
         }
     }
 
@@ -393,44 +446,56 @@ public final class MainActivity extends Activity {
         });
     }
 
-    private void recognizeInk(String points, String language) {
+    private void recognizeInk(int request, String points, String language, float width, float height) {
         try {
             Ink.Builder ink = Ink.builder();
             JSONArray strokes = new JSONArray(points);
+            long previousTime = 0;
             for (int i = 0; i < strokes.length(); i++) {
                 JSONArray samples = strokes.getJSONArray(i);
                 Ink.Stroke.Builder stroke = Ink.Stroke.builder();
                 for (int j = 0; j < samples.length(); j++) {
                     JSONArray sample = samples.getJSONArray(j);
-                    stroke.addPoint(Ink.Point.create((float) sample.getDouble(0), (float) sample.getDouble(1)));
+                    previousTime = Math.max(previousTime + 1, sample.optLong(2, previousTime + 1));
+                    stroke.addPoint(Ink.Point.create((float) sample.getDouble(0), (float) sample.getDouble(1), previousTime));
                 }
                 if (samples.length() > 0) ink.addStroke(stroke.build());
             }
             String tag = "ru".equals(language) ? "ru-RU" : "en-US";
+            DigitalInkRecognizer cached = recognizers.get(tag);
+            if (cached != null) {
+                recognizeWith(request, cached, ink.build(), width, height);
+                return;
+            }
             DigitalInkRecognitionModelIdentifier identifier = DigitalInkRecognitionModelIdentifier.fromLanguageTag(tag);
-            if (identifier == null) { reply("", "Языковая модель недоступна."); return; }
+            if (identifier == null) { reply(request, "", "Языковая модель недоступна."); return; }
             DigitalInkRecognitionModel model = DigitalInkRecognitionModel.builder(identifier).build();
             RemoteModelManager.getInstance().download(model, new DownloadConditions.Builder().build())
                 .addOnSuccessListener(unused -> {
-                    DigitalInkRecognizer recognizer = DigitalInkRecognition.getClient(DigitalInkRecognizerOptions.builder(model).build());
-                    recognizer.recognize(ink.build())
-                        .addOnSuccessListener(result -> {
-                            if (result.getCandidates().isEmpty()) reply("", "Не удалось распознать текст.");
-                            else reply(result.getCandidates().get(0).getText(), "");
-                        })
-                        .addOnFailureListener(error -> reply("", "Ошибка распознавания: " + error.getMessage()))
-                        .addOnCompleteListener(task -> recognizer.close());
+                    if (isDestroyed()) return;
+                    DigitalInkRecognizer recognizer = recognizers.computeIfAbsent(tag,
+                        key -> DigitalInkRecognition.getClient(DigitalInkRecognizerOptions.builder(model).build()));
+                    recognizeWith(request, recognizer, ink.build(), width, height);
                 })
-                .addOnFailureListener(error -> reply("", "Не удалось скачать языковую модель: " + error.getMessage()));
+                .addOnFailureListener(error -> reply(request, "", "Не удалось скачать языковую модель: " + error.getMessage()));
         } catch (Exception error) {
-            reply("", "Ошибка чтения штрихов: " + error.getMessage());
+            reply(request, "", "Ошибка чтения штрихов: " + error.getMessage());
         }
     }
 
-    private void reply(String text, String error) {
+    private void recognizeWith(int request, DigitalInkRecognizer recognizer, Ink ink, float width, float height) {
+        var task = width > 0 && height > 0
+            ? recognizer.recognize(ink, RecognitionContext.builder().setWritingArea(new WritingArea(width, height)).build())
+            : recognizer.recognize(ink);
+        task.addOnSuccessListener(result ->
+                reply(request, result.getCandidates().isEmpty() ? "" : result.getCandidates().get(0).getText(), ""))
+            .addOnFailureListener(error -> reply(request, "", "Ошибка распознавания: " + error.getMessage()));
+    }
+
+    private void reply(int request, String text, String error) {
         runOnUiThread(() -> {
             if (!isFinishing() && !isDestroyed()) web.evaluateJavascript(
-                "window.notesInkResult?.(" + JSONObject.quote(text) + "," + JSONObject.quote(error) + ");", null);
+                "window.notesIndexedInkResult?.(" + request + "," + JSONObject.quote(text) + "," + JSONObject.quote(error) + ");", null);
         });
     }
 }

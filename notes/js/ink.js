@@ -36,12 +36,22 @@ function outline(points, width) {
 function shapeNode(stroke) {
   const { points, tool, width } = stroke;
   const legacyAuto = ['#28223c', '#eee9ff'].includes(stroke.color);
-  const color = stroke.color === 'auto' || legacyAuto ? (tool === 'highlight' ? '#e8af2d' : 'var(--ink)') : stroke.color;
+  let color = stroke.color === 'auto' || legacyAuto ? (tool === 'highlight' ? '#e8af2d' : 'var(--ink)') : stroke.color;
+  if (tool !== 'highlight' && !stroke.fixedColor && color !== '#25242d' && /^#[0-9a-f]{6}$/i.test(color)) {
+    const rgb = color.slice(1).match(/../g).map(value => {
+      const channel = parseInt(value, 16) / 255;
+      return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+    });
+    const luminance = rgb[0] * .2126 + rgb[1] * .7152 + rgb[2] * .0722;
+    if (luminance > .60) color = 'var(--light-ink-fallback,' + color + ')';
+    else if (luminance < .13) color = 'var(--dark-ink-fallback,' + color + ')';
+  }
   const [x1, y1] = points[0], [x2, y2] = points.at(-1);
   const attrs = { fill: 'none', stroke: color, 'stroke-width': width, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
   if (tool === 'line') return svg('line', { ...attrs, x1, y1, x2, y2 });
   if (tool === 'rect') return svg('rect', { ...attrs, x: Math.min(x1, x2), y: Math.min(y1, y2), width: Math.abs(x2 - x1), height: Math.abs(y2 - y1) });
   if (tool === 'ellipse') return svg('ellipse', { ...attrs, cx: (x1 + x2) / 2, cy: (y1 + y2) / 2, rx: Math.abs(x2 - x1) / 2, ry: Math.abs(y2 - y1) / 2 });
+  if (stroke.geometry === 'polygon') return svg('polygon', { ...attrs, points: points.map(line).join(' ') });
   if (tool === 'highlight') return svg('polyline', {
     ...attrs, opacity: 0.28, 'stroke-width': width * 4, points: points.map(p => line(p)).join(' '),
   });
@@ -57,11 +67,11 @@ function within(p, polygon) {
   return inside;
 }
 
-function nearSegment(p, a, b, radius) {
+function segmentDistance(p, a, b) {
   const x = b[0] - a[0], y = b[1] - a[1], length = x * x + y * y;
-  if (!length) return distance(p, a) < radius;
+  if (!length) return distance(p, a);
   const t = limit(((p[0] - a[0]) * x + (p[1] - a[1]) * y) / length, 0, 1);
-  return distance(p, [a[0] + t * x, a[1] + t * y]) < radius;
+  return distance(p, [a[0] + t * x, a[1] + t * y]);
 }
 
 function segments(stroke) {
@@ -77,30 +87,106 @@ function segments(stroke) {
   return stroke.points;
 }
 
+function simplify(points, tolerance) {
+  let farthest = tolerance, split = -1;
+  for (let i = 1; i < points.length - 1; i++) {
+    const error = segmentDistance(points[i], points[0], points.at(-1));
+    if (error > farthest) { farthest = error; split = i; }
+  }
+  if (split === -1) return [points[0], points.at(-1)];
+  return simplify(points.slice(0, split + 1), tolerance).slice(0, -1).concat(simplify(points.slice(split), tolerance));
+}
+
+function evenSamples(points) {
+  const lengths = [0];
+  for (let i = 1; i < points.length; i++) lengths.push(lengths[i - 1] + distance(points[i - 1], points[i]));
+  const length = lengths.at(-1);
+  let i = 1;
+  const samples = Array.from({ length: 65 }, (_, index) => {
+    const target = length * index / 64;
+    while (lengths[i] < target && i < points.length - 1) i++;
+    const fraction = (target - lengths[i - 1]) / (lengths[i] - lengths[i - 1] || 1);
+    const a = points[i - 1], b = points[i];
+    return [a[0] + (b[0] - a[0]) * fraction, a[1] + (b[1] - a[1]) * fraction];
+  });
+  return { length, samples };
+}
+
+function regularRectangle(corners) {
+  const [a, b, c, d] = corners;
+  const x = b[0] - a[0] + c[0] - d[0], y = b[1] - a[1] + c[1] - d[1];
+  const angle = Math.atan2(y, x), u = [Math.cos(angle), Math.sin(angle)], v = [-u[1], u[0]];
+  const project = ([x, y], axis) => x * axis[0] + y * axis[1];
+  const us = corners.map(p => project(p, u)), vs = corners.map(p => project(p, v));
+  const midU = (Math.min(...us) + Math.max(...us)) / 2, midV = (Math.min(...vs) + Math.max(...vs)) / 2;
+  let halfU = (Math.max(...us) - Math.min(...us)) / 2, halfV = (Math.max(...vs) - Math.min(...vs)) / 2;
+  if (Math.min(halfU, halfV) >= Math.max(halfU, halfV) * .84) halfU = halfV = (halfU + halfV) / 2;
+  return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([i, j]) => {
+    const s = midU + i * halfU, t = midV + j * halfV;
+    return [s * u[0] + t * v[0], s * u[1] + t * v[1]];
+  });
+}
+
 function straighten(stroke) {
-  const points = stroke.points;
-  if (stroke.tool !== 'pen' || points.length < 4) return stroke;
+  if (stroke.tool !== 'pen' || stroke.geometry || stroke.points.length < 2) return stroke;
+  const { length, samples: points } = evenSamples(stroke.points);
   let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
   for (const [x, y] of points) {
     left = Math.min(left, x); top = Math.min(top, y);
     right = Math.max(right, x); bottom = Math.max(bottom, y);
   }
   const width = right - left, height = bottom - top, span = Math.hypot(width, height);
-  if (span < 8) return stroke;
+  if (span < 22) return stroke;
   const start = points[0], end = points.at(-1);
-  if (distance(start, end) > span * .3 || Math.min(width, height) < span * .12) {
-    if (points.every(point => nearSegment(point, start, end, span * .13))) {
-      return { ...stroke, tool: 'line', points: [start, end] };
+  const gap = distance(start, end);
+  if (gap >= span * .78 && length <= gap * 1.5 &&
+      points.every(point => segmentDistance(point, start, end) <= gap * .10)) {
+    const finish = [...end];
+    if (Math.abs(end[0] - start[0]) < gap * .07) finish[0] = start[0];
+    if (Math.abs(end[1] - start[1]) < gap * .07) finish[1] = start[1];
+    return { ...stroke, tool: 'line', points: [start, finish] };
+  }
+  if (gap > span * .26 || Math.min(width, height) < span * .19 || length < span * 1.9 || length > span * 3.5) return stroke;
+
+  // Start at the point farthest from the seam, then simplify both halves of the loop.
+  const seam = center(start, end);
+  const opposite = points.reduce((far, point, i) => distance(point, seam) > distance(points[far], seam) ? i : far, 0);
+  const ring = points.slice(opposite, -1).concat([seam], points.slice(1, opposite + 1));
+  const split = points.length - opposite - 1;
+  const vertices = simplify(ring.slice(0, split + 1), span * .07).slice(0, -1)
+    .concat(simplify(ring.slice(split), span * .07).slice(0, -1));
+  const corners = vertices.filter((point, i) =>
+    segmentDistance(point, vertices[(i + vertices.length - 1) % vertices.length], vertices[(i + 1) % vertices.length]) > span * .05);
+  const area = Math.abs(corners.reduce((sum, [x, y], i) => {
+    const [a, b] = corners[(i + 1) % corners.length];
+    return sum + x * b - y * a;
+  }, 0)) / 2;
+  const closesPolygon = area > width * height * .28 &&
+    corners.every((p, i) => distance(p, corners[(i + 1) % corners.length]) > span * .16);
+  if (closesPolygon && (corners.length === 3 || corners.length === 4)) {
+    let polygon = corners;
+    if (corners.length === 4) {
+      const nearlyRight = corners.every((p, i) => {
+        const prev = corners[(i + 3) % 4], next = corners[(i + 1) % 4];
+        const dot = (prev[0] - p[0]) * (next[0] - p[0]) + (prev[1] - p[1]) * (next[1] - p[1]);
+        return Math.abs(dot) / (distance(p, prev) * distance(p, next)) < .48;
+      });
+      polygon = nearlyRight ? regularRectangle(corners) : null;
     }
-    return stroke;
+    if (polygon) {
+      const closed = polygon.concat([polygon[0]]).map(([x, y]) => [x, y, .5]);
+      return { ...stroke, geometry: 'polygon', points: closed };
+    }
   }
-  let rectangleError = 0, ellipseError = 0;
-  for (const [x, y] of points) {
-    rectangleError += Math.min(x - left, right - x, y - top, bottom - y);
-    ellipseError += Math.abs(Math.hypot(2 * (x - left) / width - 1, 2 * (y - top) / height - 1) - 1) * Math.min(width, height) / 2;
+
+  const radialErrors = points.map(([x, y]) => Math.abs(Math.hypot(2 * (x - left) / width - 1, 2 * (y - top) / height - 1) - 1));
+  if (area < width * height * .45 || Math.max(...radialErrors) > .30 ||
+      radialErrors.reduce((sum, value) => sum + value, 0) / points.length > .12) return stroke;
+  if (Math.min(width, height) >= Math.max(width, height) * .83) {
+    const cx = (left + right) / 2, cy = (top + bottom) / 2, radius = (width + height) / 4;
+    return { ...stroke, tool: 'ellipse', points: [[cx - radius, cy - radius], [cx + radius, cy + radius]] };
   }
-  const tool = rectangleError <= ellipseError ? 'rect' : 'ellipse';
-  return { ...stroke, tool, points: [[left, top], [right, bottom]] };
+  return { ...stroke, tool: 'ellipse', points: [[left, top], [right, bottom]] };
 }
 
 export function showExistingMarks(host, mark, width, height) {
@@ -126,7 +212,7 @@ export function showExistingMarks(host, mark, width, height) {
 }
 
 export function createSurface(host, content, options) {
-  const { settings, commit, notifySelection, notifyText, sideTool, penContact, signal } = options;
+  const { settings, commit, notifySelection, showSelection, clipboard, notifyText, sideTool, penContact, signal } = options;
   const board = Boolean(options.board);
   const surface = svg('svg', { class: 'ink', 'aria-label': 'Область для рукописи' });
   const ink = svg('g'), preview = svg('g'), overlay = svg('g');
@@ -135,7 +221,10 @@ export function createSurface(host, content, options) {
   typing.className = 'ink-text';
   host.append(surface, typing);
   let view = options.initialView ?? { x: 0, y: 0, zoom: 1 };
+  let lastView = { ...view };
   let active;
+  let shapeTimer;
+  let hold;
   let selected = [];
   let selectedTexts = [];
   let selectedObjects = [];
@@ -237,6 +326,11 @@ export function createSurface(host, content, options) {
     host.style.setProperty('--grid-y', top + 'px');
     cullInk();
     renderSelection();
+    if (board && (view.x !== lastView.x || view.y !== lastView.y || view.zoom !== lastView.zoom)) {
+      lastView = { ...view };
+      options.onViewChange?.(lastView);
+    }
+    positionSelection();
   }
 
   function render() {
@@ -248,6 +342,7 @@ export function createSurface(host, content, options) {
     for (const item of state.texts ?? []) {
       const box = document.createElement('div');
       box.className = 'ink-text-box';
+      box.classList.toggle('lasso-target', settings().tool === 'lasso');
       box.style.left = item.x + 'px';
       box.style.top = item.y + 'px';
       const available = Math.max(48, (board ? Infinity : options.width) - item.x);
@@ -323,6 +418,89 @@ export function createSurface(host, content, options) {
     newTextId = undefined;
   }
 
+  function clearSelection() {
+    selected = [];
+    selectedTexts = [];
+    selectedObjects = [];
+    selectionTools.hidden = true;
+    selectedOutline = [];
+    showSelection?.(null);
+    notifySelection?.([], null);
+  }
+
+  function selectionData() {
+    return { strokes: selected, texts: selectedTexts };
+  }
+
+  function shifted(data, dx, dy, duplicate) {
+    return {
+      strokes: data.strokes.map(stroke => ({
+        ...stroke, id: duplicate ? crypto.randomUUID() : stroke.id,
+        points: stroke.points.map(([x, y, ...sample]) => [x + dx, y + dy, ...sample]),
+      })),
+      texts: data.texts.map(text => ({
+        ...text, id: duplicate ? crypto.randomUUID() : text.id, x: text.x + dx, y: text.y + dy,
+      })),
+    };
+  }
+
+  function removeSelected() {
+    const ids = new Set([...selected, ...selectedTexts].map(item => item.id));
+    clearSelection();
+    update({
+      ...state,
+      strokes: (state.strokes ?? []).filter(stroke => !ids.has(stroke.id)),
+      texts: (state.texts ?? []).filter(text => !ids.has(text.id)),
+    });
+  }
+
+  function appendCopies(data, dx, dy, selectCopy = false) {
+    const copy = shifted(data, dx, dy, true);
+    clearSelection();
+    update({
+      ...state,
+      strokes: [...(state.strokes ?? []), ...copy.strokes],
+      texts: [...(state.texts ?? []), ...copy.texts],
+    });
+    if (selectCopy) {
+      selected = copy.strokes;
+      selectedTexts = copy.texts;
+      const xs = [], ys = [];
+      for (const stroke of selected) for (const [x, y] of segments(stroke)) { xs.push(x); ys.push(y); }
+      for (const text of selectedTexts) {
+        const box = typing.querySelector('[data-text-id="' + CSS.escape(text.id) + '"]').parentElement;
+        xs.push(text.x, text.x + box.offsetWidth); ys.push(text.y, text.y + box.offsetHeight);
+      }
+      const bounds = values => values.reduce(([min, max], value) => [Math.min(min, value), Math.max(max, value)], [Infinity, -Infinity]);
+      const [l, r] = bounds(xs), [t, b] = bounds(ys);
+      selectedOutline = [[l - 8, t - 8], [r + 8, t - 8], [r + 8, b + 8], [l - 8, b + 8]];
+      render();
+      positionSelection();
+    }
+  }
+
+  function positionSelection() {
+    if (selectedObjects.length) { showSelection?.(null); return; }
+    if (!selectedOutline.length || active) return;
+    const rect = surface.getBoundingClientRect();
+    const { scale, left, top } = viewport();
+    const outer = rect.width / (host.clientWidth || 1) || 1;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const [x, y] of selectedOutline) {
+      minX = Math.min(minX, x); minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+    }
+    showSelection?.({
+      host, x: rect.left + (left + (minX + maxX) / 2 * scale) * outer,
+      top: rect.top + (top + minY * scale) * outer,
+      bottom: rect.top + (top + maxY * scale) * outer,
+      duplicate: () => appendCopies(selectionData(), 18, 18),
+      delete: removeSelected,
+      copy: () => clipboard?.write(selectionData(), false),
+      cut: () => { clipboard?.write(selectionData(), true); removeSelected(); },
+    });
+  }
+
   function addText(point) {
     const rect = surface.getBoundingClientRect();
     const fallback = coordinates(rect.left + Math.min(width * .18, 115), rect.top + Math.min(height * .28, 180));
@@ -337,6 +515,7 @@ export function createSurface(host, content, options) {
     state = next;
     commit(next, true, objects);
     render();
+    positionSelection();
   }
 
   function hasSelection() { return selected.length || selectedTexts.length || selectedObjects.length; }
@@ -373,7 +552,7 @@ export function createSurface(host, content, options) {
     }
     const v = viewport();
     selectionTools.style.left = (l * v.scale + v.left) + 'px';
-    selectionTools.style.top = Math.max(4, t * v.scale + v.top - 42) + 'px';
+    selectionTools.style.top = Math.max(4, Math.min(height - 42, bottom * v.scale + v.top + 8)) + 'px';
   }
 
   function selectionScale(value) {
@@ -486,12 +665,13 @@ export function createSurface(host, content, options) {
     const radius = 16 / viewport().scale;
     for (const stroke of state.strokes ?? []) {
       const points = segments(stroke);
-      if (points.some((p, i) => nearSegment(point, p, points[i + 1] ?? p, radius))) active.erased.add(stroke.id);
+      if (points.some((p, i) => segmentDistance(point, p, points[i + 1] ?? p) < radius)) active.erased.add(stroke.id);
     }
     for (const id of active.erased) { const node = cachedInk.get(id)?.node; if (node) node.style.opacity = '0.18'; }
   }
 
   function strokePreview() {
+    if (active.shape) { preview.replaceChildren(shapeNode(active.shape)); return; }
     if (['move', 'resize'].includes(active.tool)) { previewSelection(selectionTransform(), active.objectBounds); return; }
     if (active.tool === 'pen') {
       // Freeze completed chunks. Even a very long stroke only rebuilds its short tail.
@@ -515,6 +695,22 @@ export function createSurface(host, content, options) {
     }
   }
 
+  function waitForShape(event) {
+    if (active.tool !== 'pen' || !settings().holdShapes || active.shape) return;
+    const screen = [event.clientX, event.clientY];
+    if (distance(screen, active.screen) < 5) return;
+    active.screen = screen;
+    clearTimeout(shapeTimer);
+    const stroke = active;
+    shapeTimer = setTimeout(() => {
+      if (active !== stroke || signal?.aborted) return;
+      const shape = straighten(stroke);
+      if (shape === stroke) return;
+      stroke.shape = shape;
+      strokePreview();
+    }, 500);
+  }
+
   function beginStroke(event, tool, corner) {
     const prefs = settings();
     const point = localPoint(event);
@@ -524,7 +720,8 @@ export function createSurface(host, content, options) {
     });
     active = {
       id: crypto.randomUUID(), pointer: event.pointerId, pointerType: event.pointerType, tool,
-      color: onPdf && tool !== 'highlight' ? '#25242d' : prefs.autoColor ? 'auto' : prefs.color, width: prefs.width, points: [point], erased: new Set(),
+      color: onPdf && tool !== 'highlight' ? '#25242d' : prefs.autoColor ? 'auto' : prefs.color,
+      fixedColor: onPdf, width: prefs.width, points: [point], erased: new Set(),
       screen: [event.clientX, event.clientY],
     };
     if (['move', 'resize'].includes(tool)) {
@@ -533,14 +730,46 @@ export function createSurface(host, content, options) {
       active.anchor = [corner?.includes('w') ? b[2] : b[0], corner?.includes('n') ? b[3] : b[1]];
     }
     if (tool === 'erase') erase(point);
-    else if (tool !== 'hand') strokePreview();
+    else if (tool !== 'hand' && tool !== 'text') strokePreview();
+  }
+
+  function cancelHold() {
+    clearTimeout(hold?.timer);
+    hold = undefined;
+  }
+
+  function pasteAt(data, targetX, targetY) {
+    const points = data.strokes.flatMap(stroke => stroke.points).concat(data.texts.map(text => [text.x, text.y]));
+    if (!points.length) return;
+    const left = points.reduce((min, point) => Math.min(min, point[0]), Infinity);
+    const top = points.reduce((min, point) => Math.min(min, point[1]), Infinity);
+    appendCopies(data, targetX - left, targetY - top, true);
+  }
+
+  function offerPaste(x, y) {
+    if (!clipboard?.has()) return;
+    clipboard.offer(host, x, y, data => pasteAt(data, ...coordinates(x, y)));
   }
 
   surface.addEventListener('pointerdown', event => {
     if (interactionLocked) return;
     const prefs = settings();
+    clipboard?.dismiss();
+    const point = localPoint(event);
+    const inside = prefs.tool === 'lasso' && selectedOutline.length && within(point, selectedOutline);
+    if (event.pointerType === 'touch' && !active && !pointers.size && clipboard?.has()) {
+      const { pointerId, clientX, clientY } = event;
+      hold = { pointerId, clientX, clientY, timer: setTimeout(() => {
+        cancelHold();
+        clearTimeout(shapeTimer);
+        pointers.delete(pointerId);
+        gesture = null;
+        if (active?.pointer === pointerId) { active = null; preview.replaceChildren(); render(); }
+        offerPaste(clientX, clientY);
+      }, 500) };
+    } else cancelHold();
     const corner = event.target.getAttribute?.('data-selection-corner');
-    const selectedTouch = prefs.tool === 'lasso' && hasSelection() && within(localPoint(event), selectedOutline);
+    const selectedTouch = inside;
     if (!corner && !selectedTouch && event.pointerType === 'touch' && (board || !prefs.finger)) {
       if (active?.pointerType === 'pen') return;
       event.preventDefault();
@@ -552,28 +781,26 @@ export function createSurface(host, content, options) {
     }
     if (active || (event.button !== 0 && event.pointerType !== 'pen')) return;
     if (event.pointerType === 'pen') {
+      if (event.button === 2 && !event.pressure && !(event.buttons & 1)) return;
       pointers.clear();
       gesture = null;
       penContact?.();
     }
-    const point = localPoint(event);
     let tool = sideTool?.(event, true) ?? prefs.tool;
     if (tool === 'text') {
       event.preventDefault();
-      addText(point);
+      if (hold) {
+        surface.setPointerCapture(event.pointerId);
+        beginStroke(event, 'text');
+      } else addText(point);
       return;
     }
     if (board && (event.shiftKey || tool === 'hand')) tool = 'hand';
-    if (corner && hasSelection()) tool = 'resize';
-    else if (tool === 'lasso' && hasSelection() && within(point, selectedOutline)) tool = 'move';
+    if (corner && hasSelection()) { tool = 'resize'; showSelection?.(null); }
+    else if (tool === 'lasso' && hasSelection() && within(point, selectedOutline)) { tool = 'move'; showSelection?.(null); }
     else if (tool !== 'hand') {
-      selected = [];
-      selectedTexts = [];
-      selectedObjects = [];
-      selectionTools.hidden = true;
-      selectedOutline = [];
+      clearSelection();
       overlay.replaceChildren();
-      notifySelection?.([], null);
     }
     event.preventDefault();
     surface.setPointerCapture(event.pointerId);
@@ -581,6 +808,7 @@ export function createSurface(host, content, options) {
   });
 
   surface.addEventListener('pointermove', event => {
+    if (hold?.pointerId === event.pointerId && Math.hypot(event.clientX - hold.clientX, event.clientY - hold.clientY) > 9) cancelHold();
     if (pointers.has(event.pointerId)) {
       pointers.set(event.pointerId, [event.clientX, event.clientY]);
       const p = [...pointers.values()];
@@ -601,14 +829,16 @@ export function createSurface(host, content, options) {
       return;
     }
     if (!active || event.pointerId !== active.pointer) return;
+    if (active.tool === 'text') return;
     if (event.pointerType === 'pen') {
-      const next = sideTool?.(event, false);
+      const next = sideTool?.(event);
       if (next !== active.tool && ['pen', 'highlight', 'erase'].includes(next) &&
           ['pen', 'highlight', 'erase'].includes(active.tool) && [next, active.tool].includes('erase')) {
         finishStroke(event, true);
         beginStroke(event, next);
       }
     }
+    if (active.shape) return;
     if (active.tool === 'hand') {
       view.x += event.clientX - active.screen[0];
       view.y += event.clientY - active.screen[1];
@@ -622,10 +852,11 @@ export function createSurface(host, content, options) {
       if (active.tool === 'erase') erase(localPoint(sample, rect));
       else appendPoint(sample, rect);
     }
-    if (active.tool !== 'erase') scheduleFrame('preview');
+    if (active.tool !== 'erase') { scheduleFrame('preview'); waitForShape(event); }
   });
 
   function end(event) {
+    if (hold?.pointerId === event.pointerId) cancelHold();
     if (pointers.delete(event.pointerId)) {
       const p = [...pointers.values()];
       gesture = p.length ? { center: p.length > 1 ? center(...p) : p[0], distance: p.length > 1 ? distance(...p) : 0 } : null;
@@ -636,13 +867,15 @@ export function createSurface(host, content, options) {
   function finishStroke(event, save) {
     if (!active || active.pointer !== event.pointerId) return;
     if (save && !['hand', 'erase'].includes(active.tool)) appendPoint(event, surface.getBoundingClientRect(), true);
-    const { id, points, tool, color, width, erased, objectBounds } = active;
+    const { id, points, tool, color, width, erased, objectBounds, fixedColor, shape } = active;
     const transform = ['move', 'resize'].includes(tool) ? selectionTransform() : null;
     if (transform) resetSelectionPreview(objectBounds);
+    clearTimeout(shapeTimer);
     active = null;
     preview.replaceChildren();
     if (!save) { render(); return; }
     previewDirty = false;
+    if (tool === 'text') { addText(points[0]); return; }
     if (tool === 'hand') return;
     if (tool === 'erase') {
       if (erased.size) update({ ...state, strokes: (state.strokes ?? []).filter(stroke => !erased.has(stroke.id)) });
@@ -655,8 +888,16 @@ export function createSurface(host, content, options) {
     }
     if (tool === 'lasso') {
       if (points.length < 3) return;
-      selected = (state.strokes ?? []).filter(stroke => segments(stroke).some(p => within(p, points)));
-      selectedTexts = (state.texts ?? []).filter(item => within([item.x, item.y], points) || within([item.x + (item.width ?? 250) / 2, item.y + 15], points));
+      selected = (state.strokes ?? []).filter(stroke => segments(stroke).some(point => within(point, points)));
+      const boxes = Array.from(typing.children);
+      selectedTexts = (state.texts ?? []).filter((text, index) => {
+        const width = boxes[index]?.offsetWidth ?? text.width ?? 250;
+        const height = boxes[index]?.offsetHeight ?? 30;
+        const right = text.x + width, bottom = text.y + height;
+        const corners = [[text.x, text.y], [right, text.y], [text.x, bottom], [right, bottom], [text.x + width / 2, text.y + height / 2]];
+        return corners.some(point => within(point, points)) ||
+          points.some(([x, y]) => x >= text.x && x <= right && y >= text.y && y <= bottom);
+      });
       selectedObjects = (options.objects?.() ?? []).filter(object => {
         const [x, y, w, h] = object.bounds();
         return [[x, y], [x + w, y], [x, y + h], [x + w, y + h], [x + w / 2, y + h / 2]].some(point => within(point, points));
@@ -664,25 +905,28 @@ export function createSurface(host, content, options) {
       selectedOutline = hasSelection() ? points : [];
       notifySelection?.(selected, text => {
         const p = selectedOutline[0] ?? [25, 25];
-        selected = [];
-        selectedOutline = [];
-        notifySelection?.([], null);
+        clearSelection();
         update({ ...state, texts: [...(state.texts ?? []), { id: crypto.randomUUID(), x: p[0], y: p[1], text }] });
       }, () => {
         const ids = new Set(selected.map(stroke => stroke.id));
-        selected = [];
-        selectedOutline = [];
-        notifySelection?.([], null);
+        clearSelection();
         update({ ...state, strokes: state.strokes.map(stroke => ids.has(stroke.id) ? straighten(stroke) : stroke) });
       });
       render();
+      positionSelection();
       return;
     }
-    const stroke = { id, points: ['line', 'rect', 'ellipse'].includes(tool) ? [points[0], points.at(-1)] : points, tool, color, width };
+    const stroke = shape
+      ? { id, points: shape.points, tool: shape.tool, color, width, ...(shape.geometry ? { geometry: shape.geometry } : {}) }
+      : { id, points: ['line', 'rect', 'ellipse'].includes(tool) ? [points[0], points.at(-1)] : points, tool, color, width };
+    if (fixedColor) stroke.fixedColor = true;
     update({ ...state, strokes: [...(state.strokes ?? []), stroke] });
   }
   for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) surface.addEventListener(type, end);
-  surface.addEventListener('contextmenu', event => event.preventDefault());
+  surface.addEventListener('contextmenu', event => {
+    event.preventDefault();
+    if (event.pointerType !== 'touch' && event.button === 2) offerPaste(event.clientX, event.clientY);
+  });
   if (board) surface.addEventListener('wheel', event => {
     event.preventDefault();
     if (interactionLocked) return;
@@ -695,7 +939,9 @@ export function createSurface(host, content, options) {
   }, { passive: false });
   const resize = new ResizeObserver(() => scheduleFrame('view'));
   resize.observe(host);
+  host.closest('#content')?.addEventListener('scroll', positionSelection, { passive: true, signal });
   signal?.addEventListener('abort', () => {
+    cancelHold(); clearTimeout(shapeTimer); showSelection?.(null);
     resize.disconnect();
     cancelAnimationFrame(frame);
     cachedInk.clear();
@@ -712,6 +958,22 @@ export function createSurface(host, content, options) {
       pointers.clear(); gesture = null;
       overlay.style.visibility = locked ? 'hidden' : '';
       if (locked) selectionTools.hidden = true; else renderSelection();
+    },
+    camera() {
+      return { x: (width / 2 - view.x) / view.zoom, y: (height / 2 - view.y) / view.zoom,
+        zoom: view.zoom, width: width / view.zoom, height: height / view.zoom };
+    },
+    jump(x, y, zoom = view.zoom) {
+      if (!board) return;
+      zoom = limit(zoom, .15, 6);
+      view = { x: width / 2 - x * zoom, y: height / 2 - y * zoom, zoom };
+      renderView();
+    },
+    deselect() { clearSelection(); render(); },
+    paste(data) {
+      const rect = host.getBoundingClientRect(), area = host.closest('#content').getBoundingClientRect();
+      const x = Math.max(rect.left, area.left), y = Math.max(rect.top, area.top);
+      pasteAt(data, ...coordinates(x + 26, y + 60));
     },
     addTextNear(clientX, clientY) {
       const point = coordinates(clientX, clientY);

@@ -12,7 +12,7 @@ globalThis.cancelAnimationFrame = id => frames.delete(id);
 globalThis.ResizeObserver = class { observe() {} disconnect() {} };
 const { createSurface } = await import('../js/ink.js');
 
-function setup(strokes = [], board = true, objects = []) {
+function setup(strokes = [], board = true, objects = [], extra = {}) {
   frames.clear();
   const { document, window } = parseHTML('<html><body><div id="host"></div></body></html>');
   globalThis.document = document;
@@ -23,7 +23,7 @@ function setup(strokes = [], board = true, objects = []) {
   const controller = new AbortController();
   let saved;
   const surface = createSurface(host, { strokes, texts: [] }, { board, width: 1000, settings: () => prefs,
-    signal: controller.signal, objects: () => objects, commit: (value, history, changed) => { saved = { ...value, changed }; } });
+    signal: controller.signal, objects: () => objects, commit: (value, history, changed) => { saved = { ...value, changed }; }, ...extra });
   const ink = host.querySelector('svg.ink');
   ink.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1000, height: 600 });
   ink.setPointerCapture = () => {};
@@ -170,4 +170,36 @@ test('lasso corner resizing previews, commits and cancels without changing the o
   t.dispatch('pointerup', { clientX: 65, clientY: 65 });
   assert.equal(t.saved().strokes[0].width, 6);
   assert.deepEqual(t.saved().strokes[0].points[0].slice(0, 2), [15, 15]);
+});
+
+
+test('0.7.1 lasso copy and duplicate commands preserve polygon geometry', () => {
+  let menu, copied;
+  const polygon = { ...stroke('polygon'), geometry: 'polygon', points: [[10, 10, .5], [50, 10, .5], [30, 60, .5], [10, 10, .5]] };
+  const t = setup([polygon], true, [], { showSelection: value => { if (value) menu = value; }, clipboard: { dismiss() {}, has: () => false, write: data => { copied = data; } } });
+  lasso(t); assert.ok(menu); menu.copy();
+  assert.equal(copied.strokes[0].geometry, 'polygon');
+  menu.duplicate();
+  assert.equal(t.saved().strokes.length, 2);
+  assert.equal(t.saved().strokes[1].geometry, 'polygon');
+  assert.notEqual(t.saved().strokes[1].id, polygon.id);
+  assert.deepEqual(t.saved().strokes[1].points[0].slice(0, 2), [28, 28]);
+});
+
+test('0.7.1 camera API still notifies the minimap on batched pan', () => {
+  let camera;
+  const t = setup([], true, [], { onViewChange: value => { camera = value; } });
+  t.dispatch('wheel', { deltaX: 40, deltaY: 30 }); t.flush();
+  assert.deepEqual(camera, { x: -40, y: -30, zoom: 1 });
+  t.surface.jump(1000, 2000, 2);
+  assert.deepEqual(t.surface.camera(), { x: 1000, y: 2000, zoom: 2, width: 500, height: 300 });
+});
+
+test('0.7.1 hold-to-straighten still saves a shape after smooth preview', async () => {
+  const t = setup(); t.prefs.holdShapes = true;
+  t.dispatch('pointerdown');
+  for (let x = 40; x <= 140; x += 10) t.dispatch('pointermove', { clientX: x, clientY: 50 });
+  await new Promise(resolve => setTimeout(resolve, 550));
+  t.dispatch('pointerup', { clientX: 140, clientY: 50 });
+  assert.equal(t.saved().strokes[0].tool, 'line');
 });

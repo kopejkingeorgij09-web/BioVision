@@ -80,7 +80,7 @@ if(!('caches' in window)||!('serviceWorker' in navigator))throw Error('offline u
 await navigator.serviceWorker.register(new URL('../../sw.js',assets));
 await navigator.serviceWorker.ready;
 const cache=await caches.open('microbook-v1');
-const urls=['index.html','content.js?v=1','sources.js?v=1','models.js?v=1','reader.js?v=1','embed.js?v=1','style.css?v=1'].map(s=>new URL(s,assets).href).concat(photos.map(p=>new URL('../img/prok/'+p.file,assets).href));
+const urls=['','index.html','content.js?v=1','sources.js?v=1','models.js?v=1','reader.js?v=1','embed.js?v=1','style.css?v=1'].map(s=>new URL(s,assets).href).concat(photos.map(p=>new URL('../img/prok/'+p.file,assets).href));
 await cache.addAll(urls);target.textContent='✓ Учебник сохранён';target.title='Прямая страница учебника и все 12 снимков доступны без сети';
 }catch{target.textContent='Не удалось сохранить — повторить';target.title='Проверь подключение и доступное место';}
 target.disabled=false;

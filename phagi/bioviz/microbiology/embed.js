@@ -21,7 +21,7 @@ bar.addEventListener('click',e=>{const b=e.target.closest('[data-mb-mode]');if(b
 nav.addEventListener('click',()=>{BV.go('prok');choose('book');R.querySelector('.side')?.classList.remove('open');R.querySelector('.fb-topics')?.setAttribute('aria-expanded','false');BVHOST.top?.();});
 oldNav?.addEventListener('click',()=>choose('legacy'));
 new MutationObserver(()=>api.setTheme(BVHOST.host.getAttribute('data-theme'))).observe(BVHOST.host,{attributes:true,attributeFilter:['data-theme']});
-apply();
+choose('book');
 return api;
 })().catch(e=>{console.warn('Учебник по микробиологии не загрузился',e);return null;});
 })();

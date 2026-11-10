@@ -3,6 +3,21 @@ package org.biovision.notes;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.database.Cursor;
+import android.provider.OpenableColumns;
+import android.webkit.MimeTypeMap;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FilterInputStream;
+import java.io.InputStream;
+import java.io.IOException;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import android.graphics.Insets;
 import android.net.Uri;
 import android.os.Build;
@@ -35,6 +50,16 @@ public final class MainActivity extends Activity {
     private static final String HOST = "appassets.androidplatform.net";
     private static final int PICK_FILES = 11;
     private WebView web;
+    private static final long MAX_CLIP_FILE = 50L * 1024 * 1024;
+    private final ExecutorService clipboardWorker = Executors.newSingleThreadExecutor();
+    private final ConcurrentHashMap<String, ClipboardFile> clipboardFiles = new ConcurrentHashMap<>();
+    private boolean clipboardBusy;
+    private volatile boolean clipboardClosed;
+    private static final class ClipboardFile {
+        final File file;
+        final String mime;
+        ClipboardFile(File file, String mime) { this.file = file; this.mime = mime; }
+    }
     private ValueCallback<Uri[]> pendingFiles;
     private volatile boolean penButtonDown;
 
@@ -44,6 +69,7 @@ public final class MainActivity extends Activity {
             .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this))
             .build();
         web = new PenWebView();
+        if (Build.VERSION.SDK_INT >= 33) web.setAutoHandwritingEnabled(false);
         web.getSettings().setJavaScriptEnabled(true);
         web.getSettings().setDomStorageEnabled(true);
         web.getSettings().setAllowFileAccess(false);
@@ -55,6 +81,21 @@ public final class MainActivity extends Activity {
         web.setWebViewClient(new WebViewClient() {
             @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
+                if (HOST.equals(uri.getHost()) && uri.getPath() != null && uri.getPath().startsWith("/clipboard/")) {
+                    ClipboardFile entry = clipboardFiles.remove(uri.getLastPathSegment());
+                    if (entry == null) return new WebResourceResponse("text/plain", "UTF-8", 404, "Not Found", null, null);
+                    try {
+                        InputStream stream = new FilterInputStream(new FileInputStream(entry.file)) {
+                            @Override public void close() throws IOException {
+                                try { super.close(); } finally { entry.file.delete(); }
+                            }
+                        };
+                        return new WebResourceResponse(entry.mime, null, stream);
+                    } catch (IOException error) {
+                        entry.file.delete();
+                        return new WebResourceResponse("text/plain", "UTF-8", 404, "Not Found", null, null);
+                    }
+                }
                 WebResourceResponse response = assets.shouldInterceptRequest(uri);
                 String path = uri.getPath();
                 if (response != null && path != null) {
@@ -122,6 +163,10 @@ public final class MainActivity extends Activity {
     @Override protected void onDestroy() {
         if (pendingFiles != null) pendingFiles.onReceiveValue(null);
         pendingFiles = null;
+        clipboardClosed = true;
+        clipboardWorker.shutdownNow();
+        for (ClipboardFile entry : clipboardFiles.values()) entry.file.delete();
+        clipboardFiles.clear();
         web.destroy();
         super.onDestroy();
     }
@@ -242,6 +287,11 @@ public final class MainActivity extends Activity {
     }
 
     private final class InkBridge {
+        @JavascriptInterface public void readClipboard(String requestId) {
+            if (!requestId.matches("[a-fA-F0-9-]{36}")) return;
+            runOnUiThread(() -> pasteClipboard(requestId));
+        }
+
         @JavascriptInterface public boolean penButtonPressed() { return penButtonDown; }
 
         @JavascriptInterface public void recognize(String points, String language) {
@@ -251,6 +301,96 @@ public final class MainActivity extends Activity {
             }
             runOnUiThread(() -> recognizeInk(points, language));
         }
+    }
+
+    private void clipboardReply(String id, JSONArray files, String error) {
+        runOnUiThread(() -> {
+            clipboardBusy = false;
+            if (isFinishing() || isDestroyed()) return;
+            web.evaluateJavascript("window.notesClipboardResult?.(" + JSONObject.quote(id) + ","
+                + files.toString() + "," + JSONObject.quote(error) + ");", null);
+        });
+    }
+
+    private void pasteClipboard(String id) {
+        if (isFinishing() || isDestroyed()) return;
+        String page = web.getUrl();
+        if (page == null || !page.startsWith("https://" + HOST + "/assets/www/")) return;
+        if (clipboardBusy) {
+            web.evaluateJavascript("window.notesClipboardResult?.(" + JSONObject.quote(id)
+                + ",[],\"Дождись завершения вставки\");", null);
+            return;
+        }
+        ClipboardManager manager = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        final ClipData clip;
+        try { clip = manager.getPrimaryClip(); }
+        catch (Exception error) { clipboardReply(id, new JSONArray(), "Нет доступа к буферу обмена"); return; }
+        if (clip == null) { clipboardReply(id, new JSONArray(), "Буфер обмена пуст"); return; }
+        clipboardBusy = true;
+        clipboardWorker.execute(() -> {
+            JSONArray result = new JSONArray();
+            java.util.ArrayList<String> tokens = new java.util.ArrayList<>();
+            File copying = null;
+            try {
+                if (clip.getItemCount() > 16) throw new IOException("Можно вставить до 16 файлов за раз");
+                for (int i = 0; i < clip.getItemCount(); i++) {
+                    if (Thread.currentThread().isInterrupted()) throw new IOException("Вставка отменена");
+                    Uri uri = clip.getItemAt(i).getUri();
+                    if (uri == null || !"content".equals(uri.getScheme())) continue;
+                    String mime = getContentResolver().getType(uri);
+                    if (mime == null || !(mime.startsWith("image/") || mime.startsWith("video/") || "application/pdf".equals(mime))) continue;
+                    String name = "";
+                    try (Cursor cursor = getContentResolver().query(uri, new String[]{OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE}, null, null, null)) {
+                        if (cursor != null && cursor.moveToFirst()) {
+                            int sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE);
+                            if (sizeIndex >= 0 && !cursor.isNull(sizeIndex) && cursor.getLong(sizeIndex) > MAX_CLIP_FILE)
+                                throw new IOException("Файл в буфере больше 50 МБ");
+                            int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                            if (nameIndex >= 0) name = cursor.getString(nameIndex);
+                        }
+                    }
+                    if (name == null || name.isEmpty()) {
+                        String extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime);
+                        name = "Вставка-" + (i + 1) + (extension == null ? "" : "." + extension);
+                    }
+                    copying = File.createTempFile("polya-paste-", ".tmp", getCacheDir());
+                    long size = 0;
+                    try (InputStream input = getContentResolver().openInputStream(uri);
+                         FileOutputStream output = new FileOutputStream(copying)) {
+                        if (input == null) throw new IOException("Файл из буфера недоступен");
+                        byte[] buffer = new byte[64 * 1024];
+                        int count;
+                        while ((count = input.read(buffer)) != -1) {
+                            size += count;
+                            if (size > MAX_CLIP_FILE) throw new IOException("Файл в буфере больше 50 МБ");
+                            if (Thread.currentThread().isInterrupted()) throw new IOException("Вставка отменена");
+                            output.write(buffer, 0, count);
+                        }
+                    }
+                    if (size == 0) throw new IOException("В буфере пустой файл");
+                    String token = UUID.randomUUID().toString();
+                    clipboardFiles.put(token, new ClipboardFile(copying, mime));
+                    tokens.add(token);
+                    copying = null;
+                    result.put(new JSONObject().put("token", token).put("mime", mime).put("name", name));
+                }
+                if (clipboardClosed || isFinishing() || isDestroyed()) throw new IOException("Вставка отменена");
+                web.postDelayed(() -> {
+                    for (String token : tokens) {
+                        ClipboardFile file = clipboardFiles.remove(token);
+                        if (file != null) file.file.delete();
+                    }
+                }, 60000);
+                clipboardReply(id, result, "");
+            } catch (Exception error) {
+                if (copying != null) copying.delete();
+                for (String token : tokens) {
+                    ClipboardFile file = clipboardFiles.remove(token);
+                    if (file != null) file.file.delete();
+                }
+                clipboardReply(id, new JSONArray(), "Не удалось вставить файл. " + error.getMessage());
+            }
+        });
     }
 
     private void recognizeInk(String points, String language) {

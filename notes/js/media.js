@@ -15,7 +15,8 @@ const extensions = {
 };
 
 export function describeFile(file) {
-  const mime = extensions[file.name.split('.').at(-1).toLowerCase()];
+  const mime = extensions[file.name.split('.').at(-1).toLowerCase()]
+    ?? Object.values(extensions).find(type => type === file.type);
   if (!mime) throw new Error('Формат не поддерживается: ' + file.name);
   if (file.size > maxFile) throw new Error('Файл больше 50 МБ: ' + file.name);
   if (!file.size) throw new Error('Пустой файл: ' + file.name);
@@ -205,6 +206,96 @@ export async function openMedia(root, attachment, options) {
 
 export const boardFileWidth = 720;
 
+function editBoardImage(panel, tools, file, options) {
+  tools.classList.add('board-image-tools');
+  panel.classList.add('board-image-panel');
+  const move = button('Переместить', () => {});
+  move.className = 'board-image-move';
+  move.setAttribute('aria-label', 'Переместить изображение ' + file.name);
+  const resize = button('↘', () => {});
+  resize.className = 'board-image-resize';
+  resize.setAttribute('aria-label', 'Изменить размер изображения ' + file.name);
+  tools.append(move, resize);
+  let gesture, frame = 0;
+
+  function layout([x, y, width]) {
+    width = Math.max(64, Math.min(4000, width));
+    for (const node of [panel, tools]) {
+      node.style.left = x + 'px'; node.style.top = y + 'px'; node.style.width = width + 'px';
+    }
+    panel.style.setProperty('--image-scale', width / boardFileWidth);
+    tools.style.height = panel.offsetHeight + 'px';
+    const text = panel.querySelector('.board-existing-text');
+    if (text) text.style.transform = 'scale(' + width / 1000 + ')';
+  }
+  const object = {
+    id: file.id,
+    bounds() {
+      const width = file.boardWidth ?? boardFileWidth;
+      return [file.boardPosition.x, file.boardPosition.y, width, panel.offsetHeight * width / (parseFloat(panel.style.width) || width)];
+    },
+    preview: layout,
+    commit(bounds) {
+      const width = Math.max(64, Math.min(4000, bounds[2]));
+      file.boardPosition = { x: bounds[0], y: bounds[1] };
+      file.boardWidth = width;
+      layout([bounds[0], bounds[1], width]);
+      return { boardPosition: { ...file.boardPosition }, boardWidth: width };
+    },
+  };
+  layout(object.bounds());
+  options.registerObject?.(object);
+
+  function nextBounds(event) {
+    const { bounds, start, mode, zoom } = gesture;
+    const dx = (event.clientX - start[0]) / zoom, dy = (event.clientY - start[1]) / zoom;
+    if (mode === 'move') return [bounds[0] + dx, bounds[1] + dy, bounds[2], bounds[3]];
+    const aspect = bounds[3] / bounds[2];
+    const width = Math.max(64, Math.min(4000, bounds[2] + (dx + dy * aspect) / (1 + aspect * aspect)));
+    return [bounds[0], bounds[1], width, bounds[3] * width / bounds[2]];
+  }
+  for (const [handle, mode] of [[move, 'move'], [resize, 'resize']]) {
+    handle.addEventListener('pointerdown', event => {
+      if (gesture || (event.button !== 0 && event.pointerType !== 'pen')) return;
+      event.preventDefault(); event.stopPropagation();
+      handle.setPointerCapture(event.pointerId);
+      options.onInteraction?.(true);
+      gesture = { pointer: event.pointerId, bounds: object.bounds(), start: [event.clientX, event.clientY], mode,
+        zoom: options.boardView?.().zoom ?? 1 };
+    }, { signal: options.signal });
+    handle.addEventListener('pointermove', event => {
+      if (!gesture || gesture.pointer !== event.pointerId) return;
+      event.preventDefault(); gesture.next = nextBounds(event);
+      if (!frame) frame = requestAnimationFrame(() => { frame = 0; if (gesture) layout(gesture.next); });
+    }, { signal: options.signal });
+    function finish(event) {
+      if (!gesture || gesture.pointer !== event.pointerId) return;
+      cancelAnimationFrame(frame); frame = 0;
+      const before = gesture.bounds, after = nextBounds(event);
+      gesture = null;
+      if (event.type === 'pointerup' && after.some((value, i) => Math.abs(value - before[i]) > .1)) {
+        object.commit(after); options.onTransform?.(file);
+      } else layout(before);
+      options.onInteraction?.(false);
+    }
+    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) handle.addEventListener(type, finish, { signal: options.signal });
+    handle.addEventListener('keydown', event => {
+      if (gesture) return;
+      const bounds = object.bounds();
+      const step = event.shiftKey ? 20 : 5;
+      if (mode === 'move' && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
+        event.preventDefault();
+        bounds[0] += event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0;
+        bounds[1] += event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0;
+      } else if (mode === 'resize' && ['ArrowLeft', 'ArrowDown', 'ArrowRight', 'ArrowUp'].includes(event.key)) {
+        event.preventDefault(); bounds[2] *= ['ArrowRight', 'ArrowUp'].includes(event.key) ? 1.05 : 1 / 1.05;
+      } else return;
+      object.commit(bounds); options.onTransform?.(file);
+    }, { signal: options.signal });
+  }
+  options.signal.addEventListener('abort', () => { cancelAnimationFrame(frame); gesture = null; options.onInteraction?.(false); }, { once: true });
+}
+
 export function boardFilesWithPositions(files) {
   let nextX = Math.max(70, ...files.map(file => file.boardPosition ? file.boardPosition.x + 800 : 70));
   return files.map(file => {
@@ -215,14 +306,15 @@ export function boardFilesWithPositions(files) {
   });
 }
 
-export async function mountBoardFile(content, controls, file, { signal, library, host, surfaceOptions, onMark, onSurface }) {
+export async function mountBoardFile(content, controls, file, options) {
+  const { signal, library, host, surfaceOptions, onMark, onSurface } = options;
   const { x, y } = file.boardPosition;
   const panel = element('section', undefined, 'board-file');
   const tools = element('div', undefined, 'board-file-controls');
   for (const node of [panel, tools]) {
     node.style.left = x + 'px';
     node.style.top = y + 'px';
-    node.style.width = boardFileWidth + 'px';
+    node.style.width = (file.mime.startsWith('image/') ? file.boardWidth ?? boardFileWidth : boardFileWidth) + 'px';
   }
   panel.dataset.attachment = file.id;
   const title = element('div', file.name, 'board-file-title');
@@ -328,7 +420,10 @@ export async function mountBoardFile(content, controls, file, { signal, library,
       image.src = url;
       sheet.append(image);
       await image.decode();
-      if (!signal.aborted) showExistingMarks(sheet, file.marks?.image, boardFileWidth, sheet.offsetHeight);
+      if (!signal.aborted) {
+        showExistingMarks(sheet, file.marks?.image, file.boardWidth ?? boardFileWidth, sheet.offsetHeight);
+        editBoardImage(panel, tools, file, options);
+      }
       return;
     }
 

@@ -1,6 +1,7 @@
 import { edit, list, read } from './local.js';
 import { attachmentBlob, cloudEnabled, identity, libraryId, signIn, signInByCode, signOut, synchronize } from './cloud.js';
 import { createSurface } from './ink.js';
+import { clipboardFiles, readClipboardFiles } from './clipboard.js';
 import { boardFilesWithPositions, boardFileWidth, describeFile, mountBoardFile, openMedia, pdfBase } from './media.js';
 import { button, element, textEditor } from './text.js';
 import { cloudConfig } from './config.js';
@@ -18,7 +19,7 @@ const tools = { pen: 'Перо', highlight: 'Маркер', erase: 'Ластик
 const blank = () => ({ id: crypto.randomUUID(), strokes: [], texts: [] });
 const preferenceKey = 'biovision-notes-pen';
 const themes = { system: 'Как в системе', white: 'Белая', gray: 'Серая', warm: 'Тёплая белая', violet: 'Тёмно-фиолетовая', green: 'Тёмно-зелёная', black: 'Чёрная' };
-const appVersion = { name: '0.3.0', code: 3 };
+const appVersion = { name: '0.3.1', code: 4 };
 const releaseBase = cloudConfig.url + '/storage/v1/object/public/notes-releases/';
 const darkMode = matchMedia('(prefers-color-scheme: dark)');
 const existingPrefs = JSON.parse(localStorage.getItem(preferenceKey) ?? '{}');
@@ -678,12 +679,17 @@ function render() {
         paper.dataset.note = current.id;
         paper.append(...worldLayers);
       }
+      const imageObjects = new Map();
       surface = createSurface(paper, structuredClone(data), {
         ...commonSurface(), board, width: 794, worldLayers,
         initialView: previousBoard?.view(),
         pinch: notebook?.pinch,
-        commit(next, history) {
-          mutate({ ...current.data, pages: current.data.pages.map(page => page.id === data.id ? next : page) }, history);
+        objects: () => [...imageObjects.values()],
+        commit(next, history, objects = []) {
+          const changes = new Map(objects.map(object => [object.id, object]));
+          mutate({ ...current.data, pages: current.data.pages.map(page => page.id === data.id ? next : page),
+            attachments: (current.data.attachments ?? []).map(file => changes.has(file.id) ? { ...file, ...changes.get(file.id) } : file),
+          }, history);
         },
       });
       surfaces.push(surface);
@@ -694,6 +700,13 @@ function render() {
         for (const file of boardFiles) {
           void mountBoardFile(...worldLayers, structuredClone(file), {
             signal: editor.signal, library: scope, host: paper, surfaceOptions: commonSurface(),
+            boardView: surface.view,
+            onInteraction: surface.setInteractionLocked,
+            registerObject: object => imageObjects.set(object.id, object),
+            onTransform(updated) {
+              mutate({ ...current.data, attachments: current.data.attachments.map(item => item.id === updated.id ? updated : item) });
+              surface.refreshSelection();
+            },
             onMark(updated, history) {
               mutate({ ...current.data, attachments: current.data.attachments.map(item => item.id === updated.id ? updated : item) }, history);
             },
@@ -705,7 +718,8 @@ function render() {
           const focus = () => {
             boardFileId = file.id;
             for (const chip of nav.children) chip.setAttribute('aria-pressed', String(chip.dataset.file === file.id));
-            surface.focus(file.boardPosition.x, file.boardPosition.y, boardFileWidth);
+            const latest = current.data.attachments.find(item => item.id === file.id) ?? file;
+            surface.focus(latest.boardPosition?.x ?? file.boardPosition.x, latest.boardPosition?.y ?? file.boardPosition.y, latest.boardWidth ?? boardFileWidth);
           };
           const chip = button('▣ ' + file.name, focus);
           chip.dataset.file = file.id;
@@ -730,6 +744,9 @@ function render() {
 
   }
   const attach = button('Прикрепить', () => $('file-picker').click());
+  const paste = button('Вставить', () => void pasteMedia(paste));
+  paste.title = 'Вставить фото или файл из буфера обмена';
+  bar.insertBefore(paste, bar.querySelector('[data-ink-tool="highlight"]') ?? bar.firstChild);
   bar.append(attach, undo, redo);
   updateUndo();
 }
@@ -918,25 +935,59 @@ $('title').onchange = () => {
   else $('title').value = current.data.title;
 };
 $('title').onkeydown = event => { if (event.key === 'Enter' && !event.isComposing) event.target.blur(); };
-$('file-picker').onchange = async event => {
-  const target = current?.id;
-  const files = Array.from(event.target.files);
-  event.target.value = '';
+async function insertFiles(files, target = current?.id, owner = scope) {
+  if (!target || current?.data.kind === 'folder') return;
   for (const file of files) {
-    if (current?.id !== target) break;
+    if (current?.id !== target || scope !== owner) break;
     try {
       const item = describeFile(file);
-      const attachments = [...current.data.attachments, item];
       const board = current.data.kind === 'board';
-      if (board) { boardFileId = item.id; focusBoardFile = true; }
+      if (board) {
+        const surface = surfaces.find(surface => surface.host.classList.contains('board'));
+        const view = surface?.view();
+        if (view && item.mime.startsWith('image/')) item.boardWidth = Math.max(128, Math.min(boardFileWidth, (surface.host.clientWidth - 48) / view.zoom));
+        if (view) item.boardPosition = {
+          x: (surface.host.clientWidth / 2 - view.x) / view.zoom - (item.boardWidth ?? boardFileWidth) / 2,
+          y: (surface.host.clientHeight / 2 - view.y) / view.zoom - 100,
+        };
+        boardFileId = item.id;
+      }
+      const attachments = [...(current.data.attachments ?? []), item];
       mutate({ ...current.data, attachments: board ? boardFilesWithPositions(attachments) : attachments }, true, {
-        library: scope, id: item.id, blob: file.slice(0, file.size, item.mime), remote: false,
+        library: owner, id: item.id, blob: file.slice(0, file.size, item.mime), remote: false,
       });
       await writes;
     } catch (error) { report(error); }
   }
-  if (target && current?.id === target) render();
+  if (current?.id === target && scope === owner) render();
+}
+
+async function pasteMedia(control) {
+  const target = current?.id, owner = scope;
+  if (!target || current.data.kind === 'folder') return;
+  control.disabled = true;
+  try {
+    const files = await readClipboardFiles();
+    if (!files.length) return message('В буфере нет поддерживаемого фото или файла');
+    await insertFiles(files, target, owner);
+  } catch (error) { report(error); }
+  finally { control.disabled = false; }
+}
+
+$('file-picker').onchange = event => {
+  const files = Array.from(event.target.files);
+  event.target.value = '';
+  void insertFiles(files);
 };
+window.addEventListener('paste', event => {
+  if (!current || current.data.kind === 'folder' || $('dialog').open) return;
+  // Text pastes continue to the focused editor unchanged.
+  if (event.target.closest?.('input:not([type="file"])')) return;
+  const files = clipboardFiles(event.clipboardData);
+  if (!files.length) return;
+  event.preventDefault();
+  void insertFiles(files);
+});
 window.addEventListener('popstate', () => open(location.hash.slice(6) || null, { replace: true }));
 window.addEventListener('online', () => schedule(0));
 window.addEventListener('offline', () => { if (identity() && !failedWrite) $('sync').textContent = 'Офлайн · сохранено локально'; });

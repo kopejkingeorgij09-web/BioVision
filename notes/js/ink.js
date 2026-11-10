@@ -137,20 +137,85 @@ export function createSurface(host, content, options) {
   let view = options.initialView ?? { x: 0, y: 0, zoom: 1 };
   let active;
   let selected = [];
+  let selectedTexts = [];
+  let selectedObjects = [];
+  const selectionTools = document.createElement('div');
+  selectionTools.className = 'selection-tools';
+  selectionTools.hidden = true;
+  host.append(selectionTools);
+  for (const [label, text, factor] of [['Уменьшить выделение', '−', .8], ['Увеличить выделение', '+', 1.25]]) {
+    const control = document.createElement('button');
+    control.type = 'button'; control.textContent = text; control.setAttribute('aria-label', label);
+    control.addEventListener('click', () => scaleSelection(factor));
+    selectionTools.append(control);
+  }
   let selectedOutline = [];
   let state = content;
   const pointers = new Map();
   let gesture;
   let width, height;
   let newTextId;
+  let interactionLocked = false;
+  let frame = 0, viewDirty = false, previewDirty = false;
+  let renderedTexts;
+  const cachedInk = new Map();
+
+  function scheduleFrame(kind) {
+    if (kind === 'view') viewDirty = true;
+    else previewDirty = true;
+    if (frame || signal?.aborted) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      if (viewDirty) { viewDirty = false; renderView(); }
+      if (previewDirty) { previewDirty = false; if (active) strokePreview(); }
+    });
+  }
+
+  function cullInk() {
+    if (!board) return;
+    const margin = 180 / view.zoom;
+    const left = -view.x / view.zoom - margin, top = -view.y / view.zoom - margin;
+    const right = left + width / view.zoom + margin * 2, bottom = top + height / view.zoom + margin * 2;
+    for (const entry of cachedInk.values()) {
+      const b = entry.bounds;
+      const hidden = b[2] < left || b[0] > right || b[3] < top || b[1] > bottom;
+      if (entry.hidden !== hidden) {
+        entry.node.style.display = hidden ? 'none' : '';
+        entry.hidden = hidden;
+      }
+    }
+  }
+
+  function renderInk() {
+    const ids = new Set();
+    for (const stroke of state.strokes ?? []) {
+      ids.add(stroke.id);
+      let entry = cachedInk.get(stroke.id);
+      if (entry?.stroke === stroke) continue;
+      const node = shapeNode(stroke);
+      let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+      for (const [x, y] of stroke.points) {
+        left = Math.min(left, x); top = Math.min(top, y);
+        right = Math.max(right, x); bottom = Math.max(bottom, y);
+      }
+      const pad = stroke.width * 4;
+      if (entry) entry.node.replaceWith(node);
+      else ink.append(node);
+      cachedInk.set(stroke.id, { stroke, node, bounds: [left - pad, top - pad, right + pad, bottom + pad] });
+    }
+    for (const [id, entry] of cachedInk) {
+      if (!ids.has(id)) { entry.node.remove(); cachedInk.delete(id); }
+      else entry.node.style.opacity = '';
+    }
+    cullInk();
+  }
 
   function viewport() {
     const scale = board ? view.zoom : host.clientWidth / options.width;
     return { scale: scale || 1, left: board ? view.x : 0, top: board ? view.y : 0 };
   }
 
-  function coordinates(x, y) {
-    const rect = surface.getBoundingClientRect();
+  function coordinates(x, y, rect = surface.getBoundingClientRect()) {
     const { scale, left, top } = viewport();
     const outer = rect.width / (host.clientWidth || 1) || 1;
     return [((x - rect.left) / outer - left) / scale, ((y - rect.top) / outer - top) / scale];
@@ -158,9 +223,11 @@ export function createSurface(host, content, options) {
 
   function renderView() {
     const { scale, left, top } = viewport();
-    width = host.clientWidth;
-    height = host.clientHeight;
-    surface.setAttribute('viewBox', [0, 0, width || 1, height || 1].join(' '));
+    const nextWidth = host.clientWidth, nextHeight = host.clientHeight;
+    if (width !== nextWidth || height !== nextHeight) {
+      width = nextWidth; height = nextHeight;
+      surface.setAttribute('viewBox', [0, 0, width || 1, height || 1].join(' '));
+    }
     const transform = `translate(${left} ${top}) scale(${scale})`;
     for (const layer of [ink, preview, overlay]) layer.setAttribute('transform', transform);
     for (const layer of options.worldLayers ?? []) layer.style.transform = 'translate(' + left + 'px,' + top + 'px) scale(' + scale + ')';
@@ -168,15 +235,15 @@ export function createSurface(host, content, options) {
     host.style.setProperty('--paper-scale', scale);
     host.style.setProperty('--grid-x', left + 'px');
     host.style.setProperty('--grid-y', top + 'px');
+    cullInk();
+    renderSelection();
   }
 
   function render() {
-    ink.replaceChildren(...(state.strokes ?? []).map(shapeNode));
-    overlay.replaceChildren();
-    if (selectedOutline.length) overlay.append(svg('polygon', {
-      points: selectedOutline.map(line).join(' '), fill: '#7e80f02a', stroke: '#7775e7',
-      'stroke-width': 1.5, 'stroke-dasharray': '5 4', 'vector-effect': 'non-scaling-stroke',
-    }));
+    renderInk();
+    renderSelection();
+    if (renderedTexts === state.texts) return;
+    renderedTexts = state.texts;
     typing.replaceChildren();
     for (const item of state.texts ?? []) {
       const box = document.createElement('div');
@@ -266,15 +333,144 @@ export function createSurface(host, content, options) {
     typing.lastElementChild?.querySelector('textarea')?.focus();
   }
 
-  function update(next) {
+  function update(next, objects = []) {
     state = next;
-    commit(next);
+    commit(next, true, objects);
     render();
   }
 
-  function localPoint(event) {
-    const [x, y] = coordinates(event.clientX, event.clientY);
+  function hasSelection() { return selected.length || selectedTexts.length || selectedObjects.length; }
+
+  function selectionBounds() {
+    const points = selected.flatMap(stroke => stroke.points);
+    for (const item of selectedTexts) {
+      const box = typing.querySelector('[data-text-id="' + item.id + '"]')?.parentElement;
+      points.push([item.x, item.y], [item.x + (item.width ?? 250), item.y + (box?.offsetHeight || (item.pt ?? 12) * 2)]);
+    }
+    for (const object of selectedObjects) {
+      const [x, y, w, h] = object.bounds(); points.push([x, y], [x + w, y + h]);
+    }
+    if (!points.length) return null;
+    let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+    for (const [x, y] of points) { left = Math.min(left, x); top = Math.min(top, y); right = Math.max(right, x); bottom = Math.max(bottom, y); }
+    return [left - 5, top - 5, right + 5, bottom + 5];
+  }
+
+  function renderSelection() {
+    overlay.replaceChildren();
+    const b = selectionBounds();
+    selectionTools.hidden = !b;
+    if (!b) return;
+    const [l, t, r, bottom] = b, scale = viewport().scale;
+    selectedOutline = [[l, t], [r, t], [r, bottom], [l, bottom]];
+    overlay.append(svg('rect', { x: l, y: t, width: r - l, height: bottom - t, fill: '#7e80f014', stroke: '#7775e7',
+      'stroke-width': 1.5, 'stroke-dasharray': '5 4', 'vector-effect': 'non-scaling-stroke' }));
+    for (const [corner, x, y] of [['nw', l, t], ['ne', r, t], ['sw', l, bottom], ['se', r, bottom]]) {
+      const size = 24 / scale;
+      overlay.append(svg('rect', { x: x - size / 2, y: y - size / 2, width: size, height: size, rx: 4 / scale,
+        fill: 'var(--paper)', stroke: '#7775e7', 'stroke-width': 2, 'vector-effect': 'non-scaling-stroke',
+        'data-selection-corner': corner, class: 'selection-handle', 'aria-label': 'Изменить размер выделения' }));
+    }
+    const v = viewport();
+    selectionTools.style.left = (l * v.scale + v.left) + 'px';
+    selectionTools.style.top = Math.max(4, t * v.scale + v.top - 42) + 'px';
+  }
+
+  function selectionScale(value) {
+    let low = .05, high = 20;
+    for (const stroke of selected) { low = Math.max(low, .1 / stroke.width); high = Math.min(high, 120 / stroke.width); }
+    for (const item of selectedTexts) {
+      low = Math.max(low, 48 / (item.width ?? 250), 4 / (item.pt ?? 12));
+      high = Math.min(high, 2200 / (item.width ?? 250), 200 / (item.pt ?? 12));
+    }
+    for (const object of selectedObjects) {
+      const width = object.bounds()[2]; low = Math.max(low, 64 / width); high = Math.min(high, 4000 / width);
+    }
+    return limit(value, low, Math.max(low, high));
+  }
+
+  function selectionTransform() {
+    const start = active.points[0], end = active.points.at(-1);
+    if (active.tool === 'move') return { scale: 1, x: end[0] - start[0], y: end[1] - start[1], origin: [0, 0] };
+    const origin = active.anchor, dx = start[0] - origin[0], dy = start[1] - origin[1];
+    const scale = selectionScale(((end[0] - origin[0]) * dx + (end[1] - origin[1]) * dy) / (dx * dx + dy * dy || 1));
+    return { scale, x: 0, y: 0, origin };
+  }
+
+  function transformed(point, transform) {
+    const { scale, origin, x, y } = transform;
+    return [origin[0] + (point[0] - origin[0]) * scale + x, origin[1] + (point[1] - origin[1]) * scale + y, ...point.slice(2)];
+  }
+
+  function objectTransforms(transform, originals) {
+    return originals.map(({ object, bounds }) => {
+      const [x, y] = transformed(bounds, transform);
+      return { object, bounds: [x, y, bounds[2] * transform.scale, bounds[3] * transform.scale] };
+    });
+  }
+
+  function previewSelection(transform, originals) {
+    const { scale, origin, x, y } = transform;
+    const tx = origin[0] * (1 - scale) + x, ty = origin[1] * (1 - scale) + y;
+    for (const stroke of selected) cachedInk.get(stroke.id)?.node.setAttribute('transform', `matrix(${scale} 0 0 ${scale} ${tx} ${ty})`);
+    for (const item of selectedTexts) {
+      const box = typing.querySelector('[data-text-id="' + item.id + '"]')?.parentElement;
+      const point = transformed([item.x, item.y], transform);
+      if (box) { box.style.transformOrigin = '0 0'; box.style.transform = `translate(${point[0] - item.x}px,${point[1] - item.y}px) scale(${scale})`; }
+    }
+    for (const item of objectTransforms(transform, originals)) item.object.preview(item.bounds);
+    overlay.setAttribute('transform', `translate(${viewport().left} ${viewport().top}) scale(${viewport().scale}) matrix(${scale} 0 0 ${scale} ${tx} ${ty})`);
+    selectionTools.hidden = true;
+  }
+
+  function resetSelectionPreview(originals) {
+    for (const stroke of selected) cachedInk.get(stroke.id)?.node.removeAttribute('transform');
+    for (const item of selectedTexts) {
+      const box = typing.querySelector('[data-text-id="' + item.id + '"]')?.parentElement;
+      if (box) box.style.transform = '';
+    }
+    for (const { object, bounds } of originals) object.preview(bounds);
+    const v = viewport(); overlay.setAttribute('transform', `translate(${v.left} ${v.top}) scale(${v.scale})`);
+  }
+
+  function applySelection(transform, originals) {
+    const ids = new Set(selected.map(stroke => stroke.id)), textIds = new Set(selectedTexts.map(item => item.id));
+    const strokes = (state.strokes ?? []).map(stroke => ids.has(stroke.id) ? { ...stroke,
+      points: stroke.points.map(point => transformed(point, transform)), width: stroke.width * transform.scale } : stroke);
+    const texts = (state.texts ?? []).map(item => {
+      if (!textIds.has(item.id)) return item;
+      const [x, y] = transformed([item.x, item.y], transform);
+      return { ...item, x, y, width: (item.width ?? 250) * transform.scale, pt: (item.pt ?? 12) * transform.scale };
+    });
+    selected = strokes.filter(stroke => ids.has(stroke.id));
+    selectedTexts = texts.filter(item => textIds.has(item.id));
+    const objects = objectTransforms(transform, originals).map(({ object, bounds }) => ({ id: object.id, ...object.commit(bounds) }));
+    update({ ...state, strokes, texts }, objects);
+  }
+
+  function scaleSelection(factor) {
+    const b = selectionBounds(); if (!b || active) return;
+    const origin = [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
+    applySelection({ scale: selectionScale(factor), origin, x: 0, y: 0 }, selectedObjects.map(object => ({ object, bounds: object.bounds() })));
+  }
+
+  function localPoint(event, rect) {
+    const [x, y] = coordinates(event.clientX, event.clientY, rect);
     return [x, y, event.pointerType === 'pen' ? limit(event.pressure || 0.45, 0.05, 1) : 0.5, Math.round(event.timeStamp)];
+  }
+
+  function appendPoint(event, rect, terminal = false) {
+    let point = localPoint(event, rect);
+    const previous = active.points.at(-1);
+    const smooth = active.pointerType === 'pen' && ['pen', 'highlight'].includes(active.tool);
+    if (smooth) {
+      const pixels = distance(point, previous) * viewport().scale;
+      const alpha = terminal ? 1 : limit(pixels / 4, .35, .9);
+      point = [previous[0] + (point[0] - previous[0]) * alpha,
+        previous[1] + (point[1] - previous[1]) * alpha,
+        terminal ? previous[2] : previous[2] + (point[2] - previous[2]) * .35, point[3]];
+    }
+    if (distance(point, previous) * viewport().scale > .15) active.points.push(point);
   }
 
   function zoom(x, y, value) {
@@ -283,7 +479,7 @@ export function createSurface(host, content, options) {
     view.zoom = limit(value, 0.15, 6);
     view.x = x - rect.left - point[0] * view.zoom;
     view.y = y - rect.top - point[1] * view.zoom;
-    renderView();
+    scheduleFrame('view');
   }
 
   function erase(point) {
@@ -292,20 +488,34 @@ export function createSurface(host, content, options) {
       const points = segments(stroke);
       if (points.some((p, i) => nearSegment(point, p, points[i + 1] ?? p, radius))) active.erased.add(stroke.id);
     }
-    Array.from(ink.children).forEach((node, i) => {
-      if (active.erased.has(state.strokes[i].id)) node.setAttribute('opacity', '0.18');
-    });
+    for (const id of active.erased) { const node = cachedInk.get(id)?.node; if (node) node.style.opacity = '0.18'; }
   }
 
   function strokePreview() {
-    preview.replaceChildren(active.tool === 'lasso' || active.tool === 'move'
-      ? svg('polyline', {
-        fill: 'none', stroke: '#7775e7', 'stroke-width': 1.5, 'stroke-dasharray': '5 4',
-        'vector-effect': 'non-scaling-stroke', points: active.points.map(line).join(' '),
-      }) : shapeNode(active));
+    if (['move', 'resize'].includes(active.tool)) { previewSelection(selectionTransform(), active.objectBounds); return; }
+    if (active.tool === 'pen') {
+      // Freeze completed chunks. Even a very long stroke only rebuilds its short tail.
+      const chunkSize = 128;
+      active.previewEnd ??= 0;
+      while (active.points.length - active.previewEnd > chunkSize + 2) {
+        const points = active.points.slice(Math.max(0, active.previewEnd - 2), active.previewEnd + chunkSize + 1);
+        preview.insertBefore(shapeNode({ ...active, points }), active.tail ?? null);
+        active.previewEnd += chunkSize;
+      }
+      const tail = shapeNode({ ...active, points: active.points.slice(Math.max(0, active.previewEnd - 2)) });
+      if (active.tail) active.tail.replaceWith(tail);
+      else preview.append(tail);
+      active.tail = tail;
+    } else {
+      preview.replaceChildren(active.tool === 'lasso' || active.tool === 'move'
+        ? svg('polyline', {
+          fill: 'none', stroke: '#7775e7', 'stroke-width': 1.5, 'stroke-dasharray': '5 4',
+          'vector-effect': 'non-scaling-stroke', points: active.points.map(line).join(' '),
+        }) : shapeNode(active));
+    }
   }
 
-  function beginStroke(event, tool) {
+  function beginStroke(event, tool, corner) {
     const prefs = settings();
     const point = localPoint(event);
     const onPdf = board && prefs.autoColor && Array.from(host.querySelectorAll('.board-pdf-page')).some(sheet => {
@@ -317,13 +527,21 @@ export function createSurface(host, content, options) {
       color: onPdf && tool !== 'highlight' ? '#25242d' : prefs.autoColor ? 'auto' : prefs.color, width: prefs.width, points: [point], erased: new Set(),
       screen: [event.clientX, event.clientY],
     };
+    if (['move', 'resize'].includes(tool)) {
+      active.objectBounds = selectedObjects.map(object => ({ object, bounds: object.bounds() }));
+      const b = selectionBounds();
+      active.anchor = [corner?.includes('w') ? b[2] : b[0], corner?.includes('n') ? b[3] : b[1]];
+    }
     if (tool === 'erase') erase(point);
     else if (tool !== 'hand') strokePreview();
   }
 
   surface.addEventListener('pointerdown', event => {
+    if (interactionLocked) return;
     const prefs = settings();
-    if (event.pointerType === 'touch' && (board || !prefs.finger)) {
+    const corner = event.target.getAttribute?.('data-selection-corner');
+    const selectedTouch = prefs.tool === 'lasso' && hasSelection() && within(localPoint(event), selectedOutline);
+    if (!corner && !selectedTouch && event.pointerType === 'touch' && (board || !prefs.finger)) {
       if (active?.pointerType === 'pen') return;
       event.preventDefault();
       pointers.set(event.pointerId, [event.clientX, event.clientY]);
@@ -346,16 +564,20 @@ export function createSurface(host, content, options) {
       return;
     }
     if (board && (event.shiftKey || tool === 'hand')) tool = 'hand';
-    if (tool === 'lasso' && selected.length && within(point, selectedOutline)) tool = 'move';
+    if (corner && hasSelection()) tool = 'resize';
+    else if (tool === 'lasso' && hasSelection() && within(point, selectedOutline)) tool = 'move';
     else if (tool !== 'hand') {
       selected = [];
+      selectedTexts = [];
+      selectedObjects = [];
+      selectionTools.hidden = true;
       selectedOutline = [];
       overlay.replaceChildren();
       notifySelection?.([], null);
     }
     event.preventDefault();
     surface.setPointerCapture(event.pointerId);
-    beginStroke(event, tool);
+    beginStroke(event, tool, corner);
   });
 
   surface.addEventListener('pointermove', event => {
@@ -370,7 +592,7 @@ export function createSurface(host, content, options) {
         if (factor !== 1) zoom(...gesture.center, view.zoom * factor);
         view.x += dx;
         view.y += dy;
-        renderView();
+        scheduleFrame('view');
       } else {
         if (factor !== 1) options.pinch?.(factor, ...gesture.center);
         host.closest('#content')?.scrollBy({ left: -dx, top: -dy, behavior: 'instant' });
@@ -391,16 +613,16 @@ export function createSurface(host, content, options) {
       view.x += event.clientX - active.screen[0];
       view.y += event.clientY - active.screen[1];
       active.screen = [event.clientX, event.clientY];
-      renderView();
+      scheduleFrame('view');
       return;
     }
+    const rect = surface.getBoundingClientRect();
     const samples = event.getCoalescedEvents?.();
     for (const sample of samples?.length ? samples : [event]) {
-      const point = localPoint(sample);
-      if (active.tool === 'erase') erase(point);
-      else if (distance(point, active.points.at(-1)) > 0.2) active.points.push(point);
+      if (active.tool === 'erase') erase(localPoint(sample, rect));
+      else appendPoint(sample, rect);
     }
-    if (active.tool !== 'erase') strokePreview();
+    if (active.tool !== 'erase') scheduleFrame('preview');
   });
 
   function end(event) {
@@ -413,21 +635,33 @@ export function createSurface(host, content, options) {
 
   function finishStroke(event, save) {
     if (!active || active.pointer !== event.pointerId) return;
-    const { id, points, tool, color, width, erased } = active;
+    if (save && !['hand', 'erase'].includes(active.tool)) appendPoint(event, surface.getBoundingClientRect(), true);
+    const { id, points, tool, color, width, erased, objectBounds } = active;
+    const transform = ['move', 'resize'].includes(tool) ? selectionTransform() : null;
+    if (transform) resetSelectionPreview(objectBounds);
     active = null;
     preview.replaceChildren();
     if (!save) { render(); return; }
-    const endPoint = localPoint(event);
-    if (distance(endPoint, points.at(-1)) > 0.2) points.push(endPoint);
+    previewDirty = false;
     if (tool === 'hand') return;
     if (tool === 'erase') {
       if (erased.size) update({ ...state, strokes: (state.strokes ?? []).filter(stroke => !erased.has(stroke.id)) });
       return;
     }
+    if (transform) {
+      if (Math.abs(transform.scale - 1) > .001 || Math.abs(transform.x) + Math.abs(transform.y) > .1) applySelection(transform, objectBounds);
+      else render();
+      return;
+    }
     if (tool === 'lasso') {
       if (points.length < 3) return;
       selected = (state.strokes ?? []).filter(stroke => segments(stroke).some(p => within(p, points)));
-      selectedOutline = selected.length ? points : [];
+      selectedTexts = (state.texts ?? []).filter(item => within([item.x, item.y], points) || within([item.x + (item.width ?? 250) / 2, item.y + 15], points));
+      selectedObjects = (options.objects?.() ?? []).filter(object => {
+        const [x, y, w, h] = object.bounds();
+        return [[x, y], [x + w, y], [x, y + h], [x + w, y + h], [x + w / 2, y + h / 2]].some(point => within(point, points));
+      });
+      selectedOutline = hasSelection() ? points : [];
       notifySelection?.(selected, text => {
         const p = selectedOutline[0] ?? [25, 25];
         selected = [];
@@ -444,17 +678,6 @@ export function createSurface(host, content, options) {
       render();
       return;
     }
-    if (tool === 'move') {
-      const last = points.at(-1);
-      const dx = last[0] - points[0][0], dy = last[1] - points[0][1];
-      const shift = p => [p[0] + dx, p[1] + dy, ...p.slice(2)];
-      const ids = new Set(selected.map(stroke => stroke.id));
-      const strokes = state.strokes.map(stroke => ids.has(stroke.id) ? { ...stroke, points: stroke.points.map(shift) } : stroke);
-      selected = strokes.filter(stroke => ids.has(stroke.id));
-      selectedOutline = selectedOutline.map(shift);
-      update({ ...state, strokes });
-      return;
-    }
     const stroke = { id, points: ['line', 'rect', 'ellipse'].includes(tool) ? [points[0], points.at(-1)] : points, tool, color, width };
     update({ ...state, strokes: [...(state.strokes ?? []), stroke] });
   }
@@ -462,21 +685,34 @@ export function createSurface(host, content, options) {
   surface.addEventListener('contextmenu', event => event.preventDefault());
   if (board) surface.addEventListener('wheel', event => {
     event.preventDefault();
+    if (interactionLocked) return;
     if (event.ctrlKey || event.metaKey) zoom(event.clientX, event.clientY, view.zoom * Math.exp(-event.deltaY * 0.006));
     else {
       view.x -= event.deltaX;
       view.y -= event.deltaY;
-      renderView();
+      scheduleFrame('view');
     }
   }, { passive: false });
-  const resize = new ResizeObserver(renderView);
+  const resize = new ResizeObserver(() => scheduleFrame('view'));
   resize.observe(host);
-  signal?.addEventListener('abort', () => resize.disconnect(), { once: true });
+  signal?.addEventListener('abort', () => {
+    resize.disconnect();
+    cancelAnimationFrame(frame);
+    cachedInk.clear();
+    active = null;
+  }, { once: true });
   renderView();
   render();
   return {
     host,
     view: () => ({ ...view }),
+    refreshSelection: renderSelection,
+    setInteractionLocked(locked) {
+      interactionLocked = locked;
+      pointers.clear(); gesture = null;
+      overlay.style.visibility = locked ? 'hidden' : '';
+      if (locked) selectionTools.hidden = true; else renderSelection();
+    },
     addTextNear(clientX, clientY) {
       const point = coordinates(clientX, clientY);
       const nearby = (state.texts ?? []).filter(item => Math.abs(item.x - point[0]) < 5 && Math.abs(item.y - point[1]) < 160);

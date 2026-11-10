@@ -76,7 +76,7 @@ with sync_playwright() as p:
                 assert page.locator("#microbook").get_attribute("data-theme")!=theme;checks+=1
                 page.goto(BOOK);page.get_by_role("button",name="Сохранить офлайн",exact=True).click()
                 expect(page.get_by_role("button",name="✓ Учебник сохранён",exact=True)).to_be_visible(timeout=30000);checks+=1
-                context.set_offline(True);page.goto(BOOK+"#biofilm")
+                context.set_offline(True);page.goto(BOOK+"#biofilm");page.reload()
                 expect(page.locator('[data-model="biofilm"]')).to_be_visible();checks+=1
                 context.set_offline(False)
                 assert not errors,errors

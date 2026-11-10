@@ -5,10 +5,13 @@ on:
       - 'phagi/bioviz/microbiology/**'
       - '.github/workflows/microbiology-check.yml'
   push:
-    branches: [main]
+    branches: [main, codex/microbiology-textbook-4-lessons]
     paths:
       - 'phagi/bioviz/microbiology/**'
       - '.github/workflows/microbiology-check.yml'
+concurrency:
+  group: microbook-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:

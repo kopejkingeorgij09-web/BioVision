@@ -1,0 +1,37 @@
+name: Microbiology textbook checks
+on:
+  pull_request:
+    paths:
+      - 'phagi/bioviz/microbiology/**'
+      - '.github/workflows/microbiology-check.yml'
+  push:
+    branches: [main, codex/microbiology-textbook-4-lessons]
+    paths:
+      - 'phagi/bioviz/microbiology/**'
+      - '.github/workflows/microbiology-check.yml'
+concurrency:
+  group: microbook-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  textbook:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Check JavaScript and course data
+        run: |
+          for microbook_source in phagi/bioviz/microbiology/*.js; do
+            node --check "$microbook_source"
+          done
+          node phagi/bioviz/microbiology/check.cjs
+      - name: Prepare isolated browser tests
+        run: |
+          python3 -m venv /tmp/microbook-qa
+          /tmp/microbook-qa/bin/pip install playwright==1.56.0
+          /tmp/microbook-qa/bin/python -m playwright install --with-deps chromium
+      - name: Test phones, tablets, dark theme, offline and legacy integration
+        run: /tmp/microbook-qa/bin/python phagi/bioviz/microbiology/browser_check.py

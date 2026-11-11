@@ -329,7 +329,7 @@ export function createSurface(host, content, options) {
     if (board && (view.x !== lastView.x || view.y !== lastView.y || view.zoom !== lastView.zoom)) {
       lastView = { ...view };
       options.onViewChange?.(lastView);
-      host.dispatchEvent(new Event("boardviewchange"));
+      host.dispatchEvent(new window.Event("boardviewchange"));
     }
     positionSelection();
   }

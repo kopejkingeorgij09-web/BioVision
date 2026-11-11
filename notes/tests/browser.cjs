@@ -170,6 +170,57 @@ const root = path.resolve(__dirname, '../..');
     });
     assert.ok(exportTest.count >= 5); assert.equal(exportTest.sparse, 2);
     console.log('PASS multi-notebook/text PDF and sparse, negative board coordinates');
+    if (process.env.POLYA_PDFJS_ROOT) {
+      const fixture = await PDFDocument.create();
+      fixture.addPage([360, 480]).drawText('Vector PDF source', { x: 20, y: 400, size: 16 });
+      fixture.addPage([360, 480]).drawText('Second page', { x: 20, y: 400, size: 16 });
+      const fixtureBytes = await fixture.save();
+      await page.locator('#file-picker').setInputFiles({ name: 'Source.pdf', mimeType: 'application/pdf', buffer: Buffer.from(fixtureBytes) });
+      await page.getByRole('button', { name: '▣ Source.pdf', exact: true }).click();
+      await page.locator('.board-pdf-page canvas').first().waitFor();
+      await page.locator('.board-image-move').last().waitFor();
+      const original = await page.evaluate(async () => {
+        const { list } = await import('/notes/js/local.js');
+        const files = await list('files', 'local');
+        const items = await list('items', 'local');
+        const source = items.flatMap(item => item.data.attachments ?? []).find(file => file.name === 'Source.pdf');
+        return Array.from(new Uint8Array(await files.find(file => file.id === source.id).blob.arrayBuffer()));
+      });
+      assert.deepEqual(Buffer.from(original), Buffer.from(fixtureBytes));
+      const pdfPanel = page.locator('.board-file').filter({ hasText: 'Source.pdf' });
+      const b = await pdfPanel.boundingBox();
+      await page.getByRole('button', { name: 'Лассо', exact: true }).click();
+      const polygon = [[b.x + 60, b.y + 70], [b.x + 220, b.y + 70], [b.x + 220, b.y + 230], [b.x + 60, b.y + 230]];
+      await page.mouse.move(...polygon[0]); await page.mouse.down();
+      for (const point of [...polygon.slice(1), polygon[0]]) await page.mouse.move(...point, { steps: 4 });
+      await page.mouse.up();
+      const initialWidth = await pdfPanel.evaluate(node => parseFloat(node.style.width));
+      await page.getByRole('button', { name: 'Увеличить выделение', exact: true }).click();
+      assert.ok(Math.abs(await pdfPanel.evaluate(node => parseFloat(node.style.width)) - initialWidth * 1.25) < .01);
+      await page.getByRole('button', { name: 'Отменить', exact: true }).click();
+      await page.getByRole('button', { name: '▣ Source.pdf', exact: true }).click();
+      await page.locator('.board-pdf-page canvas').first().waitFor();
+      const sheet = await page.locator('.board-pdf-page').first().boundingBox();
+      await page.locator('.board .ink').evaluate((node, point) => node.dispatchEvent(new WheelEvent('wheel', { clientX: point.x, clientY: point.y, ctrlKey: true, deltaY: -220, cancelable: true })), { x: sheet.x + 120, y: sheet.y + 120 });
+      await page.waitForFunction(() => document.querySelector('.board-pdf-page canvas')?.width > 1100);
+      const downloadReady = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'PDF', exact: true }).click();
+      await (await downloadReady).saveAs('/tmp/polya-export-source-pdf.pdf');
+      const saved = await PDFDocument.load(await fs.readFile('/tmp/polya-export-source-pdf.pdf'));
+      assert.ok(saved.getPageCount() >= 2);
+      console.log('PASS byte-identical PDF import, lasso resize/undo, resolution on zoom, PDF export');
+    }
+    const nativeExport = await page.evaluate(async () => {
+      const { savePdf } = await import('/notes/js/pdf-export.js');
+      const parts = []; let completed = false;
+      window.NotesAndroid = { beginPdfExport: () => true, appendPdfChunk: chunk => { parts.push(chunk); return true; }, finishPdfExport: () => { completed = true; }, cancelPdfExport: () => {} };
+      await savePdf(new Uint8Array(150000).fill(201), 'Проверка.pdf');
+      delete window.NotesAndroid;
+      return { completed, lengths: parts.map(p => atob(p).length), values: parts.every(p => [...atob(p)].every(c => c.charCodeAt(0) === 201)) };
+    });
+    assert.equal(nativeExport.completed, true); assert.equal(nativeExport.lengths.reduce((a, b) => a + b), 150000); assert.equal(nativeExport.values, true);
+    console.log('PASS Android chunked PDF bridge preserves bytes');
+
 
     assert.deepEqual(errors, []);
     const perf = await context.newPage();

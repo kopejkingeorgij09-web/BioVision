@@ -10,7 +10,7 @@ const limit = (n, low, high) => Math.max(low, Math.min(n, high));
 const center = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
 const line = point => point.slice(0, 2).map(n => n.toFixed(2)).join(' ');
 
-function outline(points, width) {
+export function outline(points, width) {
   if (points.length === 1) {
     const [x, y, pressure] = points[0];
     const radius = width * (0.25 + pressure * 0.5);
@@ -329,6 +329,7 @@ export function createSurface(host, content, options) {
     if (board && (view.x !== lastView.x || view.y !== lastView.y || view.zoom !== lastView.zoom)) {
       lastView = { ...view };
       options.onViewChange?.(lastView);
+      host.dispatchEvent(new Event("boardviewchange"));
     }
     positionSelection();
   }
@@ -779,6 +780,8 @@ export function createSurface(host, content, options) {
       gesture = { center: p.length > 1 ? center(...p) : p[0], distance: p.length > 1 ? distance(...p) : 0 };
       return;
     }
+    // Recover a missed pen-up without joining two separate contacts.
+    if (active?.pointerType === 'pen' && event.pointerType === 'pen') finishStroke(event, true, false);
     if (active || (event.button !== 0 && event.pointerType !== 'pen')) return;
     if (event.pointerType === 'pen') {
       if (event.button === 2 && !event.pressure && !(event.buttons & 1)) return;
@@ -831,6 +834,12 @@ export function createSurface(host, content, options) {
     if (!active || event.pointerId !== active.pointer) return;
     if (active.tool === 'text') return;
     if (event.pointerType === 'pen') {
+      // Samsung WebView may deliver a final MOVE after contact is already gone.
+      // Its hover position must never become part of the written stroke.
+      if (event.pressure === 0 && !(event.buttons & 1) && !(event.buttons & 32)) {
+        finishStroke(event, true, false);
+        return;
+      }
       const next = sideTool?.(event);
       if (next !== active.tool && ['pen', 'highlight', 'erase'].includes(next) &&
           ['pen', 'highlight', 'erase'].includes(active.tool) && [next, active.tool].includes('erase')) {
@@ -850,7 +859,7 @@ export function createSurface(host, content, options) {
     const samples = event.getCoalescedEvents?.();
     for (const sample of samples?.length ? samples : [event]) {
       if (active.tool === 'erase') erase(localPoint(sample, rect));
-      else appendPoint(sample, rect);
+      else if (event.pointerType !== 'pen' || sample.pressure !== 0) appendPoint(sample, rect);
     }
     if (active.tool !== 'erase') { scheduleFrame('preview'); waitForShape(event); }
   });
@@ -864,9 +873,15 @@ export function createSurface(host, content, options) {
     finishStroke(event, event.type === 'pointerup');
   }
 
-  function finishStroke(event, save) {
+  function finishStroke(event, save, includeTerminal = true) {
     if (!active || active.pointer !== event.pointerId) return;
-    if (save && !['hand', 'erase'].includes(active.tool)) appendPoint(event, surface.getBoundingClientRect(), true);
+    const freehand = active.pointerType === 'pen' && ['pen', 'highlight'].includes(active.tool);
+    const terminalDistance = distance(localPoint(event), active.points.at(-1)) * viewport().scale;
+    // Ignore a distant zero-pressure lift sample; it creates the hairline tails.
+    if (save && includeTerminal && !['hand', 'erase'].includes(active.tool) &&
+        !(freehand && event.pressure === 0 && terminalDistance > 12)) {
+      appendPoint(event, surface.getBoundingClientRect(), true);
+    }
     const { id, points, tool, color, width, erased, objectBounds, fixedColor, shape } = active;
     const transform = ['move', 'resize'].includes(tool) ? selectionTransform() : null;
     if (transform) resetSelectionPreview(objectBounds);
@@ -900,7 +915,8 @@ export function createSurface(host, content, options) {
       });
       selectedObjects = (options.objects?.() ?? []).filter(object => {
         const [x, y, w, h] = object.bounds();
-        return [[x, y], [x + w, y], [x, y + h], [x + w, y + h], [x + w / 2, y + h / 2]].some(point => within(point, points));
+        return [[x, y], [x + w, y], [x, y + h], [x + w, y + h], [x + w / 2, y + h / 2]].some(point => within(point, points)) ||
+          points.some(([px, py]) => px >= x && px <= x + w && py >= y && py <= y + h);
       });
       selectedOutline = hasSelection() ? points : [];
       notifySelection?.(selected, text => {

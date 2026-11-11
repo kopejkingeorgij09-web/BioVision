@@ -1,0 +1,60 @@
+name: Polya checks and Android build
+on:
+  push:
+    branches: ['codex/polya-smooth-pen-pdf']
+  pull_request:
+    paths: ['notes/**', '.github/workflows/polya-check.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install test tools outside the application
+        run: |
+          mkdir -p "$RUNNER_TEMP/polya-test"
+          cd "$RUNNER_TEMP/polya-test"
+          npm init -y
+          npm install linkedom playwright pdfjs-dist@6.5.438
+          npx playwright install --with-deps chromium
+      - name: Syntax and input regression tests
+        env:
+          NODE_PATH: ${{ runner.temp }}/polya-test/node_modules
+        run: |
+          for file in notes/js/*.js; do node --check "$file"; done
+          node --test notes/tests/input.test.mjs
+      - name: Browser and PDF integration tests
+        env:
+          NODE_PATH: ${{ runner.temp }}/polya-test/node_modules
+          POLYA_PDFJS_ROOT: ${{ runner.temp }}/polya-test/node_modules/pdfjs-dist
+        run: node notes/tests/browser.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: polya-validation
+          path: |
+            /tmp/polya-*.png
+            /tmp/polya-*.pdf
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Build Android debug APK
+        run: gradle -p notes/android assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Polya-0.7.3-test
+          path: notes/android/app/build/outputs/apk/debug/app-debug.apk

@@ -40,7 +40,7 @@ if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWork
 /* Загрузка: файлы качаются параллельно, выполняются строго по порядку.
    К адресу добавляется версия: после обновления браузер не возьмёт старый файл из кеша.
    ПЕРЕД КАЖДЫМ PUSH поднимай BV_VER. */
-const BV_VER='2026-11-10-microbiology-textbook-v1';
+const BV_VER='2026-11-11-polya-v073';
 const CORE=['bioviz/core/base.js','bioviz/core/konspekt.js','bioviz/core/mol.js','bioviz/core/vz.js','content/course.js'];
 const TAIL=['bioviz/core/app.js','bioviz/core/split.js','bioviz/core/lnav.js','bioviz/core/prompt.js','bioviz/core/labworks.js','bioviz/core/admin.js','bioviz/core/search.js','bioviz/core/terms.js','bioviz/core/intro.js','bioviz/core/offline.js'];
 const url=(s,bust)=>s+'?v='+BV_VER+(bust?'&r='+Date.now():'');

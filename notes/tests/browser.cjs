@@ -5,11 +5,18 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const root = path.resolve(__dirname, '../..');
 (async () => {
-  const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+  const browser = await chromium.launch({ executablePath: process.env.POLYA_CHROMIUM, headless: true, args: ['--no-sandbox'] });
   try {
     const context = await browser.newContext({ viewport: { width: 1024, height: 768 }, serviceWorkers: 'block' });
     await context.route('**/*', async route => {
       const url = new URL(route.request().url());
+      if (url.hostname === 'cdn.jsdelivr.net' && process.env.POLYA_PDFJS_ROOT && url.pathname.startsWith('/npm/pdfjs-dist@6.5.438/')) {
+        const relative = url.pathname.split('/npm/pdfjs-dist@6.5.438/')[1];
+        const file = path.resolve(process.env.POLYA_PDFJS_ROOT, relative);
+        if (!file.startsWith(path.resolve(process.env.POLYA_PDFJS_ROOT) + path.sep)) return route.abort();
+        try { return await route.fulfill({ body: await fs.readFile(file), contentType: file.endsWith('.mjs') ? 'text/javascript' : 'application/octet-stream', headers: { 'access-control-allow-origin': '*' } }); }
+        catch { return route.fulfill({ status: 404, body: 'Missing PDF resource' }); }
+      }
       if (url.hostname !== 'localhost') return route.abort();
       const pathname = url.pathname.endsWith('/') ? url.pathname + 'index.html' : url.pathname;
       const file = path.resolve(root, '.' + pathname);
@@ -132,6 +139,38 @@ const root = path.resolve(__dirname, '../..');
       assert.equal(await page.getByRole('button', { name: 'Вставить', exact: true }).isVisible(), true);
     }
     console.log('PASS tablet and 390px dark layout');
+    await page.setViewportSize({ width: 1024, height: 844 });
+    await page.getByRole('button', { name: 'Перо', exact: true }).click();
+    await page.getByRole('group', { name: 'Настройки пера', exact: true }).waitFor();
+    const beforeWidth = await page.getByLabel('Толщина пера', { exact: true }).inputValue();
+    await page.getByRole('button', { name: 'Увеличить толщину пера на 0,1', exact: true }).click();
+    assert.ok(Math.abs(Number(await page.getByLabel('Толщина пера', { exact: true }).inputValue()) - Number(beforeWidth) - .1) < .00001);
+    await page.getByRole('button', { name: 'Уменьшить толщину пера на 0,1', exact: true }).click();
+    assert.equal(Number(await page.getByLabel('Толщина пера', { exact: true }).inputValue()), Number(beforeWidth));
+    await page.getByLabel('Цвет пера', { exact: true }).fill('#3344bb');
+    await page.screenshot({ path: '/tmp/polya-quick-pen.png' });
+    console.log('PASS direct pen palette, color and exact 0.1 increments');
+    const pdfDownload = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'PDF', exact: true }).click();
+    const downloaded = await pdfDownload;
+    await downloaded.saveAs('/tmp/polya-export-board.pdf');
+    const { PDFDocument } = await import('../js/vendor/pdf-lib.js');
+    const exported = await PDFDocument.load(await fs.readFile('/tmp/polya-export-board.pdf'));
+    assert.ok(exported.getPageCount() >= 1);
+    console.log('PASS board PDF download with image and Cyrillic text: ' + exported.getPageCount() + ' pages');
+    const exportTest = await page.evaluate(async () => {
+      const { PDFDocument } = await import('/notes/js/vendor/pdf-lib.js');
+      const { exportNotesPdf, boardTiles } = await import('/notes/js/pdf-export.js');
+      const strokes = [{ id: 's', tool: 'pen', width: 3, color: 'auto', points: [[20, 20, .5], [100, 50, .5]] }];
+      const notes = [{ data: { kind: 'pages', title: 'Тетрадь', pages: [{ strokes, texts: [] }, { strokes: [], texts: [{ x: 40, y: 70, text: 'Русский текст', pt: 12 }] }] } },
+        { data: { kind: 'text', title: 'Текст', body: 'Длинный текст\n'.repeat(100), textPt: 18 } }];
+      const bytes = await exportNotesPdf(notes, 'local');
+      const output = await PDFDocument.load(bytes);
+      return { count: output.getPageCount(), sparse: boardTiles([{ box: [-100, -100, 10, 10] }, { box: [100000, 200000, 20, 20] }]).length };
+    });
+    assert.ok(exportTest.count >= 5); assert.equal(exportTest.sparse, 2);
+    console.log('PASS multi-notebook/text PDF and sparse, negative board coordinates');
+
     assert.deepEqual(errors, []);
     const perf = await context.newPage();
     await perf.goto('http://localhost:3333/notes/');

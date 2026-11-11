@@ -1,0 +1,21 @@
+name: Polya macOS companion release
+on:
+  push:
+    branches: ['codex/polya-073-macos-release']
+permissions:
+  contents: read
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set release metadata
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 0.7.3" notes/macos/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion 11" notes/macos/Info.plist
+      - name: Build universal application
+        run: bash notes/scripts/build-macos.sh "$RUNNER_TEMP/polya-macos"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Polya-0.7.3-macOS
+          path: ${{ runner.temp }}/polya-macos/Polya-macOS.zip

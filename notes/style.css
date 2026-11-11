@@ -332,3 +332,5 @@ dialog :is(select, input) { min-width: 0; max-width: 100%; }
 .pen-quick button { min-width: 36px; min-height: 36px; font-size: 20px; }
 .board-image-panel .board-pdf-page { height: auto; }
 .board-image-panel .board-pdf-page canvas { position: absolute; inset: 0; }
+
+.pen-quick label > span { display: none; }

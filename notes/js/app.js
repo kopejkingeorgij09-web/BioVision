@@ -886,7 +886,8 @@ function inkControls(board, surface, withLayout) {
   const minus = button('−', () => step(-.1)); minus.setAttribute('aria-label', 'Уменьшить толщину пера на 0,1');
   const plus = button('+', () => step(.1)); plus.setAttribute('aria-label', 'Увеличить толщину пера на 0,1');
   quick.append(color, minus, width, plus);
-  bar.append(quick, presets);
+  bar.querySelector('[data-ink-tool="pen"]').after(quick);
+  bar.append(presets);
   const editPresets = button('Настроить перья', () => choose('Избранные перья', (dialog, close) => {
     const form = element('form');
     const fields = colors().map((item, i) => {

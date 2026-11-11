@@ -45,7 +45,12 @@ async function textImage(pdf, text, width, size = 16, bold = false, italic = fal
 function imageNode(image, box, pdfPage = false) {
   return { box, draw(page, ox, oy) {
     const options = { x: (box[0] - ox) * S, y: (H - box[1] + oy - box[3]) * S, width: box[2] * S, height: box[3] * S };
-    if (pdfPage) page.drawPage(image, options); else page.drawImage(image, options);
+    if (pdfPage) {
+      // PDF pages have a white paper backdrop in the editor, even when the
+      // source content stream leaves its background transparent.
+      page.drawRectangle({ ...options, color: rgb(1, 1, 1) });
+      page.drawPage(image, options);
+    } else page.drawImage(image, options);
   } };
 }
 

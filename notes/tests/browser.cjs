@@ -174,6 +174,7 @@ const root = path.resolve(__dirname, '../..');
       const fixture = await PDFDocument.create();
       fixture.addPage([360, 480]).drawText('Vector PDF source', { x: 20, y: 400, size: 16 });
       fixture.addPage([360, 480]).drawText('Second page', { x: 20, y: 400, size: 16 });
+      fixture.addPage([360, 480]); // A PDF can contain a blank page without a Contents stream.
       const fixtureBytes = await fixture.save();
       await page.locator('#file-picker').setInputFiles({ name: 'Source.pdf', mimeType: 'application/pdf', buffer: Buffer.from(fixtureBytes) });
       await page.getByRole('button', { name: '▣ Source.pdf', exact: true }).click();

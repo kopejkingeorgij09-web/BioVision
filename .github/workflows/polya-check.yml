@@ -5,6 +5,9 @@ on:
   pull_request:
     paths: ['notes/**', '.github/workflows/polya-check.yml']
   workflow_dispatch:
+concurrency:
+  group: polya-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:

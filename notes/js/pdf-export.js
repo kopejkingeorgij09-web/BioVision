@@ -105,10 +105,15 @@ async function addAttachment(pdf, scene, file, library, board) {
   }
   if (file.mime === 'application/pdf') {
     const source = await PDFDocument.load(await blob.arrayBuffer());
-    const embedded = await pdf.embedPages(source.getPages());
-    for (const [i, page] of embedded.entries()) {
-      const height = width * page.height / page.width;
-      scene.push(imageNode(page, [x, y, width, height], true));
+    for (const [i, sourcePage] of source.getPages().entries()) {
+      const height = width * sourcePage.getHeight() / sourcePage.getWidth();
+      if (sourcePage.node.Contents()) {
+        const page = await pdf.embedPage(sourcePage);
+        scene.push(imageNode(page, [x, y, width, height], true));
+      } else {
+        const box = [x, y, width, height];
+        scene.push({ box, draw(page, ox, oy) { page.drawRectangle({ x: (box[0] - ox) * S, y: (H - box[1] + oy - box[3]) * S, width: box[2] * S, height: box[3] * S, color: rgb(1, 1, 1) }); } });
+      }
       await addMarks(pdf, scene, file.marks?.['page-' + (i + 1)], x, y, width / 1000);
       y += height + (board ? 22 : 0);
     }
@@ -196,7 +201,7 @@ export async function exportNotesPdf(notes, library, progress = () => {}) {
         let y = 24;
         for (let line = 0; line < Math.max(1, lines.length); line += 44) {
           const text = await textImage(pdf, lines.slice(line, line + 44).join('\n'), W - 48, (data.textPt ?? 12) * 4 / 3);
-          scene.push(imageNode(text.image, [24, y, text.width, text.height])); y += text.height; 
+          scene.push(imageNode(text.image, [24, y, text.width, text.height])); y += text.height;
         }
         renderScene(pdf, scene, Array.from({ length: Math.max(1, Math.ceil((y + 24) / H)) }, (_, i) => [0, i * H, W, H]));
       } else for (const mark of data.pages ?? []) {

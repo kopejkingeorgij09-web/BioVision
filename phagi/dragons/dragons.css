@@ -799,3 +799,4 @@ body.dri-open .drg-fly,body.drf-open .drg-fly{animation-play-state:paused}
 .drg-family summary,.drg-predbox>details summary{cursor:pointer;min-height:40px;font-weight:600}.drg-quick-genes{padding:10px;border:1px solid var(--line);border-radius:12px;margin:10px 0}.drg-quick-genes p{margin:6px 0}.drg-prob-buttons{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}.drg-prob-buttons button{min-height:44px}.drg-prob-buttons [aria-pressed=true]{border:2px solid var(--bio);font-weight:800;background:var(--soft)}
 
 .drf-targets .drf-target{display:grid;grid-template-columns:28px minmax(0,1fr);align-items:center}.drf-targets .drf-target small{grid-column:2;white-space:normal}.drf-target kbd{border:1px solid var(--line);border-radius:5px;padding:2px;text-align:center}
+.drg-pause p{margin:6px 0 0}

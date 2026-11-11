@@ -203,3 +203,39 @@ test('0.7.1 hold-to-straighten still saves a shape after smooth preview', async 
   t.dispatch('pointerup', { clientX: 140, clientY: 50 });
   assert.equal(t.saved().strokes[0].tool, 'line');
 });
+
+
+test('pen hover and distant lift never append hairlines to a contact', () => {
+  const t = setup(); t.dispatch('pointerdown');
+  t.dispatch('pointermove', { clientX: 40, pressure: .4, buttons: 1 });
+  t.dispatch('pointermove', { clientX: 300, clientY: 300, pressure: 0, buttons: 0 });
+  assert.ok(t.saved().strokes[0].points.every(point => point[0] < 50));
+  t.dispatch('pointerup', { clientX: 350, pressure: 0 });
+  assert.equal(t.saved().strokes.length, 1);
+  t.dispatch('pointerdown', { clientX: 100 });
+  t.dispatch('pointermove', { clientX: 110, pressure: .5, buttons: 1 });
+  t.dispatch('pointerup', { clientX: 400, pressure: 0 });
+  assert.equal(t.saved().strokes.length, 2);
+  assert.ok(t.saved().strokes[1].points.every(point => point[0] <= 110));
+});
+
+test('new contact recovers a missing release without connecting strokes', () => {
+  const t = setup(); t.dispatch('pointerdown');
+  t.dispatch('pointermove', { clientX: 40 });
+  t.dispatch('pointerdown', { clientX: 200 });
+  t.dispatch('pointermove', { clientX: 210 });
+  t.dispatch('pointerup', { clientX: 211, pressure: 0 });
+  assert.equal(t.saved().strokes.length, 2);
+  assert.ok(t.saved().strokes[0].points.every(point => point[0] < 50));
+  assert.equal(t.saved().strokes[1].points[0][0], 200);
+});
+
+test('lasso inside a large PDF selects it and commits movement', () => {
+  let bounds = [-300, -300, 1000, 1500];
+  const object = { id: 'pdf', bounds: () => bounds, preview() {}, commit(next) { bounds = next; return { boardPosition: { x: next[0], y: next[1] }, boardWidth: next[2] }; } };
+  const t = setup([], true, [object]); lasso(t);
+  t.dispatch('pointerdown', { clientX: 50, clientY: 50 });
+  t.dispatch('pointerup', { clientX: 100, clientY: 80 });
+  assert.equal(t.saved().changed[0].id, 'pdf');
+  assert.deepEqual(t.saved().changed[0].boardPosition, { x: -250, y: -270 });
+});

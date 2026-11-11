@@ -8,6 +8,7 @@ import { cloudConfig } from './config.js';
 import { createPenButton, defaultPenButton } from './pen-button.js';
 import { createUtilities } from './utilities.js';
 import { boardMap } from './board-map.js';
+import { exportNotesPdf, savePdf } from './pdf-export.js';
 import { handwritingLines, recognizeInk, searchText } from './note-search.js';
 
 const $ = id => document.getElementById(id);
@@ -22,7 +23,7 @@ const tools = { pen: 'Перо', highlight: 'Маркер', erase: 'Ластик
 const blank = () => ({ id: crypto.randomUUID(), strokes: [], texts: [] });
 const preferenceKey = 'biovision-notes-pen';
 const themes = { system: 'Как в системе', white: 'Белая', gray: 'Серая', warm: 'Тёплая белая', violet: 'Тёмно-фиолетовая', green: 'Тёмно-зелёная', black: 'Чёрная' };
-const appVersion = { name: '0.7.2', code: 10 };
+const appVersion = { name: '0.7.3', code: 11 };
 const releaseBase = cloudConfig.url + '/storage/v1/object/public/notes-releases/';
 const darkMode = matchMedia('(prefers-color-scheme: dark)');
 const existingPrefs = JSON.parse(localStorage.getItem(preferenceKey) ?? '{}');
@@ -831,8 +832,14 @@ function inkControls(board, surface, withLayout) {
     if (key === 'hand' && !board) continue;
     const control = button(label, () => {
       chooseTool(key);
+      if (key === 'pen') {
+        const panel = $('pen-quick');
+        panel.hidden = !panel.hidden;
+        control.setAttribute('aria-expanded', String(!panel.hidden));
+      }
     });
     control.dataset.inkTool = key;
+    if (key === 'pen') { control.setAttribute('aria-expanded', 'false'); control.setAttribute('aria-controls', 'pen-quick'); }
     if (['line', 'rect', 'ellipse'].includes(key)) extra.append(control);
     else bar.append(control);
   }
@@ -869,6 +876,17 @@ function inkControls(board, surface, withLayout) {
     }
   }
   drawPresets();
+  const quick = element('div', undefined, 'pen-quick');
+  quick.id = 'pen-quick'; quick.hidden = true;
+  quick.setAttribute('role', 'group'); quick.setAttribute('aria-label', 'Настройки пера');
+  const step = delta => {
+    prefs.width = Math.max(.5, Math.min(36, Math.round((prefs.width + delta) * 10) / 10));
+    width.querySelector('input').value = prefs.width; remember();
+  };
+  const minus = button('−', () => step(-.1)); minus.setAttribute('aria-label', 'Уменьшить толщину пера на 0,1');
+  const plus = button('+', () => step(.1)); plus.setAttribute('aria-label', 'Увеличить толщину пера на 0,1');
+  quick.append(color, minus, width, plus);
+  bar.querySelector('[data-ink-tool="pen"]').after(quick);
   bar.append(presets);
   const editPresets = button('Настроить перья', () => choose('Избранные перья', (dialog, close) => {
     const form = element('form');
@@ -908,7 +926,7 @@ function inkControls(board, surface, withLayout) {
   const paste = button('Вставить объекты', pasteObjects);
   paste.id = 'paste-objects';
   paste.disabled = !objectClipboard;
-  extra.append(color, width, editPresets, finger, recognize, straighten, paste);
+  extra.append(editPresets, finger, recognize, straighten, paste);
   textControls(extra, prefs.textPt, true);
   const advanced = button('Дополнительно', () => {
     moreInkTools = !moreInkTools;
@@ -1244,12 +1262,41 @@ function render() {
   const paste = button('Вставить', () => void pasteMedia(paste));
   paste.title = 'Вставить фото или файл из буфера обмена';
   bar.insertBefore(paste, bar.querySelector('[data-ink-tool="highlight"]') ?? bar.firstChild);
-  bar.append(attach, undo, redo);
+  bar.append(attach, button('PDF', () => void exportPdf(current)), undo, redo);
   updateUndo();
 }
 
+let exportingPdf = false;
+async function exportPdf(item = null) {
+  if (exportingPdf) { message('PDF уже готовится…'); return; }
+  exportingPdf = true;
+  const library = scope;
+  try {
+    await writes;
+    const all = structuredClone(visible());
+    let notes = all.filter(entry => entry.data.kind !== 'folder');
+    if (item?.data.kind === 'folder') {
+      const descendants = new Set([item.id]);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const entry of all) if (descendants.has(entry.data.parent) && !descendants.has(entry.id)) { descendants.add(entry.id); changed = true; }
+      }
+      notes = notes.filter(entry => descendants.has(entry.id));
+    } else if (item) notes = notes.filter(entry => entry.id === item.id);
+    if (!notes.length) throw new Error('Нет заметок для экспорта.');
+    const bytes = await exportNotesPdf(notes, library, status => message('Создание PDF · ' + status));
+    const filename = (item?.data.title ?? 'Поля - все заметки').replace(/[\\/:*?"<>|]/g, '_') + '.pdf';
+    await savePdf(bytes, filename);
+    message(window.NotesAndroid?.beginPdfExport ? 'Выбери, куда сохранить PDF.' : 'PDF готов.');
+  } catch (error) { message('Не удалось экспортировать PDF: ' + error.message); }
+  finally { exportingPdf = false; }
+}
+window.notesPdfSaved = error => message(error || 'PDF сохранён.');
+
 function more(item) {
   choose('Действия', (dialog, close) => {
+    dialog.append(button('Экспорт в PDF', () => { close(); void exportPdf(item); }));
     if (current?.id === item.id) dialog.append(button('Инструменты', () => { close(); utilities.open(); }), button('Поиск по заметкам', searchLibrary));
     const form = element('form');
     const title = element('input');
@@ -1433,6 +1480,7 @@ function emailAccount() {
 
 $('new-item').onclick = () => createDialog();
 $('query').onclick = searchLibrary;
+$('export-library').onclick = () => void exportPdf();
 $('back-to-folder').onclick = () => open(folder);
 $('more').onclick = () => { if (current) more(current); };
 $('account').onclick = account;

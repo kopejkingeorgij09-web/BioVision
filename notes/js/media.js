@@ -24,7 +24,7 @@ export function describeFile(file) {
 }
 
 let pdfModule;
-async function pdfDocument(blob) {
+export async function pdfDocument(blob) {
   pdfModule ??= import(pdfBase + 'pdf.mjs').catch(error => {
     pdfModule = null;
     throw error;
@@ -129,7 +129,9 @@ export async function openMedia(root, attachment, options) {
         const content = await document.getPage(index);
         if (signal.aborted || mine !== generation) return;
         const canvas = element('canvas');
-        const viewport = content.getViewport({ scale: 1300 / content.getViewport({ scale: 1 }).width });
+        const natural = content.getViewport({ scale: 1 });
+        const pixels = Math.max(1300, Math.min(8192, Math.floor(Math.sqrt(24000000 * natural.width / natural.height)), root.clientWidth * (devicePixelRatio || 1) * 2));
+        const viewport = content.getViewport({ scale: pixels / natural.width });
         canvas.width = Math.round(viewport.width);
         canvas.height = Math.round(viewport.height);
         painting = content.render({ canvas, canvasContext: canvas.getContext('2d'), viewport });
@@ -231,7 +233,7 @@ export async function openMedia(root, attachment, options) {
 
 export const boardFileWidth = 720;
 
-function editBoardImage(panel, tools, file, options) {
+function editBoardFile(panel, tools, file, options) {
   tools.classList.add('board-image-tools');
   panel.classList.add('board-image-panel');
   const move = button('Переместить', () => {});
@@ -250,8 +252,8 @@ function editBoardImage(panel, tools, file, options) {
     }
     panel.style.setProperty('--image-scale', width / boardFileWidth);
     tools.style.height = panel.offsetHeight + 'px';
-    const text = panel.querySelector('.board-existing-text');
-    if (text) text.style.transform = 'scale(' + width / 1000 + ')';
+    for (const text of panel.querySelectorAll('.board-existing-text')) text.style.transform = 'scale(' + width / 1000 + ')';
+    options.host.dispatchEvent(new Event('boardviewchange'));
   }
   const object = {
     id: file.id,
@@ -339,7 +341,7 @@ export async function mountBoardFile(content, controls, file, options) {
   for (const node of [panel, tools]) {
     node.style.left = x + 'px';
     node.style.top = y + 'px';
-    node.style.width = (file.mime.startsWith('image/') ? file.boardWidth ?? boardFileWidth : boardFileWidth) + 'px';
+    node.style.width = (file.boardWidth ?? boardFileWidth) + 'px';
   }
   panel.dataset.attachment = file.id;
   const title = element('div', file.name, 'board-file-title');
@@ -382,25 +384,33 @@ export async function mountBoardFile(content, controls, file, options) {
           const height = Math.round(boardFileWidth * natural.height / natural.width);
           const sheet = element('section', undefined, 'board-pdf-page');
           sheet.dataset.page = number;
-          sheet.style.height = height + 'px';
+          sheet.style.aspectRatio = natural.width + ' / ' + natural.height;
+          sheet.style.height = 'auto';
           sheet.setAttribute('aria-label', 'Страница ' + number + ' из ' + pdf.numPages);
           const tag = element('small', number + ' / ' + pdf.numPages, 'board-page-number');
           sheet.append(tag);
           showExistingMarks(sheet, file.marks?.['page-' + number], boardFileWidth, height);
           panel.append(sheet);
           const state = {
-            visible: false, canvas: null, task: null, failed: false,
+            visible: false, canvas: null, task: null, failed: false, pixels: 0,
+            resolution() {
+              const zoom = options.boardView?.().zoom ?? 1;
+              const desired = Math.ceil((file.boardWidth ?? boardFileWidth) * zoom * (devicePixelRatio || 1));
+              return Math.max(1100, Math.min(8192, Math.floor(Math.sqrt(24000000 * natural.width / natural.height)), desired));
+            },
             async render() {
-              if (state.canvas || state.task || state.failed || signal.aborted) return;
+              const pixels = state.resolution();
+              if (state.task || state.failed || signal.aborted || (state.canvas && state.pixels >= pixels)) return;
               const canvas = element('canvas');
-              const viewport = page.getViewport({ scale: 1100 / natural.width });
+              const viewport = page.getViewport({ scale: pixels / natural.width });
               canvas.width = Math.ceil(viewport.width);
               canvas.height = Math.ceil(viewport.height);
               try {
                 state.task = page.render({ canvas, canvasContext: canvas.getContext('2d'), viewport });
                 await state.task.promise;
                 if (!signal.aborted && state.visible) {
-                  state.canvas = canvas;
+                  state.canvas?.remove();
+                  state.canvas = canvas; state.pixels = pixels;
                   sheet.prepend(canvas);
                 }
               } catch (error) {
@@ -415,10 +425,17 @@ export async function mountBoardFile(content, controls, file, options) {
               }
             },
           };
+          let refresh;
+          host.addEventListener('boardviewchange', () => {
+            clearTimeout(refresh);
+            refresh = setTimeout(() => { if (state.visible) void state.render(); }, 180);
+          }, { signal });
+          signal.addEventListener('abort', () => clearTimeout(refresh), { once: true });
           queued.set(sheet, state);
           observer.observe(sheet);
         }
       }
+      editBoardFile(panel, tools, file, options);
       return;
     }
 
@@ -432,6 +449,7 @@ export async function mountBoardFile(content, controls, file, options) {
         panel.append(sheet);
         showExistingMarks(sheet, file.marks?.['text-' + i / 42], boardFileWidth, sheet.offsetHeight);
       }
+      editBoardFile(panel, tools, file, options);
       return;
     }
 
@@ -447,7 +465,7 @@ export async function mountBoardFile(content, controls, file, options) {
       await image.decode();
       if (!signal.aborted) {
         showExistingMarks(sheet, file.marks?.image, file.boardWidth ?? boardFileWidth, sheet.offsetHeight);
-        editBoardImage(panel, tools, file, options);
+        editBoardFile(panel, tools, file, options);
       }
       return;
     }
@@ -457,6 +475,7 @@ export async function mountBoardFile(content, controls, file, options) {
     video.preload = 'metadata';
     video.src = url;
     sheet.append(video);
+    video.addEventListener('loadedmetadata', () => { if (!signal.aborted) editBoardFile(panel, tools, file, options); }, { once: true });
     const play = button('Воспроизвести', () => video.paused ? video.play().catch(() => {}) : video.pause());
     const time = element('input');
     time.type = 'range';

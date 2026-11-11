@@ -55,6 +55,19 @@ import org.json.JSONObject;
 public final class MainActivity extends Activity {
     private static final String HOST = "appassets.androidplatform.net";
     private static final int PICK_FILES = 11;
+    private static final int SAVE_PDF = 12;
+    private File exportedPdf;
+    private FileOutputStream pdfOutput;
+    private String exportedPdfName;
+    private boolean pdfChoosing;
+
+    private synchronized void clearPdfExport() {
+        try { if (pdfOutput != null) pdfOutput.close(); } catch (IOException ignored) {}
+        pdfOutput = null;
+        if (exportedPdf != null) exportedPdf.delete();
+        exportedPdf = null; pdfChoosing = false;
+    }
+
     private static final long MAX_CLIP_FILE = 50L * 1024 * 1024;
     private final ExecutorService clipboardWorker = Executors.newSingleThreadExecutor();
     private final ConcurrentHashMap<String, ClipboardFile> clipboardFiles = new ConcurrentHashMap<>();
@@ -154,6 +167,24 @@ public final class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int code, int result, Intent data) {
         super.onActivityResult(code, result, data);
+        if (code == SAVE_PDF) {
+            final Uri target = result == RESULT_OK && data != null ? data.getData() : null;
+            final File source = exportedPdf;
+            if (target == null || source == null) { clearPdfExport(); return; }
+            clipboardWorker.execute(() -> {
+                String error = "";
+                try (InputStream input = new FileInputStream(source);
+                     java.io.OutputStream output = getContentResolver().openOutputStream(target, "wt")) {
+                    if (output == null) throw new IOException("Не удалось открыть файл");
+                    byte[] buffer = new byte[65536]; int count;
+                    while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+                } catch (Exception failure) { error = "Не удалось сохранить PDF: " + failure.getMessage(); }
+                clearPdfExport();
+                final String message = error;
+                runOnUiThread(() -> { if (!isFinishing() && !isDestroyed()) web.evaluateJavascript("window.notesPdfSaved?.(" + JSONObject.quote(message) + ");", null); });
+            });
+            return;
+        }
         if (code == PICK_FILES && pendingFiles != null) {
             pendingFiles.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(result, data));
             pendingFiles = null;
@@ -196,6 +227,7 @@ public final class MainActivity extends Activity {
     @Override protected void onDestroy() {
         if (pendingFiles != null) pendingFiles.onReceiveValue(null);
         pendingFiles = null;
+        clearPdfExport();
         clipboardClosed = true;
         clipboardWorker.shutdownNow();
         for (ClipboardFile entry : clipboardFiles.values()) entry.file.delete();
@@ -282,6 +314,7 @@ public final class MainActivity extends Activity {
         }
 
         @Override public boolean onTouchEvent(MotionEvent event) {
+            requestUnbufferedDispatch(event);
             observePenButton(event, true);
             int action = event.getActionMasked();
             int index = event.getActionIndex();
@@ -337,6 +370,37 @@ public final class MainActivity extends Activity {
     }
 
     private final class InkBridge {
+        @JavascriptInterface public synchronized boolean beginPdfExport(String filename) {
+            if (exportedPdf != null || pdfChoosing) return false;
+            try {
+                exportedPdf = File.createTempFile("polya-export-", ".pdf", getCacheDir());
+                pdfOutput = new FileOutputStream(exportedPdf);
+                exportedPdfName = filename.replaceAll("[\\\\/:*?\"<>|]", "_");
+                return true;
+            } catch (IOException error) { clearPdfExport(); return false; }
+        }
+        @JavascriptInterface public synchronized boolean appendPdfChunk(String data) {
+            if (pdfOutput == null || data.length() > 65536) return false;
+            try { pdfOutput.write(android.util.Base64.decode(data, android.util.Base64.DEFAULT)); return true; }
+            catch (Exception error) { clearPdfExport(); return false; }
+        }
+        @JavascriptInterface public synchronized void cancelPdfExport() { clearPdfExport(); }
+        @JavascriptInterface public synchronized void finishPdfExport() {
+            if (pdfOutput == null || exportedPdf == null) return;
+            try { pdfOutput.close(); pdfOutput = null; pdfChoosing = true; }
+            catch (IOException error) { clearPdfExport(); return; }
+            runOnUiThread(() -> {
+                try {
+                    Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("application/pdf")
+                        .addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE, exportedPdfName);
+                    startActivityForResult(intent, SAVE_PDF);
+                } catch (Exception error) {
+                    clearPdfExport();
+                    web.evaluateJavascript("window.notesPdfSaved?.('Не удалось открыть диалог сохранения PDF');", null);
+                }
+            });
+        }
+
         @JavascriptInterface public void readClipboard(String requestId) {
             if (!requestId.matches("[a-fA-F0-9-]{36}")) return;
             runOnUiThread(() -> pasteClipboard(requestId));

@@ -12,7 +12,7 @@ HARNESS="""<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="view
 <div id="bvhost"></div><script>
 const host=document.getElementById('bvhost');host.dataset.theme=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';
 window.BVHOST={host,root:host.attachShadow({mode:'open'}),on:true,top:()=>{},dlg:()=>false,full:()=>{},answer:()=>{}};
-</script><script src="bioviz/bv.js"></script><script src="bioviz/microbiology/embed.js?v=1"></script></html>"""
+</script><script src="bioviz/bv.js"></script><script src="bioviz/microbiology/embed.js?v=20261111b"></script></html>"""
 class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path.split("?")[0]=="/phagi/__microbook_qa.html":
@@ -32,7 +32,7 @@ with sync_playwright() as p:
                 context.route("**/*",lambda route: route.continue_() if route.request.url.startswith(BASE) else route.abort())
                 page=context.new_page(); errors=[]
                 page.on("pageerror",lambda e: errors.append(str(e)))
-                page.goto(BOOK);expect(page.locator(".mb-main h1")).to_contain_text("Жизнь")
+                page.goto(BOOK);expect(page.locator(".mb-main h1")).to_contain_text("клетки")
                 assert page.locator("#microbook").get_attribute("data-theme")==theme;checks+=1
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1");checks+=1
                 page.screenshot(path=str(OUT/f"home-{width}-{theme}.png"),full_page=True)
@@ -50,6 +50,19 @@ with sync_playwright() as p:
                         else:control.fill("120")
                     assert not re.search(r"NaN|undefined|Infinity",widget.locator(".mb-model-result").inner_html());checks+=1
                     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"),route;checks+=1
+                page.goto(BOOK+"#recall:architecture")
+                expect(page.locator('.mb-recall-question')).to_have_count(6);checks+=1
+                assert page.locator('.mb-recall-question details[open]').count()==0;checks+=1
+                page.get_by_role('textbox',name='Ответ на вопрос 1',exact=True).fill('Мой ответ без теории')
+                page.locator('.mb-recall-question details').first.locator('summary').click()
+                expect(page.locator('.mb-recall-question details').first).to_have_attribute('open','');checks+=1
+                page.goto(BOOK+"#pmf")
+                page.locator('.mb-diagram [data-action="motion"]').click()
+                expect(page.locator('.mb-diagram')).to_have_attribute('data-paused','true');checks+=1
+                page.get_by_label('Настройки чтения',exact=True).click()
+                page.get_by_label('Размер текста',exact=True).select_option('22')
+                assert page.locator('.mb-body').evaluate('(e)=>getComputedStyle(e).fontSize')=='22px';checks+=1
+                page.get_by_label('Настройки чтения',exact=True).click()
                 page.goto(BOOK+"#redox")
                 expect(page.locator(".mb-stats")).to_contain_text("219,99");checks+=1
                 page.locator('select[name="d"]').select_option("-0.42")
@@ -59,7 +72,7 @@ with sync_playwright() as p:
                 expect(page.get_by_role("button",name="✓ Отмечено прочитанным",exact=True)).to_be_visible();checks+=1
                 page.goto(BOOK+"#atlas")
                 images=page.locator(".mb-photo img")
-                assert images.count()==12;checks+=1
+                assert images.count()==19;checks+=1
                 for i in range(images.count()):
                     image=images.nth(i);image.scroll_into_view_if_needed()
                     expect(image).to_have_js_property("complete",True)
@@ -74,7 +87,7 @@ with sync_playwright() as p:
                 expect(page.locator(".mb-main h1")).to_be_visible()
                 page.get_by_role("button",name="Переключить тему учебника",exact=True).click()
                 assert page.locator("#microbook").get_attribute("data-theme")!=theme;checks+=1
-                page.goto(BOOK);page.get_by_role("button",name="Сохранить офлайн",exact=True).click()
+                page.goto(BOOK);page.get_by_label("Настройки чтения",exact=True).click();page.get_by_role("button",name="Сохранить офлайн",exact=True).click()
                 expect(page.get_by_role("button",name="✓ Учебник сохранён",exact=True)).to_be_visible(timeout=30000);checks+=1
                 context.set_offline(True);page.goto(BOOK+"#biofilm");page.reload()
                 expect(page.locator('[data-model="biofilm"]')).to_be_visible();checks+=1
@@ -86,7 +99,7 @@ with sync_playwright() as p:
             context.route("**/*",lambda route: route.continue_() if route.request.url.startswith(BASE) else route.abort())
             page=context.new_page();page.goto(BASE+"/phagi/__microbook_qa.html")
             page.get_by_role("button",name="Микробиология · учебник",exact=True).click(timeout=30000)
-            expect(page.locator("#microbook .mb-main h1")).to_contain_text("Жизнь")
+            expect(page.locator("#microbook .mb-main h1")).to_contain_text("клетки")
             assert page.locator("#microbook").get_attribute("data-theme")=="dark";checks+=1
             page.get_by_role("button",name="Прежние модели архитектуры",exact=True).click()
             expect(page.locator("#microbook")).not_to_be_visible()
@@ -94,8 +107,9 @@ with sync_playwright() as p:
             page.locator('.nav-item[data-go="membrane"]').click()
             expect(page.locator("#m-membrane")).to_be_visible();checks+=1
             page.get_by_role("button",name="Микробиология · учебник",exact=True).click()
-            expect(page.locator("#microbook .mb-main h1")).to_contain_text("Жизнь");checks+=1
+            expect(page.locator("#microbook .mb-main h1")).to_contain_text("клетки");checks+=1
             page.screenshot(path=str(OUT/f"embedded-{width}-dark.png"),full_page=True)
             context.close()
     finally:browser.close();server.shutdown()
 print(f"{checks} browser assertions passed; no live database/account used.")
+

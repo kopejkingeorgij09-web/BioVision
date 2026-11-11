@@ -50,6 +50,19 @@ with sync_playwright() as p:
                         else:control.fill("120")
                     assert not re.search(r"NaN|undefined|Infinity",widget.locator(".mb-model-result").inner_html());checks+=1
                     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"),route;checks+=1
+                page.goto(BOOK+"#recall:architecture")
+                expect(page.locator('.mb-recall-question')).to_have_count(6);checks+=1
+                assert page.locator('.mb-recall-question details[open]').count()==0;checks+=1
+                page.get_by_role('textbox',name='Ответ на вопрос 1',exact=True).fill('Мой ответ без теории')
+                page.locator('.mb-recall-question details').first.locator('summary').click()
+                expect(page.locator('.mb-recall-question details').first).to_have_attribute('open','');checks+=1
+                page.goto(BOOK+"#pmf")
+                page.locator('.mb-diagram [data-action="motion"]').click()
+                expect(page.locator('.mb-diagram')).to_have_attribute('data-paused','true');checks+=1
+                page.get_by_label('Настройки чтения',exact=True).click()
+                page.get_by_label('Размер текста',exact=True).select_option('22')
+                assert page.locator('.mb-body').evaluate('(e)=>getComputedStyle(e).fontSize')=='22px';checks+=1
+                page.get_by_label('Настройки чтения',exact=True).click()
                 page.goto(BOOK+"#redox")
                 expect(page.locator(".mb-stats")).to_contain_text("219,99");checks+=1
                 page.locator('select[name="d"]').select_option("-0.42")

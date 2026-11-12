@@ -57,19 +57,20 @@ export const handle = async (request: Request) => {
       for (let i = 0; i < parts; i += 4) await write(Array.from({ length: Math.min(4, parts - i) }, (_, n) => row(path + '~' + (i + n), { d: data.slice((i + n) * 300000, (i + n + 1) * 300000) })));
       await write([row(path, { name, type: 'application/pdf', size: bytes.length, parts, at: now })]);
       // Publish the answer only after every file part is durable. Preserve text and unrelated files.
-      let published = false;
+      let published = false, submittedAt = now;
       for (let attempt = 0; attempt < 4 && !published; attempt++) {
         const records = await db('ph_docs?select=data,updated_at&path=eq.' + encodeURIComponent(submission));
         const latest = records[0];
-        const data = mergeSubmission(latest?.data, taskId, { id, name, type: 'application/pdf' }, operation, now);
+        submittedAt = new Date().toISOString();
+        const data = mergeSubmission(latest?.data, taskId, { id, name, type: 'application/pdf' }, operation, submittedAt);
         const result = latest
           ? await db('ph_docs?path=eq.' + encodeURIComponent(submission) + '&updated_at=eq.' + encodeURIComponent(latest.updated_at), {
-              method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ data, deleted: false, updated_at: now }) })
+              method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ data, deleted: false, updated_at: submittedAt }) })
           : await db('ph_docs?on_conflict=path', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=representation' }, body: JSON.stringify(row(submission, data)) });
         published = result.length > 0;
       }
       if (!published) return reply({ message: 'Ответ изменился на другом устройстве. Повтори отправку.' }, 409);
-      return reply({ submitted: true, at: now });
+      return reply({ submitted: true, at: submittedAt });
     }
     if (Number(request.headers.get('content-length')) > 2048) return reply({ message: 'Слишком большой запрос' }, 413);
     const raw = await request.text();

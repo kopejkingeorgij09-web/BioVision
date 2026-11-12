@@ -24,6 +24,7 @@ Deno.test('owner authentication, private catalogue, atomic PDF hand-in and retri
     }
     writes++;
     if (options.method === 'POST') {
+      await new Promise(resolve => setTimeout(resolve, 2));
       const body = JSON.parse(String(options.body));
       for (const row of Array.isArray(body) ? body : [body]) documents.set(row.path, row);
       return new Response(null, { status: 204 });
@@ -54,6 +55,7 @@ Deno.test('owner authentication, private catalogue, atomic PDF hand-in and retri
     check(answer.text === 'Параллельная правка'); check(answer.status === 'submitted'); check(answer.files.length === 2);
     const file = answer.files[1], path = `subs/${student}/files/${file.id}`;
     check(documents.has(path));
+    check(Date.parse(answer.updatedAt) >= Date.parse(documents.get(path)!.updated_at), 'Published answer timestamp preceded file upload; polling could miss it');
     const encoded = documents.get(path + '~0')!.data.d;
     check(atob(encoded).startsWith('%PDF-1.7'));
     const before = writes; check((await handle(request(pdf, 'application/pdf'))).status === 200); check(writes === before, 'Retry wrote duplicate files');

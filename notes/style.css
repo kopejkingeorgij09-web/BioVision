@@ -362,3 +362,5 @@ dialog :is(select, input) { min-width: 0; max-width: 100%; }
 .phagi-source { position: absolute; top: 4px; left: 4px; right: 4px; }
 .board-file-nav { top: calc(var(--source-height, 0px) + 8px); }
 .board-file-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.board-image-tools :is(.board-image-move, .board-file-size, .board-image-resize) { transform: scale(calc(1 / var(--paper-scale, 1))); transform-origin: top right; }
+.board-file-size { right: calc(142px / var(--paper-scale, 1)); }

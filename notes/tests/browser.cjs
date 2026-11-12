@@ -129,6 +129,24 @@ const root = path.resolve(__dirname, '../..');
     const prevented = await text.evaluate(field => !field.dispatchEvent(new ClipboardEvent('paste', { cancelable: true, bubbles: true, clipboardData: new DataTransfer() })));
     assert.equal(prevented, false);
     console.log('PASS denied clipboard access and ordinary text paste');
+    await page.evaluate(async () => {
+      document.activeElement?.blur();
+      window.nativePasteCalls = 0;
+      window.NotesAndroid = { readClipboard(id) { window.nativePasteCalls++; queueMicrotask(() => window.notesClipboardResult(id, [], '')); } };
+      const ink = document.querySelector('.board .ink'), rect = ink.getBoundingClientRect();
+      const capture = ink.setPointerCapture; ink.setPointerCapture = () => {};
+      ink.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 41, pointerType: 'touch', clientX: rect.x + 12, clientY: rect.y + 55 }));
+      await new Promise(resolve => setTimeout(resolve, 560));
+      ink.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 41, pointerType: 'touch', clientX: rect.x + 12, clientY: rect.y + 55 }));
+      ink.setPointerCapture = capture;
+    });
+    await page.locator('#selection-actions').getByRole('button', { name: 'Вставить', exact: true }).click();
+    assert.equal(await page.evaluate(() => window.nativePasteCalls), 1);
+    await page.keyboard.press('Control+v');
+    assert.equal(await page.evaluate(() => window.nativePasteCalls), 2);
+    await page.evaluate(() => { delete window.NotesAndroid; });
+    console.log('PASS empty-area long press and Android Ctrl+V use native clipboard');
+
 
     // Tablet and phone layouts, including the dark theme required by AGENTS.md.
     await page.evaluate(() => document.documentElement.dataset.theme = 'violet');

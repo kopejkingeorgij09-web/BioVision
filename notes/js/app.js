@@ -22,6 +22,8 @@ const kinds = {
 const layouts = { grid: 'Клетка', dots: 'Точка', lines: 'Линейка', blank: 'Чистый лист' };
 const tools = { pen: 'Перо', highlight: 'Маркер', erase: 'Ластик', lasso: 'Лассо', text: 'Текст', hand: 'Рука', line: 'Линия', rect: 'Прямоугольник', ellipse: 'Эллипс' };
 const blank = () => ({ id: crypto.randomUUID(), strokes: [], texts: [] });
+// Surface mark states are immutable; detach the mutable attachment wrapper only.
+const attachmentSnapshot = file => ({ ...file, marks: { ...file.marks }, ...(file.boardPosition ? { boardPosition: { ...file.boardPosition } } : {}) });
 const preferenceKey = 'biovision-notes-pen';
 const themes = { system: 'Как в системе', white: 'Белая', gray: 'Серая', warm: 'Тёплая белая', violet: 'Тёмно-фиолетовая', green: 'Тёмно-зелёная', black: 'Чёрная' };
 const appVersion = { name: '0.8.0', code: 12 };
@@ -1149,7 +1151,7 @@ function render() {
       close() { attachmentId = null; render(); },
       onSurface(surface) { surfaces = [surface]; selectedText = undefined; $('text-width').disabled = true; },
       onMark(updated, history) {
-        mutate({ ...current.data, attachments: current.data.attachments.map(file => file.id === updated.id ? structuredClone(updated) : file) }, history);
+        mutate({ ...current.data, attachments: current.data.attachments.map(file => file.id === updated.id ? attachmentSnapshot(updated) : file) }, history);
       },
     });
   } else if (current.data.kind === 'text') {
@@ -1206,6 +1208,11 @@ function render() {
       }
       const imageObjects = new Map();
       const camera = board ? boardViewport(current.id, editor.signal) : {};
+      if (board && current.data.phagi && !camera.initialView && current.data.attachments?.length) {
+        const first = boardFilesWithPositions(current.data.attachments)[0];
+        const zoom = Math.max(.15, Math.min(1, (paper.clientWidth - 32) / (first.boardWidth ?? boardFileWidth)));
+        camera.initialView = { zoom, x: 16 - first.boardPosition.x * zoom, y: 60 - first.boardPosition.y * zoom };
+      }
       surface = createSurface(paper, structuredClone(data), {
         ...commonSurface(), board, width: 794, worldLayers,
         ...camera,
@@ -1232,12 +1239,12 @@ function render() {
             onInteraction: surface.setInteractionLocked,
             registerObject: object => imageObjects.set(object.id, object),
             onTransform(updated) {
-              mutate({ ...current.data, attachments: current.data.attachments.map(item => item.id === updated.id ? structuredClone(updated) : item) });
+              mutate({ ...current.data, attachments: current.data.attachments.map(item => item.id === updated.id ? attachmentSnapshot(updated) : item) });
               surface.refreshSelection();
               map?.update();
             },
             onMark(updated, history) {
-              mutate({ ...current.data, attachments: current.data.attachments.map(item => item.id === updated.id ? structuredClone(updated) : item) }, history);
+              mutate({ ...current.data, attachments: current.data.attachments.map(item => item.id === updated.id ? attachmentSnapshot(updated) : item) }, history);
             },
             onSurface(frame) {
               surfaces.unshift(frame);
@@ -1576,7 +1583,7 @@ async function insertFiles(files, target = current?.id, owner = scope) {
       if (board) {
         const surface = surfaces.find(surface => surface.host.classList.contains('board'));
         const view = surface?.view();
-        if (view && item.mime.startsWith('image/')) item.boardWidth = Math.max(128, Math.min(boardFileWidth, (surface.host.clientWidth - 48) / view.zoom));
+        if (view) item.boardWidth = Math.max(128, Math.min(boardFileWidth, (surface.host.clientWidth - 48) / view.zoom));
         if (view) item.boardPosition = {
           x: (surface.host.clientWidth / 2 - view.x) / view.zoom - (item.boardWidth ?? boardFileWidth) / 2,
           y: (surface.host.clientHeight / 2 - view.y) / view.zoom - 100,

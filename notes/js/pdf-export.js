@@ -1,4 +1,4 @@
-import { PDFDocument, rgb, pushGraphicsState, popGraphicsState, rectangle, clip, endPath } from './vendor/pdf-lib.js';
+import { PDFDocument, rgb, pushGraphicsState, popGraphicsState, rectangle, clip, endPath, concatTransformationMatrix } from './vendor/pdf-lib.js';
 import { outline } from './ink.js';
 import { attachmentBlob } from './cloud.js';
 import { boardFilesWithPositions, boardFileWidth } from './media.js';
@@ -99,7 +99,7 @@ async function originalImage(pdf, blob) {
 }
 
 async function addAttachment(pdf, scene, file, library, board) {
-  const blob = await attachmentBlob(library, file.id);
+  const blob = await attachmentBlob(library, file.id, file);
   const width = board ? file.boardWidth ?? boardFileWidth : W;
   const x = board ? file.boardPosition.x : 0;
   let y = board ? file.boardPosition.y : 0;
@@ -242,4 +242,34 @@ export async function savePdf(bytes, filename) {
   const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
   const link = document.createElement('a'); link.href = url; link.download = filename; link.click();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+// Homework keeps the original PDF page count, dimensions and vector content.
+// Only ink falling on this document is overlaid; board surroundings are excluded.
+export async function exportAttachmentPdf(data, file, library) {
+  const blob = await attachmentBlob(library, file.id, file);
+  const pdf = await PDFDocument.load(await blob.arrayBuffer());
+  const width = file.boardWidth ?? boardFileWidth;
+  const x = file.boardPosition?.x ?? 0;
+  let top = (file.boardPosition?.y ?? 0) + 46 * width / boardFileWidth;
+  const scene = [];
+  if (data.kind === 'board') for (const mark of data.pages ?? []) await addMarks(pdf, scene, mark);
+  for (const [index, page] of pdf.getPages().entries()) {
+    const crop = page.getCropBox(), rotation = ((page.getRotation().angle % 360) + 360) % 360;
+    const sideways = rotation === 90 || rotation === 270;
+    const displayWidth = sideways ? crop.height : crop.width, displayHeight = sideways ? crop.width : crop.height;
+    const height = width * displayHeight / displayWidth;
+    const marks = [];
+    await addMarks(pdf, marks, file.marks?.['page-' + (index + 1)], x, top, width / 1000);
+    const factor = displayWidth / (width * S);
+    const matrix = rotation === 90 ? [0, 1, -1, 0, crop.x + crop.width, crop.y]
+      : rotation === 180 ? [-1, 0, 0, -1, crop.x + crop.width, crop.y + crop.height]
+      : rotation === 270 ? [0, -1, 1, 0, crop.x, crop.y + crop.height] : [1, 0, 0, 1, crop.x, crop.y];
+    page.pushOperators(pushGraphicsState(), concatTransformationMatrix(...matrix), concatTransformationMatrix(factor, 0, 0, factor, 0, 0),
+      rectangle(0, 0, displayWidth / factor, displayHeight / factor), clip(), endPath());
+    for (const node of [...scene, ...marks]) if (intersects(node.box, [x, top, width, height])) node.draw(page, x, top + height - H);
+    page.pushOperators(popGraphicsState());
+    top += height + 22;
+  }
+  return pdf.save();
 }

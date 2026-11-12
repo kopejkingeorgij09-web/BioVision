@@ -1,5 +1,6 @@
 import { edit, list, read } from './local.js';
-import { attachmentBlob, cloudEnabled, identity, libraryId, signIn, signInByCode, signOut, synchronize } from './cloud.js';
+import { attachmentBlob, cloudEnabled, identity, libraryId, phagiAvailable, phagiRequest, signIn, signInByCode, signOut, synchronize } from './cloud.js';
+import { resetPhagiSync, syncPhagi } from './phagi.js';
 import { createSurface } from './ink.js';
 import { clipboardFiles, readClipboardFiles } from './clipboard.js';
 import { boardFilesWithPositions, boardFileWidth, describeFile, mountBoardFile, openMedia, pdfBase, pdfSearchPages } from './media.js';
@@ -8,7 +9,7 @@ import { cloudConfig } from './config.js';
 import { createPenButton, defaultPenButton } from './pen-button.js';
 import { createUtilities } from './utilities.js';
 import { boardMap } from './board-map.js';
-import { exportNotesPdf, savePdf } from './pdf-export.js';
+import { exportAttachmentPdf, exportNotesPdf, savePdf } from './pdf-export.js';
 import { handwritingLines, recognizeInk, searchText } from './note-search.js';
 
 const $ = id => document.getElementById(id);
@@ -23,7 +24,7 @@ const tools = { pen: 'Перо', highlight: 'Маркер', erase: 'Ластик
 const blank = () => ({ id: crypto.randomUUID(), strokes: [], texts: [] });
 const preferenceKey = 'biovision-notes-pen';
 const themes = { system: 'Как в системе', white: 'Белая', gray: 'Серая', warm: 'Тёплая белая', violet: 'Тёмно-фиолетовая', green: 'Тёмно-зелёная', black: 'Чёрная' };
-const appVersion = { name: '0.7.3', code: 11 };
+const appVersion = { name: '0.8.0', code: 12 };
 const releaseBase = cloudConfig.url + '/storage/v1/object/public/notes-releases/';
 const darkMode = matchMedia('(prefers-color-scheme: dark)');
 const existingPrefs = JSON.parse(localStorage.getItem(preferenceKey) ?? '{}');
@@ -308,7 +309,9 @@ function queue(work) {
 
 function save(data, { deleted = false, file, item = current } = {}) {
   const owner = scope;
-  const snapshot = structuredClone(data);
+  // Editor states are immutable. Share completed strokes with undo history;
+  // IndexedDB makes the durable copy when its transaction is written.
+  const snapshot = data;
   const operation = crypto.randomUUID();
   const modified = Date.now();
   const local = { ...item, data: snapshot, deleted, modified, operation, pending: owner !== 'local' };
@@ -323,7 +326,7 @@ function save(data, { deleted = false, file, item = current } = {}) {
 
 function mutate(data, history = true, file) {
   if (!current) return;
-  if (history) { back.push(structuredClone(current.data)); if (back.length > 40) back.shift(); forward = []; }
+  if (history) { back.push(current.data); if (back.length > 40) back.shift(); forward = []; }
   save(data, { file });
   updateUndo();
 }
@@ -331,7 +334,7 @@ function mutate(data, history = true, file) {
 function history(redo = false) {
   const [source, target] = redo ? [forward, back] : [back, forward];
   if (!current || !source.length) return;
-  target.push(structuredClone(current.data));
+  target.push(current.data);
   const field = document.activeElement;
   const id = field?.dataset.textId;
   const textDocument = field?.matches('.text-note textarea');
@@ -405,7 +408,7 @@ async function preload(item, owner) {
   for (const file of item.data.attachments ?? []) {
     if (owner !== scope) return;
     try {
-      await attachmentBlob(owner, file.id);
+      await attachmentBlob(owner, file.id, file);
       if (file.mime === 'application/pdf') {
         const cache = await caches.open('biovision-notes-assets-v1');
         await Promise.all(['pdf.mjs', 'pdf.worker.mjs'].map(async path => {
@@ -1004,8 +1007,11 @@ function commonSurface() {
       offer(host, x, y, paste) {
         selectionActions({ host, x, top: y - 8, bottom: y + 8, paste() {
           selectionActions(null);
-          if (objectClipboard) { chooseTool('lasso'); paste(objectClipboard); }
+          void pasteMedia({ disabled: false });
         } });
+        if (objectClipboard) $('selection-actions').append(button('Вставить штрихи', () => {
+          selectionActions(null); chooseTool('lasso'); paste(objectClipboard);
+        }));
       },
       write(data, cut) {
       objectClipboard = structuredClone(data);
@@ -1088,6 +1094,7 @@ function render() {
   surfaces = [];
   const root = $('content'), bar = $('tools'), extra = $('extra-tools');
   root.replaceChildren();
+  root.style.setProperty('--source-height', '0px');
   bar.replaceChildren();
   extra.replaceChildren();
   extra.hidden = true;
@@ -1107,6 +1114,25 @@ function render() {
   remember();
   if (!current) { welcome(); return; }
   $('title').value = current.data.title;
+  if (current.data.phagi) {
+    const source = current.data.phagi;
+    const banner = element('aside', undefined, 'phagi-source');
+    banner.append(element('span', 'Фаги · ' + source.title));
+    for (const url of source.links ?? []) {
+      const link = element('a', url.includes('chatgpt.com') ? 'Исходный файл ↗' : 'Задание ↗');
+      link.href = url; link.target = '_blank'; link.rel = 'noopener'; banner.append(link);
+    }
+    if (!current.data.attachments?.some(file => file.mime === 'application/pdf')) banner.append(element('small', 'Добавь PDF через «Прикрепить» и решай прямо на нём.'));
+    if (source.taskId && phagiAvailable()) {
+      const send = button(current.data.phagi.sentAt ? 'Отправить повторно' : 'Отправить в Фаги', () => void sendHomework(send));
+      send.className = 'primary'; banner.append(send);
+      if (source.sentAt) banner.append(element('small', 'Отправлено ' + new Date(source.sentAt).toLocaleString('ru-RU')));
+    }
+    root.append(banner);
+    const observer = new ResizeObserver(() => root.style.setProperty('--source-height', banner.offsetHeight + 12 + 'px'));
+    observer.observe(banner);
+    editor.signal.addEventListener('abort', () => observer.disconnect(), { once: true });
+  }
   const attachment = current.data.kind === 'board' ? null : current.data.attachments?.find(item => item.id === attachmentId);
   const files = fileBar();
   if (files.childElementCount && (current.data.kind !== 'board' || attachment)) root.append(files);
@@ -1123,7 +1149,7 @@ function render() {
       close() { attachmentId = null; render(); },
       onSurface(surface) { surfaces = [surface]; selectedText = undefined; $('text-width').disabled = true; },
       onMark(updated, history) {
-        mutate({ ...current.data, attachments: current.data.attachments.map(file => file.id === updated.id ? updated : file) }, history);
+        mutate({ ...current.data, attachments: current.data.attachments.map(file => file.id === updated.id ? structuredClone(updated) : file) }, history);
       },
     });
   } else if (current.data.kind === 'text') {
@@ -1206,12 +1232,12 @@ function render() {
             onInteraction: surface.setInteractionLocked,
             registerObject: object => imageObjects.set(object.id, object),
             onTransform(updated) {
-              mutate({ ...current.data, attachments: current.data.attachments.map(item => item.id === updated.id ? updated : item) });
+              mutate({ ...current.data, attachments: current.data.attachments.map(item => item.id === updated.id ? structuredClone(updated) : item) });
               surface.refreshSelection();
               map?.update();
             },
             onMark(updated, history) {
-              mutate({ ...current.data, attachments: current.data.attachments.map(item => item.id === updated.id ? updated : item) }, history);
+              mutate({ ...current.data, attachments: current.data.attachments.map(item => item.id === updated.id ? structuredClone(updated) : item) }, history);
             },
             onSurface(frame) {
               surfaces.unshift(frame);
@@ -1294,6 +1320,38 @@ async function exportPdf(item = null) {
 }
 window.notesPdfSaved = error => message(error || 'PDF сохранён.');
 
+const sendingHomework = new Set();
+async function sendHomework(control, chosen) {
+  const note = current, owner = scope;
+  if (!note?.data.phagi?.taskId || !phagiAvailable() || sendingHomework.has(note.id)) return;
+  const files = boardFilesWithPositions(note.data.attachments ?? []).filter(file => file.mime === 'application/pdf');
+  if (!files.length) return message('Сначала прикрепи PDF с заданием.');
+  if (files.length > 1 && !chosen) {
+    choose('Какой PDF отправить?', (dialog, close) => {
+      for (const file of files) dialog.append(button(file.name, () => { close(); void sendHomework(control, file.id); }));
+    });
+    return;
+  }
+  const file = files.find(file => file.id === chosen) ?? files[0];
+  sendingHomework.add(note.id); control.disabled = true;
+  try {
+    if (!navigator.onLine) throw new Error('Для отправки подключись к интернету. Решение сохранено на устройстве.');
+    await writes;
+    message('Готовлю PDF с решением…');
+    const bytes = await exportAttachmentPdf(note.data, file, owner);
+    if (scope !== owner) throw new Error('Аккаунт изменился. Отправка остановлена.');
+    if (bytes.length > 20 * 1024 * 1024) throw new Error('PDF больше 20 МиБ — это лимит Фагов.');
+    message('Отправляю решение в Фаги…');
+    const result = await phagiRequest(bytes, { type: 'application/pdf', query: '?task=' + encodeURIComponent(note.data.phagi.taskId) + '&operation=' + crypto.randomUUID() });
+    if (scope !== owner) return;
+    const latest = items.find(item => item.id === note.id);
+    if (latest && !latest.deleted) await save({ ...latest.data, phagi: { ...latest.data.phagi, sentAt: result.at } }, { item: latest });
+    message('Решение отправлено в ДЗ «' + note.data.phagi.title + '».');
+    if (current?.id === note.id) render();
+  } catch (error) { report(error); }
+  finally { sendingHomework.delete(note.id); control.disabled = false; }
+}
+
 function more(item) {
   choose('Действия', (dialog, close) => {
     dialog.append(button('Экспорт в PDF', () => { close(); void exportPdf(item); }));
@@ -1367,6 +1425,8 @@ async function runSync() {
   try {
     await writes;
     $('sync').textContent = 'Синхронизация…';
+    let phagiError;
+    try { await syncPhagi(owner); } catch (error) { phagiError = error; }
     const result = await synchronize(owner);
     if (owner !== scope) return;
     const flushed = writes;
@@ -1390,6 +1450,7 @@ async function runSync() {
     }
     if (result.conflicts) message('Правки с двух устройств сохранены отдельными версиями');
     if (result.error) throw result.error;
+    if (phagiError) throw phagiError;
     $('sync').textContent = updated.some(item => item.pending) ? 'Сохранено локально · есть правки' : 'Синхронизировано';
   } catch (error) {
     if (!failedWrite) $('sync').textContent = 'Сохранено локально · повторим';
@@ -1402,6 +1463,7 @@ async function changeAccount() {
   current = null;
   tabPositions.clear();
   scope = libraryId();
+  resetPhagiSync();
   const active = loadTabs();
   objectClipboard = undefined;
   items = await list('items', scope);
@@ -1553,7 +1615,12 @@ window.addEventListener('paste', event => {
   // Text pastes continue to the focused editor unchanged.
   if (event.target.closest?.('input:not([type="file"])')) return;
   const files = clipboardFiles(event.clipboardData);
-  if (!files.length) return;
+  if (!files.length) {
+    if (objectClipboard && !event.target.closest?.('textarea, [contenteditable="true"]') && !event.clipboardData?.getData('text/plain')) {
+      event.preventDefault(); pasteObjects();
+    }
+    return;
+  }
   event.preventDefault();
   void insertFiles(files);
 });
@@ -1591,7 +1658,10 @@ window.addEventListener('keydown', event => {
     if (canUndo) { event.preventDefault(); history(event.shiftKey); }
   }
   if (!current || (input && !editorInput)) return;
-  if (!input && event.code === 'KeyV' && objectClipboard && surfaces.length) { event.preventDefault(); pasteObjects(); }
+  if (!input && event.code === 'KeyV' && surfaces.length) {
+    if (event.shiftKey && objectClipboard) { event.preventDefault(); pasteObjects(); }
+    else if (window.NotesAndroid?.readClipboard) { event.preventDefault(); void pasteMedia({ disabled: false }); }
+  }
   if (event.code === 'KeyY' && surfaces.length) { event.preventDefault(); addTextBlock(); }
   if ($('text-pt') && ['Equal', 'Minus', 'NumpadAdd', 'NumpadSubtract'].includes(event.code)) {
     event.preventDefault();

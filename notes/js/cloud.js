@@ -19,6 +19,24 @@ function updateSession(next) {
 export const identity = () => session?.user ?? null;
 export const libraryId = () => session ? url + ':' + session.user.id : 'local';
 export const cloudEnabled = Boolean(url && configuration.key);
+export const phagiAvailable = () => identity()?.id === '5b7c4303-1206-411b-afc1-04ad394b2715';
+
+export async function phagiRequest(body, { query = '', type = 'application/json', blob = false } = {}) {
+  const owner = libraryId();
+  async function send(force) {
+    const token = await accessToken(force);
+    if (libraryId() !== owner) throw new Error('Аккаунт изменился');
+    return fetch('https://zonrkvsibojyalhnqutd.supabase.co/functions/v1/phagi-notes' + query, {
+      method: 'POST', headers: { Authorization: 'Bearer ' + token, apikey: 'sb_publishable_WyJ9PYWg8s4kizqn9E0OJQ_iuDgGdbs', 'Content-Type': type },
+      body: type === 'application/json' ? JSON.stringify(body) : body, signal: AbortSignal.timeout(120000),
+    });
+  }
+  let response = await send(false);
+  if (response.status === 401) response = await send(true);
+  if (!response.ok) throw new CloudError(response, await response.json().catch(() => null));
+  if (libraryId() !== owner) throw new Error('Аккаунт изменился');
+  return blob ? response.blob() : response.json();
+}
 
 class CloudError extends Error {
   constructor(response, body) {
@@ -106,12 +124,18 @@ async function upload(library, item) {
   }
 }
 
-export async function attachmentBlob(library, id) {
+export async function attachmentBlob(library, id, source) {
   const local = await read('files', library, id);
   if (local) return local.blob;
   if (!session || library !== libraryId()) throw new Error('Вложение ещё не скачано');
-  const blob = await authenticated(filePath(id, true), { blob: true });
-  await put('files', { library, id, blob, remote: true });
+  let blob, remote = true;
+  try { blob = await authenticated(filePath(id, true), { blob: true }); }
+  catch (error) {
+    if (!source?.phagiKey || ![400, 404].includes(error.status)) throw error;
+    blob = await phagiRequest({ action: 'file', key: source.phagiKey }, { blob: true });
+    remote = false;
+  }
+  await put('files', { library, id, blob, remote });
   return blob;
 }
 

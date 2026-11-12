@@ -196,8 +196,13 @@ const root = path.resolve(__dirname, '../..');
       for (const point of [...polygon.slice(1), polygon[0]]) await page.mouse.move(...point, { steps: 4 });
       await page.mouse.up();
       const initialWidth = await pdfPanel.evaluate(node => parseFloat(node.style.width));
-      await page.getByRole('button', { name: 'Увеличить выделение', exact: true }).click();
-      assert.ok(Math.abs(await pdfPanel.evaluate(node => parseFloat(node.style.width)) - initialWidth * 1.25) < .01);
+      // A lasso wholly inside a PDF must leave its size unchanged.
+      const scaleSelection = page.getByRole('button', { name: 'Увеличить выделение', exact: true });
+      if (await scaleSelection.isVisible()) await scaleSelection.click();
+      assert.equal(await pdfPanel.evaluate(node => parseFloat(node.style.width)), initialWidth);
+      const resizePdf = page.getByRole('button', { name: 'Изменить размер PDF сверху', exact: true });
+      await resizePdf.focus(); await page.keyboard.press('ArrowRight');
+      assert.ok(await pdfPanel.evaluate(node => parseFloat(node.style.width)) > initialWidth);
       await page.getByRole('button', { name: 'Отменить', exact: true }).click();
       await page.getByRole('button', { name: '▣ Source.pdf', exact: true }).click();
       await page.locator('.board-pdf-page canvas').first().waitFor();
@@ -209,7 +214,7 @@ const root = path.resolve(__dirname, '../..');
       await (await downloadReady).saveAs('/tmp/polya-export-source-pdf.pdf');
       const saved = await PDFDocument.load(await fs.readFile('/tmp/polya-export-source-pdf.pdf'));
       assert.ok(saved.getPageCount() >= 2);
-      console.log('PASS byte-identical PDF import, lasso resize/undo, resolution on zoom, PDF export');
+      console.log('PASS byte-identical PDF import, PDF lasso exclusion, dedicated resize/undo, resolution on zoom, PDF export');
     }
     const nativeExport = await page.evaluate(async () => {
       const { savePdf } = await import('/notes/js/pdf-export.js');

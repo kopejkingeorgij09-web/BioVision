@@ -334,3 +334,31 @@ dialog :is(select, input) { min-width: 0; max-width: 100%; }
 .board-image-panel .board-pdf-page canvas { position: absolute; inset: 0; }
 
 .pen-quick label > span { display: none; }
+
+/* Clear, tactile controls on both tablets and desktop. */
+#library { background: linear-gradient(160deg, var(--panel), var(--base)); }
+.brand { padding: 4px 2px 12px; border-bottom: 1px solid var(--line); }
+#new-item { min-height: 44px; box-shadow: 0 3px 12px #30246116; }
+.editor-header { background: var(--raised); }
+#note-tabs { background: var(--base); padding-block: 7px; }
+#tools { background: var(--raised); border-bottom: 1px solid var(--line); gap: 7px; }
+#tools button { min-height: 40px; border-radius: 12px; }
+#tools button[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--accent); font-weight: 650; }
+.library-card { border-radius: 16px; box-shadow: 0 3px 16px #29203e08; }
+.library-card:focus-within, .library-card:hover { border-color: var(--accent); }
+.board-file-size { position: absolute; top: 0; right: 142px; touch-action: none; user-select: none; cursor: nwse-resize; }
+.board-image-move { min-width: 134px; }
+.board-document-tools .board-image-move::before { content: '▣ '; }
+.board-image-tools :is(.board-image-move, .board-file-size, .board-image-resize) { min-height: 40px; box-shadow: 0 2px 8px #16112520; }
+.board-image-resize { width: 40px; height: 40px; border: 2px solid var(--accent); color: var(--accent); }
+.phagi-source { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px;
+  padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--raised); font-size: .85rem; }
+.phagi-source > span { flex: 1 1 220px; font-weight: 600; }
+.phagi-source small { color: var(--muted); }
+.phagi-source a { color: var(--accent); }
+.phagi-source button { flex: none; }
+@media (max-width: 600px) { .phagi-source { margin: 4px; padding: 8px; } .phagi-source > span { flex-basis: 100%; } }
+.board { top: var(--source-height, 0px); }
+.phagi-source { position: absolute; top: 4px; left: 4px; right: 4px; }
+.board-file-nav { top: calc(var(--source-height, 0px) + 8px); }
+.board-file-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

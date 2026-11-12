@@ -107,7 +107,7 @@ test('canceling erasure restores highlight opacity, without deleting the stroke'
   const node = t.ink.firstElementChild.firstElementChild;
   assert.equal(node.getAttribute('opacity'), '0.28');
   t.prefs.tool = 'erase'; t.dispatch('pointerdown', { clientX: 20, clientY: 20 });
-  assert.equal(node.style.opacity, '0.18');
+  assert.equal(node.style.opacity, '0');
   t.dispatch('pointercancel');
   assert.equal(node.getAttribute('opacity'), '0.28');
   assert.equal(node.style.opacity, '');
@@ -230,12 +230,45 @@ test('new contact recovers a missing release without connecting strokes', () => 
   assert.equal(t.saved().strokes[1].points[0][0], 200);
 });
 
-test('lasso inside a large PDF selects it and commits movement', () => {
-  let bounds = [-300, -300, 1000, 1500];
-  const object = { id: 'pdf', bounds: () => bounds, preview() {}, commit(next) { bounds = next; return { boardPosition: { x: next[0], y: next[1] }, boardWidth: next[2] }; } };
-  const t = setup([], true, [object]); lasso(t);
-  t.dispatch('pointerdown', { clientX: 50, clientY: 50 });
-  t.dispatch('pointerup', { clientX: 100, clientY: 80 });
-  assert.equal(t.saved().changed[0].id, 'pdf');
-  assert.deepEqual(t.saved().changed[0].boardPosition, { x: -250, y: -270 });
+test('lasso on handwriting inside a PDF excludes the document', () => {
+  let moved = false;
+  const object = { id: 'pdf', lasso: false, bounds: () => [-300, -300, 1000, 1500], preview() {}, commit() { moved = true; } };
+  const t = setup([stroke('writing')], true, [object]); lasso(t);
+  t.dispatch('pointerdown', { clientX: 20, clientY: 20 });
+  t.dispatch('pointerup', { clientX: 70, clientY: 50 });
+  assert.equal(moved, false);
+  assert.equal(t.saved().changed.length, 0);
+  assert.equal(t.saved().strokes[0].points[0][0], 60);
+});
+
+test('fast sparse eraser samples sweep crossings and the final release', () => {
+  const strokes = [40, 100, 160, 220].map(x => ({ ...stroke(String(x)), points: [[x, 0, .5], [x, 100, .5]] }));
+  const t = setup(strokes); t.prefs.tool = 'erase';
+  t.dispatch('pointerdown', { clientX: 0, clientY: 50 });
+  t.dispatch('pointermove', { clientX: 180, clientY: 50, buttons: 1 });
+  t.dispatch('pointerup', { clientX: 250, clientY: 50, pressure: 0 });
+  assert.equal(t.saved().strokes.length, 0);
+});
+
+test('barrel eraser cannot turn into stray pen strokes before lift', () => {
+  let tool = 'erase';
+  const t = setup([stroke('old')], true, [], { sideTool: () => tool });
+  t.dispatch('pointerdown', { clientX: 20, clientY: 20 });
+  tool = 'pen';
+  t.dispatch('pointermove', { clientX: 70, clientY: 30, buttons: 1 });
+  t.dispatch('pointerup', { clientX: 80, clientY: 30, pressure: 0 });
+  assert.deepEqual(t.saved().strokes, []);
+  t.dispatch('pointerdown', { clientX: 100 }); t.dispatch('pointerup', { clientX: 110 });
+  assert.equal(t.saved().strokes.length, 1);
+});
+
+test('short contacts render immediately without waiting for a frame', () => {
+  const t = setup();
+  for (let i = 0; i < 40; i++) {
+    t.dispatch('pointerdown', { clientX: 10 + i * 10 });
+    t.dispatch('pointermove', { clientX: 15 + i * 10, buttons: 1 });
+    assert.ok(t.ink.children[1].firstElementChild);
+    t.dispatch('pointerup', { clientX: 18 + i * 10, pressure: 0 });
+  }
+  assert.equal(t.saved().strokes.length, 40);
 });

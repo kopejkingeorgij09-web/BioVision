@@ -74,6 +74,14 @@ function segmentDistance(p, a, b) {
   return distance(p, [a[0] + t * x, a[1] + t * y]);
 }
 
+// Distance between two complete paths, including crossings between samples.
+function segmentGap(a, b, c, d) {
+  const cross = (p, q, r) => (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+  const ab = [cross(a, b, c), cross(a, b, d)], cd = [cross(c, d, a), cross(c, d, b)];
+  if (ab[0] * ab[1] < 0 && cd[0] * cd[1] < 0) return 0;
+  return Math.min(segmentDistance(a, c, d), segmentDistance(b, c, d), segmentDistance(c, a, b), segmentDistance(d, a, b));
+}
+
 function segments(stroke) {
   const [a, b] = [stroke.points[0], stroke.points.at(-1)];
   if (stroke.tool === 'rect') return [a, [b[0], a[1]], b, [a[0], b[1]], a];
@@ -340,7 +348,7 @@ export function createSurface(host, content, options) {
     if (renderedTexts === state.texts) return;
     renderedTexts = state.texts;
     typing.replaceChildren();
-    for (const item of state.texts ?? []) {
+    for (let item of state.texts ?? []) {
       const box = document.createElement('div');
       box.className = 'ink-text-box';
       box.classList.toggle('lasso-target', settings().tool === 'lasso');
@@ -370,9 +378,11 @@ export function createSurface(host, content, options) {
         field.style.height = field.scrollHeight + 2 + 'px';
       }
       function editFormat(properties) {
-        Object.assign(item, properties);
+        item = { ...item, ...properties };
         width = limit(item.width ?? width, 48, maxWidth);
         if (properties.width !== undefined) item.width = width;
+        state = { ...state, texts: state.texts.map(text => text.id === item.id ? item : text) };
+        renderedTexts = state.texts;
         commit(state);
         measure();
         notify();
@@ -383,7 +393,9 @@ export function createSurface(host, content, options) {
       field.addEventListener('focus', notify);
       field.addEventListener('blur', () => { snapshotTaken = false; });
       field.addEventListener('input', () => {
-        item.text = field.value;
+        item = { ...item, text: field.value };
+        state = { ...state, texts: state.texts.map(text => text.id === item.id ? item : text) };
+        renderedTexts = state.texts;
         commit(state, !snapshotTaken);
         snapshotTaken = true;
         measure();
@@ -514,8 +526,8 @@ export function createSurface(host, content, options) {
 
   function update(next, objects = []) {
     state = next;
-    commit(next, true, objects);
     render();
+    commit(next, true, objects);
     positionSelection();
   }
 
@@ -645,7 +657,7 @@ export function createSurface(host, content, options) {
     const smooth = active.pointerType === 'pen' && ['pen', 'highlight'].includes(active.tool);
     if (smooth) {
       const pixels = distance(point, previous) * viewport().scale;
-      const alpha = terminal ? 1 : limit(pixels / 4, .35, .9);
+      const alpha = terminal ? 1 : limit(pixels / 2, .65, 1);
       point = [previous[0] + (point[0] - previous[0]) * alpha,
         previous[1] + (point[1] - previous[1]) * alpha,
         terminal ? previous[2] : previous[2] + (point[2] - previous[2]) * .35, point[3]];
@@ -663,12 +675,22 @@ export function createSurface(host, content, options) {
   }
 
   function erase(point) {
+    const start = active.erasePoint ?? point;
     const radius = 16 / viewport().scale;
+    active.erasePoint = point;
     for (const stroke of state.strokes ?? []) {
+      if (active.erased.has(stroke.id)) continue;
+      const pad = radius + stroke.width * (stroke.tool === 'highlight' ? 2 : 1);
+      const bounds = cachedInk.get(stroke.id)?.bounds;
+      if (bounds && (bounds[2] < Math.min(start[0], point[0]) - pad || bounds[0] > Math.max(start[0], point[0]) + pad ||
+          bounds[3] < Math.min(start[1], point[1]) - pad || bounds[1] > Math.max(start[1], point[1]) + pad)) continue;
       const points = segments(stroke);
-      if (points.some((p, i) => segmentDistance(point, p, points[i + 1] ?? p) < radius)) active.erased.add(stroke.id);
+      if (points.some((p, i) => segmentGap(start, point, p, points[i + 1] ?? p) <= pad)) {
+        active.erased.add(stroke.id);
+        const node = cachedInk.get(stroke.id)?.node;
+        if (node) node.style.opacity = '0';
+      }
     }
-    for (const id of active.erased) { const node = cachedInk.get(id)?.node; if (node) node.style.opacity = '0.18'; }
   }
 
   function strokePreview() {
@@ -748,7 +770,7 @@ export function createSurface(host, content, options) {
   }
 
   function offerPaste(x, y) {
-    if (!clipboard?.has()) return;
+    if (!clipboard?.offer) return;
     clipboard.offer(host, x, y, data => pasteAt(data, ...coordinates(x, y)));
   }
 
@@ -758,7 +780,7 @@ export function createSurface(host, content, options) {
     clipboard?.dismiss();
     const point = localPoint(event);
     const inside = prefs.tool === 'lasso' && selectedOutline.length && within(point, selectedOutline);
-    if (event.pointerType === 'touch' && !active && !pointers.size && clipboard?.has()) {
+    if (event.pointerType === 'touch' && !active && !pointers.size && clipboard?.offer && !inside) {
       const { pointerId, clientX, clientY } = event;
       hold = { pointerId, clientX, clientY, timer: setTimeout(() => {
         cancelHold();
@@ -841,8 +863,9 @@ export function createSurface(host, content, options) {
         return;
       }
       const next = sideTool?.(event);
-      if (next !== active.tool && ['pen', 'highlight', 'erase'].includes(next) &&
-          ['pen', 'highlight', 'erase'].includes(active.tool) && [next, active.tool].includes('erase')) {
+      // Once erasing, keep that contact an eraser even if the barrel button
+      // flickers or is released. Otherwise its final moves become random ink.
+      if (next === 'erase' && ['pen', 'highlight'].includes(active.tool)) {
         finishStroke(event, true);
         beginStroke(event, next);
       }
@@ -861,7 +884,7 @@ export function createSurface(host, content, options) {
       if (active.tool === 'erase') erase(localPoint(sample, rect));
       else if (event.pointerType !== 'pen' || sample.pressure !== 0) appendPoint(sample, rect);
     }
-    if (active.tool !== 'erase') { scheduleFrame('preview'); waitForShape(event); }
+    if (active.tool !== 'erase') { strokePreview(); waitForShape(event); }
   });
 
   function end(event) {
@@ -875,6 +898,12 @@ export function createSurface(host, content, options) {
 
   function finishStroke(event, save, includeTerminal = true) {
     if (!active || active.pointer !== event.pointerId) return;
+    if (save && includeTerminal && active.tool === 'erase' && event.type === 'pointerup') {
+      const rect = surface.getBoundingClientRect();
+      for (const sample of event.getCoalescedEvents?.() ?? []) if (sample.pressure > 0) erase(localPoint(sample, rect));
+      // UP belongs to the contact; hover recovery deliberately excludes it.
+      erase(localPoint(event, rect));
+    }
     const freehand = active.pointerType === 'pen' && ['pen', 'highlight'].includes(active.tool);
     const terminalDistance = distance(localPoint(event), active.points.at(-1)) * viewport().scale;
     // Ignore a distant zero-pressure lift sample; it creates the hairline tails.
@@ -913,7 +942,7 @@ export function createSurface(host, content, options) {
         return corners.some(point => within(point, points)) ||
           points.some(([x, y]) => x >= text.x && x <= right && y >= text.y && y <= bottom);
       });
-      selectedObjects = (options.objects?.() ?? []).filter(object => {
+      selectedObjects = (options.objects?.() ?? []).filter(object => object.lasso !== false).filter(object => {
         const [x, y, w, h] = object.bounds();
         return [[x, y], [x + w, y], [x, y + h], [x + w, y + h], [x + w / 2, y + h / 2]].some(point => within(point, points)) ||
           points.some(([px, py]) => px >= x && px <= x + w && py >= y && py <= y + h);

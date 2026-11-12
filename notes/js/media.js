@@ -94,7 +94,7 @@ export async function openMedia(root, attachment, options) {
   signal.addEventListener('abort', () => paperSignal?.abort(), { once: true });
   let blob;
   try {
-    blob = await attachmentBlob(library, attachment.id);
+    blob = await attachmentBlob(library, attachment.id, attachment);
     if (signal.aborted) return;
     loading.remove();
     const url = URL.createObjectURL(blob);
@@ -242,7 +242,15 @@ function editBoardFile(panel, tools, file, options) {
   const resize = button('↘', () => {});
   resize.className = 'board-image-resize';
   resize.setAttribute('aria-label', 'Изменить размер изображения ' + file.name);
-  tools.append(move, resize);
+  const document = file.mime === 'application/pdf';
+  const label = document ? 'PDF' : file.mime.startsWith('video/') ? 'видео' : 'изображение';
+  move.setAttribute('aria-label', 'Переместить ' + label + ' ' + file.name);
+  resize.setAttribute('aria-label', 'Изменить размер ' + label + ' ' + file.name);
+  const size = button('Размер ↔', () => {});
+  size.className = 'board-file-size';
+  size.setAttribute('aria-label', 'Изменить размер ' + label + ' сверху');
+  tools.append(move, size, resize);
+  if (document) { tools.classList.add('board-document-tools'); panel.classList.add('board-document'); }
   let gesture, frame = 0;
 
   function layout([x, y, width]) {
@@ -257,6 +265,7 @@ function editBoardFile(panel, tools, file, options) {
   }
   const object = {
     id: file.id,
+    lasso: file.mime.startsWith('image/'),
     bounds() {
       const width = file.boardWidth ?? boardFileWidth;
       return [file.boardPosition.x, file.boardPosition.y, width, panel.offsetHeight * width / (parseFloat(panel.style.width) || width)];
@@ -281,7 +290,7 @@ function editBoardFile(panel, tools, file, options) {
     const width = Math.max(64, Math.min(4000, bounds[2] + (dx + dy * aspect) / (1 + aspect * aspect)));
     return [bounds[0], bounds[1], width, bounds[3] * width / bounds[2]];
   }
-  for (const [handle, mode] of [[move, 'move'], [resize, 'resize']]) {
+  for (const [handle, mode] of [[move, 'move'], [size, 'resize'], [resize, 'resize']]) {
     handle.addEventListener('pointerdown', event => {
       if (gesture || (event.button !== 0 && event.pointerType !== 'pen')) return;
       event.preventDefault(); event.stopPropagation();
@@ -350,7 +359,7 @@ export async function mountBoardFile(content, controls, file, options) {
   content.append(panel);
   controls.append(tools);
   try {
-    const blob = await attachmentBlob(library, file.id);
+    const blob = await attachmentBlob(library, file.id, file);
     if (signal.aborted) return;
     status.remove();
 

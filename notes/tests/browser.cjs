@@ -129,6 +129,24 @@ const root = path.resolve(__dirname, '../..');
     const prevented = await text.evaluate(field => !field.dispatchEvent(new ClipboardEvent('paste', { cancelable: true, bubbles: true, clipboardData: new DataTransfer() })));
     assert.equal(prevented, false);
     console.log('PASS denied clipboard access and ordinary text paste');
+    await page.evaluate(async () => {
+      document.activeElement?.blur();
+      window.nativePasteCalls = 0;
+      window.NotesAndroid = { readClipboard(id) { window.nativePasteCalls++; queueMicrotask(() => window.notesClipboardResult(id, [], '')); } };
+      const ink = document.querySelector('.board .ink'), rect = ink.getBoundingClientRect();
+      const capture = ink.setPointerCapture; ink.setPointerCapture = () => {};
+      ink.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 41, pointerType: 'touch', clientX: rect.x + 12, clientY: rect.y + 55 }));
+      await new Promise(resolve => setTimeout(resolve, 560));
+      ink.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 41, pointerType: 'touch', clientX: rect.x + 12, clientY: rect.y + 55 }));
+      ink.setPointerCapture = capture;
+    });
+    await page.locator('#selection-actions').getByRole('button', { name: 'Вставить', exact: true }).click();
+    assert.equal(await page.evaluate(() => window.nativePasteCalls), 1);
+    await page.keyboard.press('Control+v');
+    assert.equal(await page.evaluate(() => window.nativePasteCalls), 2);
+    await page.evaluate(() => { delete window.NotesAndroid; });
+    console.log('PASS empty-area long press and Android Ctrl+V use native clipboard');
+
 
     // Tablet and phone layouts, including the dark theme required by AGENTS.md.
     await page.evaluate(() => document.documentElement.dataset.theme = 'violet');
@@ -196,8 +214,13 @@ const root = path.resolve(__dirname, '../..');
       for (const point of [...polygon.slice(1), polygon[0]]) await page.mouse.move(...point, { steps: 4 });
       await page.mouse.up();
       const initialWidth = await pdfPanel.evaluate(node => parseFloat(node.style.width));
-      await page.getByRole('button', { name: 'Увеличить выделение', exact: true }).click();
-      assert.ok(Math.abs(await pdfPanel.evaluate(node => parseFloat(node.style.width)) - initialWidth * 1.25) < .01);
+      // A lasso wholly inside a PDF must leave its size unchanged.
+      const scaleSelection = page.getByRole('button', { name: 'Увеличить выделение', exact: true });
+      if (await scaleSelection.isVisible()) await scaleSelection.click();
+      assert.equal(await pdfPanel.evaluate(node => parseFloat(node.style.width)), initialWidth);
+      const resizePdf = page.getByRole('button', { name: 'Изменить размер PDF сверху', exact: true });
+      await resizePdf.focus(); await page.keyboard.press('ArrowRight');
+      assert.ok(await pdfPanel.evaluate(node => parseFloat(node.style.width)) > initialWidth);
       await page.getByRole('button', { name: 'Отменить', exact: true }).click();
       await page.getByRole('button', { name: '▣ Source.pdf', exact: true }).click();
       await page.locator('.board-pdf-page canvas').first().waitFor();
@@ -209,7 +232,38 @@ const root = path.resolve(__dirname, '../..');
       await (await downloadReady).saveAs('/tmp/polya-export-source-pdf.pdf');
       const saved = await PDFDocument.load(await fs.readFile('/tmp/polya-export-source-pdf.pdf'));
       assert.ok(saved.getPageCount() >= 2);
-      console.log('PASS byte-identical PDF import, lasso resize/undo, resolution on zoom, PDF export');
+      console.log('PASS byte-identical PDF import, PDF lasso exclusion, dedicated resize/undo, resolution on zoom, PDF export');
+      const rotationResults = await page.evaluate(async () => {
+        const { PDFDocument, degrees } = await import('/notes/js/vendor/pdf-lib.js');
+        const { exportAttachmentPdf } = await import('/notes/js/pdf-export.js');
+        const { put } = await import('/notes/js/local.js');
+        const pdfjs = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@6.5.438/legacy/build/pdf.mjs');
+        const results = [];
+        for (const rotation of [0, 90, 180, 270]) {
+          const source = await PDFDocument.create(), page = source.addPage([300, 400]);
+          page.setCropBox(20, 30, 260, 340); page.setRotation(degrees(rotation));
+          const id = 'rotated-' + rotation, bytes = await source.save();
+          await put('files', { library: 'local', id, blob: new Blob([bytes], { type: 'application/pdf' }) });
+          const file = { id, boardWidth: 560, boardPosition: { x: 100, y: 50 } };
+          const top = 50 + 46 * 560 / 720;
+          const data = { kind: 'board', pages: [{ strokes: [{ id: 'red', tool: 'pen', color: '#ff0000', fixedColor: true,
+            width: 12, points: [[160, top + 80, .5], [200, top + 80, .5]] }], texts: [] }] };
+          const output = await exportAttachmentPdf(data, file, 'local');
+          const saved = await PDFDocument.load(output);
+          if (saved.getPageCount() !== 1) throw new Error('Homework page count changed');
+          const task = pdfjs.getDocument({ data: output, disableFontFace: true });
+          const doc = await task.promise, sheet = await doc.getPage(1), natural = sheet.getViewport({ scale: 1 });
+          const viewport = sheet.getViewport({ scale: 560 / natural.width });
+          const canvas = document.createElement('canvas'); canvas.width = viewport.width; canvas.height = viewport.height;
+          const ctx = canvas.getContext('2d'); await sheet.render({ canvas, canvasContext: ctx, viewport }).promise;
+          const pixel = [...ctx.getImageData(80, 80, 1, 1).data];
+          results.push({ rotation, pixel, pages: saved.getPageCount() }); await task.destroy();
+        }
+        return results;
+      });
+      for (const { rotation, pixel } of rotationResults) assert.ok(pixel[0] > 200 && pixel[1] < 30 && pixel[2] < 30, 'Ink displaced on rotated/cropped page: ' + rotation + ' ' + pixel);
+      console.log('PASS homework PDF overlays, original page count, crop boxes and all four rotations');
+
     }
     const nativeExport = await page.evaluate(async () => {
       const { savePdf } = await import('/notes/js/pdf-export.js');

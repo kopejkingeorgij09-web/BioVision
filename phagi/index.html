@@ -5437,7 +5437,7 @@ async function bvLoad(){
     if(!window.THREE)bvScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js').catch(()=>{});
     await bvScript('bioviz/bv.js');
     // Additive textbook extension; existing BioViz keeps working if it cannot load.
-    try{await bvScript('bioviz/microbiology/embed.js?v=20261111b');await window.MicroBookReady}catch(e){console.warn('Microbiology extension unavailable',e)}
+    try{await bvScript('bioviz/microbiology/embed.js?v=20261112');await window.MicroBookReady}catch(e){console.warn('Microbiology extension unavailable',e)}
     BVS.st=2;if(!BVHOST.on)BV.pause();else bvWant();bvBackfill();
   }catch(e){
     BVS.st=0;root.querySelector('.ld').innerHTML='Не получилось загрузить Биовиз. Проверьте интернет. <button>Повторить</button>';

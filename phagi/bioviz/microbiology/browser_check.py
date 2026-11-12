@@ -12,7 +12,7 @@ HARNESS="""<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="view
 <div id="bvhost"></div><script>
 const host=document.getElementById('bvhost');host.dataset.theme=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';
 window.BVHOST={host,root:host.attachShadow({mode:'open'}),on:true,top:()=>{},dlg:()=>false,full:()=>{},answer:()=>{}};
-</script><script src="bioviz/bv.js"></script><script src="bioviz/microbiology/embed.js?v=20261111b"></script></html>"""
+</script><script src="bioviz/bv.js"></script><script src="bioviz/microbiology/embed.js?v=20261112"></script></html>"""
 class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path.split("?")[0]=="/phagi/__microbook_qa.html":

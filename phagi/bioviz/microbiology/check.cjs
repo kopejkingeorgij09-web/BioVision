@@ -3,10 +3,10 @@ const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),asse
 const dir=__dirname,context=vm.createContext({window:{}});
 let count=0;
 const check=(v,name)=>{assert.ok(v,name);count++;},near=(a,b)=>Math.abs(a-b)<1e-6;
-for(const file of ['content.js','sources.js','enrichment.js','models.js','diagrams.js'])vm.runInContext(fs.readFileSync(path.join(dir,file),'utf8'),context,{filename:file});
+for(const file of ['content.js','sources.js','enrichment.js','olympiad.js','models.js','diagrams.js'])vm.runInContext(fs.readFileSync(path.join(dir,file),'utf8'),context,{filename:file});
 const W=context.window,B=W.MICROBOOK,M=W.MicroMath,all=[...B.primer,...B.chapters.flatMap(c=>c.sections)];
-check(B.chapters.length===4,'four chapters');check(all.length===50,'47 topics + 3 prerequisites');
-check(new Set(all.map(s=>s.id)).size===50,'unique routes');check(W.MicroModels.types.length===18,'18 models');
+check(B.chapters.length===4,'four chapters');check(all.length===57,'54 topics + 3 prerequisites');
+check(new Set(all.map(s=>s.id)).size===57,'unique routes');check(W.MicroModels.types.length===18,'18 models');
 for(const s of all){check(s.body.length>=600,s.id+' depth');check(s.question&&s.answer,s.id+' self explanation');check(s.refs.every(r=>W.MICROSOURCES[r]),s.id+' references');if(s.model&&s.model!=='atlas')check(W.MicroModels.types.includes(s.model),s.id+' model');}
 check(near(M.redox(-.32,.82).dg,-219.9858),'NADH energy');check(near(M.redox(-.42,.82).dg,-239.2828),'H2 energy');
 check(M.redox(.42,-.32).dg>0,'uphill transfer');check(M.redox(.42,-.32).ceiling===0,'no negative ATP output');

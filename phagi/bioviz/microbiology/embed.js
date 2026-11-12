@@ -2,10 +2,10 @@
 'use strict';
 const base=new URL('.',document.currentScript.src),R=window.BVHOST?.root;
 if(!R||!window.BV)return;
-const load=src=>new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=new URL(src+'?v=20261111b',base);s.async=false;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});
+const load=src=>new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=new URL(src+'?v=20261112',base);s.async=false;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});
 window.MicroBookReady=(async()=>{
-for(const f of ['content.js','enrichment.js','sources.js','models.js','diagrams.js','reader.js'])await load(f);
-const link=document.createElement('link');link.rel='stylesheet';link.href=new URL('style.css?v=20261111b',base);R.appendChild(link);
+for(const f of ['content.js','enrichment.js','sources.js','olympiad.js','models.js','diagrams.js','reader.js'])await load(f);
+const link=document.createElement('link');link.rel='stylesheet';link.href=new URL('style.css?v=20261112',base);R.appendChild(link);
 const style=document.createElement('style');style.textContent='.mb-embed-controls{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}.mb-embed-controls button{font:inherit;min-height:44px;border:1px solid var(--line);border-radius:9px;padding:8px 14px;background:var(--card);color:var(--text);cursor:pointer}.mb-embed-controls button[aria-pressed=true]{background:var(--ink);color:var(--card)}.mb-legacy[hidden],#microbook[hidden]{display:none!important}';R.appendChild(style);
 const section=R.querySelector('#m-prok');if(!section)return;
 const legacy=document.createElement('div');legacy.className='mb-legacy';while(section.firstChild)legacy.appendChild(section.firstChild);section.appendChild(legacy);

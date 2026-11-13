@@ -1,0 +1,5 @@
+# Keep the source PDF byte-for-byte intact and avoid text diffs of its streams.
+content/reading/alberts/source.pdf binary
+# Upstream PDF.js files retain their original formatting and license text.
+bioviz/vendor/pdfjs/** -whitespace linguist-vendored=true
+content/reading/alberts/*.json linguist-generated=true

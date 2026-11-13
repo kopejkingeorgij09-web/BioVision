@@ -2,6 +2,8 @@
 .rd{--rd-font:20px;--rd-line:1.8;--rd-width:740px;gap:22px}
 :host(.rd-reading) .app{background-image:none}
 .rd-verbatim{white-space:pre-wrap;overflow-wrap:anywhere;font:16px/1.7 var(--font-body);margin-top:16px}
+.rd-heading-number{display:none}
+.rd-running{font:11px/1.6 var(--font-mono);color:var(--muted);margin:0 0 18px}
 .rd h1{font:600 clamp(29px,5vw,48px)/1.12 var(--font-display);letter-spacing:-.025em}
 .rd h2{font:600 25px/1.25 var(--font-display)}
 .rd-sub{color:var(--muted);font-size:14px;line-height:1.6}

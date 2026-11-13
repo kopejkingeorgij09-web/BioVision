@@ -441,18 +441,29 @@ const visibleLectures=()=>{const h=hiddenL();return isAdmin()?C.lectures:C.lectu
 /* ---------- прогресс чтения ---------- */
 const secsOf=id=>((BV.KR||{})[id]||{}).sections||[];
 function parentOf(id,sid){for(const s of secsOf(id)){if(s.id===sid)return s;if((s.sub||[]).some(x=>x[0]===sid))return s}return null}
-const seenOf=id=>new Set(store.get('seen:'+id,[]));
+const PS=BV.lectureStore;
+const seenOf=id=>new Set(PS.get('seen:'+id,[]));
 function progress(L){const S=secsOf(L.id).filter(s=>s.no),seen=seenOf(L.id);return{done:S.filter(s=>seen.has(s.id)).length,total:S.length}}
-/* участник с кодом: прочитанные разделы уходят в его документ students/<id>, руководитель видит их в панели.
-   Документ мог хранить что-то ещё, поэтому сначала читаем его и дописываем поле prog. */
+/* Сначала объединяем облачные отметки с локальными; сервер повторяет объединение атомарно.
+   Проверяем профиль после каждого ожидания: выход или смена участника отменяет старый запрос. */
 let syncT=0;
 function syncProgress(now){const u=A&&A.me;if(!u||u.role!=='student')return;clearTimeout(syncT);
-  syncT=setTimeout(async()=>{try{const D=await db(),ref=D.doc('students/'+u.id),old=await ref.get(),data=old.exists&&old.data()||{};
-    const seen={};C.lectures.forEach(L=>{const s=store.get('seen:'+L.id,[]);if(s.length)seen[L.id]=s});
-    const last=store.get('last',null);
-    await ref.set({...data,prog:{seen,last:last?{id:last.id,s:last.s}:null,t:Date.now()}})}catch(e){}},now?300:4000)}
+  syncT=setTimeout(async()=>{try{if(A.me!==u)return;const D=await db();if(A.me!==u)return;
+    const ref=D.doc('students/'+u.id),old=await ref.get();if(A.me!==u)return;
+    const data=old.exists&&old.data()||{},remote=data.prog||{},seen={...remote.seen};
+    C.lectures.forEach(L=>{const s=[...new Set([...(remote.seen&&remote.seen[L.id]||[]),...seenOf(L.id)])];
+      if(s.length)seen[L.id]=s;PS.set('seen:'+L.id,s)});
+    const here=PS.get('last',null),there=remote.last?{...remote.last,t:Number(remote.last.t||remote.t)||0}:null;
+    const last=!here?there:!there?here:(Number(there.t||remote.t)||0)>(Number(here.t)||0)?there:here;
+    if(last)PS.set('last',last);
+    await ref.set({...data,prog:{...remote,seen,last:last||null,t:Date.now()}});if(A.me!==u)return;
+    if(cur&&cur.kind==='home')renderHome();
+    if(cur&&cur.kind==='me')renderMe();
+    dispatchEvent(new Event('bv-progress'));
+  }catch(e){console.warn('progress sync',e.message)}},now?300:4000)}
 if(A&&A.ready)A.ready.then(()=>syncProgress(true));
-BV.progress={secsOf,progress,sync:syncProgress};
+addEventListener('bv-auth-change',()=>{clearTimeout(syncT);syncProgress(true)});
+BV.progress={secsOf,seenOf,progress,sync:syncProgress};
 
 /* ---------- главная ---------- */
 const MONTHS=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
@@ -474,7 +485,7 @@ function lectureTopics(list){
     </details>`).join('')}</div>`;
 }
 function renderHome(){
-  const last=store.get('last',null),L=last&&visibleLectures().find(x=>x.id===last.id);
+  const last=PS.get('last',null),L=last&&visibleLectures().find(x=>x.id===last.id);
   const sec=L&&parentOf(L.id,last.s);
   const cont=L?`<a class="cont" href="#/l/${L.n}${last.s?'/'+esc(last.s):''}"><span><small>Продолжить</small><b>Лекция ${L.n} · ${esc(L.title)}</b>${sec?`<em>§${sec.no} ${esc(sec.t)}</em>`:''}</span>${ic('arrow')}</a>`:'';
   const N=site.data.news,news=N&&N.on&&N.text?`<aside class="news" aria-label="Объявление"><small>Объявление${N.date?' · '+fmtDate(N.date):''}</small><div class="md">${BV.md(N.text)}</div></aside>`:'';
@@ -499,9 +510,14 @@ async function renderMe(){
     return}
   if(u.role==='admin'&&BV.admin){BV.admin.render(me,{site,NOTE,logout:()=>{A.logout();syncWho();renderMe()}});return}
   const LL=visibleLectures();
+  const unassigned=C.lectures.some(L=>store.get('guest:seen:'+L.id,store.get('seen:'+L.id,[])).some(id=>!seenOf(L.id).has(id)));
   me.innerHTML=`<header class="hero"><p class="eyebrow">Профиль</p><h1>${esc(u.name||'Участник')}</h1><p class="lead">Участник группы. Прочитанные разделы видны руководителю.</p></header>
    ${LL.length?`<section class="blk"><h2>Мои лекции</h2><ol class="rows">${lectureRows(LL)}</ol></section>`:''}
+   ${unassigned?'<section class="card"><p>На устройстве есть отметки чтения без привязки к профилю. Добавь их, если это твои отметки.</p><button type="button" class="btn ghost" id="meImport">Добавить мои отметки</button></section>':''}
    <div><button type="button" class="btn ghost" id="meOut">Выйти</button></div>${NOTE()}`;
+  const imp=$('#meImport');if(imp)imp.onclick=()=>{if(A.me!==u)return;
+    C.lectures.forEach(L=>{const guest=store.get('guest:seen:'+L.id,store.get('seen:'+L.id,[]));PS.set('seen:'+L.id,[...new Set([...seenOf(L.id),...guest])])});
+    syncProgress(true);renderMe();BV.toast('Отметки добавлены в твой профиль.')};
   $('#meOut').addEventListener('click',()=>{A.logout();syncWho();renderMe()})}
 function syncWho(){const u=A&&A.me,w=$('.who span');if(w)w.textContent=u?(u.role==='admin'?'Управление':(u.name||'Профиль')):'Войти';
   const d=$('.dock [data-nav="me"] span');if(d)d.textContent=u?(u.role==='admin'?'Управление':'Профиль'):'Войти';
@@ -511,7 +527,7 @@ if(A&&A.ready)A.ready.then(syncWho);
 /* ---------- маршрутизация ---------- */
 /* страницы из других файлов: {key, nav, parse(части адреса) → параметры или null, show(параметры) → заголовок вкладки} */
 const EXT=[];
-let cur=null,curLecture=null;
+let cur=null,curLecture=null,acceptedHash=location.hash||'#/';
 function parse(h){const p=String(h||'').replace(/^#\/?/,'').split('/').filter(Boolean).map(decodeURIComponent);
   if(!p.length)return{kind:'home'};
   if(p[0]==='l'){const L=C.lectures.find(x=>String(x.n)===p[1]);return L?{kind:'lecture',L,sec:p[2]||null}:{kind:'home'}}
@@ -526,7 +542,10 @@ function scrollToId(scope,id){const el=$('#k-'+id,scope)||$('#'+id,scope);if(!el
   let n=0;const f=()=>{const t=el.getBoundingClientRect().top-(parseFloat(getComputedStyle(BVHOST.host).getPropertyValue('--barh'))||60)-12;if(Math.abs(t)>4)window.scrollBy(0,t);if(++n<4)setTimeout(()=>requestAnimationFrame(f),140*n)};f();return true}
 
 function show(r){
+  if(!dispatchEvent(new CustomEvent('bv-route-request',{cancelable:true,detail:{from:cur,to:r}}))){
+    history.replaceState(history.state,'',acceptedHash);return}
   if(r.kind==='redirect'){history.replaceState(null,'',r.to);return show(parse(r.to))}
+  acceptedHash=location.hash||'#/';
   /* Readers save their scroll position while their page is still visible. */
   dispatchEvent(new Event('bv-before-route'));
   const target=r.kind==='lecture'?pages['l'+r.L.n]:r.kind==='x'?r.x.page:r.kind==='me'?me:home;
@@ -595,8 +614,8 @@ addEventListener('scroll',()=>{if(tm)return;tm=setTimeout(()=>{tm=0;if(!cur||cur
   lastSec=id;const L=cur.L;
   try{history.replaceState(history.state,'',`#/l/${L.n}/${id}`)}catch(e){}
   cur={...cur,sec:id};
-  store.set('last',{id:L.id,s:id,t:Date.now()});
-  const p=parentOf(L.id,id);if(p){const S=seenOf(L.id);if(!S.has(p.id)){S.add(p.id);store.set('seen:'+L.id,[...S]);syncProgress()}}},250)},{passive:true});
+  PS.set('last',{id:L.id,s:id,t:Date.now()});
+  const p=parentOf(L.id,id);if(p){const S=seenOf(L.id);if(!S.has(p.id)){S.add(p.id);PS.set('seen:'+L.id,[...S])}}syncProgress()},250)},{passive:true});
 
 /* ---------- тема ---------- */
 const tb=$('[data-theme-btn]');

@@ -121,7 +121,7 @@ function secsOf(L){return BV.progress.secsOf(L.id).map(s=>({id:s.id,no:s.no,t:pl
 /* активный пункт содержания ставит движок конспекта; по нему находим раздел верхнего уровня */
 function curId(){const a=P&&$('.k-toc a.on',P.page);return a?a.dataset.to:null}
 function curIdx(){const id=curId();if(!id)return 0;const i=P.secs.findIndex(s=>s.id===id||s.sub.some(x=>x.id===id));return i<0?0:i}
-const seen=()=>new Set(store.get('seen:'+P.L.id,[]));
+const seen=()=>new Set(BV.progress.seenOf(P.L.id));
 /* полоска нужна, когда боковое содержание не помещается: его прячет движок на узкой колонке */
 function narrow(){const t=P&&$('.k-toc',P.page);return !!t&&getComputedStyle(t).display==='none'}
 

@@ -70,15 +70,18 @@ const PARTS=[
   ['conclusion','Выводы','Подтвердилась ли гипотеза, что пошло не так, что делать дальше.']];
 
 /* ---------- данные ---------- */
-const st={list:null,err:null,loading:null};
+const st={list:null,err:null,loading:null,scope:null};
 const sortL=l=>l.sort((a,b)=>(a.data.n||0)-(b.data.n||0)||String(a.data.date||'').localeCompare(String(b.data.date||'')));
-async function load(force){if(st.list&&!force)return st.list;if(st.loading)return st.loading;
+async function load(force){const scope=APP.isAdmin()?'admin':'public';
+  if(st.scope!==scope){st.list=null;st.loading=null;st.scope=scope;photoCache.clear()}
+  if(st.list&&!force)return st.list;if(st.loading)return st.loading;
   /* последняя загруженная копия списка хранится в браузере: без интернета работы всё равно видны (без фотографий) */
-  st.loading=(async()=>{try{const D=await APP.db();st.list=sortL(await D.collection('labworks').list());st.err=null;BV.store.set('lw-copy',st.list)}
-    catch(e){st.err=e;if(!st.list)st.list=BV.store.get('lw-copy',null)}finally{st.loading=null}return st.list})();
+  st.loading=(async()=>{try{const D=await APP.db(),list=sortL(await D.collection('labworks').list());if(st.scope!==scope)return null;
+      st.list=list;st.err=null;BV.store.set('lw-copy',list.filter(w=>!w.data.draft))}
+    catch(e){if(st.scope!==scope)return null;st.err=e;if(!st.list)st.list=BV.store.get('lw-copy',null)}finally{if(st.scope===scope)st.loading=null}return st.list})();
   return st.loading}
 const visible=()=>(st.list||[]).filter(w=>APP.isAdmin()||!w.data.draft);
-const byId=id=>(st.list||[]).find(w=>w.id===id);
+const byId=id=>visible().find(w=>w.id===id);
 const photoCache=new Map();
 async function photo(id){if(photoCache.has(id))return photoCache.get(id);
   const p=(async()=>{const D=await APP.db();const d=await D.doc('labfiles/'+id).get();return d.exists?d.data():null})();
@@ -109,7 +112,7 @@ const page=APP.add({key:'labs',nav:'labs',
     drawWork(m.id);const w=byId(m.id);return w?w.data.title:'Лабораторная работа'}});
 
 const crumbs=(...x)=>`<nav class="crumbs" aria-label="Путь"><a href="#/">${esc(BV_COURSE.title)}</a>${x.map(s=>s[1]?`<a href="${s[1]}">${esc(s[0])}</a>`:`<span>${esc(s[0])}</span>`).join('')}</nav>`;
-const fresh=(m)=>{const r=APP.route;return r&&r.kind==='x'&&r.x.key==='labs'&&r.m.key===m.key};
+const fresh=(m)=>{const r=APP.route;return r&&r.kind==='x'&&r.x.key==='labs'&&r.m===m};
 
 async function drawList(){const m=APP.route.m;
   const head=`${crumbs(['Лабораторные работы'])}<header class="hero"><p class="eyebrow">Практика группы</p><h1>Лабораторные работы</h1>
@@ -177,37 +180,39 @@ async function drawEdit(id){const m=APP.route.m;
       ${w?'<button type="button" class="btn ghost" data-del style="margin-left:auto;color:var(--bad)">Удалить работу</button>':''}<p class="msg" role="status" data-msg></p></div>
    </form>`;
   const f=$('form',page),msg=$('[data-msg]',page),box=$('.lw-ph',page),inp=$('input[type=file]',page),drop=$('.lw-drop',page);
+  let dirty=false,busy=false,preparing=0;
   function drawPh(){box.innerHTML=ph.map((p,j)=>`<div><img alt="" data-j="${j}"><input type="text" value="${esc(p.cap||'')}" data-cap="${j}" placeholder="Подпись" maxlength="200" aria-label="Подпись к фото ${j+1}">
       <span class="x">${j?`<button type="button" data-up="${j}" aria-label="Сдвинуть раньше">←</button>`:''}${j<ph.length-1?`<button type="button" data-dn="${j}" aria-label="Сдвинуть позже">→</button>`:''}<button type="button" class="del" data-rm="${j}">Убрать</button></span></div>`).join('');
     $$('img[data-j]',box).forEach(img=>{const p=ph[+img.dataset.j];if(p.src)img.src=p.src;else photo(p.id).then(x=>{if(x&&x.src)img.src=x.src}).catch(()=>{})})}
   drawPh();
   box.addEventListener('input',e=>{const t=BV_ET(e);if(t.dataset.cap!=null)ph[+t.dataset.cap].cap=t.value});
   box.addEventListener('click',e=>{const t=BV_ET(e).closest('button');if(!t)return;
+    dirty=true;
     if(t.dataset.rm!=null){const [p]=ph.splice(+t.dataset.rm,1);if(p.id)removed.push(p.id)}
     else if(t.dataset.up!=null){const j=+t.dataset.up;[ph[j-1],ph[j]]=[ph[j],ph[j-1]]}
     else if(t.dataset.dn!=null){const j=+t.dataset.dn;[ph[j+1],ph[j]]=[ph[j],ph[j+1]]}
     drawPh()});
   async function add(files){const L=[...files].filter(x=>/^image\//.test(x.type)||/\.(heic|heif|jpe?g|png|webp)$/i.test(x.name));if(!L.length)return;
-    msg.className='msg';msg.textContent='Готовлю фото…';
+    dirty=true;preparing++;msg.className='msg';msg.textContent='Готовлю фото…';
     for(const file of L){try{ph.push({src:await shrink(file),cap:'',fresh:true})}catch(e){msg.className='msg err';msg.textContent=e.message+'. Попробуй сохранить снимок как JPG.'}}
-    if(msg.textContent==='Готовлю фото…')msg.textContent='';drawPh()}
+    preparing--;if(msg.textContent==='Готовлю фото…')msg.textContent='';drawPh()}
   inp.addEventListener('change',()=>{add(inp.files);inp.value=''});
   drop.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();inp.click()}});
   drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('on')});
   drop.addEventListener('dragleave',()=>drop.classList.remove('on'));
   drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('on');add(e.dataTransfer.files)});
-  let dirty=false;f.addEventListener('input',()=>{dirty=true});
+  f.addEventListener('input',()=>{dirty=true});f.addEventListener('change',()=>{dirty=true});
   const del=$('[data-del]',page);
   if(del)del.addEventListener('click',async()=>{if(!confirm(`Удалить работу «${d.title||'без названия'}» вместе с фотографиями? Вернуть её будет нельзя.`))return;
     msg.className='msg';msg.textContent='Удаляю…';
     try{const D=await APP.db();for(const p of (d.photos||[]))await D.doc('labfiles/'+p.id).delete().catch(()=>{});
-      await D.doc('labworks/'+w.id).delete();st.list=st.list.filter(x=>x!==w);location.hash='#/labs'}
+      await D.doc('labworks/'+w.id).delete();st.list=st.list.filter(x=>x!==w);dirty=false;location.hash='#/labs'}
     catch(e){msg.className='msg err';msg.textContent='Не удалось удалить: '+errText(e)}});
-  let busy=false;
   f.addEventListener('submit',async e=>{e.preventDefault();if(busy)return;
+    if(preparing){BV.toast('Дождись подготовки фотографий.');return}
     const v=Object.fromEntries(new FormData(f));const title=String(v.title||'').trim();
     if(!title){msg.className='msg err';msg.textContent='Нужно название работы.';f.elements.title.focus();return}
-    busy=true;msg.className='msg';msg.textContent='Сохраняю…';
+    busy=true;f.inert=true;msg.className='msg';msg.textContent='Сохраняю…';
     try{const D=await APP.db(),wid=w?w.id:newId('w_');
       const photos=[];let k=0;
       for(const p of ph){if(p.fresh){k++;msg.textContent=`Загружаю фото ${k}…`;const pid=newId(wid+'.p');await D.doc('labfiles/'+pid).set({src:p.src,cap:p.cap||''});photoCache.set(pid,Promise.resolve({src:p.src}));photos.push({id:pid,cap:p.cap||''})}
@@ -218,10 +223,14 @@ async function drawEdit(id){const m=APP.route.m;
       await D.doc('labworks/'+wid).set(data);
       for(const pid of removed)await D.doc('labfiles/'+pid).delete().catch(()=>{});
       if(w)w.data=data;else(st.list=st.list||[]).push({id:wid,data});sortL(st.list);
-      dirty=false;location.hash='#/labs/'+wid}
+      dirty=false;busy=false;location.hash='#/labs/'+wid}
     catch(er){msg.className='msg err';msg.textContent='Не удалось сохранить. '+errText(er)}
-    finally{busy=false}});
+    finally{busy=false;f.inert=false}});
   /* не потерять набранное при случайном уходе со страницы */
-  const guard=e=>{if(dirty&&fresh(m)){e.preventDefault();e.returnValue=''}};addEventListener('beforeunload',guard);
-  addEventListener('hashchange',function off(){if(!fresh(m)){removeEventListener('beforeunload',guard);removeEventListener('hashchange',off)}})}
+  const guard=e=>{if((dirty||busy||preparing)&&fresh(m)){e.preventDefault();e.returnValue=''}};addEventListener('beforeunload',guard);
+  const routeGuard=e=>{if(!fresh(m))return;
+    if(busy||preparing){e.preventDefault();BV.toast('Дождись сохранения или подготовки фотографий.');return}
+    if(dirty&&!confirm('Есть несохранённые изменения. Уйти без сохранения?'))e.preventDefault()};
+  addEventListener('bv-route-request',routeGuard);
+  addEventListener('bv-route',function off(){if(!fresh(m)){removeEventListener('beforeunload',guard);removeEventListener('bv-route-request',routeGuard);removeEventListener('bv-route',off)}})}
 })();

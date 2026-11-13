@@ -153,11 +153,13 @@ function render(box,{site,NOTE,logout}){
   /* резервная копия */
   $('[data-bak]',box).addEventListener('click',async e=>{const b=e.currentTarget,m=$('[data-bm]',box);b.disabled=true;m.className='msg';m.textContent='Собираю…';
     try{const D=await APP.db(),out={made:new Date().toISOString(),course:C.title,site:site.data};
-      out.codes=await A.codes().catch(()=>[]);
-      out.students=await D.collection('students').list().catch(()=>[]);
-      out.labworks=await D.collection('labworks').list().catch(()=>[]);
-      out.labfiles={};let k=0;const all=out.labworks.flatMap(w=>(w.data.photos||[]).map(p=>p.id));
-      for(const id of all){m.textContent=`Фото ${++k} из ${all.length}…`;try{const d=await D.doc('labfiles/'+id).get();if(d.exists)out.labfiles[id]=d.data()}catch(er){}}
+      const currentSite=await D.doc('site/main').get();out.site=currentSite.exists?currentSite.data():{};
+      out.codes=await A.codes();
+      out.students=await D.collection('students').list();
+      out.labworks=await D.collection('labworks').list();
+      out.labfiles={};let k=0;const all=[...new Set(out.labworks.flatMap(w=>(w.data.photos||[]).map(p=>p.id)))];
+      for(const id of all){m.textContent=`Фото ${++k} из ${all.length}…`;const d=await D.doc('labfiles/'+id).get();
+        if(!d.exists)throw new Error('Не найдено фото '+id+'. Копия не сохранена.');out.labfiles[id]=d.data()}
       const dl=await window.claude.use('downloads');await dl.save({filename:`biovision-${today()}.json`,data:JSON.stringify(out,null,1),type:'application/json'});
       m.textContent='Готово.'}
     catch(er){m.className='msg err';m.textContent='Не получилось собрать копию: '+er.message}

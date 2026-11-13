@@ -106,6 +106,7 @@ def verify():
     assert set(accounted) == set(source_lines)
     stats['sourceTextLinesAccountedFor'] = len(accounted)
     questions = read('questions.json')
+    assert len(questions) == audit['questions'], 'Practice count differs from audit metadata'
     assert len({q['id'] for q in questions}) == len(questions)
     assert {q['section'] for q in questions} == sections
     for section in sections:

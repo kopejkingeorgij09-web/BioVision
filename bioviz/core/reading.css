@@ -59,6 +59,55 @@
 .rd-provenance{margin-top:14px;border-top:1px solid var(--line);font-size:13px;line-height:1.65;color:var(--muted);overflow-wrap:anywhere}
 .rd-provenance summary{cursor:pointer;padding:11px 0;min-height:44px;color:var(--ink)}
 .rd-provenance p{margin:0 0 10px}
+/* Wide practice workspace: the heading, controls and card grid share the same edges. */
+.rd-bank{gap:24px}
+.rd-bank-head{display:flex;align-items:center;justify-content:space-between;gap:24px;padding-bottom:22px;border-bottom:1px solid var(--line)}
+.rd-bank-head .hero{max-width:none;gap:10px;padding:0}.rd-bank-head h1{font-size:clamp(32px,3.8vw,48px)}
+.rd-bank-head .lead{font-size:15px}.rd-bank-head>.btn{flex:none;min-height:46px;padding:11px 20px}
+.rd-bank-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;min-width:0}
+.rd-bank-filters{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px 24px;min-width:0}
+.rd-bank-panel-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 24px;margin-bottom:16px}
+.rd-bank-panel-head h2{font-size:22px}
+.rd-bank-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 16px;align-items:end}
+.rd-bank-field{display:grid;gap:7px;min-width:0}
+.rd-bank-field>span{font:500 10.5px/1.4 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.rd-bank-field select{width:100%;height:46px;text-overflow:ellipsis;font-size:14px;color:var(--ink);background:var(--bg);cursor:pointer}
+.rd-bank-fields>.btn{min-height:46px;align-self:end;width:100%}
+.rd-bank-progress{font-size:12px;line-height:1.7;color:var(--muted)}
+.rd-bank-about{font-size:12px;line-height:1.6;color:var(--muted);margin-top:12px}
+.rd-bank-about summary{cursor:pointer;padding:4px 0}.rd-bank-about p{margin-top:8px;max-width:90ch}
+.rd-bank-results{display:grid;gap:16px;min-width:0}
+.rd-bank-result-count{font-size:12px;line-height:1.6;min-height:0;padding:0 2px}
+.rd-bank .rd-check{max-width:none;width:100%;align-self:stretch;margin:0;gap:24px}
+.rd-bank .rd-question{padding:26px 28px;scroll-margin-top:calc(var(--barh) + 20px);display:flex;flex-direction:column}
+.rd-bank .rd-question h3{font-size:19px;line-height:1.55;margin:12px 0 20px;text-wrap:pretty}
+.rd-bank .rd-question fieldset label{padding:13px 14px}
+.rd-bank .rd-question textarea{min-height:180px}
+.rd-bank .rd-question>.rd-tools{margin-top:auto;padding-top:18px}
+.rd-bank .rd-question>p.rd-sub{margin-top:14px!important}
+.rd-bank .rd-question>[data-history]:empty{display:none}
+.rd-bank-pager{justify-content:space-between;border-top:1px solid var(--line);padding-top:18px;margin-top:4px}
+@media(min-width:1000px){
+ :host(.rd-bank-mode) main{max-width:1760px;padding-inline:32px}
+}
+@media(min-width:1200px){
+ :host(.rd-bank-mode) .bar{padding-inline:max(32px,calc((100vw - 1760px)/2 + 32px))}
+}
+@media(min-width:1280px){
+ .rd-bank-fields{grid-template-columns:repeat(6,minmax(0,1fr));gap:18px}
+ .rd-bank .rd-check{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}
+}
+@media(max-width:760px){
+ .rd-bank{gap:18px}.rd-bank-head{align-items:flex-start;flex-direction:column;gap:16px;padding-bottom:18px}
+ .rd-bank-head .hero{gap:10px}.rd-bank-head h1{font-size:34px}.rd-bank-head .lead{font-size:13px}
+ .rd-bank-layout{gap:20px}.rd-bank-filters{padding:16px}
+ .rd-bank-panel-head h2{font-size:21px}
+ .rd-bank-fields{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 12px}
+ .rd-bank-wide{grid-column:1/-1}
+ .rd-bank .rd-question{padding:18px 16px}.rd-bank .rd-question h3{font-size:18px;line-height:1.5}
+ .rd-bank .rd-question fieldset label{padding:12px}.rd-bank .rd-question textarea{min-height:140px}
+ .rd-bank-pager{gap:10px}.rd-bank-pager .btn{padding:9px 12px;font-size:13px}
+}
 .rd-pdf-stage{position:relative;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--rs);min-height:300px;height:calc(100dvh - var(--barh) - 220px);overflow:auto;overscroll-behavior:contain;touch-action:pan-x pan-y pinch-zoom;padding:16px;scrollbar-gutter:stable}
 .rd-pdf-page{position:relative;background:white;margin:0 auto 16px;box-shadow:0 2px 9px #0002;flex:none;color:#000}
 .rd-pdf-page canvas{display:block;width:100%;height:100%}

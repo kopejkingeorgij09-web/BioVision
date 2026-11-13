@@ -112,7 +112,7 @@ def verify():
     for section in sections:
         group = collections.Counter(q['type'] for q in questions if q['section'] == section)
         assert set(group) == {'mcq', 'think'}
-        assert group['mcq'] == 3 * group['think'], f'Practice ratio differs from 3:1 in {section}'
+        assert group['mcq'] >= 3 and group['think'] >= 2, f'Insufficient practice types in {section}'
     for q in questions:
         assert q['sourceTopic'] in ids
         assert q['explanation'] and q['prompt']

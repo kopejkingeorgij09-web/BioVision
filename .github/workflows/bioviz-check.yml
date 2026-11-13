@@ -1,0 +1,46 @@
+name: BioViz core and reading
+on:
+  push:
+    branches: [main]
+    paths: ['bioviz/**', 'content/**', 'index.html', 'sw.js', 'tools/**', '.github/workflows/bioviz-check.yml']
+  pull_request:
+    paths: ['bioviz/**', 'content/**', 'index.html', 'sw.js', 'tools/**', '.github/workflows/bioviz-check.yml']
+permissions:
+  contents: read
+concurrency:
+  group: bioviz-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  reading:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install isolated test dependencies
+        run: |
+          python -m venv /tmp/bioviz-qa
+          /tmp/bioviz-qa/bin/pip install playwright==1.56.0 PyMuPDF==1.26.6
+          /tmp/bioviz-qa/bin/python -m playwright install --with-deps chromium
+      - name: Check scripts, source fidelity and task data
+        run: |
+          for source in bioviz/core/*.js bioviz/x/cloud.js content/course.js content/lectures/*.js sw.js; do node --check "$source"; done
+          node tools/check_shell_cache.cjs
+          /tmp/bioviz-qa/bin/python tools/verify_reading.py
+          /tmp/bioviz-qa/bin/python tools/check_alberts_calculations.py
+          /tmp/bioviz-qa/bin/python tools/check_alberts_practice.py --no-browser
+      - name: Check navigation, offline, durability and independent browsers
+        run: |
+          python -m http.server 8010 --bind 127.0.0.1 >/tmp/bioviz-http.log 2>&1 &
+          for attempt in 1 2 3 4 5; do curl -fsS http://127.0.0.1:8010/ >/dev/null && break || sleep 1; done
+          /tmp/bioviz-qa/bin/python tools/check_speed_and_bank_sync.py
+          /tmp/bioviz-qa/bin/python tools/check_review_fixes.py --only progress editor backups offline
+          /tmp/bioviz-qa/bin/python tools/check_personal_learning.py
+          /tmp/bioviz-qa/bin/python tools/check_reading_forecast.py
+          /tmp/bioviz-qa/bin/python tools/check_visitor_activity.py
+          /tmp/bioviz-qa/bin/python tools/check_alberts_practice.py

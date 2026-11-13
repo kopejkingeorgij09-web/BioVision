@@ -1,6 +1,7 @@
 """Browser regression: self-service codes, cross-device course/reading sync and usage.
 All remote requests are mocked. No real visitor data or credentials are used.
 """
+from shutil import which
 import argparse, copy, hashlib, json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -54,7 +55,7 @@ class Cloud:
 
 def rows(page):return page.evaluate("Object.keys(localStorage).filter(k=>k.startsWith('bv-usage-outbox:')).flatMap(k=>Object.values(JSON.parse(localStorage[k])))")
 with sync_playwright() as p:
- browser=p.chromium.launch(executable_path='/usr/bin/chromium');cloud=Cloud()
+ browser=p.chromium.launch(executable_path=which('chromium'));cloud=Cloud()
  c=browser.new_context(viewport={'width':390,'height':844},color_scheme='dark',service_workers='block');cloud.attach(c);page=c.new_page();errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
  page.goto(BASE+'#/reading');expect(page.locator('.rd-upload')).to_be_visible();assert page.locator('.rd-upload').bounding_box()['height']<145;expect(page.get_by_text('Письменные работы',exact=True)).to_have_count(0);expect(page.locator('.dock [data-nav=labs]')).to_have_text('Лабы');page.screenshot(path=str(OUT/'library-dark-390.png'))
  page.evaluate("BV.lectureStore.set('seen:l01',['mb1']);BV.lectureStore.set('last',{id:'l01',s:'mb1',t:10});location.hash='#/me'")

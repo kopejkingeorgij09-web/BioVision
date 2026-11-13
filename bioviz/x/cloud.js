@@ -45,6 +45,7 @@ const AUTH=window.BVAUTH={
     setCode(c);me=r;setOwner(r.id);dispatchEvent(new Event('bv-auth-change'));return r},
   logout(){setCode('');setOwner(null);me=null;dispatchEvent(new Event('bv-auth-change'))},
   /* только для учителя */
+  activityReport:days=>rpc('bv_activity_report',{p_code:getCode(),p_days:days}),
   codes:()=>rpc('bv_codes',{p_code:getCode()}),
   newCode:name=>rpc('bv_code_new',{p_code:getCode(),p_name:String(name||'')}),
   delCode:id=>rpc('bv_code_delete',{p_code:getCode(),p_id:id}),

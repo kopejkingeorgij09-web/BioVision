@@ -394,7 +394,7 @@ app.innerHTML=`<header class="bar">
   <a class="brand" href="#/" aria-label="БиоВиз, главная курса">${LOGO}<span><b>БиоВиз</b><small>${esc(C.group)}</small></span></a>
   <nav class="tabs" aria-label="Разделы">
     <a href="#/" data-nav="home">Курс</a>
-    <a href="#/labs" data-nav="labs">Лабораторные работы</a>
+    <a href="#/labs" data-nav="labs">Лабы</a>
     <a href="#/reading" data-nav="reading">Фундаментальное чтиво</a>
   </nav>
   <div class="bar-r">
@@ -405,7 +405,7 @@ app.innerHTML=`<header class="bar">
 <main id="main"></main>
 <nav class="dock" aria-label="Разделы">
   <a href="#/" data-nav="home">${ic('home')}<span>Курс</span></a>
-  <a href="#/labs" data-nav="labs">${ic('lab')}<span>Лабораторные</span></a>
+  <a href="#/labs" data-nav="labs">${ic('lab')}<span>Лабы</span></a>
   <a href="#/reading" data-nav="reading">${ic('toc')}<span>Чтиво</span></a>
   <a href="#/me" data-nav="me">${ic('me')}<span>Профиль</span></a>
 </nav>`;
@@ -424,7 +424,7 @@ C.lectures.forEach(L=>{const s=page('m-'+L.id,'module page');
   pages['l'+L.n]=s});
 const home=pages.home=page('pg-home');
 const me=pages.me=page('pg-me');
-const NOTE=()=>`<p class="note">На этом устройстве хранятся код входа, тема оформления и место, где ты остановился в лекции. Если ты вошёл по коду участника, руководитель видит, какие разделы лекций ты прочитал. Кнопка «Создать промпт» только копирует текст в буфер обмена, сайт ничего никуда не отправляет.</p>`;
+const NOTE=()=>`<p class="note">Личный код синхронизирует место чтения, закладки, ответы, самооценку и прогресс лекций между твоими устройствами. PDF остаются на устройстве. Руководителю доступна статистика посещений, использования функций и темпа чтения, без личных кодов и текстов ответов. «Создать промпт» копирует текст в буфер обмена; сайт сам не отправляет его в ИИ.</p>`;
 
 /* ---------- облако: настройки сайта ----------
    Документ site/main: объявление на главной и список скрытых лекций. Пишет только руководитель.
@@ -447,16 +447,16 @@ function progress(L){const S=secsOf(L.id).filter(s=>s.no),seen=seenOf(L.id);retu
 /* Сначала объединяем облачные отметки с локальными; сервер повторяет объединение атомарно.
    Проверяем профиль после каждого ожидания: выход или смена участника отменяет старый запрос. */
 let syncT=0;
-function syncProgress(now){const u=A&&A.me;if(!u||u.role!=='student')return;clearTimeout(syncT);
-  syncT=setTimeout(async()=>{try{if(A.me!==u)return;const D=await db();if(A.me!==u)return;
-    const ref=D.doc('students/'+u.id),old=await ref.get();if(A.me!==u)return;
+function syncProgress(now){const u=A&&A.me;if(!u||u.role!=='student'||BV.personal?.connected)return;clearTimeout(syncT);
+  syncT=setTimeout(async()=>{try{if(A.me!==u||BV.personal?.connected)return;const D=await db();if(A.me!==u||BV.personal?.connected)return;
+    const ref=D.doc('students/'+u.id),old=await ref.get();if(A.me!==u||BV.personal?.connected)return;
     const data=old.exists&&old.data()||{},remote=data.prog||{},seen={...remote.seen};
     C.lectures.forEach(L=>{const s=[...new Set([...(remote.seen&&remote.seen[L.id]||[]),...seenOf(L.id)])];
       if(s.length)seen[L.id]=s;PS.set('seen:'+L.id,s)});
     const here=PS.get('last',null),there=remote.last?{...remote.last,t:Number(remote.last.t||remote.t)||0}:null;
     const last=!here?there:!there?here:(Number(there.t||remote.t)||0)>(Number(here.t)||0)?there:here;
     if(last)PS.set('last',last);
-    await ref.set({...data,prog:{...remote,seen,last:last||null,t:Date.now()}});if(A.me!==u)return;
+    await ref.set({...data,prog:{...remote,seen,last:last||null,t:Date.now()}});if(A.me!==u||BV.personal?.connected)return;
     if(cur&&cur.kind==='home')renderHome();
     if(cur&&cur.kind==='me')renderMe();
     dispatchEvent(new Event('bv-progress'));
@@ -494,7 +494,7 @@ function renderHome(){
      <p class="lead">Конспекты лекций с интерактивными рисунками и журнал лабораторных работ группы.</p></header>${locus()}</div>
    ${news}${cont}
    <section class="blk" aria-labelledby="hLect"><h2 id="hLect">Лекции <em>${LL.length}</em></h2>${lectureTopics(LL)}</section>
-   <section class="blk" aria-labelledby="hLab"><h2 id="hLab">Лабораторные работы <em data-lw-count></em></h2><div data-lw-home><p class="empty">Загружаю…</p></div></section>`;
+   <section class="blk" aria-labelledby="hLab"><h2 id="hLab">Лабы <em data-lw-count></em></h2><div data-lw-home><p class="empty">Загружаю…</p></div></section>`;
   if(BV.labworks)BV.labworks.homeBlock($('[data-lw-home]',home),$('[data-lw-count]',home))}
 /* настройки сайта пришли из облака: перерисовать главную, если она открыта */
 site.load().then(()=>{if(cur&&cur.kind==='home')renderHome()});
@@ -503,24 +503,24 @@ site.load().then(()=>{if(cur&&cur.kind==='home')renderHome()});
 async function renderMe(){
   if(!A){me.innerHTML='<p class="msg">Облако не загрузилось. Обнови страницу.</p>';return}
   await A.ready;const u=A.me;
-  if(!u){me.innerHTML=`<header class="hero"><p class="eyebrow">Профиль</p><h1>Вход</h1><p class="lead">Код выдаёт руководитель группы. С кодом руководитель видит, какие разделы ты прочитал. Без кода конспекты и лабораторные работы открыты всем.</p></header>
-    <form class="card" id="meForm"><h2>Код группы</h2><div class="field"><input id="meCode" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="BIO-XXXX-XXXX" aria-label="Код"><button class="btn">Войти</button></div><p class="msg" id="meMsg" role="status"></p></form>${NOTE()}`;
-    $('#meForm').addEventListener('submit',async e=>{e.preventDefault();const m=$('#meMsg');m.className='msg';m.textContent='Проверяю…';
-      try{await A.login($('#meCode').value);syncWho();syncProgress(true);renderMe()}catch(er){m.className='msg err';m.textContent=er.message}});
-    return}
-  if(u.role==='admin'&&BV.admin){BV.admin.render(me,{site,NOTE,logout:()=>{A.logout();syncWho();renderMe()}});return}
-  const LL=visibleLectures();
-  const unassigned=C.lectures.some(L=>store.get('guest:seen:'+L.id,store.get('seen:'+L.id,[])).some(id=>!seenOf(L.id).has(id)));
-  me.innerHTML=`<header class="hero"><p class="eyebrow">Профиль</p><h1>${esc(u.name||'Участник')}</h1><p class="lead">Участник группы. Прочитанные разделы видны руководителю.</p></header>
+  if(u?.role==='admin'&&BV.admin){BV.admin.render(me,{site,NOTE,logout:()=>{A.logout();syncWho();renderMe()}});return}
+  const P=BV.personal,LL=visibleLectures(),unassigned=u&&!P?.connected&&C.lectures.some(L=>store.get('guest:seen:'+L.id,store.get('seen:'+L.id,[])).some(id=>!seenOf(L.id).has(id)));
+  me.innerHTML=`<header class="hero"><p class="eyebrow">Твой профиль</p><h1>Личный код</h1><p class="lead">Создай себе код и используй его на всех своих устройствах — прогресс будет синхронизироваться.</p></header>
+   <section class="card"><h2>${P?.connected?'Код подключён':'Синхронизация между устройствами'}</h2><p data-profile-status>${P?.connected?esc(P.message):'Придумай свой код или создай случайный. Для входа с другого устройства понадобится тот же код.'}</p><div class="field"><button type="button" class="btn" data-personal-profile>${P?.connected?'Мой код и синхронизация':'Создать код или войти'}</button></div></section>
    ${LL.length?`<section class="blk"><h2>Мои лекции</h2><ol class="rows">${lectureRows(LL)}</ol></section>`:''}
    ${unassigned?'<section class="card"><p>На устройстве есть отметки чтения без привязки к профилю. Добавь их, если это твои отметки.</p><button type="button" class="btn ghost" id="meImport">Добавить мои отметки</button></section>':''}
-   <div><button type="button" class="btn ghost" id="meOut">Выйти</button></div>${NOTE()}`;
-  const imp=$('#meImport');if(imp)imp.onclick=()=>{if(A.me!==u)return;
-    C.lectures.forEach(L=>{const guest=store.get('guest:seen:'+L.id,store.get('seen:'+L.id,[]));PS.set('seen:'+L.id,[...new Set([...seenOf(L.id),...guest])])});
-    syncProgress(true);renderMe();BV.toast('Отметки добавлены в твой профиль.')};
-  $('#meOut').addEventListener('click',()=>{A.logout();syncWho();renderMe()})}
-function syncWho(){const u=A&&A.me,w=$('.who span');if(w)w.textContent=u?(u.role==='admin'?'Управление':(u.name||'Профиль')):'Войти';
-  const d=$('.dock [data-nav="me"] span');if(d)d.textContent=u?(u.role==='admin'?'Управление':'Профиль'):'Войти';
+   ${u?`<section class="card"><p>Подключён ранее выданный код: ${esc(u.name||'профиль')}.</p><button type="button" class="btn ghost" id="meOut">Выйти из прежнего профиля</button></section>`:`<details class="card"><summary>Вход руководителя</summary><form id="meForm"><div class="field"><input id="meCode" type="password" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Код руководителя" placeholder="Секретный код"><button class="btn">Войти</button></div><p class="msg" id="meMsg" role="status"></p></form></details>`}${NOTE()}`;
+  $('[data-personal-profile]',me).onclick=()=>BV.learning.profile();
+  const imp=$('#meImport',me);if(imp)imp.onclick=()=>{if(A.me!==u)return;C.lectures.forEach(L=>{const guest=store.get('guest:seen:'+L.id,store.get('seen:'+L.id,[]));PS.set('seen:'+L.id,[...new Set([...seenOf(L.id),...guest])])});syncProgress(true);renderMe();BV.toast('Отметки добавлены в твой профиль.')};
+  const out=$('#meOut',me);if(out)out.onclick=()=>{A.logout();syncWho();renderMe()};
+  const form=$('#meForm',me);if(form)form.onsubmit=async e=>{e.preventDefault();const m=$('#meMsg',me),button=$('button',form);button.disabled=true;m.className='msg';m.textContent='Проверяю…';
+    try{await A.login($('#meCode',me).value);syncWho();syncProgress(true);renderMe()}catch(er){m.className='msg err';m.textContent=er.message}finally{button.disabled=false}}
+}
+addEventListener('bv-personal-status',()=>{const s=$('[data-profile-status]',me);if(s&&BV.personal?.connected)s.textContent=BV.personal.message});
+addEventListener('bv-personal-data',()=>{if(cur?.kind==='home')renderHome();if(cur?.kind==='me'&&!isAdmin())renderMe()});
+
+function syncWho(){const u=A&&A.me,w=$('.who span');if(w)w.textContent=u?(u.role==='admin'?'Управление':(u.name||'Профиль')):'Профиль';
+  const d=$('.dock [data-nav="me"] span');if(d)d.textContent=u?(u.role==='admin'?'Управление':'Профиль'):'Профиль';
   if(cur&&cur.kind==='home')renderHome()}
 if(A&&A.ready)A.ready.then(syncWho);
 
@@ -577,7 +577,7 @@ BV.app={go:h=>{if(location.hash===h)route();else location.hash=h},get route(){re
 function fillAfter(L){const box=$('.after',pages['l'+L.n]);
   const LL=visibleLectures(),next=LL.find(x=>x.n>L.n);
   box.innerHTML=(next?`<a href="#/l/${next.n}"><small>Следующая лекция</small><b>${esc(next.title)}</b></a>`:'')+
-    `<a href="#/labs"><small>Практика</small><b>Лабораторные работы</b></a><a href="#/"><small>Курс</small><b>Все лекции</b></a>`}
+    `<a href="#/labs"><small>Практика</small><b>Лабы</b></a><a href="#/"><small>Курс</small><b>Все лекции</b></a>`}
 
 /* линия прогресса вдоль содержания: заполняется до текущего раздела, пройденные пункты темнее */
 function tocLine(page){const toc=$('.k-toc',page);if(!toc||!toc.offsetParent)return;

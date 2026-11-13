@@ -110,7 +110,9 @@ def verify():
     assert len({q['id'] for q in questions}) == len(questions)
     assert {q['section'] for q in questions} == sections
     for section in sections:
-        assert {q['type'] for q in questions if q['section'] == section} == {'mcq', 'think'}
+        group = collections.Counter(q['type'] for q in questions if q['section'] == section)
+        assert set(group) == {'mcq', 'think'}
+        assert group['mcq'] == 3 * group['think'], f'Practice ratio differs from 3:1 in {section}'
     for q in questions:
         assert q['sourceTopic'] in ids
         assert q['explanation'] and q['prompt']

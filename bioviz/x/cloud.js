@@ -9,8 +9,10 @@
 const URL='https://zonrkvsibojyalhnqutd.supabase.co';
 const KEY='sb_publishable_WyJ9PYWg8s4kizqn9E0OJQ_iuDgGdbs';
 const LS='bv_code';
+const OWNER='bv_progress_owner';
 const getCode=()=>{try{return localStorage.getItem(LS)||''}catch(e){return ''}};
 const setCode=c=>{try{c?localStorage.setItem(LS,c):localStorage.removeItem(LS)}catch(e){}};
+const setOwner=id=>{try{id?localStorage.setItem(OWNER,id):localStorage.removeItem(OWNER)}catch(e){}};
 
 async function rpc(fn,args){
   const r=await fetch(URL+'/rest/v1/rpc/'+fn,{method:'POST',headers:{'Content-Type':'application/json',apikey:KEY,Authorization:'Bearer '+KEY},body:JSON.stringify(args||{})});
@@ -25,7 +27,7 @@ async function restore(){
   try{
     const result=await rpc('bv_login',{p_code:code});
     if(code!==getCode())return me;
-    me=result;if(!me)setCode('');return me;
+    me=result;setOwner(me&&me.id);if(!me)setCode('');return me;
   }catch(e){return null}
 }
 const ready=restore();
@@ -34,12 +36,14 @@ const AUTH=window.BVAUTH={
   ready,
   restore,
   get me(){return me},
+  /* Только выбор локального хранилища при отсутствии сети, не подтверждение прав. */
+  get progressOwner(){if(me)return me.id;try{return getCode()?localStorage.getItem(OWNER)||null:null}catch(e){return null}},
   async login(code){
     const c=String(code||'').trim().toUpperCase();if(!c)throw new Error('Введите код.');
     let r;try{r=await rpc('bv_login',{p_code:c})}catch(e){throw new Error('Нет связи с облаком. Проверьте интернет и попробуйте ещё раз.')}
     if(!r)throw new Error('Такого кода нет. Проверьте, что он введён без ошибок (буквы латинские).');
-    setCode(c);me=r;return r},
-  logout(){setCode('');me=null},
+    setCode(c);me=r;setOwner(r.id);dispatchEvent(new Event('bv-auth-change'));return r},
+  logout(){setCode('');setOwner(null);me=null;dispatchEvent(new Event('bv-auth-change'))},
   /* только для учителя */
   codes:()=>rpc('bv_codes',{p_code:getCode()}),
   newCode:name=>rpc('bv_code_new',{p_code:getCode(),p_name:String(name||'')}),

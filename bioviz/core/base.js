@@ -12,6 +12,11 @@ const store={
   get(k,d){try{const v=localStorage.getItem('bv2:'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
   set(k,v){try{localStorage.setItem('bv2:'+k,JSON.stringify(v))}catch(e){}},
   del(k){try{localStorage.removeItem('bv2:'+k)}catch(e){}}};
+/* Отметки лекций принадлежат профилю. Старые ключи доступны гостю и не уходят в чужое облако. */
+const lectureStore={
+  key(k){const a=window.BVAUTH,owner=a&&a.progressOwner;return owner?'progress:'+owner+':'+k:'guest:'+k},
+  get(k,d){const key=this.key(k);return store.get(key,key.startsWith('guest:')?store.get(k,d):d)},
+  set(k,v){store.set(this.key(k),v)}};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let reduced=false;try{reduced=matchMedia('(prefers-reduced-motion: reduce)').matches}catch(e){}
@@ -21,7 +26,7 @@ const lite=store.get('lite',false)===true;
 if(lite){reduced=true;host.classList.add('lite')}
 const themeFns=[];
 
-window.BV={$,$$,store,clamp,esc,reduced,lite,themeFns,hooks:{},
+window.BV={$,$$,store,lectureStore,clamp,esc,reduced,lite,themeFns,hooks:{},
   ease:t=>(t=clamp(t,0,1))*t*(3-2*t),
   lerp:(a,b,t)=>a+(b-a)*t,
   cssVar:n=>getComputedStyle(host).getPropertyValue(n).trim(),

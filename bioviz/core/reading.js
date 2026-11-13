@@ -81,6 +81,9 @@ async function upload(files,token){const s=$('[data-upload-status]',page);let co
   await local('put',{id,title:file.name.replace(/\.pdf$/i,''),blob:file,size:file.size,added:Date.now()});count++;
  }catch(e){errors.push(e.name==='QuotaExceededError'?'Недостаточно места на устройстве для «'+file.name+'».':e.message||'Не удалось сохранить файл.')}
  }
+ if(count){status(s,'PDF сохранён. Готовлю читалку для работы без интернета…');
+  try{if(!BV.offline)throw new Error();await BV.offline.preparePDF();if(!await BV.offline.save(true))throw new Error()}
+  catch(e){errors.push('PDF сохранён, но читалку не удалось подготовить для работы без интернета. Подключись к сети и открой PDF перед чтением без сети.')}}
  if(!fresh(token))return;status(s,[count?'Добавлено PDF: '+count+'.':'',...errors].filter(Boolean).join(' '),errors.length>0);await localRows(token)
 }
 

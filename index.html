@@ -32,16 +32,16 @@ body{margin:0;min-height:100vh;font-family:"Golos Text",system-ui,-apple-system,
 try{const t=JSON.parse(localStorage.getItem('bv2:theme')||'"auto"');const d=t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';document.documentElement.style.background=d?'#0D1410':'#F2F3EE'}catch(e){}
 if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script>
-<script src="bioviz/x/cloud.js"></script>
 </head>
 <body>
-<div id="bvhost"><div class="boot" id="boot"><i></i>Загружаю курс…</div></div>
+<div class="boot" id="boot" role="status"><i></i>Загружаю курс…</div>
+<div id="bvhost"></div>
 <script>
 /* Загрузка: файлы качаются параллельно, выполняются строго по порядку.
    К адресу добавляется версия: после обновления браузер не возьмёт старый файл из кеша.
    ПЕРЕД КАЖДЫМ PUSH поднимай BV_VER. */
-const BV_VER='2026-11-13-reading-v3-exact';
-const CORE=['bioviz/core/base.js','bioviz/core/konspekt.js','bioviz/core/mol.js','bioviz/core/vz.js','content/course.js'];
+const BV_VER='2026-11-13-review-fixes-v1';
+const CORE=['bioviz/x/cloud.js','bioviz/core/base.js','bioviz/core/konspekt.js','bioviz/core/mol.js','bioviz/core/vz.js','content/course.js'];
 const TAIL=['bioviz/core/app.js','bioviz/core/reading.js','bioviz/core/split.js','bioviz/core/lnav.js','bioviz/core/prompt.js','bioviz/core/labworks.js','bioviz/core/admin.js','bioviz/core/search.js','bioviz/core/terms.js','bioviz/core/intro.js','bioviz/core/offline.js'];
 const url=(s,bust)=>s+'?v='+BV_VER+(bust?'&r='+Date.now():'');
 function load(src,bust){return new Promise((ok,no)=>{const e=document.createElement('script');e.src=url(src,bust);e.async=false;
@@ -51,7 +51,7 @@ function preload(list){list.forEach(s=>{const l=document.createElement('link');l
 function fail(msg){const b=document.getElementById('boot');if(b){b.innerHTML=msg+' <button>Обновить</button>';b.querySelector('button').onclick=()=>location.reload()}}
 (async()=>{
   preload(CORE.concat(TAIL));
-  /* оболочка должна пережить загрузку: заглушку убираем, когда base.js создаст теневой корень */
+  /* Заглушка вне теневого корня: видна и после base.js, вплоть до запуска курса. */
   for(const s of CORE){if(!await tryLoad(s)){fail('Не получилось загрузить курс. Проверьте интернет.');return}}
   const C=window.BV_COURSE,files=C.lectures.map(x=>x.file),missed=[];
   preload(files);

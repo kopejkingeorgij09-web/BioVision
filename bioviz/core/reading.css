@@ -98,3 +98,7 @@
 
 @media(max-width:560px){.rd-book{grid-template-columns:minmax(0,1fr)}.rd-cover{display:none}.rd-book>.rd-book-info .rd-tools{margin-left:0;padding-top:4px}.rd-book-info h2{font-size:27px}.rd-book-info .rd-sub{font-size:14px}}
 .rd-cover b{overflow-wrap:anywhere}
+.rd-tempo{border:0;background:none;color:var(--ui);text-align:left;padding:8px 0;cursor:pointer;font:inherit;font-size:13px;min-height:44px}
+.rd-grade{margin-top:16px;border-top:1px solid var(--line);font-size:14px}.rd-grade summary{cursor:pointer;padding:12px 0;min-height:44px}.rd-grade label{display:grid;grid-template-columns:1fr 64px;gap:8px;margin:14px 0}.rd-grade label small{grid-column:1;color:var(--muted);line-height:1.5}.rd-grade select{grid-column:2;grid-row:1/3}
+.rd-dialog-body label{display:grid;gap:8px;margin:12px 0}.rd-dialog-body input:not([type=checkbox]),.rd-dialog-body textarea,.rd-dialog-body select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;min-width:0}.rd-dialog-body textarea{min-height:160px}.rd-dialog-body pre{white-space:pre-wrap;overflow-wrap:anywhere}.rd-rubric{border-bottom:1px solid var(--line);padding:12px 0;display:grid;grid-template-columns:1fr 1fr;gap:8px}.rd-rubric>[data-name]{grid-column:1/-1}[data-works]{display:grid;gap:12px}[data-works]>.rd-card{text-align:left;color:var(--ink);cursor:pointer}
+.rd-upload details{margin-top:12px}.rd-upload summary{cursor:pointer;min-height:44px;padding:10px 0}

@@ -95,7 +95,7 @@ const cut=(t,a,b,max,keep)=>{/* обрезать отрезок [a,b) до max �
   if(s>a){const sp=t.indexOf(' ',s);if(sp>0&&sp<keep)s=sp+1}if(e<b){const sp=t.lastIndexOf(' ',e);if(sp>keep)e=sp}return[s,e,s>a,e<b]};
 
 /* ---------- индекс ---------- */
-let IX=null,labsIX=null,labsLoading=null;
+let IX=null,ixVisibility='',labsIX=null,labsLoading=null;
 function ensureRendered(){const cur=APP.route;let touched=false;
   for(const L of APP.visibleLectures()){const d=$('#m-'+L.id+' .k-doc');if(d&&!$('.k-wrap',d)){if(BV.K.show(L.id)){touched=true;if(!(cur&&cur.kind==='lecture'&&cur.L===L))BV.K.hide(L.id)}}}
   if(touched&&cur&&cur.kind==='lecture')BV.K.show(cur.L.id)}
@@ -169,8 +169,8 @@ function snippet(h,blocks,used){const b=h.b,t=b.t,ss=sentences(t),p=h.sp[0][0];
 
 /* ---------- окно ---------- */
 let W=null,sel=0,acts=[],lastQ='';
-function open(q){if($('.sr'))return;BV.activity?.action('platform-search','Поиск по платформе');
-  try{IX=buildLectures()}catch(e){console.error('search index',e);IX={items:[],blocks:[],terms:[],near:new Map()}}
+async function open(q){if($('.sr')||open.loading)return;open.loading=true;btn.disabled=true;try{await BV_LOAD.allLectures()}catch(e){BV.toast('Не удалось загрузить лекции для поиска. Попробуй ещё раз.');return}finally{open.loading=false;btn.disabled=false}BV.activity?.action('platform-search','Поиск по платформе');
+  try{const visibility=APP.visibleLectures().map(L=>L.id).join('|');if(!IX||ixVisibility!==visibility){IX=buildLectures();ixVisibility=visibility}}catch(e){console.error('search index',e);IX={items:[],blocks:[],terms:[],near:new Map()}}
   loadLabs();
   W=document.createElement('div');
   W.innerHTML=`<div class="sr-scrim"></div><div class="sr" role="dialog" aria-modal="true" aria-label="Поиск по платформе">

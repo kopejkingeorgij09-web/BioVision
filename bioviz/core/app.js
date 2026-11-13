@@ -439,7 +439,7 @@ const hiddenL=()=>new Set(site.data.hidden||[]);
 const visibleLectures=()=>{const h=hiddenL();return isAdmin()?C.lectures:C.lectures.filter(L=>!h.has(L.id))};
 
 /* ---------- прогресс чтения ---------- */
-const secsOf=id=>((BV.KR||{})[id]||{}).sections||[];
+const secsOf=id=>((BV.KR||{})[id]||{}).sections||C.lectures.find(L=>L.id===id)?.sections||[];
 function parentOf(id,sid){for(const s of secsOf(id)){if(s.id===sid)return s;if((s.sub||[]).some(x=>x[0]===sid))return s}return null}
 const PS=BV.lectureStore;
 const seenOf=id=>new Set(PS.get('seen:'+id,[]));
@@ -495,7 +495,7 @@ function renderHome(){
    ${news}${cont}
    <section class="blk" aria-labelledby="hLect"><h2 id="hLect">Лекции <em>${LL.length}</em></h2>${lectureTopics(LL)}</section>
    <section class="blk" aria-labelledby="hLab"><h2 id="hLab">Лабы <em data-lw-count></em></h2><div data-lw-home><p class="empty">Загружаю…</p></div></section>`;
-  if(BV.labworks)BV.labworks.homeBlock($('[data-lw-home]',home),$('[data-lw-count]',home))}
+  const labs=()=>{if(cur?.kind==='home')BV.labworks.homeBlock($('[data-lw-home]',home),$('[data-lw-count]',home))};if(BV.labworks)labs();else BV_LOAD.ensure('labs').then(labs).catch(()=>{const b=$('[data-lw-home]',home);if(b)b.innerHTML='<a href="#/labs">Открыть лабы →</a>'})}
 /* настройки сайта пришли из облака: перерисовать главную, если она открыта */
 site.load().then(()=>{if(cur&&cur.kind==='home')renderHome()});
 
@@ -503,7 +503,7 @@ site.load().then(()=>{if(cur&&cur.kind==='home')renderHome()});
 async function renderMe(){
   if(!A){me.innerHTML='<p class="msg">Облако не загрузилось. Обнови страницу.</p>';return}
   await A.ready;const u=A.me;
-  if(u?.role==='admin'&&BV.admin){BV.admin.render(me,{site,NOTE,logout:()=>{A.logout();syncWho();renderMe()}});return}
+  if(u?.role==='admin'){try{await BV_LOAD.ensure('admin')}catch(e){me.innerHTML='<p class="msg err">Не удалось открыть управление.</p><button class="btn" data-admin-retry>Повторить</button>';$('[data-admin-retry]',me).onclick=renderMe;return}if(A.me!==u||cur?.kind!=='me')return;BV.admin.render(me,{site,NOTE,logout:()=>{A.logout();syncWho();renderMe()}});return}
   const P=BV.personal,LL=visibleLectures(),unassigned=u&&!P?.connected&&C.lectures.some(L=>store.get('guest:seen:'+L.id,store.get('seen:'+L.id,[])).some(id=>!seenOf(L.id).has(id)));
   me.innerHTML=`<header class="hero"><p class="eyebrow">Твой профиль</p><h1>Личный код</h1><p class="lead">Создай себе код и используй его на всех своих устройствах — прогресс будет синхронизироваться.</p></header>
    <section class="card"><h2>${P?.connected?'Код подключён':'Синхронизация между устройствами'}</h2><p data-profile-status>${P?.connected?esc(P.message):'Придумай свой код или создай случайный. Для входа с другого устройства понадобится тот же код.'}</p><div class="field"><button type="button" class="btn" data-personal-profile>${P?.connected?'Мой код и синхронизация':'Создать код или войти'}</button></div></section>
@@ -566,7 +566,14 @@ function show(r){
   lastSec=null;
   /* другие файлы (нижняя навигация по лекции) узнают о смене страницы */
   dispatchEvent(new Event('bv-route'))}
-function route(){show(parse(location.hash))}
+let routeVersion=0,routeNotice=null;
+async function route(){routeNotice?.remove();const version=++routeVersion,hash=location.hash;let notice;
+ try{
+  // Keep the current page intact until its successor is ready (including unsaved lab edits).
+  const ready=BV_LOAD.route(hash);notice=routeNotice=document.createElement('p');notice.className='msg';notice.setAttribute('role','status');notice.textContent='Открываю раздел…';main.prepend(notice);
+  await ready;if(version!==routeVersion)return;show(parse(hash));
+ }catch(e){if(version!==routeVersion)return;notice.textContent='Не удалось загрузить раздел. ';const retry=document.createElement('button');retry.className='btn ghost';retry.textContent='Повторить';retry.onclick=route;notice.append(retry);notice=null;console.warn('route',e.message)}finally{notice?.remove()}
+}
 addEventListener('hashchange',route);
 BV.app={go:h=>{if(location.hash===h)route();else location.hash=h},get route(){return cur},refresh:route,
   tocLine:()=>{if(cur&&cur.kind==='lecture')tocLine(pages['l'+cur.L.n])},
@@ -608,7 +615,7 @@ function folds(scope){$$('.k-box',scope).forEach(bx=>{if(bx.dataset.fold)return;
 
 /* где остановился: текущий раздел пишется в адрес (без новой записи в истории) и в память браузера */
 let lastSec=null,tm=0;
-addEventListener('scroll',()=>{if(tm)return;tm=setTimeout(()=>{tm=0;if(!cur||cur.kind!=='lecture')return;
+addEventListener('scroll',()=>{if(tm)return;tm=setTimeout(()=>{tm=0;if(!cur||cur.kind!=='lecture'||location.hash!==acceptedHash)return;
   const a=$('.k-toc a.on',pages['l'+cur.L.n]);const id=a&&a.dataset.to;if(!id||id===lastSec)return;
   if(window.scrollY<120&&!cur.sec&&!lastSec)return;
   lastSec=id;const L=cur.L;
@@ -639,5 +646,5 @@ document.addEventListener('click',e=>{if($('.thm')&&!BV_ET(e).closest('.thm,[dat
 R.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('.thm'))closeThm(true)});
 
 /* запуск */
-BV.start=()=>{route()};
+BV.start=()=>route();
 })();

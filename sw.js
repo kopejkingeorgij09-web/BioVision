@@ -1,6 +1,6 @@
 // Service worker БиоВиза: установка как приложения и работа без интернета.
 // Файлы с версией в адресе (?v=…) не меняются, поэтому берутся из кеша сразу: так быстрее на слабой связи.
-// Остальное (страница, cloud.js, картинки) сначала из сети; если сеть молчит дольше 4 секунд или её нет, из кеша.
+// Остальное (картинки и дополнительные страницы) сначала из сети; если сеть молчит дольше 4 секунд или её нет, из кеша.
 // Шрифты Google берутся из кеша и тихо обновляются. Облако (Supabase), 3D-модели и видео не кешируются.
 // Список файлов для работы без интернета присылает страница (bioviz/core/offline.js).
 const CACHE = 'bioviz-v3';
@@ -36,12 +36,29 @@ function networkFirst(r) {
   });
 }
 
+// Returning visitors get the saved shell immediately; refresh it in the background.
+function navigation(e){
+ const r=e.request,key=new Request(new URL('./',self.registration.scope));
+ const cached=caches.match(key);
+ const net=(async()=>{const res=await fetch(r,{cache:'no-cache'});if(!res.ok)return res;
+  const old=await cached,body=await res.clone().text();
+  await (await caches.open(CACHE)).put(key,res.clone());
+  const version=t=>t.match(/const BV_VER='([^']+)'/)?.[1];
+  if(old&&version(await old.text())!==version(body))for(const client of await self.clients.matchAll({type:'window'}))client.postMessage({type:'bv-update'});
+  return res
+ })();
+ e.waitUntil(net.catch(()=>{}));
+ return cached.then(hit=>hit?hit.clone():net).catch(()=>Response.error())
+}
+
 self.addEventListener('fetch', e => {
   const r = e.request;
   if (r.method !== 'GET' || r.headers.has('range')) return;
   const u = new URL(r.url);
   if (u.hostname === 'fonts.googleapis.com' || u.hostname === 'fonts.gstatic.com') { e.respondWith(fonts(r)); return; }
   if (u.origin !== location.origin || !u.pathname.startsWith(new URL(self.registration.scope).pathname)) return;
+  const scope=new URL(self.registration.scope);
+  if(r.mode==='navigate'&&(u.pathname===scope.pathname||u.pathname===scope.pathname+'index.html')){e.respondWith(navigation(e));return;}
   if (u.searchParams.has('v') && !u.searchParams.has('r')) { e.respondWith(cacheFirst(r)); return; }
   e.respondWith(networkFirst(r));
 });

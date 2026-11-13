@@ -37,30 +37,34 @@ if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWork
 <div class="boot" id="boot" role="status"><i></i>Загружаю курс…</div>
 <div id="bvhost"></div>
 <script>
-/* Загрузка: файлы качаются параллельно, выполняются строго по порядку.
-   К адресу добавляется версия: после обновления браузер не возьмёт старый файл из кеша.
-   ПЕРЕД КАЖДЫМ PUSH поднимай BV_VER. */
-const BV_VER='2026-11-13-visitors-v1';
-const CORE=['bioviz/x/cloud.js','bioviz/core/base.js','bioviz/core/konspekt.js','bioviz/core/mol.js','bioviz/core/vz.js','content/course.js'];
-const TAIL=['bioviz/core/app.js','bioviz/core/personal.js','bioviz/core/learning.js','bioviz/core/reading.js','bioviz/core/activity.js','bioviz/core/split.js','bioviz/core/lnav.js','bioviz/core/prompt.js','bioviz/core/labworks.js','bioviz/core/admin.js','bioviz/core/search.js','bioviz/core/terms.js','bioviz/core/intro.js','bioviz/core/offline.js'];
-const url=(s,bust)=>s+'?v='+BV_VER+(bust?'&r='+Date.now():'');
-function load(src,bust){return new Promise((ok,no)=>{const e=document.createElement('script');e.src=url(src,bust);e.async=false;
-  e.onload=ok;e.onerror=()=>{e.remove();no(new Error('Не загрузился '+src))};document.head.appendChild(e)})}
-async function tryLoad(src){for(let i=0;i<3;i++){try{await load(src,i>0);return true}catch(e){console.warn(e.message);await new Promise(r=>setTimeout(r,600*(i+1)))}}return false}
-function preload(list){list.forEach(s=>{const l=document.createElement('link');l.rel='preload';l.as='script';l.href=url(s);document.head.appendChild(l)})}
+/* Версия обязательна перед публикацией. Код раздела исполняется один раз за сеанс. */
+const BV_VER='2026-11-13-speed-v1';
+const CORE=['bioviz/x/cloud.js','bioviz/core/base.js','content/course.js','bioviz/core/app.js','bioviz/core/personal.js','bioviz/core/learning.js','bioviz/core/activity.js'];
+const GROUPS={
+ common:['bioviz/core/prompt.js','bioviz/core/search.js','bioviz/core/offline.js'],
+ reading:['bioviz/core/offline.js','bioviz/core/prompt.js','bioviz/core/reading.js'],
+ labs:['bioviz/core/prompt.js','bioviz/core/labworks.js'],
+ admin:['bioviz/core/labworks.js','bioviz/core/admin.js'],
+ lecture:['bioviz/core/konspekt.js','bioviz/core/mol.js','bioviz/core/vz.js','bioviz/core/split.js','bioviz/core/lnav.js','bioviz/core/terms.js','bioviz/core/prompt.js']
+};
+const TAIL=[...new Set(Object.values(GROUPS).flat())];
+const loaded=new Map(),hints=new Set();
+const url=s=>s+'?v='+BV_VER;
+function preload(list){for(const src of list){if(hints.has(src))continue;hints.add(src);const l=document.createElement('link');l.rel='preload';l.as='script';l.href=url(src);document.head.appendChild(l)}}
+function one(src){if(loaded.has(src))return loaded.get(src);
+ const task=(async()=>{for(let i=0;i<3;i++){try{await new Promise((ok,no)=>{const e=document.createElement('script');e.src=url(src)+(i?'&r='+Date.now():'');e.async=false;e.onload=ok;e.onerror=()=>{e.remove();no(Error('Не загрузился '+src))};document.head.appendChild(e)});return}catch(e){if(i===2)throw e;await new Promise(r=>setTimeout(r,250*(i+1)))}}})();
+ loaded.set(src,task);task.catch(()=>loaded.delete(src));return task
+}
+async function files(list){preload(list);for(const src of list)await one(src)}
+window.BV_LOAD={files,ensure:name=>files(GROUPS[name]||[]),
+ async lecture(L){await files(GROUPS.lecture);await one(L.file)},
+ async allLectures(){await files(GROUPS.lecture);await Promise.all(BV_COURSE.lectures.map(L=>one(L.file)))},
+ async route(hash){const p=String(hash).replace(/^#\/?/,'').split('/');if(p[0]==='reading')await files(GROUPS.reading);else if(p[0]==='labs'||p[0]==='lab'||p[0]==='microlab')await files(GROUPS.labs);else if(p[0]==='l'||p[0]==='bact'){const L=BV_COURSE.lectures.find(L=>String(L.n)===(p[0]==='bact'?'1':p[1]));if(L)await this.lecture(L)}}};
 function fail(msg){const b=document.getElementById('boot');if(b){b.innerHTML=msg+' <button>Обновить</button>';b.querySelector('button').onclick=()=>location.reload()}}
-(async()=>{
-  preload(CORE.concat(TAIL));
-  /* Заглушка вне теневого корня: видна и после base.js, вплоть до запуска курса. */
-  for(const s of CORE){if(!await tryLoad(s)){fail('Не получилось загрузить курс. Проверьте интернет.');return}}
-  const C=window.BV_COURSE,files=C.lectures.map(x=>x.file),missed=[];
-  preload(files);
-  for(const s of files){if(!await tryLoad(s))missed.push(s)}
-  for(const s of TAIL){if(!await tryLoad(s)){fail('Не получилось загрузить курс. Проверьте интернет.');return}}
-  const b=document.getElementById('boot');if(b)b.remove();
-  BV.start();
-  if(missed.length)console.warn('Не загрузились:',missed);
-})().catch(e=>{console.error(e);fail('Курс не запустился из-за ошибки. Обновите страницу.')});
+(async()=>{await files(CORE);document.getElementById('boot')?.remove();
+ const ready=BV.start();BV_LOAD.ensure('common').catch(e=>console.warn('Дополнительные функции:',e.message));await ready;
+})().catch(e=>{console.error(e);fail('Курс не запустился. Проверь соединение и обнови страницу.')});
+
 </script>
 </body>
 </html>

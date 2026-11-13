@@ -26,14 +26,14 @@ assert len({q['id'] for q in qs}) == len(qs)
 assert len({q['prompt'].casefold().strip() for q in qs}) == len(qs), 'Duplicate prompt'
 assert {q['section'] for q in qs} == sections
 assert {q['chapter'] for q in qs} == set(range(1, 8))
-assert Counter(q['type'] for q in qs) == {'mcq': 450, 'think': 150}
+assert Counter(q['type'] for q in qs) == {'mcq': 423, 'think': 177}
 for section in sections:
     group = [q for q in qs if q['section'] == section]
     assert len(group) >= 8
     counts = Counter(q['type'] for q in group)
-    assert counts['mcq'] == 3 * counts['think'], section
-    for start in range(0, len(group), 4):
-        assert [q['type'] for q in group[start:start+4]] == ['mcq']*3+['think']
+    assert counts['mcq'] >= 3 and counts['think'] >= 2, section
+    revised=[q for q in group if q.get('revision')==2]
+    assert len(revised)==1 and revised[0]['type']=='think' and len(revised[0]['rubric'])==3
 assert {q['adaptation']['id'] for q in qs if q.get('adaptation')} == set(sources)
 assert {s['group'] for s in sources.values()} == {'yp', 'urfu', 'mipt', 'skoltech', 'mit'}
 for s in sources.values():

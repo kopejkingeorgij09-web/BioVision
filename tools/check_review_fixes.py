@@ -129,7 +129,8 @@ def editor(browser):
     goal.fill('unsaved notes')
     page.locator('.tabs [data-nav=home]').click()
     expect(goal).to_have_value('unsaved notes')
-    assert page.url.endswith('#/labs/review/edit') and dialogs == ['confirm']
+    expect(page).to_have_url(BASE+'#/labs/review/edit')
+    assert dialogs == ['confirm']
     accept = True
     page.locator('.tabs [data-nav=home]').click()
     expect(page.locator('#pg-home h1')).to_be_visible()

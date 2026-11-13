@@ -115,7 +115,7 @@ with sync_playwright() as p:
             }
             await wait(()=>card.querySelector('[data-feedback]').textContent.includes(q.explanation));
             if(q.type==='think')card.querySelector('[data-rd="self-ok"]').click();
-            const answer=BV.store.get('reading:answer:'+q.id,null);
+            const answer=BV.personal.store.get('reading:answer:'+q.id,null);
             if(!answer||answer.ok!==true)throw Error('Answer not saved '+q.id);
             if(q.type==='think'&&answer.draft!=='Мой разбор '+q.id)throw Error('Draft not saved '+q.id);
             out.push(q.id);

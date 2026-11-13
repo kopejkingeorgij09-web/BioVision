@@ -1,4 +1,4 @@
-/* Лабораторные работы группы: название, цель, оборудование, ход работы, результаты с фотографиями, выводы.
+/* Лабы группы: название, цель, оборудование, ход работы, результаты с фотографиями, выводы.
    Адреса: #/labs — список, #/labs/<id> — работа, #/labs/<id>/edit и #/labs/new — редактор (только руководитель).
    Данные в облаке: коллекция labworks (по документу на работу) и labfiles (по документу на фотографию).
    Читать могут все, писать только руководитель: права проверяет сервер (функции bv_* в Supabase). */
@@ -107,7 +107,7 @@ const page=APP.add({key:'labs',nav:'labs',
   parse(p){if(p[0]!=='labs')return null;if(!p[1])return{view:'list',key:'list'};
     if(p[1]==='new')return{view:'edit',id:null,key:'new'};
     return{view:p[2]==='edit'?'edit':'work',id:p[1],key:p[1]+(p[2]==='edit'?'/edit':'')}},
-  show(m){if(m.view==='list'){drawList();return 'Лабораторные работы'}
+  show(m){if(m.view==='list'){drawList();return 'Лабы'}
     if(m.view==='edit'){drawEdit(m.id);return m.id?'Редактор работы':'Новая работа'}
     drawWork(m.id);const w=byId(m.id);return w?w.data.title:'Лабораторная работа'}});
 
@@ -115,7 +115,7 @@ const crumbs=(...x)=>`<nav class="crumbs" aria-label="Путь"><a href="#/">${e
 const fresh=(m)=>{const r=APP.route;return r&&r.kind==='x'&&r.x.key==='labs'&&r.m===m};
 
 async function drawList(){const m=APP.route.m;
-  const head=`${crumbs(['Лабораторные работы'])}<header class="hero"><p class="eyebrow">Практика группы</p><h1>Лабораторные работы</h1>
+  const head=`${crumbs(['Лабы'])}<header class="hero"><p class="eyebrow">Практика группы</p><h1>Лабы</h1>
     <p class="lead">Журнал работ группы: цель, ход работы, результаты и выводы. Выдели фрагмент текста, чтобы создать промпт для ИИ.</p></header>`;
   const tools=APP.isAdmin()?`<div><a class="btn" href="#/labs/new">${ic('plus')}Новая работа</a></div>`:'';
   page.innerHTML=head+tools+(st.list?`<div data-l>${listBody()}</div>`:'<div data-l><p class="empty">Загружаю…</p></div>');
@@ -125,12 +125,12 @@ function listBody(){if(st.err&&!st.list)return `<p class="empty">${esc(APP.isAdm
   const l=visible();return l.length?rows(l):`<p class="empty">Работ пока нет.${APP.isAdmin()?' Нажми «Новая работа», чтобы добавить первую.':''}</p>`}
 
 async function drawWork(id){const m=APP.route.m;
-  if(!byId(id)){page.innerHTML=crumbs(['Лабораторные работы','#/labs'],['Работа'])+'<p class="empty">Загружаю…</p>';await load(true);if(!fresh(m))return}
+  if(!byId(id)){page.innerHTML=crumbs(['Лабы','#/labs'],['Работа'])+'<p class="empty">Загружаю…</p>';await load(true);if(!fresh(m))return}
   const w=byId(id);
-  if(!w||(w.data.draft&&!APP.isAdmin())){page.innerHTML=crumbs(['Лабораторные работы','#/labs'],['Работа'])+`<p class="empty">${st.err?'Не получилось загрузить работу.':'Такой работы нет. Возможно, её удалили.'} <a href="#/labs">Ко всем работам</a></p>`;return}
+  if(!w||(w.data.draft&&!APP.isAdmin())){page.innerHTML=crumbs(['Лабы','#/labs'],['Работа'])+`<p class="empty">${st.err?'Не получилось загрузить работу.':'Такой работы нет. Возможно, её удалили.'} <a href="#/labs">Ко всем работам</a></p>`;return}
   const d=w.data,l=visible(),i=l.indexOf(w),prev=l[i-1],next=l[i+1];
   const parts=PARTS.filter(([k])=>String(d[k]||'').trim()||(k==='results'&&(d.photos||[]).length));
-  page.innerHTML=`<div class="lw-bar">${crumbs(['Лабораторные работы','#/labs'],['№ '+no(w)])}
+  page.innerHTML=`<div class="lw-bar">${crumbs(['Лабы','#/labs'],['№ '+no(w)])}
     ${APP.isAdmin()?`<div class="r"><a class="btn ghost sm" href="#/labs/${esc(w.id)}/edit">${ic('edit')}Редактировать</a></div>`:''}</div>
     <article class="lw-doc"><header><p class="lw-kick"><span>Лабораторная работа № ${no(w)}</span>${d.date?`<span>${esc(BV.fmtDate(d.date))}</span>`:''}${d.draft?'<span class="badge cut">черновик</span>':''}</p><h1>${esc(d.title||'Без названия')}</h1></header>
     ${parts.length?parts.map(([k,t])=>`<section class="lw-part"><h2>${t}</h2><div><div class="md">${BV.md(d[k]||'')}</div>${k==='results'&&(d.photos||[]).length?`<div class="lw-gal">${d.photos.map((p,j)=>`<figure><button type="button" data-ph="${j}" aria-label="Открыть фото ${j+1}"><img alt="${esc(p.cap||'Фото '+(j+1))}" data-pid="${esc(p.id)}"></button>${p.cap?`<figcaption>${esc(p.cap)}</figcaption>`:''}</figure>`).join('')}</div>`:''}</div></section>`).join(''):'<p class="empty" style="margin-top:18px">Описание работы пока не заполнено.</p>'}
@@ -157,14 +157,14 @@ async function shrink(file){const im=await readImg(file);let side=1800,q=.85,out
 /* ---------- редактор ---------- */
 async function drawEdit(id){const m=APP.route.m;
   const back=id?`#/labs/${id}`:'#/labs';
-  if(!APP.isAdmin()){page.innerHTML=crumbs(['Лабораторные работы','#/labs'],['Редактор'])+'<p class="empty">Редактировать работы может только руководитель. <a href="#/me">Войти</a></p>';return}
+  if(!APP.isAdmin()){page.innerHTML=crumbs(['Лабы','#/labs'],['Редактор'])+'<p class="empty">Редактировать работы может только руководитель. <a href="#/me">Войти</a></p>';return}
   if(id&&!byId(id)){page.innerHTML='<p class="empty">Загружаю…</p>';await load(true);if(!fresh(m))return}
   else if(!st.list){await load();if(!fresh(m))return}
   const w=id?byId(id):null;if(id&&!w){page.innerHTML='<p class="empty">Такой работы нет. <a href="#/labs">Ко всем работам</a></p>';return}
   const d=w?w.data:{n:(visible().reduce((a,x)=>Math.max(a,+x.data.n||0),0)+1),date:new Date().toISOString().slice(0,10),draft:true};
   /* фото в редакторе: старые {id, cap}, новые {src, cap, fresh:true} */
   let ph=(d.photos||[]).map(p=>({...p}));const removed=[];
-  page.innerHTML=`${crumbs(['Лабораторные работы','#/labs'],[w?'Редактор':'Новая работа'])}
+  page.innerHTML=`${crumbs(['Лабы','#/labs'],[w?'Редактор':'Новая работа'])}
    <header class="hero"><p class="eyebrow">${w?'Редактирование':'Новая работа'}</p><h1>${w?esc(d.title||'Без названия'):'Новая лабораторная работа'}</h1>
    <p class="lead">Текст пишется как обычно. Пустая строка начинает новый абзац, строки с «- » и «1. » становятся списками, **так** выделяется жирным.</p></header>
    <form class="lw-form" novalidate>

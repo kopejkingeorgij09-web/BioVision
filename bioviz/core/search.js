@@ -169,12 +169,12 @@ function snippet(h,blocks,used){const b=h.b,t=b.t,ss=sentences(t),p=h.sp[0][0];
 
 /* ---------- окно ---------- */
 let W=null,sel=0,acts=[],lastQ='';
-function open(q){if($('.sr'))return;
+function open(q){if($('.sr'))return;BV.activity?.action('platform-search','Поиск по платформе');
   try{IX=buildLectures()}catch(e){console.error('search index',e);IX={items:[],blocks:[],terms:[],near:new Map()}}
   loadLabs();
   W=document.createElement('div');
   W.innerHTML=`<div class="sr-scrim"></div><div class="sr" role="dialog" aria-modal="true" aria-label="Поиск по платформе">
-    <div class="sr-in">${ic('search')}<input type="search" placeholder="Поиск по конспектам, словарю и лабораторным" aria-label="Что найти" autocomplete="off" spellcheck="false" enterkeyhint="search" role="combobox" aria-expanded="true" aria-controls="srRes"><kbd>Esc</kbd><button type="button" class="sr-x" aria-label="Закрыть поиск">${ic('x')}</button></div>
+    <div class="sr-in">${ic('search')}<input type="search" placeholder="Поиск по конспектам, словарю и лабам" aria-label="Что найти" autocomplete="off" spellcheck="false" enterkeyhint="search" role="combobox" aria-expanded="true" aria-controls="srRes"><kbd>Esc</kbd><button type="button" class="sr-x" aria-label="Закрыть поиск">${ic('x')}</button></div>
     <div class="sr-res" id="srRes" role="listbox" aria-label="Результаты"></div>
     <div class="sr-ft"><span><kbd>↑</kbd><kbd>↓</kbd> выбрать</span><span><kbd>Enter</kbd> открыть</span><span><kbd>Esc</kbd> закрыть</span></div></div>`;
   R.appendChild(W);
@@ -201,8 +201,8 @@ function draw(){if(!W)return;const q=$('input',W).value,res=$('.sr-res',W);acts=
   if(!r){/* пустой запрос: что есть на платформе */
     h+=`<div class="sr-g">Конспекты</div>`;
     IX.items.filter(it=>it.kind!=='sub').forEach(it=>{h+=add(()=>goItem(it),{h:it.kind==='lec'?`<span class="t">${esc(it.t)}<small>${esc(it.sub)}</small></span>`:`${pathH([it.sub])}<span class="t">${esc(it.t)}</span>`})});
-    if(labsIX&&labsIX.items.length){h+=`<div class="sr-g">Лабораторные работы</div>`;labsIX.items.forEach(it=>{h+=add(()=>goItem(it),{h:`<span class="t">${esc(it.t)}<small>${esc(it.sub)}</small></span>`})})}
-    else if(labsLoading)h+=`<div class="sr-g">Лабораторные работы</div><div class="sr-empty">Загружаю…</div>`;
+    if(labsIX&&labsIX.items.length){h+=`<div class="sr-g">Лабы</div>`;labsIX.items.forEach(it=>{h+=add(()=>goItem(it),{h:`<span class="t">${esc(it.t)}<small>${esc(it.sub)}</small></span>`})})}
+    else if(labsLoading)h+=`<div class="sr-g">Лабы</div><div class="sr-empty">Загружаю…</div>`;
   }else{
     if(r.terms.length){h+=`<div class="sr-g">Словарь</div>`;r.terms.forEach(tm=>{const sp=spans(norm(tm.t),r.rxs);
       h+=add(()=>goEl(tm.el,tm.lec,r.rxs),{cls:' sr-term',h:`${pathH(tm.path)}<span class="t">${marked(tm.t,0,tm.t.length,sp)}</span><span class="d">${esc(tm.d)}</span>`})})}

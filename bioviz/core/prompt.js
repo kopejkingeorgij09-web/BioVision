@@ -77,7 +77,7 @@ document.addEventListener('selectionchange',later);R.addEventListener('pointerup
 addEventListener('scroll',()=>{if(!btn.hidden)later()},{passive:true});
 addEventListener('hashchange',hide);
 btn.addEventListener('pointerdown',e=>e.preventDefault());
-btn.addEventListener('click',async()=>{if(!picked)return;const text=build(picked.t,picked.n);
+btn.addEventListener('click',async()=>{if(!picked)return;BV.activity?.action('prompt','Создать промпт');const text=build(picked.t,picked.n);
   const ok=await BV.copy(text);
   BV.toast(ok?'Промпт скопирован. Вставь его в любой ИИ-чат.':'Не получилось скопировать. Выдели текст ещё раз.');
   if(ok){hide();try{getSel().removeAllRanges()}catch(e){}}});

@@ -15,8 +15,8 @@ const store={
 /* Отметки лекций принадлежат профилю. Старые ключи доступны гостю и не уходят в чужое облако. */
 const lectureStore={
   key(k){const a=window.BVAUTH,owner=a&&a.progressOwner;return owner?'progress:'+owner+':'+k:'guest:'+k},
-  get(k,d){const key=this.key(k);return store.get(key,key.startsWith('guest:')?store.get(k,d):d)},
-  set(k,v){store.set(this.key(k),v)}};
+  get(k,d){if(BV.personal?.connected)return BV.personal.store.get('reading:course:'+k,d);const key=this.key(k);return store.get(key,key.startsWith('guest:')?store.get(k,d):d)},
+  set(k,v){if(BV.personal?.connected)return BV.personal.store.set('reading:course:'+k,v);store.set(this.key(k),v)}};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let reduced=false;try{reduced=matchMedia('(prefers-reduced-motion: reduce)').matches}catch(e){}

@@ -21,7 +21,7 @@ LAB = {'id': 'review', 'data': {'title': 'Review lab', 'goal': 'original goal',
 class Cloud:
     def __init__(self, context, code='STUDENT-A', local=None):
         self.docs = {'student-a': {'other': 'keep', 'prog': {
-            'seen': {'l01': ['mb1', 'mb2']}, 'last': {'id': 'l01', 's': 'mb2', 't': 20}, 't': 20}},
+            'seen': {'l01': ['mb1', 'mb2']}, 'last': {'id': 'l01', 's': 'mb2'}, 't': 20}},
             'student-b': {'prog': {'seen': {}, 'last': None}}}
         self.writes = []
         self.failure = None
@@ -69,6 +69,7 @@ def progress(browser):
     page.wait_for_timeout(500)
     assert cloud.docs['student-a']['prog']['seen'] == {'l01': ['mb1', 'mb2']}
     assert cloud.docs['student-a']['other'] == 'keep'
+    assert cloud.docs['student-a']['prog']['last']['t'] == 20
     page.evaluate("BV.lectureStore.set('seen:l01',['mb1','mb2','mb3']); BV.progress.sync(true)")
     page.wait_for_function("BV.progress.seenOf('l01').has('mb3')")
     page.wait_for_timeout(700)

@@ -453,7 +453,7 @@ function syncProgress(now){const u=A&&A.me;if(!u||u.role!=='student')return;clea
     const data=old.exists&&old.data()||{},remote=data.prog||{},seen={...remote.seen};
     C.lectures.forEach(L=>{const s=[...new Set([...(remote.seen&&remote.seen[L.id]||[]),...seenOf(L.id)])];
       if(s.length)seen[L.id]=s;PS.set('seen:'+L.id,s)});
-    const here=PS.get('last',null),there=remote.last;
+    const here=PS.get('last',null),there=remote.last?{...remote.last,t:Number(remote.last.t||remote.t)||0}:null;
     const last=!here?there:!there?here:(Number(there.t||remote.t)||0)>(Number(here.t)||0)?there:here;
     if(last)PS.set('last',last);
     await ref.set({...data,prog:{...remote,seen,last:last||null,t:Date.now()}});if(A.me!==u)return;

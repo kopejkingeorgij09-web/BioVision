@@ -1,0 +1,27 @@
+{
+  "sourceSha256": "61ddcd96bd54ee2e0f9d0affa0d8719f5121092e7126b7c49eab43b99394d5f3",
+  "sourceBytes": 42418072,
+  "pdfPages": 796,
+  "verbatimPagesChecked": 796,
+  "verbatimCodepoints": 1804689,
+  "proseAndCaptionBlocksChecked": 1900,
+  "proseAndCaptionCharactersChecked": 1470011,
+  "failures": 0,
+  "scope": "Exact text-layer roundtrip on every PDF page; ordered character comparison of every reflowed prose/caption block, ignoring whitespace and line-wrap hyphens. This is not proof of visual glyph mapping or completeness of the published edition.",
+  "sourceIssues": [
+    "The supplied PDF ends mid-bibliographic-entry on PDF page 796 (printed page 813).",
+    "The supplied preliminary edition has inconsistent page references and unfinished publication metadata."
+  ],
+  "dataSha256": {
+    "chapter-2.json": "324ebc86d4d8a15d4810ce4045c92e514732a492a14fd69094da17443d72cb88",
+    "chapter-5.json": "c15537a5b1db037b0dd2e55ae72fe406131c209584951a8d2002d109129dfc49",
+    "chapter-7.json": "afd25865e76f35393caf80bdca4daf47470f36216cb526a8c5ada17aa8781f49",
+    "chapter-0.json": "b225b56879e280e77658d3ebe695959b1b2948da20689a6b7b756d32de32efbd",
+    "chapter-6.json": "f2f513f5eb408f9943efea1c5e478db5e9e1a0f115bd6b788c9fc8a2b4e64118",
+    "chapter-4.json": "0e45160900a0cdf44fd7882ac2f0211961cd827a7e4d457b67433abb48dcf9be",
+    "chapter-3.json": "81df4a75b1d4608905e54b8f31b85201d59e0a4fe9249860cf67eb23b96e2586",
+    "chapter-1.json": "80c1d2d4c6168aed12225a9b3b74b87fb19daf6286d6f20bf9ed71561e0e52a7",
+    "verbatim.json": "e7dc03c2c4e15fef9e464a1c57f0a18fd487e645738a940dd35151e487b5e279",
+    "search.json": "67f6c68f0ff8d7c0dc97b559dcc0d63281b53566f876b5c9b2c016c110cae48d"
+  }
+}

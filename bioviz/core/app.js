@@ -395,6 +395,7 @@ app.innerHTML=`<header class="bar">
   <nav class="tabs" aria-label="Разделы">
     <a href="#/" data-nav="home">Курс</a>
     <a href="#/labs" data-nav="labs">Лабораторные работы</a>
+    <a href="#/reading" data-nav="reading">Фундаментальное чтиво</a>
   </nav>
   <div class="bar-r">
     <button type="button" class="icb" data-theme-btn aria-label="Настройки" aria-haspopup="true" aria-expanded="false"></button>
@@ -405,6 +406,7 @@ app.innerHTML=`<header class="bar">
 <nav class="dock" aria-label="Разделы">
   <a href="#/" data-nav="home">${ic('home')}<span>Курс</span></a>
   <a href="#/labs" data-nav="labs">${ic('lab')}<span>Лабораторные</span></a>
+  <a href="#/reading" data-nav="reading">${ic('toc')}<span>Чтиво</span></a>
   <a href="#/me" data-nav="me">${ic('me')}<span>Профиль</span></a>
 </nav>`;
 R.appendChild(app);
@@ -525,6 +527,8 @@ function scrollToId(scope,id){const el=$('#k-'+id,scope)||$('#'+id,scope);if(!el
 
 function show(r){
   if(r.kind==='redirect'){history.replaceState(null,'',r.to);return show(parse(r.to))}
+  /* Readers save their scroll position while their page is still visible. */
+  dispatchEvent(new Event('bv-before-route'));
   const target=r.kind==='lecture'?pages['l'+r.L.n]:r.kind==='x'?r.x.page:r.kind==='me'?me:home;
   if(curLecture&&(r.kind!=='lecture'||r.L!==curLecture)){BV.K.hide(curLecture.id);curLecture=null;BV.split&&BV.split.off()}
   Object.values(pages).concat(EXT.map(x=>x.page)).forEach(p=>{p.hidden=p!==target});

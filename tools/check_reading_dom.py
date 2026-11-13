@@ -38,6 +38,10 @@ with sync_playwright() as p:
               const s=b.source,key=s.page+':'+s.block+':'+s.lines.join(',');
               const el=byKey.get(key);
               if(!el||el.textContent!==b.text)throw Error('DOM character mismatch: '+t.id+' '+key);
+              for(const node of [el,...el.querySelectorAll('*')]){
+                const style=getComputedStyle(node);
+                if(style.display==='none'||style.visibility==='hidden'||style.opacity==='0')throw Error('Source text is hidden: '+t.id+' '+key);
+              }
               checked++;characters+=b.text.length;
             }
             const originalFigures=t.blocks.filter(b=>b.kind==='figure');

@@ -47,8 +47,8 @@ def rich(lines, title=False):
                 tag = 'sup' if s['flags'] & 1 else 'sub'
                 value = f'<{tag}>' + value + f'</{tag}>'
             if title and re.fullmatch(r'\s*[1-7](?:\.\d+){0,2}\.?\s*', s['text']):
-                # Its exact text remains in the DOM and audit. The same number
-                # is already displayed in the reader's topic navigation label.
+                # Keep the original number visible beside the heading. CSS can
+                # move it without changing or hiding any source characters.
                 value = '<span class="rd-heading-number">' + value + '</span>'
             parts.append(value)
         result.append(''.join(parts) + '\n')

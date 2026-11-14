@@ -1,4 +1,4 @@
-import { catalogue, filePath, mergeSubmission, notesUser, student } from './catalogue.js';
+import { catalogue, filePath, mergeSubmission, notesUser, ownAssignment, student } from './catalogue.js';
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 const reply = (body: unknown, status = 200) => Response.json(body, { status, headers: cors });
 const url = Deno.env.get('SUPABASE_URL')!;
@@ -21,7 +21,7 @@ async function write(rows: unknown[]) {
 async function entries() {
   const rows = [];
   for (let offset = 0; ; offset += 500) {
-    const page = await db('ph_docs?select=path,data&deleted=eq.false&parent=in.(tasks,events,nbooks,subs/' + student + '/items)&order=path&limit=500&offset=' + offset);
+    const page = await db('ph_docs?select=path,data&deleted=eq.false&parent=in.(tasks,subs/' + student + '/items)&order=path&limit=500&offset=' + offset);
     rows.push(...page); if (page.length < 500) return catalogue(rows);
   }
 }
@@ -42,7 +42,7 @@ export const handle = async (request: Request) => {
       const operation = new URL(request.url).searchParams.get('operation') ?? '';
       if (!/^[\w-]{1,160}$/.test(taskId) || !/^[a-f0-9-]{36}$/.test(operation)) return reply({ message: 'Неверное задание' }, 400);
       const task = await read('tasks/' + taskId);
-      if (!task || task.kind !== 'task' || !task.to?.includes(student)) return reply({ message: 'Задание недоступно для сдачи' }, 403);
+      if (!ownAssignment('tasks/' + taskId, task)) return reply({ message: 'Задание недоступно для сдачи' }, 403);
       if (Number(request.headers.get('content-length')) > 20 * 1024 * 1024) return reply({ message: 'PDF больше 20 МиБ' }, 413);
       const bytes = new Uint8Array(await request.arrayBuffer());
       if (bytes.length > 20 * 1024 * 1024 || new TextDecoder().decode(bytes.slice(0, 5)) !== '%PDF-') return reply({ message: 'Нужен PDF до 20 МиБ' }, 400);
@@ -77,7 +77,7 @@ export const handle = async (request: Request) => {
     if (raw.length > 2048) return reply({ message: 'Слишком большой запрос' }, 413);
     const input = JSON.parse(raw);
     const list = await entries();
-    if (input.action === 'catalogue') return reply({ entries: list });
+    if (input.action === 'catalogue') return reply({ student, entries: list });
     if (input.action !== 'file') return reply({ message: 'Неизвестная команда' }, 400);
     const file = list.find(item => item.key === input.key)?.file;
     if (!file) return reply({ message: 'Файл больше не доступен' }, 404);

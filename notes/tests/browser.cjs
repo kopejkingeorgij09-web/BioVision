@@ -277,6 +277,26 @@ const root = path.resolve(__dirname, '../..');
     console.log('PASS Android chunked PDF bridge preserves bytes');
 
 
+    await page.getByRole('button', { name: 'Перо', exact: true }).click();
+    const bridgeReads = await page.evaluate(() => {
+      let reads = 0;
+      window.NotesAndroid = { penButtonPressed() { reads++; return false; } };
+      const ink = document.querySelector('.board .ink'), rect = ink.getBoundingClientRect();
+      const capture = ink.setPointerCapture; ink.setPointerCapture = () => {};
+      const dispatch = (type, x, buttons = 1) => ink.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, cancelable: true, pointerId: 91, pointerType: 'pen', pressure: buttons ? .5 : 0,
+        clientX: rect.x + x, clientY: rect.y + 120, buttons,
+      }));
+      dispatch('pointerdown', 40);
+      for (let x = 41; x <= 140; x++) dispatch('pointermove', x);
+      dispatch('pointerup', 140, 0);
+      ink.setPointerCapture = capture;
+      delete window.NotesAndroid;
+      return reads;
+    });
+    assert.equal(bridgeReads, 1, 'writing must not synchronously call Android on each move');
+    console.log('PASS 100 pen moves use one synchronous Android button read');
+
     assert.deepEqual(errors, []);
     const perf = await context.newPage();
     await perf.goto('http://localhost:3333/notes/');
@@ -286,8 +306,9 @@ const root = path.resolve(__dirname, '../..');
       const host = document.createElement('div'); host.style.cssText = 'position:relative;width:1000px;height:600px'; document.body.append(host);
       const strokes = Array.from({ length: 5000 }, (_, i) => ({ id: String(i), tool: 'pen', width: 3, color: '#222',
         points: Array.from({ length: 24 }, (_, j) => [(i % 100) * 160 + j * 2, Math.floor(i / 100) * 100 + Math.sin(j) * 10, .5]) }));
-      let commits = 0;
-      const surface = createSurface(host, { strokes, texts: [] }, { board: true, settings: () => ({ tool: 'pen', width: 3 }), commit: () => commits++ });
+      let commits = 0, tool = 'pen', saved;
+      const surface = createSurface(host, { strokes, texts: [] }, { board: true, settings: () => ({ tool, width: 3 }),
+        commit: state => { commits++; saved = state; } });
       const layer = host.querySelector('svg.ink > g'), first = layer.firstElementChild;
       let elapsed = 0;
       for (let frame = 0; frame < 20; frame++) {
@@ -296,11 +317,34 @@ const root = path.resolve(__dirname, '../..');
         elapsed += performance.now() - start;
         await new Promise(requestAnimationFrame);
       }
-      return { strokes: layer.childElementCount, visible: [...layer.children].filter(node => node.style.display !== 'none').length,
+      const pan = { strokes: layer.childElementCount, visible: [...layer.children].filter(node => node.style.display !== 'none').length,
         retained: layer.firstElementChild === first, commits, inputMs: elapsed, x: surface.view().x };
+      const ink = host.querySelector('svg.ink'), rect = ink.getBoundingClientRect();
+      ink.setPointerCapture = () => {};
+      const dispatch = (type, x, y) => ink.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, cancelable: true, pointerId: 92, pointerType: 'pen',
+        pressure: type === 'pointerup' ? 0 : .5, buttons: type === 'pointerup' ? 0 : 1,
+        clientX: rect.x + x, clientY: rect.y + y,
+      }));
+      let start = performance.now();
+      for (let i = 0; i < 100; i++) {
+        dispatch('pointerdown', 40 + i * 5, 400);
+        dispatch('pointermove', 43 + i * 5, 405);
+        dispatch('pointerup', 46 + i * 5, 410);
+      }
+      const writeMs = performance.now() - start;
+      tool = 'erase'; start = performance.now();
+      dispatch('pointerdown', 30, 405);
+      for (let x = 31; x <= 560; x++) dispatch('pointermove', x, 405);
+      dispatch('pointerup', 560, 405);
+      const originalIds = new Set(strokes.map(stroke => stroke.id));
+      return { ...pan, writeMs, eraseMs: performance.now() - start, remaining: layer.childElementCount, finalCommits: commits,
+        remainingAdded: saved.strokes.filter(stroke => !originalIds.has(stroke.id)).length };
     });
     assert.equal(result.strokes, 5000); assert.equal(result.retained, true); assert.equal(result.commits, 0);
     assert.ok(result.visible < 100); assert.ok(Math.abs(result.x + 400) < .01);
+    assert.equal(result.finalCommits, 101);
+    assert.equal(result.remainingAdded, 0, 'all 100 short strokes must be erased');
     console.log('PASS 5000-stroke board, 2000 pan events: ' + JSON.stringify(result));
     await perf.close();
     await context.close();

@@ -272,3 +272,71 @@ test('short contacts render immediately without waiting for a frame', () => {
   }
   assert.equal(t.saved().strokes.length, 40);
 });
+
+test('switching to the eraser discards provisional ink in the same contact', () => {
+  let tool = 'pen';
+  const commits = [];
+  const t = setup([stroke('old')], true, [], { sideTool: () => tool, commit: value => commits.push(value) });
+  t.dispatch('pointerdown', { clientX: 300, clientY: 300 });
+  t.dispatch('pointermove', { clientX: 303, clientY: 303, buttons: 1 });
+  tool = 'erase';
+  t.dispatch('pointermove', { clientX: 25, clientY: 25, buttons: 3 });
+  tool = 'pen';
+  t.dispatch('pointermove', { clientX: 90, clientY: 50, buttons: 1 });
+  t.dispatch('pointerup', { clientX: 90, clientY: 50, pressure: 0 });
+  assert.deepEqual(commits.at(-1).strokes, []);
+  assert.equal(commits.length, 1, 'undo history must not contain provisional pen ink');
+  assert.equal(t.ink.children[1].childElementCount, 0);
+});
+
+test('eraser button in a coalesced sample is latched even after its release', () => {
+  const t = setup([stroke('old')], true, [], {
+    sideTool: event => event.buttons & 2 ? 'erase' : 'pen',
+  });
+  t.dispatch('pointerdown', { clientX: 15, clientY: 15 });
+  t.dispatch('pointermove', { clientX: 90, clientY: 50, buttons: 1, getCoalescedEvents: () => [
+    { clientX: 20, clientY: 20, pressure: .5, pointerType: 'pen', timeStamp: 11, buttons: 3 },
+    { clientX: 90, clientY: 50, pressure: .5, pointerType: 'pen', timeStamp: 12, buttons: 1 },
+  ] });
+  assert.equal(t.ink.firstElementChild.firstElementChild.style.opacity, '0');
+  t.dispatch('pointerup', { clientX: 90, clientY: 50, pressure: 0 });
+  assert.deepEqual(t.saved().strokes, []);
+});
+
+test('eraser index skips distant strokes and tracks new and transformed ink', () => {
+  let distantReads = 0;
+  const distant = Array.from({ length: 5000 }, (_, i) => {
+    const value = stroke('far' + i, 10000 + i * 40);
+    return { ...value, get width() { distantReads++; return value.width; } };
+  });
+  const t = setup([stroke('near'), ...distant]);
+  distantReads = 0;
+  t.prefs.tool = 'erase';
+  t.dispatch('pointerdown', { clientX: 20, clientY: 20 });
+  for (let x = 21; x < 80; x++) t.dispatch('pointermove', { clientX: x, clientY: 20, buttons: 1 });
+  t.dispatch('pointerup', { clientX: 80, clientY: 20, pressure: 0 });
+  assert.equal(t.saved().strokes.length, 5000);
+  assert.equal(distantReads, 0, 'offscreen strokes must not be visited on every eraser sample');
+  t.prefs.tool = 'pen';
+  t.dispatch('pointerdown', { clientX: 20, clientY: 20 });
+  t.dispatch('pointerup', { clientX: 40, clientY: 40 });
+  lasso(t);
+  t.dispatch('pointerdown', { clientX: 30, clientY: 30 });
+  t.dispatch('pointerup', { clientX: 330, clientY: 230 });
+  t.prefs.tool = 'erase';
+  t.dispatch('pointerdown', { clientX: 330, clientY: 230 });
+  t.dispatch('pointerup', { clientX: 330, clientY: 230, pressure: 0 });
+  assert.equal(t.saved().strokes.length, 5000, 'transformed stroke must be indexed at its new location');
+});
+
+test('eraser index includes thick, negative-coordinate and very large strokes', () => {
+  const t = setup([
+    { ...stroke('thick'), width: 40, points: [[-40, -20, .5]] },
+    { ...stroke('wide'), points: [[-100000, -100000, .5], [100000, 100000, .5]] },
+  ]);
+  t.prefs.tool = 'erase';
+  t.dispatch('pointerdown', { clientX: 0, clientY: -20 });
+  t.dispatch('pointermove', { clientX: 30, clientY: 30, buttons: 1 });
+  t.dispatch('pointerup', { clientX: 30, clientY: 30, pressure: 0 });
+  assert.deepEqual(t.saved().strokes, []);
+});

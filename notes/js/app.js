@@ -123,11 +123,13 @@ window.notesPenButton = (down, contact, canceled, time, source) => {
   }
 };
 
-function sideTool(event) {
+function sideTool(event, contactStart = false) {
   if (event.pointerType !== 'pen') return baseTool();
   const bridge = window.NotesAndroid;
   const pointerButton = Boolean(event.buttons & 2) || event.button === 2;
-  const held = pointerButton || (bridge?.penButtonPressed ? bridge.penButtonPressed() : penButton.isPressed());
+  // The Android bridge is synchronous. Query once at contact start; button
+  // changes during writing arrive through notesPenButton without blocking input.
+  const held = pointerButton || (contactStart && bridge?.penButtonPressed ? bridge.penButtonPressed() : penButton.isPressed());
   if (held) {
     const tool = buttonSettings().hold;
     return tool === 'none' ? baseTool() : tool;

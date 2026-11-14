@@ -256,6 +256,53 @@ export function createSurface(host, content, options) {
   let frame = 0, viewDirty = false, previewDirty = false;
   let renderedTexts;
   const cachedInk = new Map();
+  // Bound eraser work to nearby strokes, including strokes outside the viewport.
+  const inkCells = new Map(), wideInk = new Set();
+  const cellSize = 128, maxCells = 256;
+  let renderedStrokes;
+
+  function cellKeys(bounds) {
+    const [left, top, right, bottom] = bounds.map(n => Math.floor(n / cellSize));
+    if ((right - left + 1) * (bottom - top + 1) > maxCells) return null;
+    const keys = [];
+    for (let x = left; x <= right; x++) for (let y = top; y <= bottom; y++) keys.push(x + ',' + y);
+    return keys;
+  }
+
+  function removeInk(id) {
+    const entry = cachedInk.get(id);
+    if (!entry) return;
+    for (const key of entry.cells ?? []) {
+      const cell = inkCells.get(key);
+      cell.delete(entry);
+      if (!cell.size) inkCells.delete(key);
+    }
+    wideInk.delete(entry);
+    entry.node.remove();
+    cachedInk.delete(id);
+  }
+
+  function addInk(stroke) {
+    const old = cachedInk.get(stroke.id);
+    const node = shapeNode(stroke);
+    let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+    for (const [x, y] of stroke.points) {
+      left = Math.min(left, x); top = Math.min(top, y);
+      right = Math.max(right, x); bottom = Math.max(bottom, y);
+    }
+    const pad = stroke.width * 4;
+    const bounds = [left - pad, top - pad, right + pad, bottom + pad];
+    const entry = { stroke, node, bounds, cells: cellKeys(bounds) };
+    if (old) { old.node.replaceWith(node); removeInk(stroke.id); }
+    else ink.append(node);
+    cachedInk.set(stroke.id, entry);
+    if (entry.cells) for (const key of entry.cells) {
+      if (!inkCells.has(key)) inkCells.set(key, new Set());
+      inkCells.get(key).add(entry);
+    }
+    else wideInk.add(entry);
+    cullEntry(entry);
+  }
 
   function scheduleFrame(kind) {
     if (kind === 'view') viewDirty = true;
@@ -270,41 +317,35 @@ export function createSurface(host, content, options) {
 
   function cullInk() {
     if (!board) return;
+    for (const entry of cachedInk.values()) cullEntry(entry);
+  }
+
+  function cullEntry(entry) {
+    if (!board) return;
     const margin = 180 / view.zoom;
     const left = -view.x / view.zoom - margin, top = -view.y / view.zoom - margin;
     const right = left + width / view.zoom + margin * 2, bottom = top + height / view.zoom + margin * 2;
-    for (const entry of cachedInk.values()) {
-      const b = entry.bounds;
-      const hidden = b[2] < left || b[0] > right || b[3] < top || b[1] > bottom;
-      if (entry.hidden !== hidden) {
-        entry.node.style.display = hidden ? 'none' : '';
-        entry.hidden = hidden;
-      }
+    const b = entry.bounds;
+    const hidden = b[2] < left || b[0] > right || b[3] < top || b[1] > bottom;
+    if (entry.hidden !== hidden) {
+      entry.node.style.display = hidden ? 'none' : '';
+      entry.hidden = hidden;
     }
   }
 
   function renderInk() {
+    if (renderedStrokes === state.strokes) return;
+    renderedStrokes = state.strokes;
     const ids = new Set();
     for (const stroke of state.strokes ?? []) {
       ids.add(stroke.id);
-      let entry = cachedInk.get(stroke.id);
+      const entry = cachedInk.get(stroke.id);
       if (entry?.stroke === stroke) continue;
-      const node = shapeNode(stroke);
-      let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
-      for (const [x, y] of stroke.points) {
-        left = Math.min(left, x); top = Math.min(top, y);
-        right = Math.max(right, x); bottom = Math.max(bottom, y);
-      }
-      const pad = stroke.width * 4;
-      if (entry) entry.node.replaceWith(node);
-      else ink.append(node);
-      cachedInk.set(stroke.id, { stroke, node, bounds: [left - pad, top - pad, right + pad, bottom + pad] });
+      addInk(stroke);
     }
-    for (const [id, entry] of cachedInk) {
-      if (!ids.has(id)) { entry.node.remove(); cachedInk.delete(id); }
-      else entry.node.style.opacity = '';
+    for (const id of cachedInk.keys()) {
+      if (!ids.has(id)) removeInk(id);
     }
-    cullInk();
   }
 
   function viewport() {
@@ -524,8 +565,13 @@ export function createSurface(host, content, options) {
     typing.lastElementChild?.querySelector('textarea')?.focus();
   }
 
-  function update(next, objects = []) {
+  function update(next, objects = [], inkChange) {
     state = next;
+    if (inkChange) {
+      for (const id of inkChange.removed ?? []) removeInk(id);
+      for (const stroke of inkChange.added ?? []) addInk(stroke);
+      renderedStrokes = state.strokes;
+    }
     render();
     commit(next, true, objects);
     positionSelection();
@@ -678,17 +724,21 @@ export function createSurface(host, content, options) {
     const start = active.erasePoint ?? point;
     const radius = 16 / viewport().scale;
     active.erasePoint = point;
-    for (const stroke of state.strokes ?? []) {
+    const sweep = [Math.min(start[0], point[0]) - radius, Math.min(start[1], point[1]) - radius,
+      Math.max(start[0], point[0]) + radius, Math.max(start[1], point[1]) + radius];
+    const keys = cellKeys(sweep);
+    const candidates = keys ? new Set(wideInk) : cachedInk.values();
+    if (keys) for (const key of keys) for (const entry of inkCells.get(key) ?? []) candidates.add(entry);
+    for (const entry of candidates) {
+      const { stroke, bounds, node } = entry;
       if (active.erased.has(stroke.id)) continue;
       const pad = radius + stroke.width * (stroke.tool === 'highlight' ? 2 : 1);
-      const bounds = cachedInk.get(stroke.id)?.bounds;
       if (bounds && (bounds[2] < Math.min(start[0], point[0]) - pad || bounds[0] > Math.max(start[0], point[0]) + pad ||
           bounds[3] < Math.min(start[1], point[1]) - pad || bounds[1] > Math.max(start[1], point[1]) + pad)) continue;
-      const points = segments(stroke);
+      const points = entry.segments ??= segments(stroke);
       if (points.some((p, i) => segmentGap(start, point, p, points[i + 1] ?? p) <= pad)) {
         active.erased.add(stroke.id);
-        const node = cachedInk.get(stroke.id)?.node;
-        if (node) node.style.opacity = '0';
+        node.style.opacity = '0';
       }
     }
   }
@@ -787,7 +837,7 @@ export function createSurface(host, content, options) {
         clearTimeout(shapeTimer);
         pointers.delete(pointerId);
         gesture = null;
-        if (active?.pointer === pointerId) { active = null; preview.replaceChildren(); render(); }
+        if (active?.pointer === pointerId) finishStroke({ pointerId }, false, false);
         offerPaste(clientX, clientY);
       }, 500) };
     } else cancelHold();
@@ -866,7 +916,7 @@ export function createSurface(host, content, options) {
       // Once erasing, keep that contact an eraser even if the barrel button
       // flickers or is released. Otherwise its final moves become random ink.
       if (next === 'erase' && ['pen', 'highlight'].includes(active.tool)) {
-        finishStroke(event, true);
+        finishStroke(event, false, false);
         beginStroke(event, next);
       }
     }
@@ -881,6 +931,13 @@ export function createSurface(host, content, options) {
     const rect = surface.getBoundingClientRect();
     const samples = event.getCoalescedEvents?.();
     for (const sample of samples?.length ? samples : [event]) {
+      // A short barrel-button press can exist only in the hardware samples.
+      if (event.pointerType === 'pen' && (sample.buttons & 34 || sample.button === 2 || sample.button === 5) &&
+          ['pen', 'highlight'].includes(active.tool) && sideTool?.(sample) === 'erase') {
+        finishStroke(event, false, false);
+        beginStroke(sample, 'erase');
+        active.pointer = event.pointerId;
+      }
       if (active.tool === 'erase') erase(localPoint(sample, rect));
       else if (event.pointerType !== 'pen' || sample.pressure !== 0) appendPoint(sample, rect);
     }
@@ -917,12 +974,18 @@ export function createSurface(host, content, options) {
     clearTimeout(shapeTimer);
     active = null;
     preview.replaceChildren();
-    if (!save) { render(); return; }
+    if (!save) {
+      for (const id of erased) {
+        const node = cachedInk.get(id)?.node;
+        if (node) node.style.opacity = '';
+      }
+      render(); return;
+    }
     previewDirty = false;
     if (tool === 'text') { addText(points[0]); return; }
     if (tool === 'hand') return;
     if (tool === 'erase') {
-      if (erased.size) update({ ...state, strokes: (state.strokes ?? []).filter(stroke => !erased.has(stroke.id)) });
+      if (erased.size) update({ ...state, strokes: (state.strokes ?? []).filter(stroke => !erased.has(stroke.id)) }, [], { removed: erased });
       return;
     }
     if (transform) {
@@ -965,7 +1028,7 @@ export function createSurface(host, content, options) {
       ? { id, points: shape.points, tool: shape.tool, color, width, ...(shape.geometry ? { geometry: shape.geometry } : {}) }
       : { id, points: ['line', 'rect', 'ellipse'].includes(tool) ? [points[0], points.at(-1)] : points, tool, color, width };
     if (fixedColor) stroke.fixedColor = true;
-    update({ ...state, strokes: [...(state.strokes ?? []), stroke] });
+    update({ ...state, strokes: [...(state.strokes ?? []), stroke] }, [], { added: [stroke] });
   }
   for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) surface.addEventListener(type, end);
   surface.addEventListener('contextmenu', event => {
@@ -990,6 +1053,7 @@ export function createSurface(host, content, options) {
     resize.disconnect();
     cancelAnimationFrame(frame);
     cachedInk.clear();
+    inkCells.clear(); wideInk.clear();
     active = null;
   }, { once: true });
   renderView();

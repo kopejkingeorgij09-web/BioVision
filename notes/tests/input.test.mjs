@@ -340,3 +340,48 @@ test('eraser index includes thick, negative-coordinate and very large strokes', 
   t.dispatch('pointerup', { clientX: 30, clientY: 30, pressure: 0 });
   assert.deepEqual(t.saved().strokes, []);
 });
+
+test('lasso skips distant ink and batches a whole selection into one transform per frame', () => {
+  let reads = 0;
+  const far = Array.from({ length: 5000 }, (_, i) => {
+    const value = stroke('far' + i, 10000 + i * 40);
+    return { ...value, get points() { reads++; return value.points; } };
+  });
+  const t = setup([stroke('a'), far[0], stroke('b', 60), ...far.slice(1)]);
+  const layer = t.ink.firstElementChild, nodes = [...layer.children];
+  reads = 0;
+  lasso(t);
+  assert.equal(reads, 0, 'lasso must not scan points outside its bounding box');
+  t.dispatch('pointerdown', { clientX: 30, clientY: 30 });
+  const group = nodes[0].parentNode;
+  assert.equal(group, nodes[2].parentNode);
+  assert.equal(group.children.length, 2);
+  let transforms = 0;
+  const set = group.setAttribute.bind(group);
+  group.setAttribute = (name, value) => { if (name === 'transform') transforms++; set(name, value); };
+  for (let x = 31; x <= 130; x++) t.dispatch('pointermove', { clientX: x, clientY: 30, buttons: 1 });
+  assert.equal(transforms, 0);
+  assert.equal(frames.size, 1);
+  t.flush();
+  assert.equal(transforms, 1);
+  assert.match(group.getAttribute('transform'), /matrix\(1 0 0 1 100 0\)/);
+  assert.equal(nodes[0].getAttribute('transform'), null);
+  t.dispatch('pointercancel');
+  assert.deepEqual([...layer.children], nodes, 'cancel restores the original stacking order');
+  assert.equal(t.saved(), undefined);
+  assert.equal(reads, 0);
+});
+
+test('lasso commits the final unpainted move and reindexes only the changed strokes', () => {
+  const t = setup([stroke('a'), stroke('b', 300)]); lasso(t);
+  t.dispatch('pointerdown', { clientX: 20, clientY: 20 });
+  t.dispatch('pointermove', { clientX: 100, clientY: 100, buttons: 1 });
+  t.dispatch('pointerup', { clientX: 120, clientY: 120 });
+  assert.deepEqual(t.saved().strokes[0].points[0].slice(0, 2), [110, 110]);
+  assert.deepEqual(t.saved().strokes[1].points[0].slice(0, 2), [300, 10]);
+  t.flush();
+  t.prefs.tool = 'erase';
+  t.dispatch('pointerdown', { clientX: 110, clientY: 110 });
+  t.dispatch('pointerup', { clientX: 110, clientY: 110 });
+  assert.deepEqual(t.saved().strokes.map(stroke => stroke.id), ['b']);
+});

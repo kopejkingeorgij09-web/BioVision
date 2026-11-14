@@ -2,6 +2,7 @@ import { edit, list, read } from './local.js';
 import { attachmentBlob, cloudEnabled, identity, libraryId, phagiAvailable, phagiRequest, signIn, signInByCode, signOut, synchronize } from './cloud.js';
 import { resetPhagiSync, syncPhagi } from './phagi.js';
 import { createSurface } from './ink.js';
+import { phagiVisible } from './phagi-policy.js';
 import { clipboardFiles, readClipboardFiles } from './clipboard.js';
 import { boardFilesWithPositions, boardFileWidth, describeFile, mountBoardFile, openMedia, pdfBase, pdfSearchPages } from './media.js';
 import { button, element, textEditor } from './text.js';
@@ -357,7 +358,7 @@ function updateUndo() {
   if ($('redo')) $('redo').disabled = !forward.length;
 }
 
-function visible() { return items.filter(item => !item.deleted); }
+function visible() { return items.filter(phagiVisible); }
 
 const folderColors = { violet: 'Сиреневый', blue: 'Голубой', green: 'Зелёный', gold: 'Янтарный', rose: 'Розовый' };
 
@@ -472,7 +473,7 @@ function closeTab(id) {
 }
 
 function open(id, { replace = false, target } = {}) {
-  const item = items.find(entry => entry.id === id && !entry.deleted);
+  const item = visible().find(entry => entry.id === id);
   if (id && !item) { message('Заметка не найдена на этом устройстве'); return; }
   if (current && item?.id === current.id && !target && !replace) return;
   if (current) tabPositions.set(current.id, { attachmentId, boardFileId, pdfPage, back, forward,
@@ -1448,7 +1449,8 @@ async function runSync() {
       updated.some(item => !items.some(local => local.id === item.id && local.operation === item.operation)));
     items = updated;
     if (folder && !items.some(item => item.id === folder && !item.deleted)) folder = null;
-    if (refresh) {
+    if (selected && !phagiVisible(selected)) open(selected.data.parent);
+    else if (refresh) {
       if (selected.deleted) open(selected.data.parent);
       else { current = selected; back = []; forward = []; render(); }
     } else {
@@ -1478,7 +1480,7 @@ async function changeAccount() {
   items = await list('items', scope);
   $('account').textContent = accountLabel();
   $('sync').textContent = identity() ? 'Сохранено локально' : 'Локальная библиотека';
-  open(items.some(item => item.id === active && !item.deleted) ? active : null, { replace: true });
+  open(visible().some(item => item.id === active) ? active : null, { replace: true });
   schedule(0);
 }
 

@@ -1,5 +1,6 @@
 import { edit, list } from './local.js';
 import { libraryId, phagiAvailable, phagiRequest } from './cloud.js';
+import { ownPhagiEntry, phagiStudent, reconcilePhagi } from './phagi-policy.js';
 const names = { math: 'Математика', eng: 'Английский', bio: 'Биология', other: 'Другие материалы' };
 export async function stableId(key) {
   const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('polya-phagi-v1:' + key)));
@@ -12,7 +13,16 @@ export async function syncPhagi(library, force = false) {
   if (!phagiAvailable() || library !== libraryId() || !navigator.onLine || (!force && Date.now() - last < 60000)) return;
   const response = await phagiRequest({ action: 'catalogue' });
   if (library !== libraryId()) return;
-  const existing = new Set((await list('items', library)).map(item => item.id));
+  if (response.student !== phagiStudent || !Array.isArray(response.entries)) throw new Error('Не удалось проверить владельца ДЗ из Фагов');
+  const entries = response.entries.filter(ownPhagiEntry);
+  const allowed = new Set(entries.map(entry => entry.key));
+  const ownSources = new Set(entries.map(entry => entry.sourcePath));
+  const records = await list('items', library);
+  for (const item of records) {
+    if (!item.data.phagi || library !== libraryId() || !reconcilePhagi(item, allowed, ownSources)) continue;
+    await edit(library, item.id, current => reconcilePhagi(current, allowed, ownSources));
+  }
+  const existing = new Set(records.map(item => item.id));
   async function add(key, data) {
     const id = await stableId(key);
     if (!existing.has(id) && library === libraryId()) {
@@ -25,15 +35,15 @@ export async function syncPhagi(library, force = false) {
   }
   const root = await add('root', { kind: 'folder', title: 'Фаги естественных наук', parent: null, color: 'green', phagiFolder: true });
   const subjects = new Map();
-  for (const subject of new Set(['math', 'eng', ...response.entries.map(item => item.subject)])) {
+  for (const subject of new Set(['math', 'eng', ...entries.map(item => item.subject)])) {
     subjects.set(subject, await add('subject/' + subject, { kind: 'folder', title: names[subject] ?? subject, parent: root, color: 'green', phagiFolder: true }));
   }
-  for (const entry of response.entries) {
+  for (const entry of entries) {
     const attachments = entry.file ? [{ id: await stableId('file/' + entry.key), name: entry.file.name, mime: 'application/pdf',
       phagiKey: entry.key, marks: {} }] : [];
     await add('entry/' + entry.key, { kind: 'board', title: entry.file ? entry.file.name.replace(/\.pdf$/i, '') : entry.title,
       parent: subjects.get(entry.subject), paper: 'dots', pages: [{ id: await stableId('page/' + entry.key), strokes: [], texts: [] }],
-      attachments, phagi: { key: entry.key, sourcePath: entry.sourcePath, taskId: entry.taskId, title: entry.title, links: entry.links, due: entry.due } });
+      attachments, phagi: { student: phagiStudent, key: entry.key, sourcePath: entry.sourcePath, taskId: entry.taskId, title: entry.title, links: entry.links, due: entry.due } });
   }
   last = Date.now();
 }

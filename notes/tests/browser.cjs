@@ -297,6 +297,50 @@ const root = path.resolve(__dirname, '../..');
     assert.equal(bridgeReads, 1, 'writing must not synchronously call Android on each move');
     console.log('PASS 100 pen moves use one synchronous Android button read');
 
+    const syncPage = await context.newPage();
+    await syncPage.route('**/__phagi-test.html', route => route.fulfill({ contentType: 'text/html', body: '<html><body></body></html>' }));
+    await syncPage.goto('http://localhost:3333/__phagi-test.html');
+    const imported = await syncPage.evaluate(async () => {
+      const { phagiStudent, phagiVisible } = await import('/notes/js/phagi-policy.js');
+      const sessionKey = 'biovision-notes-cloud:https://swszjkdnzhvnlodapqar.supabase.co';
+      const previous = localStorage.getItem(sessionKey), fetch = window.fetch;
+      const user = '5b7c4303-1206-411b-afc1-04ad394b2715';
+      localStorage.setItem(sessionKey, JSON.stringify({ access_token: 'mock-session-for-test', expires_at: Math.floor(Date.now() / 1000) + 3600, user: { id: user } }));
+      try {
+        const entry = id => ({ student: phagiStudent, key: 'tasks/' + id + '/worksheet', sourcePath: 'tasks/' + id,
+          taskId: id, title: id, subject: 'math', file: null, links: [] });
+        let response = { student: phagiStudent, entries: [entry('own'), entry('deleted'), { ...entry('foreign'), student: 'other' }] };
+        window.fetch = async (url, options) => {
+          if (!String(url).endsWith('/functions/v1/phagi-notes') || JSON.parse(options.body).action !== 'catalogue') throw new Error('Unexpected cloud request');
+          return Response.json(response);
+        };
+        const { syncPhagi, stableId } = await import('/notes/js/phagi.js');
+        const { list, put } = await import('/notes/js/local.js');
+        const library = 'https://swszjkdnzhvnlodapqar.supabase.co:' + user;
+        const ids = {};
+        for (const name of ['own', 'foreign', 'deleted']) {
+          const id = ids[name] = await stableId('entry/' + entry(name).key);
+          await put('items', { library, id, revision: 3, deleted: name === 'deleted', data: {
+            kind: 'board', title: name, pages: [{ strokes: [{ id: 'local-ink-' + name }], texts: [] }], attachments: [{ id: 'local-file' }], phagi: entry(name),
+          } });
+        }
+        await syncPhagi(library, true);
+        const records = await list('items', library), own = records.find(item => item.id === ids.own), foreign = records.find(item => item.id === ids.foreign);
+        let rejected = false;
+        response = { entries: [] };
+        try { await syncPhagi(library, true); } catch { rejected = true; }
+        return { own: phagiVisible(own), foreign: phagiVisible(foreign), preserved: foreign.data.pages[0].strokes[0].id,
+          ownInk: own.data.pages[0].strokes[0].id, attachments: foreign.data.attachments.length,
+          deleted: records.find(item => item.id === ids.deleted).deleted, rejected };
+      } finally {
+        window.fetch = fetch;
+        if (previous === null) localStorage.removeItem(sessionKey); else localStorage.setItem(sessionKey, previous);
+      }
+    });
+    assert.deepEqual(imported, { own: true, foreign: false, preserved: 'local-ink-foreign', ownInk: 'local-ink-own', attachments: 1, deleted: true, rejected: true });
+    console.log('PASS Georgiy-only import, reversible hiding, IndexedDB ink and tombstone preservation, missing-owner rejection');
+    await syncPage.close();
+
     assert.deepEqual(errors, []);
     const perf = await context.newPage();
     await perf.goto('http://localhost:3333/notes/');
@@ -337,14 +381,44 @@ const root = path.resolve(__dirname, '../..');
       dispatch('pointerdown', 30, 405);
       for (let x = 31; x <= 560; x++) dispatch('pointermove', x, 405);
       dispatch('pointerup', 560, 405);
+      const eraseMs = performance.now() - start;
       const originalIds = new Set(strokes.map(stroke => stroke.id));
-      return { ...pan, writeMs, eraseMs: performance.now() - start, remaining: layer.childElementCount, finalCommits: commits,
+      const erased = { remaining: layer.childElementCount, finalCommits: commits,
         remainingAdded: saved.strokes.filter(stroke => !originalIds.has(stroke.id)).length };
+      tool = 'lasso'; start = performance.now();
+      dispatch('pointerdown', -500, -100);
+      for (const [x, y] of [[17000, -100], [17000, 6000], [-500, 6000]]) dispatch('pointermove', x, y);
+      dispatch('pointerup', -500, -100);
+      const selectMs = performance.now() - start, before = saved.strokes[0].points[0].slice(0, 2);
+      dispatch('pointerdown', 300, 300);
+      const group = layer.lastElementChild, grouped = group.childElementCount;
+      let groupTransforms = 0, pathTransforms = 0;
+      const observer = new MutationObserver(records => {
+        for (const record of records) {
+          if (record.target === group) groupTransforms++;
+          if (record.target.tagName === 'path') pathTransforms++;
+        }
+      });
+      observer.observe(layer, { attributes: true, subtree: true, attributeFilter: ['transform'] });
+      start = performance.now();
+      for (let frame = 0; frame < 10; frame++) {
+        for (let i = 1; i <= 100; i++) dispatch('pointermove', 300 + frame * 10 + i / 10, 320);
+        await new Promise(requestAnimationFrame);
+      }
+      const dragMs = performance.now() - start;
+      observer.disconnect();
+      dispatch('pointerup', 410, 330);
+      return { ...pan, ...erased, writeMs, eraseMs, selectMs, dragMs, grouped, groupTransforms, pathTransforms,
+        moved: saved.strokes[0].points[0].slice(0, 2).map((n, i) => n - before[i]) };
     });
     assert.equal(result.strokes, 5000); assert.equal(result.retained, true); assert.equal(result.commits, 0);
     assert.ok(result.visible < 100); assert.ok(Math.abs(result.x + 400) < .01);
     assert.equal(result.finalCommits, 101);
     assert.equal(result.remainingAdded, 0, 'all 100 short strokes must be erased');
+    assert.ok(result.grouped > 4900);
+    assert.equal(result.pathTransforms, 0, 'dragging must not update each selected SVG path');
+    assert.ok(result.groupTransforms <= 10, 'at most one group transform per animation frame');
+    assert.deepEqual(result.moved, [110, 30]);
     console.log('PASS 5000-stroke board, 2000 pan events: ' + JSON.stringify(result));
     await perf.close();
     await context.close();

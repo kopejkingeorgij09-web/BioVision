@@ -259,7 +259,7 @@ export function createSurface(host, content, options) {
   // Bound eraser work to nearby strokes, including strokes outside the viewport.
   const inkCells = new Map(), wideInk = new Set();
   const cellSize = 128, maxCells = 256;
-  let renderedStrokes;
+  let renderedStrokes, inkOrder = 0;
 
   function cellKeys(bounds) {
     const [left, top, right, bottom] = bounds.map(n => Math.floor(n / cellSize));
@@ -282,6 +282,14 @@ export function createSurface(host, content, options) {
     cachedInk.delete(id);
   }
 
+  function nearbyInk(bounds) {
+    const keys = cellKeys(bounds);
+    if (!keys) return cachedInk.values();
+    const candidates = new Set(wideInk);
+    for (const key of keys) for (const entry of inkCells.get(key) ?? []) candidates.add(entry);
+    return candidates;
+  }
+
   function addInk(stroke) {
     const old = cachedInk.get(stroke.id);
     const node = shapeNode(stroke);
@@ -292,7 +300,8 @@ export function createSurface(host, content, options) {
     }
     const pad = stroke.width * 4;
     const bounds = [left - pad, top - pad, right + pad, bottom + pad];
-    const entry = { stroke, node, bounds, cells: cellKeys(bounds) };
+    const entry = { stroke, node, bounds, geometryBounds: [left, top, right, bottom],
+      order: old?.order ?? inkOrder++, cells: cellKeys(bounds) };
     if (old) { old.node.replaceWith(node); removeInk(stroke.id); }
     else ink.append(node);
     cachedInk.set(stroke.id, entry);
@@ -505,7 +514,7 @@ export function createSurface(host, content, options) {
       ...state,
       strokes: (state.strokes ?? []).filter(stroke => !ids.has(stroke.id)),
       texts: (state.texts ?? []).filter(text => !ids.has(text.id)),
-    });
+    }, [], { removed: ids });
   }
 
   function appendCopies(data, dx, dy, selectCopy = false) {
@@ -515,7 +524,7 @@ export function createSurface(host, content, options) {
       ...state,
       strokes: [...(state.strokes ?? []), ...copy.strokes],
       texts: [...(state.texts ?? []), ...copy.texts],
-    });
+    }, [], { added: copy.strokes });
     if (selectCopy) {
       selected = copy.strokes;
       selectedTexts = copy.texts;
@@ -580,7 +589,11 @@ export function createSurface(host, content, options) {
   function hasSelection() { return selected.length || selectedTexts.length || selectedObjects.length; }
 
   function selectionBounds() {
-    const points = selected.flatMap(stroke => stroke.points);
+    const points = [];
+    for (const stroke of selected) {
+      const [l, t, r, b] = cachedInk.get(stroke.id).geometryBounds;
+      points.push([l, t], [r, b]);
+    }
     for (const item of selectedTexts) {
       const box = typing.querySelector('[data-text-id="' + item.id + '"]')?.parentElement;
       points.push([item.x, item.y], [item.x + (item.width ?? 250), item.y + (box?.offsetHeight || (item.pt ?? 12) * 2)]);
@@ -615,6 +628,11 @@ export function createSurface(host, content, options) {
   }
 
   function selectionScale(value) {
+    if (active?.scaleLimits) return limit(value, ...active.scaleLimits);
+    return limit(value, ...selectionScaleLimits());
+  }
+
+  function selectionScaleLimits() {
     let low = .05, high = 20;
     for (const stroke of selected) { low = Math.max(low, .1 / stroke.width); high = Math.min(high, 120 / stroke.width); }
     for (const item of selectedTexts) {
@@ -624,7 +642,7 @@ export function createSurface(host, content, options) {
     for (const object of selectedObjects) {
       const width = object.bounds()[2]; low = Math.max(low, 64 / width); high = Math.min(high, 4000 / width);
     }
-    return limit(value, low, Math.max(low, high));
+    return [low, Math.max(low, high)];
   }
 
   function selectionTransform() {
@@ -650,9 +668,8 @@ export function createSurface(host, content, options) {
   function previewSelection(transform, originals) {
     const { scale, origin, x, y } = transform;
     const tx = origin[0] * (1 - scale) + x, ty = origin[1] * (1 - scale) + y;
-    for (const stroke of selected) cachedInk.get(stroke.id)?.node.setAttribute('transform', `matrix(${scale} 0 0 ${scale} ${tx} ${ty})`);
-    for (const item of selectedTexts) {
-      const box = typing.querySelector('[data-text-id="' + item.id + '"]')?.parentElement;
+    active.selectionLayer.setAttribute('transform', `matrix(${scale} 0 0 ${scale} ${tx} ${ty})`);
+    for (const { item, box } of active.selectionTexts) {
       const point = transformed([item.x, item.y], transform);
       if (box) { box.style.transformOrigin = '0 0'; box.style.transform = `translate(${point[0] - item.x}px,${point[1] - item.y}px) scale(${scale})`; }
     }
@@ -662,9 +679,13 @@ export function createSurface(host, content, options) {
   }
 
   function resetSelectionPreview(originals) {
-    for (const stroke of selected) cachedInk.get(stroke.id)?.node.removeAttribute('transform');
-    for (const item of selectedTexts) {
-      const box = typing.querySelector('[data-text-id="' + item.id + '"]')?.parentElement;
+    // Restore the original stacking order, including adjacent selected strokes.
+    for (const { entry, next } of [...active.selectionNodes].reverse()) {
+      ink.insertBefore(entry.node, next?.parentNode === ink ? next : null);
+      cullEntry(entry);
+    }
+    active.selectionLayer.remove();
+    for (const { box } of active.selectionTexts) {
       if (box) box.style.transform = '';
     }
     for (const { object, bounds } of originals) object.preview(bounds);
@@ -683,7 +704,7 @@ export function createSurface(host, content, options) {
     selected = strokes.filter(stroke => ids.has(stroke.id));
     selectedTexts = texts.filter(item => textIds.has(item.id));
     const objects = objectTransforms(transform, originals).map(({ object, bounds }) => ({ id: object.id, ...object.commit(bounds) }));
-    update({ ...state, strokes, texts }, objects);
+    update({ ...state, strokes, texts }, objects, { added: selected });
   }
 
   function scaleSelection(factor) {
@@ -708,7 +729,9 @@ export function createSurface(host, content, options) {
         previous[1] + (point[1] - previous[1]) * alpha,
         terminal ? previous[2] : previous[2] + (point[2] - previous[2]) * .35, point[3]];
     }
-    if (distance(point, previous) * viewport().scale > .15) active.points.push(point);
+    if (['move', 'resize'].includes(active.tool)) {
+      active.points[1] = point;
+    } else if (distance(point, previous) * viewport().scale > (active.tool === 'lasso' ? 1 : .15)) active.points.push(point);
   }
 
   function zoom(x, y, value) {
@@ -726,10 +749,7 @@ export function createSurface(host, content, options) {
     active.erasePoint = point;
     const sweep = [Math.min(start[0], point[0]) - radius, Math.min(start[1], point[1]) - radius,
       Math.max(start[0], point[0]) + radius, Math.max(start[1], point[1]) + radius];
-    const keys = cellKeys(sweep);
-    const candidates = keys ? new Set(wideInk) : cachedInk.values();
-    if (keys) for (const key of keys) for (const entry of inkCells.get(key) ?? []) candidates.add(entry);
-    for (const entry of candidates) {
+    for (const entry of nearbyInk(sweep)) {
       const { stroke, bounds, node } = entry;
       if (active.erased.has(stroke.id)) continue;
       const pad = radius + stroke.width * (stroke.tool === 'highlight' ? 2 : 1);
@@ -801,6 +821,16 @@ export function createSurface(host, content, options) {
       active.objectBounds = selectedObjects.map(object => ({ object, bounds: object.bounds() }));
       const b = selectionBounds();
       active.anchor = [corner?.includes('w') ? b[2] : b[0], corner?.includes('n') ? b[3] : b[1]];
+      active.scaleLimits = selectionScaleLimits();
+      active.selectionNodes = selected.map(stroke => {
+        const entry = cachedInk.get(stroke.id);
+        return { entry, next: entry.node.nextSibling };
+      });
+      active.selectionTexts = selectedTexts.map(item => ({ item,
+        box: typing.querySelector('[data-text-id="' + item.id + '"]')?.parentElement }));
+      active.selectionLayer = svg('g');
+      for (const { entry } of active.selectionNodes) { active.selectionLayer.append(entry.node); entry.node.style.display = ''; }
+      ink.append(active.selectionLayer);
     }
     if (tool === 'erase') erase(point);
     else if (tool !== 'hand' && tool !== 'text') strokePreview();
@@ -941,7 +971,8 @@ export function createSurface(host, content, options) {
       if (active.tool === 'erase') erase(localPoint(sample, rect));
       else if (event.pointerType !== 'pen' || sample.pressure !== 0) appendPoint(sample, rect);
     }
-    if (active.tool !== 'erase') { strokePreview(); waitForShape(event); }
+    if (['lasso', 'move', 'resize'].includes(active.tool)) scheduleFrame('preview');
+    else if (active.tool !== 'erase') { strokePreview(); waitForShape(event); }
   });
 
   function end(event) {
@@ -974,6 +1005,7 @@ export function createSurface(host, content, options) {
     clearTimeout(shapeTimer);
     active = null;
     preview.replaceChildren();
+    previewDirty = false;
     if (!save) {
       for (const id of erased) {
         const node = cachedInk.get(id)?.node;
@@ -995,7 +1027,13 @@ export function createSurface(host, content, options) {
     }
     if (tool === 'lasso') {
       if (points.length < 3) return;
-      selected = (state.strokes ?? []).filter(stroke => segments(stroke).some(point => within(point, points)));
+      const bounds = points.reduce(([l, t, r, b], [x, y]) => [Math.min(l, x), Math.min(t, y), Math.max(r, x), Math.max(b, y)],
+        [Infinity, Infinity, -Infinity, -Infinity]);
+      selected = [...nearbyInk(bounds)].filter(entry => {
+        const [l, t, r, b] = entry.geometryBounds;
+        if (r < bounds[0] || l > bounds[2] || b < bounds[1] || t > bounds[3]) return false;
+        return (entry.segments ??= segments(entry.stroke)).some(point => within(point, points));
+      }).sort((a, b) => a.order - b.order).map(entry => entry.stroke);
       const boxes = Array.from(typing.children);
       selectedTexts = (state.texts ?? []).filter((text, index) => {
         const width = boxes[index]?.offsetWidth ?? text.width ?? 250;

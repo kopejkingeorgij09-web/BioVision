@@ -12,6 +12,9 @@ Deno.test('owner authentication, private catalogue, atomic PDF hand-in and retri
   documents.set('tasks/hw', { data: { to: [student], kind: 'task', subject: 'math', title: 'ДЗ', files: [] }, updated_at: 'v1' });
   documents.set(`subs/${student}/items/hw`, { data: { text: 'Текст ответа', files: [source], status: 'draft' }, updated_at: 'v1' });
   documents.set('tasks/private', { data: { to: ['someone-else'], kind: 'task', files: [source] }, updated_at: 'v1' });
+  documents.set('events/teaching', { data: { to: [student], files: [source] }, updated_at: 'v1' });
+  documents.set('tasks/substring', { data: { to: 'prefix-' + student, kind: 'task', files: [source] }, updated_at: 'v1' });
+  documents.set('tasks/cross-file', { data: { to: [student], kind: 'task', files: [{ id: 'Sother-source', name: 'Private.pdf' }] }, updated_at: 'v1' });
   globalThis.fetch = async (input, options) => {
     const url = new URL(String(input));
     if (url.pathname === '/auth/v1/user') return Response.json({ id: user });
@@ -46,9 +49,14 @@ Deno.test('owner authentication, private catalogue, atomic PDF hand-in and retri
     user = 'other-user'; check((await handle(request('{"action":"catalogue"}'))).status === 403); check(writes === 0);
     user = notesUser;
     const result = await (await handle(request('{"action":"catalogue"}'))).json();
-    check(result.entries.length === 1); check(result.entries[0].file.name === 'Workbook.pdf');
+    check(result.student === student);
+    check(result.entries.length === 2); check(result.entries.find((entry: any) => entry.taskId === 'hw').file.name === 'Workbook.pdf');
+    check(!result.entries.some((entry: any) => entry.file?.id === 'Sother-source'));
+    const forbidden = await handle(request(JSON.stringify({ action: 'file', key: 'tasks/cross-file/Sother-source' })));
+    check(forbidden.status === 404);
     const pdf = new TextEncoder().encode('%PDF-1.7\nTest PDF bytes');
     check((await handle(request(pdf, 'application/pdf', 'private'))).status === 403);
+    check((await handle(request(pdf, 'application/pdf', 'substring'))).status === 403);
     check((await handle(request(new TextEncoder().encode('invalid'), 'application/pdf'))).status === 400); check(writes === 0);
     const sent = await handle(request(pdf, 'application/pdf')); check(sent.status === 200, await sent.clone().text());
     const answer = documents.get(`subs/${student}/items/hw`)!.data;

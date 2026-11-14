@@ -1,9 +1,9 @@
-const shell = 'biovision-notes-shell-v13';
+const shell = 'biovision-notes-shell-v14';
 const assets = 'biovision-notes-assets-v1';
 const files = [
   './', './index.html', './style.css', './icon.svg', './manifest.webmanifest',
   './js/app.js', './js/cloud.js', './js/config.js', './js/ink.js', './js/local.js', './js/media.js', './js/text.js', './js/pen-button.js', './js/utilities.js',
-  './js/pdf-export.js', './js/vendor/pdf-lib.js', './js/board-map.js', './js/note-search.js', './js/clipboard.js', './js/phagi.js',
+  './js/pdf-export.js', './js/vendor/pdf-lib.js', './js/board-map.js', './js/note-search.js', './js/clipboard.js', './js/phagi.js', './js/phagi-policy.js',
 ];
 const vendor = /^https:\/\/cdn\.jsdelivr\.net\/npm\/(?:katex@0\.19\.1|pdfjs-dist@6\.5\.438)\//;
 

@@ -27,7 +27,7 @@ const blank = () => ({ id: crypto.randomUUID(), strokes: [], texts: [] });
 const attachmentSnapshot = file => ({ ...file, marks: { ...file.marks }, ...(file.boardPosition ? { boardPosition: { ...file.boardPosition } } : {}) });
 const preferenceKey = 'biovision-notes-pen';
 const themes = { system: 'Как в системе', white: 'Белая', gray: 'Серая', warm: 'Тёплая белая', violet: 'Тёмно-фиолетовая', green: 'Тёмно-зелёная', black: 'Чёрная' };
-const appVersion = { name: '0.8.0', code: 12 };
+const appVersion = { name: '0.8.1', code: 13 };
 const releaseBase = cloudConfig.url + '/storage/v1/object/public/notes-releases/';
 const darkMode = matchMedia('(prefers-color-scheme: dark)');
 const existingPrefs = JSON.parse(localStorage.getItem(preferenceKey) ?? '{}');

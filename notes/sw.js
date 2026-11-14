@@ -1,4 +1,4 @@
-const shell = 'biovision-notes-shell-v14';
+const shell = 'biovision-notes-shell-v15';
 const assets = 'biovision-notes-assets-v1';
 const files = [
   './', './index.html', './style.css', './icon.svg', './manifest.webmanifest',

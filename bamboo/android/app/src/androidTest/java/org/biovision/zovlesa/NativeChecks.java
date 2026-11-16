@@ -50,7 +50,14 @@ public final class NativeChecks extends Instrumentation {
             check(((TextView)view.get().findViewById(R.id.widget_title)).getText().toString().equals("Дела на сегодня"),"Today RemoteViews render failed");
             runOnMainSync(()->view.set(ZovWidget.buildViews(c,AppWidgetManager.getInstance(c),999,true).apply(c,null)));
             check(((TextView)view.get().findViewById(R.id.widget_title)).getText().toString().equals("Ближайшие события"),"Agenda RemoteViews render failed");
+            js("window.ZovReminder.postMessage(JSON.stringify({op:'clear'}));true");Thread.sleep(300);
+            check(c.getSharedPreferences("widgets",Context.MODE_PRIVATE).getString("items","[]").equals("[]"),"Widget private snapshot not cleared");
+            check(new JSONArray(c.getSharedPreferences("reminders",Context.MODE_PRIVATE).getString("schedule","[]")).length()==0,"Reminder schedule not cleared");
+            ReminderScheduler.replace(c,new JSONArray(schedule));
             c.startActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            runOnMainSync(activity::finish);
+            Thread.sleep(700);
+            check(activity.isDestroyed(),"Activity/WebView must be destroyed before alarm delivery");
             long deadline=System.currentTimeMillis()+80000;boolean task=false,event=false;
             while(System.currentTimeMillis()<deadline){
                 for(android.service.notification.StatusBarNotification n:c.getSystemService(NotificationManager.class).getActiveNotifications()) {
@@ -60,9 +67,7 @@ public final class NativeChecks extends Instrumentation {
                 if(task&&event)break;Thread.sleep(1000);
             }
             check(task&&event,"Task/event notification was not delivered with Activity in background");
-            js("window.ZovReminder.postMessage(JSON.stringify({op:'clear'}));true");Thread.sleep(300);
-            check(c.getSharedPreferences("widgets",Context.MODE_PRIVATE).getString("items","[]").equals("[]"),"Widget private snapshot not cleared");
-            check(new JSONArray(c.getSharedPreferences("reminders",Context.MODE_PRIVATE).getString("schedule","[]")).length()==0,"Reminder schedule not cleared");
+            ZovWidget.clear(c);ReminderScheduler.replace(c,new JSONArray());
             check(!ReminderScheduler.validTarget("page","bad/page",""),"Invalid navigation accepted");
             check(!ReminderScheduler.validTarget("shad","../5",date),"Invalid SHAD id accepted");
             result.putString("stream","PASS: WebView bridge, task/event background notifications, two native widget layouts, private snapshot cleanup\n");

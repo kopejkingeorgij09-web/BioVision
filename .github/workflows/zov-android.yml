@@ -67,11 +67,3 @@ jobs:
           name: Zov-Lesa-widget-previews
           path: /tmp/widget-previews/
           if-no-files-found: ignore
-      - name: Portable build transfer
-        run: |
-          python3 - <<'PYDATA'
-          import base64,pathlib
-          files=[pathlib.Path('bamboo/android/app/build/outputs/apk/release/app-release-unsigned.apk'),*pathlib.Path('/tmp/widget-previews').glob('*.png')]
-          for path in files:
-              print('ZOV_TRANSFER:'+path.name+':'+base64.b64encode(path.read_bytes()).decode())
-          PYDATA

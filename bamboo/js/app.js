@@ -186,6 +186,7 @@ B.acts.login = async () => {
 };
 B.acts.logout = async () => {
   if (!(await B.confirm('Выйти на этом устройстве? Записи останутся в облаке, а здесь будут храниться только локально.', 'Выйти'))) return;
+  B.acts.androidClearPrivate?.();
   BVAUTH.logout(); location.reload();
 };
 B.acts.export = async () => {

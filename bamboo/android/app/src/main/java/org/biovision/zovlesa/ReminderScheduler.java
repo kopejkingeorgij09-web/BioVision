@@ -27,6 +27,7 @@ import java.util.regex.Pattern;
 /** The next alarm belongs to Android. The WebView only supplies the saved schedule. */
 final class ReminderScheduler {
     static final String FIRE = "org.biovision.zovlesa.REMIND";
+    static final String TEST_FIRE = "org.biovision.zovlesa.TEST_REMINDER";
     static final String OPEN = "org.biovision.zovlesa.OPEN_REMINDER";
     private static final String CHANNEL = "reminders";
     private static final long DAY = 24 * 60 * 60_000L;
@@ -81,7 +82,8 @@ final class ReminderScheduler {
     }
 
     static boolean validTarget(String kind, String id, String date) {
-        return ("task".equals(kind) || "event".equals(kind)) && id != null && ID.matcher(id).matches()
+        return id != null && (("page".equals(kind) && java.util.Arrays.asList("today","tasks/week","tasks/calendar").contains(id))
+                || (("task".equals(kind) || "event".equals(kind) || ("shad".equals(kind) && id.matches("[1-9][0-9]{0,3}"))) && ID.matcher(id).matches()))
                 && (date == null || date.isEmpty() || DATE.matcher(date).matches());
     }
 
@@ -166,6 +168,15 @@ final class ReminderScheduler {
     }
 
     static void test(Context c) {
+        if (!enabled(c)) return;
+        PendingIntent signal = PendingIntent.getBroadcast(c, 1, new Intent(c, ReminderReceiver.class).setAction(TEST_FIRE), PendingIntent.FLAG_IMMUTABLE);
+        AlarmManager alarm = c.getSystemService(AlarmManager.class);
+        long at = System.currentTimeMillis() + 15000;
+        if (exact(c)) {try {alarm.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, signal); return;} catch (SecurityException ignored) {}}
+        alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, signal);
+    }
+
+    static void showTest(Context c) {
         if (!enabled(c)) return;
         JSONObject item = new JSONObject();
         try { item.put("kind", "test").put("title", "Зов леса"); }

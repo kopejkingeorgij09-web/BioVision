@@ -48,23 +48,30 @@
     send('status');
   }
 
+  let pendingOpen = null, openTimer;
+  function tryPending(){
+    if (!pendingOpen || location.hash !== pendingOpen.hash) return;
+    if (pendingOpen.show()) { pendingOpen = null; clearTimeout(openTimer); }
+  }
+  B.on('change', tryPending);
   function open({kind, id, date}){
-    const hash = kind === 'event' ? '#/tasks/calendar' : '#/tasks/week';
+    const hash = kind === 'page' ? '#/' + id : kind === 'event' ? '#/tasks/calendar' : '#/tasks/week';
     const show = () => {
+      if (kind === 'page') return true;
+      if (kind === 'shad') { if (!B.shad.plan.some(p=>p.n===+id)) return false; B.acts.shadOpen({dataset:{n:id}}); return true; }
       if (kind === 'event') return B.calendarView.openReminder(id, date);
       const t = B.task(id);
       if (!t || t.deleted) return false;
       B.openTask(id);
       return true;
     };
-    const onRoute = () => {
-      if (location.hash === hash && !show()) B.toast('Запись больше недоступна');
-    };
-    if (location.hash === hash) onRoute();
-    else {
-      addEventListener('hashchange', onRoute, {once: true});
-      location.hash = hash;
-    }
+    pendingOpen = {hash, show};
+    clearTimeout(openTimer);
+    openTimer = setTimeout(() => {
+      if (pendingOpen) { pendingOpen = null; B.toast('Запись больше недоступна. Проверь синхронизацию.'); }
+    }, 15000);
+    if (location.hash === hash) tryPending();
+    else { addEventListener('hashchange', tryPending, {once:true}); location.hash=hash; }
   }
 
   bridge.onmessage = ({data}) => {
@@ -81,12 +88,16 @@
       <p class="muted">${!status ? 'Проверяю разрешения…' : status.enabled
         ? 'Напоминания о задачах и событиях приходят и при закрытом приложении.'
         : 'Разреши уведомления, чтобы получать напоминания о задачах и событиях.'}</p>
-      ${status ? `<div class="row">
-        ${status.enabled ? '<button class="btn" data-act="androidTestReminder">Проверить уведомление</button>'
+      ${status ? `<div class="row wrap">
+        ${status.enabled ? '<button class="btn" data-act="androidTestReminder">Проверить через 15 секунд</button>'
           : '<button class="btn primary" data-act="androidEnableReminders">Разрешить уведомления</button>'}
         ${status.enabled && !status.exact ? '<button class="btn ghost" data-act="androidExactReminders">Разрешить точное время</button>' : ''}
       </div>` : ''}
       ${status?.enabled && !status.exact ? '<p class="hint">Без разрешения на точное время Android может задерживать напоминания.</p>' : ''}
+      <p class="hint">Для проверки закрой приложение и дождись уведомления.</p>
+      <h2>Виджеты рабочего стола</h2>
+      <div class="row wrap"><button class="btn" data-act="androidPinToday">Дела на сегодня</button><button class="btn" data-act="androidPinAgenda">Ближайшие события</button></div>
+      <p class="hint">Нажатие на запись открывает её в приложении. Виджеты обновляются после синхронизации; без сети показывают сохранённые данные. Их также можно добавить через меню виджетов Android.</p>
     </section>`;
   }
 
@@ -107,7 +118,10 @@
   B.androidReminders = {refresh, queue, enable, settings, eventField, eventAlerts};
   B.acts.androidEnableReminders = enable;
   B.acts.androidExactReminders = () => send('exact');
-  B.acts.androidTestReminder = () => send('test');
+  B.acts.androidTestReminder = () => { send('test'); B.toast('Уведомление через 15 секунд. Можно закрыть приложение.'); };
+  B.acts.androidPinToday = () => send('pinToday');
+  B.acts.androidPinAgenda = () => send('pinAgenda');
+  B.acts.androidClearPrivate = () => send('clear');
   B.on('change', queue);
   document.addEventListener('visibilitychange', () => document.hidden ? sync() : refresh());
   refresh();

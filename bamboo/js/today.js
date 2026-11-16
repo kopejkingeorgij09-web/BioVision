@@ -236,11 +236,11 @@ B.views.today = {
         <div class="col">
           ${dayCard(c, d)}
           ${reviewCard(c, d)}
+          ${B.alberts?.card() || ''}
         </div>
         <div class="col">
           ${habitsCard(c)}
           ${shadCard(c)}
-          ${B.alberts?.card() || ''}
           ${phagiCard(c)}
           ${deadlineCard(c)}
           ${bigCard()}

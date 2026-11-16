@@ -141,6 +141,15 @@ public final class MainActivity extends Activity {
                 case "sync":
                     ReminderScheduler.replace(this, packet.getJSONArray("items"));
                     break;
+                case "widgets":
+                    ZovWidget.replace(this, packet.getJSONArray("items"));
+                    break;
+                case "pinToday": ZovWidget.pin(this, false); break;
+                case "pinAgenda": ZovWidget.pin(this, true); break;
+                case "clear":
+                    ZovWidget.clear(this);
+                    ReminderScheduler.replace(this, new org.json.JSONArray());
+                    break;
                 case "status":
                     JSONObject status = new JSONObject()
                             .put("enabled", ReminderScheduler.enabled(this))

@@ -5,7 +5,7 @@
 <link rel="stylesheet" href="dragons/dragons.css?v=33">
 <link rel="stylesheet" href="dragons/world.css?v=33"><script src="dragons/world.js?v=33"></script><script src="dragons/genetics.js?v=33"></script><script src="dragons/element-art/manifest.js?v=33"></script><script src="dragons/art-motion.js?v=33"></script><script src="dragons/element-art.js?v=33"></script><script src="dragons/draw.js?v=33"></script><script src="dragons/puzzles.js?v=33"></script><script src="dragons/economy.js?v=33"></script><script src="dragons/island.js?v=33"></script><script src="dragons/store.js?v=33"></script><script src="dragons/battle.js?v=33"></script><script src="dragons/campaign.js?v=33"></script><script src="dragons/learning.js?v=33"></script><script src="dragons/ui.js?v=33"></script><script src="dragons/inspect.js?v=33"></script><script src="dragons/live.js?v=33"></script><script src="dragons/fight.js?v=33"></script>
 <meta charset="utf-8">
-<meta name="ph-ver" content="2026-10-31.3">
+<meta name="ph-ver" content="2026-11-16-shad-homework">
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Фаги естественных наук</title>
@@ -2067,7 +2067,9 @@ function occAttrs(o){return o.type==='due'?`data-act="open" data-id="${o.task.id
 const evFiles=(ev,date)=>[...(ev.files||[]),...(((ev.ofiles||{})[date])||[])].filter(f=>f&&safeId(f.id));
 const fileIcon=f=>/pdf/i.test(f.type||'')||/\.pdf$/i.test(f.name||'')?'📄':/^image\//.test(f.type||'')?'🖼️':'📎';
 const pillsHTML=fs=>fs.map(f=>`<a class="fpill" href="_blob/${f.id}" data-fid="${f.id}" data-fn="${esc(f.name||'файл')}" data-ft="${esc(f.type||'')}" target="_blank" rel="noopener" title="${esc(f.name||'файл')}">${fileIcon(f)} ${esc(f.name||'файл')}</a>`).join('');
-const lessonTasks=(ev,date)=>myTasks().filter(t=>t.lesson&&t.lesson.eventId===ev.id&&t.lesson.date===date);
+// A one-off lesson keeps its homework when its calendar date changes.
+// Weekly series still match the exact occurrence.
+const lessonTasks=(ev,date)=>myTasks().filter(t=>t.kind!=='material'&&t.lesson?.eventId===ev.id&&(ev.repeat!=='weekly'||t.lesson.date===date));
 function myRsvp(uid,evId,date){return(((S.rsvp[uid]||{})[evId]||{}).occ||{})[date]}
 const RS={yes:'Приду',late:'Опоздаю',no:'Не смогу'};
 
@@ -4437,7 +4439,7 @@ function openOcc(k,id,date){
     ${of.length?filesHTML(of,T()?'data-dact="rmocc"':''):(T()?`<p class="muted small" style="margin:6px 0 0">К этому уроку файлов пока нет.</p>`:'')}
     ${sf.length?`<p class="muted small" style="margin:8px 0 0">Ко всем занятиям${ev.repeat==='weekly'?' серии':''}:</p>${filesHTML(sf)}`:''}
     ${T()&&S.assets?`<div class="actions" style="justify-content:flex-start"><label class="upl"><input type="file" accept="application/pdf,image/*" multiple data-dact="addocc"><span class="btn sm">Прикрепить PDF к уроку ${fmtDay(date)}</span></label><span class="muted small">или перетащите файл в это окно</span></div>`:''}</div>`})()}
-  <div class="sheet" style="padding:12px 14px;background:var(--soft);border:0"><b>Домашнее задание к занятию</b>${hw.length?`<div class="list" style="margin-top:8px">${hw.map(t=>`<button class="item" data-dact="hw" data-id="${t.id}"><span class="grow"><span class="t">${esc(t.title)}</span><br><span class="muted small">${t.due?'до '+fmtDay(t.due):'без срока'}</span></span>${T()?'':`<span class="st ${status(t,meId()).k}">${esc(status(t,meId()).l)}</span>`}</button>`).join('')}</div>`:`<p class="muted small" style="margin:6px 0 0">Пока не задано.</p>`}
+  <div class="sheet" style="padding:12px 14px;background:var(--soft);border:0"><b>Домашнее задание к занятию</b>${hw.length?`<div class="list" style="margin-top:8px">${hw.map(t=>`<div><button class="item" data-dact="hw" data-id="${t.id}"><span class="grow"><span class="t">${esc(t.title)}</span><br><span class="muted small">${t.due?'до '+fmtDay(t.due):'без срока'}</span></span>${T()?'':`<span class="st ${status(t,meId()).k}">${esc(status(t,meId()).l)}</span>`}</button>${(t.files||[]).length?filesHTML(t.files):''}</div>`).join('')}</div>`:`<p class="muted small" style="margin:6px 0 0">Пока не задано.</p>`}
   ${T()?`<div class="actions" style="justify-content:flex-start"><button class="btn sm" data-dact="addhw">Задать ДЗ к этому занятию</button></div>`:''}</div>`;
   occCtx={ev,date};
   const acts={close:closeDlg,hw:el=>{closeDlg();S.view='task';S.taskId=el.dataset.id;window.scrollTo(0,0)}};

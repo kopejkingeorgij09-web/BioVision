@@ -1,0 +1,41 @@
+name: Zov Lesa Android
+on:
+  push:
+    branches: ['codex/zov-mobile-homework-widgets']
+  pull_request:
+    paths: ['bamboo/**', '.github/workflows/zov-android.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: zov-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platforms;android-35 build-tools;35.0.0
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Check web sources
+        run: |
+          for file in bamboo/js/*.js bamboo/android/web/*.js; do node --check "$file"; done
+          node --test bamboo/tests/*.test.cjs
+      - name: Build APK
+        run: |
+          gradle -p bamboo/android assembleRelease lintRelease --no-daemon
+          mkdir -p /tmp/zov-release
+          cp bamboo/android/app/build/outputs/apk/release/app-release-unsigned.apk /tmp/zov-release/
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" /tmp/zov-release/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Zov-Lesa-1.2.0-unsigned
+          path: /tmp/zov-release/

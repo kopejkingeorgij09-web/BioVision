@@ -1,7 +1,7 @@
 name: Zov Lesa Android
 on:
   push:
-    branches: ['codex/zov-mobile-homework-widgets']
+    branches: ['codex/zov-widget-details']
   pull_request:
     paths: ['bamboo/**', '.github/workflows/zov-android.yml']
   workflow_dispatch:
@@ -37,7 +37,7 @@ jobs:
           cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" /tmp/zov-release/
       - uses: actions/upload-artifact@v4
         with:
-          name: Zov-Lesa-1.2.0-unsigned
+          name: Zov-Lesa-1.3.0-unsigned
           path: /tmp/zov-release/
       - name: Enable KVM
         run: |
@@ -60,3 +60,12 @@ jobs:
             adb shell am instrument -w org.biovision.zovlesa.test/org.biovision.zovlesa.NativeChecks | tee /tmp/native-result.txt
             adb logcat -d -s chromium AndroidRuntime | tail -100
             grep -q 'PASS: WebView bridge' /tmp/native-result.txt
+      - name: Collect widget previews
+        if: always()
+        run: adb pull /sdcard/Android/data/org.biovision.zovlesa/files /tmp/widget-previews || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Zov-Lesa-widget-previews
+          path: /tmp/widget-previews/
+          if-no-files-found: ignore

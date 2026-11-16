@@ -19,6 +19,24 @@ test('recurrences are expanded, limited and snapshots remove deleted tasks',()=>
  assert.deepEqual(widgets([]),[]);
  assert.equal(widgets(Array.from({length:500},(_,i)=>({id:String(i),due:today,title:'T'}))).length,300);
 });
+test('calendar details come from the occurrence, including building, room and teachers',()=>{
+ const event={id:'mirea',start:today+'T14:20',end:today+'T15:50',title:'Информатика · практика',location:'К-215 (В-86)',notes:'РТУ МИРЭА · ХББО-04-26\n4-я пара · чётная неделя\nКожухарь О. Ю.'};
+ const item=widgets([],[event])[0];
+ assert.equal(item.location,'Корпус В-86 · ауд. К-215');
+ assert.equal(item.teacher,'Кожухарь О. Ю.');assert.equal(item.end,event.end);
+ const moved={...event,location:'А-61 (МП-1)',teacher:'Другой преподаватель'};
+ const updated=widgets([],[{...event,occ:[moved]}])[0];
+ assert.equal(updated.location,'Корпус МП-1 · ауд. А-61');assert.equal(updated.teacher,'Другой преподаватель');
+});
+test('subgroups retain their own teacher and room; unlabelled personal notes stay private',()=>{
+ const event={id:'lab',start:today+'T09:00',end:today+'T10:30',title:'Физика · лабораторная',location:'В-321 / В-324',notes:'РТУ МИРЭА · ХББО-04-26\n1-я пара · чётная неделя\n1-я подгруппа — Санжаровский, В-321\n2-я подгруппа — Савинов, В-324'};
+ const item=widgets([],[event])[0];
+ assert.equal(item.location,'Ауд. В-321 / В-324');
+ assert.equal(item.teacher,'1-я п/г · Санжаровский, В-321\n2-я п/г · Савинов, В-324');
+ assert.equal(widgets([],[{...event,notes:'Личные заметки: секрет'}])[0].teacher,'');
+ assert.equal(widgets([],[{...event,notes:'Преподаватель: Савинкина Е. В.'}])[0].teacher,'Савинкина Е. В.');
+ assert.equal(widgets([],[{...event,building:'МП-1',room:'А-233',teacher:'Медведев А. А.'}])[0].location,'Корпус МП-1 · Ауд. А-233');
+});
 test('one-off lesson retains homework on move; weekly occurrences stay separate',()=>{
  const html=fs.readFileSync('phagi/index.html','utf8');
  const source=html.match(/const lessonTasks=([^;]+);/)[1];

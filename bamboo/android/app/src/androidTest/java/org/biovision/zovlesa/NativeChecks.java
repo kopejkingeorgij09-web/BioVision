@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
+import android.view.ViewGroup;
 import android.webkit.WebView;
 import android.widget.TextView;
 import org.json.JSONArray;
@@ -28,6 +29,33 @@ public final class NativeChecks extends Instrumentation {
         return value.get();
     }
     private void check(boolean ok,String message){if(!ok)throw new AssertionError(message);}
+    private String visibleText(View v){
+        if(v.getVisibility()!=View.VISIBLE)return "";
+        if(v instanceof TextView)return ((TextView)v).getText().toString()+"\n";
+        StringBuilder text=new StringBuilder();
+        if(v instanceof ViewGroup)for(int i=0;i<((ViewGroup)v).getChildCount();i++)text.append(visibleText(((ViewGroup)v).getChildAt(i)));
+        return text.toString();
+    }
+    private void preview(Context c,boolean agenda,int width,int height,String name) throws Exception {
+        AtomicReference<Throwable> error=new AtomicReference<>();
+        runOnMainSync(()->{try {
+            View widget=ZovWidget.buildViews(c,agenda,width,height).apply(c,null);
+            float density=c.getResources().getDisplayMetrics().density;
+            int w=Math.round(width*density),h=Math.round(height*density);
+            widget.measure(View.MeasureSpec.makeMeasureSpec(w,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(h,View.MeasureSpec.EXACTLY));
+            widget.layout(0,0,w,h);
+            ViewGroup rows=widget.findViewById(R.id.widget_rows);
+            check(rows.getChildCount()>0,"Widget has no visible cards at "+width+"x"+height);
+            for(int i=0;i<rows.getChildCount();i++)check(rows.getChildAt(i).getBottom()<=rows.getHeight(),"Widget card clipped at "+width+"x"+height);
+            String text=visibleText(widget);
+            check(text.contains("Корпус В-86")&&text.contains("К-215")&&text.contains("Кожухарь"),"Calendar details missing from rendered widget");
+            android.graphics.Bitmap bitmap=android.graphics.Bitmap.createBitmap(w,h,android.graphics.Bitmap.Config.ARGB_8888);
+            widget.draw(new android.graphics.Canvas(bitmap));
+            try(java.io.FileOutputStream out=new java.io.FileOutputStream(new java.io.File(c.getExternalFilesDir(null),name+".png"))){bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,out);}
+            bitmap.recycle();
+        }catch(Throwable e){error.set(e);}});
+        if(error.get()!=null)throw new AssertionError(error.get());
+    }
     @Override public void onStart() {
         Bundle result=new Bundle();
         try {
@@ -40,7 +68,7 @@ public final class NativeChecks extends Instrumentation {
             String date=start.substring(0,10);
             c.getSystemService(NotificationManager.class).cancelAll();
             js("B.put('t_nativecheck',{id:'nativecheck',title:'Native task',due:'"+date+"',remind:{at:'"+start+"'}});"
-                +"B.put('e_nativeevent',{id:'nativeevent',title:'Native event',start:'"+start+"',end:'"+LocalDateTime.parse(start).plusHours(1)+"',alerts:[0]});true");
+                +"B.put('e_nativeevent',{id:'nativeevent',title:'Информатика · практика',location:'К-215 (В-86)',notes:'РТУ МИРЭА · ХББО-04-26\\n4-я пара · чётная неделя\\nКожухарь О. Ю.',start:'"+start+"',end:'"+LocalDateTime.parse(start).plusHours(1)+"',alerts:[0]});true");
             Thread.sleep(1800);
             String schedule=c.getSharedPreferences("reminders",Context.MODE_PRIVATE).getString("schedule","");
             check(schedule.contains("nativecheck")&&schedule.contains("nativeevent"),"WebView did not schedule task and event");
@@ -50,6 +78,19 @@ public final class NativeChecks extends Instrumentation {
             check(((TextView)view.get().findViewById(R.id.widget_title)).getText().toString().equals("Дела на сегодня"),"Today RemoteViews render failed");
             runOnMainSync(()->view.set(ZovWidget.buildViews(c,AppWidgetManager.getInstance(c),999,true).apply(c,null)));
             check(((TextView)view.get().findViewById(R.id.widget_title)).getText().toString().equals("Ближайшие события"),"Agenda RemoteViews render failed");
+            String snapshot=c.getSharedPreferences("widgets",Context.MODE_PRIVATE).getString("items","[]");
+            check(snapshot.contains("Кожухарь")&&snapshot.contains("Корпус В-86"),"WebView did not extract calendar details");
+            // Fixtures exercise long titles, two subgroups, narrow widgets and large system text.
+            JSONArray fixtures=new JSONArray(snapshot);
+            fixtures.put(new org.json.JSONObject().put("kind","event").put("id","preview-long").put("date",date).put("time","23:40")
+                .put("title","Линейная алгебра и аналитическая геометрия · лекция").put("location","Корпус В-86 · ауд. К-7").put("teacher","Тишаева И. Р."));
+            fixtures.put(new org.json.JSONObject().put("kind","event").put("id","preview-lab").put("date",date).put("time","23:50")
+                .put("title","Физика · лабораторная").put("location","Ауд. В-321 / В-324").put("teacher","1-я п/г · Санжаровский, В-321\n2-я п/г · Савинов, В-324"));
+            ZovWidget.replace(c,fixtures);
+            preview(c,false,320,440,"today");preview(c,true,320,540,"agenda");
+            preview(c,true,180,200,"narrow");preview(c,true,320,150,"compact");
+            android.content.res.Configuration config=new android.content.res.Configuration(c.getResources().getConfiguration());config.fontScale=1.3f;
+            preview(c.createConfigurationContext(config),true,320,440,"large-text");
             js("window.ZovReminder.postMessage(JSON.stringify({op:'clear'}));true");Thread.sleep(300);
             check(c.getSharedPreferences("widgets",Context.MODE_PRIVATE).getString("items","[]").equals("[]"),"Widget private snapshot not cleared");
             check(new JSONArray(c.getSharedPreferences("reminders",Context.MODE_PRIVATE).getString("schedule","[]")).length()==0,"Reminder schedule not cleared");

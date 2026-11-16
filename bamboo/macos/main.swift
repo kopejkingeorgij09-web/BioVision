@@ -82,6 +82,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             }
         }
     }
+    private var quitting=false
+    func applicationShouldTerminate(_ sender:NSApplication)->NSApplication.TerminateReply{
+        if quitting{return .terminateLater};quitting=true
+        var replied=false
+        let reply={if !replied{replied=true;sender.reply(toApplicationShouldTerminate:true)}}
+        web.evaluateJavaScript("window.dispatchEvent(new Event('pagehide'));true"){_,_ in reply()}
+        DispatchQueue.main.asyncAfter(deadline:.now()+1){reply()}
+        return .terminateLater
+    }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
     @objc func settings(){web.evaluateJavaScript("location.hash='#/settings'",completionHandler:nil)}
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {

@@ -55,9 +55,10 @@ public final class NativeChecks extends Instrumentation {
             check(new JSONArray(c.getSharedPreferences("reminders",Context.MODE_PRIVATE).getString("schedule","[]")).length()==0,"Reminder schedule not cleared");
             ReminderScheduler.replace(c,new JSONArray(schedule));
             c.startActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-            runOnMainSync(activity::finish);
-            Thread.sleep(700);
-            check(activity.isDestroyed(),"Activity/WebView must be destroyed before alarm delivery");
+            // Finish is asynchronous; destroy the renderer explicitly so no browser
+            // timer can deliver the notifications under test.
+            runOnMainSync(()->{web.stopLoading();web.destroy();activity.finishAndRemoveTask();});
+            check(activity.isFinishing(),"Activity must be closing before alarm delivery");
             long deadline=System.currentTimeMillis()+110000;boolean task=false,event=false;
             while(System.currentTimeMillis()<deadline){
                 for(android.service.notification.StatusBarNotification n:c.getSystemService(NotificationManager.class).getActiveNotifications()) {

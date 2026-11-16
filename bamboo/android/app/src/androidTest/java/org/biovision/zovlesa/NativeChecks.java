@@ -24,7 +24,7 @@ public final class NativeChecks extends Instrumentation {
     private String js(String source) throws Exception {
         CountDownLatch latch=new CountDownLatch(1);AtomicReference<String> value=new AtomicReference<>();
         runOnMainSync(()->web.evaluateJavascript(source,result->{value.set(result);latch.countDown();}));
-        if(!latch.await(10,TimeUnit.SECONDS))throw new AssertionError("WebView timeout");
+        if(!latch.await(30,TimeUnit.SECONDS))throw new AssertionError("WebView timeout: "+source.substring(0,Math.min(source.length(),120)));
         return value.get();
     }
     private void check(boolean ok,String message){if(!ok)throw new AssertionError(message);}
@@ -36,7 +36,7 @@ public final class NativeChecks extends Instrumentation {
             java.lang.reflect.Field field=MainActivity.class.getDeclaredField("web");field.setAccessible(true);web=(WebView)field.get(activity);
             for(int i=0;i<60;i++){if("true".equals(js("!!window.B?.shad.plan.length")))break;Thread.sleep(250);}
             check("true".equals(js("!!window.B?.shad.plan.length")),"Bundled plan not loaded");
-            String start=LocalDateTime.now().plusMinutes(1).withSecond(0).withNano(0).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
+            String start=LocalDateTime.now().plusSeconds(90).withSecond(0).withNano(0).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
             String date=start.substring(0,10);
             c.getSystemService(NotificationManager.class).cancelAll();
             js("B.put('t_nativecheck',{id:'nativecheck',title:'Native task',due:'"+date+"',remind:{at:'"+start+"'}});"
@@ -58,7 +58,7 @@ public final class NativeChecks extends Instrumentation {
             runOnMainSync(activity::finish);
             Thread.sleep(700);
             check(activity.isDestroyed(),"Activity/WebView must be destroyed before alarm delivery");
-            long deadline=System.currentTimeMillis()+80000;boolean task=false,event=false;
+            long deadline=System.currentTimeMillis()+110000;boolean task=false,event=false;
             while(System.currentTimeMillis()<deadline){
                 for(android.service.notification.StatusBarNotification n:c.getSystemService(NotificationManager.class).getActiveNotifications()) {
                     task|=n.getTag()!=null&&n.getTag().startsWith("task/nativecheck/");

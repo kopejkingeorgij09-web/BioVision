@@ -44,7 +44,8 @@ tasks.register('bundleZovWeb', Sync) {
     }
     from(new File(bamboo, 'index.html')) {
         into 'bamboo'
-        filter { line -> line.replace('</body>', '<script src="android-download.js"></script><script src="android-reminders.js"></script><script src="widget-data.js"></script></body>') }
+        // System fonts keep the bundled UI usable during first launch without a network.
+        filter { line -> line.contains('fonts.googleapis.com') || line.contains('fonts.gstatic.com') ? '' : line.replace('</body>',  '<script src="android-download.js"></script><script src="android-reminders.js"></script><script src="widget-data.js"></script></body>') }
     }
     from(rootProject.file('web')) { include 'android-download.js', 'android-reminders.js', 'widget-data.js'; into 'bamboo' }
     from(new File(repo, 'bioviz/x/cloud.js')) { into 'bioviz/x' }

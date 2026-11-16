@@ -4,6 +4,27 @@
   if (!bridge || !window.B) return;
   const C = B.calData;
   let timer, last = '';
+  const text = (value, max = 220) => typeof value === 'string' ? value.trim().slice(0, max) : '';
+  function details(e){
+    let teacher = text(e.teacher || e.instructor), location = text(e.location);
+    const notes = text(e.notes, 1600).split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+    if(!teacher){
+      const labelled = notes.filter(x=>/^(?:преподаватель|преподаватели|ведущий)\s*:/i.test(x));
+      if(labelled.length) teacher = labelled.map(x=>x.replace(/^[^:]+:\s*/, '')).join('\n');
+      // The imported MIREA calendar stores teachers after its group and lesson headers.
+      // Do not infer a teacher from arbitrary private notes or from a subject's name.
+      else if(/^РТУ МИРЭА · ХББО-04-26$/.test(notes[0] || '') && /^\d+-я пара · (?:нечётная|чётная) неделя$/.test(notes[1] || ''))
+        teacher = notes.slice(2).join('\n').replace(/(\d)-я подгруппа\s*[—–-]\s*/g, '$1-я п/г · ');
+    }
+    const building = text(e.building, 70), room = text(e.room, 70);
+    if(building || room) location = [building && 'Корпус '+building, room && 'Ауд. '+room, !room && location].filter(Boolean).join(' · ');
+    else {
+      const match = location.match(/^(.+?)\s*\((В-86|МП-1)\)$/);
+      if(match) location = 'Корпус '+match[2]+' · '+(/^ФОК$/i.test(match[1])?'ФОК':'ауд. '+match[1]);
+      else if(/^[А-ЯA-Z]-\d[\dа-яa-z]*(?:\s*\/\s*[А-ЯA-Z]-\d[\dа-яa-z]*)*$/i.test(location)) location = 'Ауд. '+location;
+    }
+    return {location:text(location), teacher:text(teacher)};
+  }
   function sync(){
     const today = B.ymd(new Date()), until = B.add(today, 14), items = [];
     const push = (kind, id, date, time, title, extra = {}) => {
@@ -17,7 +38,7 @@
         if(d>=today) push('task',t.id,d,t.time,t.title);
     }
     for (const e of C.events()) for (const x of C.occurrences(e,today,until))
-      push('event',e.id,C.dateOf(x.start),x.start.length>10?x.start.slice(11):'',x.title,{end:x.end});
+      push('event',e.id,C.dateOf(x.start),x.start.length>10?x.start.slice(11):'',x.title,{end:x.end,...details(x)});
     for (const p of B.shad.plan) for (const [slot,placed,stage,label] of [[p.w,p.wp,2,''],[p.h,p.hp,3,'ДЗ · ']])
       if (placed && B.shadStage(p.n)<stage) push('shad',p.n,slot?.date,slot?.from,label+p.t);
     items.sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time)||a.title.localeCompare(b.title,'ru'));

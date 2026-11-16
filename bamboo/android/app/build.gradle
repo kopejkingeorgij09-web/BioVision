@@ -11,8 +11,8 @@ android {
         applicationId 'org.biovision.zovlesa'
         minSdk 26
         targetSdk 35
-        versionCode 4
-        versionName '1.3.0'
+        versionCode 5
+        versionName '1.4.0'
         testInstrumentationRunner 'org.biovision.zovlesa.NativeChecks'
     }
     if (signingStore != null) {
@@ -39,15 +39,15 @@ def web = layout.buildDirectory.dir('generated/zovAssets/www')
 tasks.register('bundleZovWeb', Sync) {
     into(web)
     from(bamboo) {
-        include 'style.css', 'calendar.css', 'js/**', 'icons/**', 'manifest.webmanifest'
+        include 'alberts-plan.json', 'style.css', 'calendar.css', 'js/**', 'icons/**', 'manifest.webmanifest'
         into 'bamboo'
     }
     from(new File(bamboo, 'index.html')) {
         into 'bamboo'
         // System fonts keep the bundled UI usable during first launch without a network.
-        filter { line -> line.contains('fonts.googleapis.com') || line.contains('fonts.gstatic.com') ? '' : line.replace('</body>',  '<script src="android-download.js"></script><script src="android-reminders.js"></script><script src="widget-data.js"></script></body>') }
+        filter { line -> line.contains('fonts.googleapis.com') || line.contains('fonts.gstatic.com') ? '' : line.replace('</body>',  '<script src="android-download.js"></script><script src="android-reminders.js"></script><script src="widget-data.js"></script><script src="app-updates.js"></script></body>') }
     }
-    from(rootProject.file('web')) { include 'android-download.js', 'android-reminders.js', 'widget-data.js'; into 'bamboo' }
+    from(rootProject.file('web')) { include 'android-download.js', 'android-reminders.js', 'widget-data.js', 'app-updates.js'; into 'bamboo' }
     from(new File(repo, 'bioviz/x/cloud.js')) { into 'bioviz/x' }
     from(new File(repo, 'shad/plan.json')) { into 'shad' }
 }

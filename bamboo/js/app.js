@@ -134,6 +134,7 @@ B.views.settings = {
               <p class="hint" id="loginMsg" aria-live="polite"></p>`}
           </section>
           ${B.androidReminders?.settings()||''}
+          ${B.nativeUpdates?.settings()||''}
           <section class="card">
             <h2>${icon('sun')}Тема</h2>
             <div class="toggle wide themes">${THEMES.map(([k, l]) => `<button class="${theme === k ? 'on' : ''}" data-act="theme" data-v="${k}">${l}</button>`).join('')}</div>
@@ -145,7 +146,7 @@ B.views.settings = {
               <label>Чтение, мин в день<input type="number" min="5" max="600" value="${cfg.readGoal}" data-in="cfgNum" data-k="readGoal"></label>
               <label>Тренировок в неделю<input type="number" min="1" max="14" value="${cfg.sportGoal}" data-in="cfgNum" data-k="sportGoal"></label>
             </div>
-            <p class="hint">Цель по чтению меняет и порог привычки «Чтение». Отсчёт опыта идёт с ${B.fmt(cfg.start)}.</p>
+            <p class="hint">Цель по минутам относится к обычному чтению. «Молбио» отмечается по продвижению в Альбертсе. Отсчёт опыта идёт с ${B.fmt(cfg.start)}.</p>
           </section>
         </div>
         <div class="col">
@@ -172,7 +173,7 @@ B.inputs.cfgNum = (el, e) => {
   if (e.type !== 'change') return;
   const v = +el.value; if (!v) return;
   B.setCfg({[el.dataset.k]: v});
-  if (el.dataset.k === 'readGoal'){ const h = B.get('h_read'); if (h) B.put('h_read', Object.assign({}, h, {min: v})); }
+  if (el.dataset.k === 'readGoal'){ const h = B.get('h_read'); if (h && h.auto === 'read') B.put('h_read', Object.assign({}, h, {min: v})); }
   if (el.dataset.k === 'sportGoal'){ const h = B.get('h_sport'); if (h) B.put('h_sport', Object.assign({}, h, {target: v})); }
 };
 B.acts.login = async () => {

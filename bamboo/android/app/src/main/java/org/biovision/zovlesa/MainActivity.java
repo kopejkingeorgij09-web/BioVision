@@ -48,6 +48,8 @@ public final class MainActivity extends Activity {
     private StringBuilder download;
     private String name, mime;
     private byte[] pendingSave;
+    private AppUpdater updater;
+    void updateStatus(org.json.JSONObject data){web.evaluateJavascript("window.zovUpdateStatus?.("+data.toString()+")",null);}
 
     private static boolean local(Uri uri) {
         return "https".equals(uri.getScheme()) && HOST.equals(uri.getHost()) && uri.getPort() == -1;
@@ -55,6 +57,7 @@ public final class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        updater=new AppUpdater(this);
         ReminderScheduler.createChannel(this);
         WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
                 .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this)).build();
@@ -138,14 +141,21 @@ public final class MainActivity extends Activity {
         try {
             JSONObject packet = new JSONObject(text);
             switch (packet.getString("op")) {
+                case "updateStatus": updater.publish(); break;
+                case "updateCheck": updater.check(); break;
+                case "updateInstall": updater.install(); break;
                 case "sync":
                     ReminderScheduler.replace(this, packet.getJSONArray("items"));
                     break;
                 case "widgets":
                     ZovWidget.replace(this, packet.getJSONArray("items"));
+                    StudyWidget.replace(this,packet.optJSONObject("study"));
                     break;
                 case "pinToday": ZovWidget.pin(this, false); break;
                 case "pinAgenda": ZovWidget.pin(this, true); break;
+                case "pinShadToday": StudyWidget.pin(this,ShadTodayWidget.class); break;
+                case "pinShadProgress": StudyWidget.pin(this,ShadProgressWidget.class); break;
+                case "pinAlberts": StudyWidget.pin(this,AlbertsWidget.class); break;
                 case "clear":
                     ZovWidget.clear(this);
                     ReminderScheduler.replace(this, new org.json.JSONArray());
@@ -237,6 +247,9 @@ public final class MainActivity extends Activity {
         try {
             JSONObject packet = new JSONObject(text);
             switch (packet.getString("op")) {
+                case "updateStatus": updater.publish(); break;
+                case "updateCheck": updater.check(); break;
+                case "updateInstall": updater.install(); break;
                 case "start":
                     name = packet.getString("name").replaceAll("[\\\\/\\p{Cntrl}]", "_").trim();
                     if (name.isEmpty()) name = "zov-lesa";

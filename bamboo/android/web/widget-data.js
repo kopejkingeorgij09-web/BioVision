@@ -43,7 +43,23 @@
       if (placed && B.shadStage(p.n)<stage) push('shad',p.n,slot?.date,slot?.from,label+p.t);
     items.sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time)||a.title.localeCompare(b.title,'ru'));
     // Bound binder size. Keep overdue work plus the nearest two weeks.
-    const packet = JSON.stringify({op:'widgets',items:items.slice(0,300)});
+    const monday = d => {const day=new Date(d+'T12:00:00Z');return B.add(d,-((day.getUTCDay()+6)%7));};
+    const ws=monday(today), we=B.add(ws,6), stages=[0,0,0,0,0], todayShad=[], weekShad=[],schedule=[];
+    for(const p of B.shad.plan){
+      const stage=B.shadStage(p.n);stages[stage]++;
+      for(const [slot,placed,need,type] of [[p.w,p.wp,2,'Веб'],[p.h,p.hp,3,'ДЗ']]){
+        if(!slot?.date)continue;
+        const item={id:String(p.n),date:slot.date,time:placed?(slot.from||''):'',title:type+' · '+p.t,
+          detail:(B.SHAD_STAGES||[])[stage]||String(stage),placed:!!placed,done:stage>=need};
+        schedule.push(item);
+        if(placed&&slot.date===today)todayShad.push(item);
+        if(slot.date>=ws&&slot.date<=we)weekShad.push(item);
+      }
+    }
+    todayShad.sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
+    const study={date:today,shad:{total:B.shad.plan.length,closed:stages[4],watched:stages[2]+stages[3]+stages[4],homework:stages[3]+stages[4],
+      schedule:schedule.slice(0,300),today:todayShad.slice(0,30),week:weekShad.slice(0,100),weekDone:weekShad.filter(x=>x.done).length,unplaced:weekShad.filter(x=>!x.placed&&!x.done).length},alberts:B.alberts?.widget()||null};
+    const packet = JSON.stringify({op:'widgets',items:items.slice(0,300),study});
     if(packet!==last){bridge.postMessage(packet);last=packet;}
   }
   function queue(){clearTimeout(timer);timer=setTimeout(sync,180);}

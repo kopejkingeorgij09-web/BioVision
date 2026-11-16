@@ -62,13 +62,14 @@ public final class NativeChecks extends Instrumentation {
             Context c=getTargetContext();
             Activity activity=startActivitySync(new Intent(c,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             java.lang.reflect.Field field=MainActivity.class.getDeclaredField("web");field.setAccessible(true);web=(WebView)field.get(activity);
-            for(int i=0;i<60;i++){if("true".equals(js("!!window.B?.shad.plan.length")))break;Thread.sleep(250);}
-            check("true".equals(js("!!window.B?.shad.plan.length")),"Bundled plan not loaded");
+            for(int i=0;i<60;i++){if("true".equals(js("!!window.B?.shad.plan.length && !!window.B?.alberts?.book")))break;Thread.sleep(250);}
+            check("true".equals(js("!!window.B?.shad.plan.length && !!window.B?.alberts?.book")),"Bundled plan not loaded");
             String start=LocalDateTime.now().plusSeconds(90).withSecond(0).withNano(0).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
             String date=start.substring(0,10);
             c.getSystemService(NotificationManager.class).cancelAll();
             js("B.put('t_nativecheck',{id:'nativecheck',title:'Native task',due:'"+date+"',remind:{at:'"+start+"'}});"
                 +"B.put('e_nativeevent',{id:'nativeevent',title:'Информатика · практика',location:'К-215 (В-86)',notes:'РТУ МИРЭА · ХББО-04-26\\n4-я пара · чётная неделя\\nКожухарь О. Ю.',start:'"+start+"',end:'"+LocalDateTime.parse(start).plusHours(1)+"',alerts:[0]});true");
+            js("B.put('study_alberts',AlbertsPlan.log(B.alberts.book,B.alberts.state(),35,B.today()));true");
             Thread.sleep(1800);
             String schedule=c.getSharedPreferences("reminders",Context.MODE_PRIVATE).getString("schedule","");
             check(schedule.contains("nativecheck")&&schedule.contains("nativeevent"),"WebView did not schedule task and event");
@@ -91,7 +92,19 @@ public final class NativeChecks extends Instrumentation {
             preview(c,true,180,200,"narrow");preview(c,true,320,150,"compact");
             android.content.res.Configuration config=new android.content.res.Configuration(c.getResources().getConfiguration());config.fontScale=1.3f;
             preview(c.createConfigurationContext(config),true,320,440,"large-text");
+            js("B.setShadOver(5,{w:{date:'"+date+"',from:'18:00'},h:{date:'"+date+"'}});true");Thread.sleep(500);
+            for(int mode=0;mode<3;mode++){
+                final int kind=mode;AtomicReference<View> study=new AtomicReference<>();
+                runOnMainSync(()->{View w=StudyWidget.buildViews(c,kind,320,440).apply(c,null);int width=Math.round(320*c.getResources().getDisplayMetrics().density),height=Math.round(440*c.getResources().getDisplayMetrics().density);w.measure(View.MeasureSpec.makeMeasureSpec(width,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(height,View.MeasureSpec.EXACTLY));w.layout(0,0,width,height);study.set(w);
+                    try{android.graphics.Bitmap b=android.graphics.Bitmap.createBitmap(width,height,android.graphics.Bitmap.Config.ARGB_8888);w.draw(new android.graphics.Canvas(b));try(java.io.FileOutputStream out=new java.io.FileOutputStream(new java.io.File(c.getExternalFilesDir(null),"study-"+kind+".png"))){b.compress(android.graphics.Bitmap.CompressFormat.PNG,100,out);}b.recycle();}catch(Exception e){throw new RuntimeException(e);}});
+                check(visibleText(study.get()).contains(mode==2?"Альбертс":"ШАД"),"Study widget title missing");
+                check(!((TextView)study.get().findViewById(R.id.study_label)).getText().toString().isEmpty(),"Study widget snapshot not loaded");
+            }
+            java.io.File installed=new java.io.File(c.getApplicationInfo().sourceDir);
+            AppUpdater.validate(activity,installed,AppUpdater.hash(installed),c.getPackageManager().getPackageInfo(c.getPackageName(),0).versionCode);
+            boolean rejected=false;try{AppUpdater.validate(activity,installed,"0".repeat(64),5);}catch(Exception expected){rejected=true;}check(rejected,"Wrong update digest accepted");
             js("window.ZovReminder.postMessage(JSON.stringify({op:'clear'}));true");Thread.sleep(300);
+            check(!c.getSharedPreferences("widgets",Context.MODE_PRIVATE).contains("study"),"Study snapshot not cleared");
             check(c.getSharedPreferences("widgets",Context.MODE_PRIVATE).getString("items","[]").equals("[]"),"Widget private snapshot not cleared");
             check(new JSONArray(c.getSharedPreferences("reminders",Context.MODE_PRIVATE).getString("schedule","[]")).length()==0,"Reminder schedule not cleared");
             ReminderScheduler.replace(c,new JSONArray(schedule));

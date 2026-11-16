@@ -137,9 +137,10 @@ B.acts.stepDone = el => {
 B.habitChip = (h, date) => {
   const val = B.habitVal(h, date), done = val > 0;
   let sub = '';
-  if (h.auto === 'read'){ const m = B.readMin(date); sub = `${m}/${h.min || 30} мин`; }
+  if (h.auto === 'molbio'){ sub = `${B.alberts?.pagesOn(date) || 0} стр. сегодня`; }
+  else if (h.auto === 'read'){ const m = B.readMin(date); sub = `${m}/${h.min || 30} мин`; }
   else if (h.kind === 'weekly'){ const ws = B.weekStart(date); let k = 0; for (let i = 0; i < 7; i++) if (B.habitDone(h, B.add(ws, i))) k++; sub = `${k}/${h.target || 3} за неделю`; }
-  const act = h.auto === 'read' ? 'data-act="readQuick"' : h.auto === 'sport' ? 'data-act="sportQuick"' : '';
+  const act = h.auto === 'molbio' ? 'data-act="albertsLog"' : h.auto === 'read' ? 'data-act="readQuick"' : h.auto === 'sport' ? 'data-act="sportQuick"' : '';
   if (val === 0.5) sub = 'минимум' + (h.mini ? ': ' + esc(h.mini) : '');
   else if (!done && h.mini && !h.auto) sub = 'хотя бы: ' + esc(h.mini);
   return `<${act.startsWith('href') ? 'a' : 'button'} class="hchip ${done ? 'on' : ''} ${val === 0.5 ? 'half' : ''}" style="--hc:var(--c-${B.habitColor ? B.habitColor(h) : 'green'})" ${act || `data-act="habitToggle" data-id="${h.id}" data-d="${date}"`}>
@@ -239,6 +240,7 @@ B.views.today = {
         <div class="col">
           ${habitsCard(c)}
           ${shadCard(c)}
+          ${B.alberts?.card() || ''}
           ${phagiCard(c)}
           ${deadlineCard(c)}
           ${bigCard()}

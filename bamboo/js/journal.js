@@ -63,6 +63,14 @@ B.views.journal = {
       <div class="toggle jr-tabs"><a class="on" href="#/journal">${icon('pen')}День</a><a class="" href="#/stats">${icon('chart')}Итоги</a></div>
       <header class="page-h"><div><div class="eyebrow">Дневник</div><h1>${date === t ? 'Сегодня' : B.WDF[B.wd(date)] + ', ' + B.fmt(date)}</h1></div>
         <div class="row"><a class="icon-btn" href="#/journal/${B.add(date, -1)}" aria-label="Предыдущий день">${icon('left')}</a>${date < t ? `<a class="icon-btn" href="#/journal/${B.add(date, 1)}" aria-label="Следующий день">${icon('right')}</a>` : ''}</div></header>
+      <section class="journal-paper" aria-label="Страница блокнота">
+        <div class="notebook-date">${B.WDF[B.wd(date)]} · ${B.fmt(date)}</div>
+        <label class="sr-only" for="journalNotebook">Запись в блокноте</label>
+        <textarea id="journalNotebook" class="notebook-input" data-in="notebook" data-d="${date}" placeholder="Мысли, события, идеи. Эта страница — твоя." rows="12">${esc(d.notebook || '')}</textarea>
+        <div class="notebook-legacy">${(d.notes || []).map(n=>`<article><time>${B.hm(n.at)}</time><p>${esc(n.t)}</p><button class="icon-btn sm" data-act="thDel" data-d="${date}" data-at="${n.at}" aria-label="Удалить мысль">${icon('x')}</button></article>`).join('')}</div>
+        <div class="notebook-save" id="notebookSaved">Сохраняется автоматически</div>
+      </section>
+      <details class="journal-extra"><summary>Ещё <span class="muted">· план, разбор и настроение</span></summary>
       ${timeline(date, c)}
       <div class="cols">
         <div class="col">
@@ -91,9 +99,12 @@ B.views.journal = {
           ${pastCard(date)}
         </div>
       </div>
+      </details>
     </div>`;
   },
   mount(){
+    const input = B.$('#journalNotebook');
+    if(input){ input.style.height='auto'; input.style.height=Math.max(380,input.scrollHeight)+'px'; }
     // выбранный день в ленте сразу виден, лента прокручена к нему
     const sel = B.$('.jt-day.on'), box = B.$('.jt-scroll');
     if (sel && box) box.scrollLeft = sel.offsetLeft - box.clientWidth + sel.offsetWidth * 3;
@@ -126,13 +137,18 @@ function sameDay(date, months){
 function pastCard(date){
   const items = [['Неделю назад', B.add(date, -7)], ['Месяц назад', sameDay(date, 1)], ['Полгода назад', sameDay(date, 6)], ['Год назад', sameDay(date, 12)]].map(([l, k]) => {
     const d = B.day(k), rv = d.review || {}, notes = d.notes || [];
-    const text = (rv.done || rv.why || (notes[0] && notes[0].t) || '').trim();
+    const text = (d.notebook || rv.done || rv.why || (notes[0] && notes[0].t) || '').trim();
     if (!text) return '';
     return `<a class="past" href="#/journal/${k}"><span class="eyebrow">${l} · ${B.fmtW(k)}${rv.mood ? ' · ' + MOOD[rv.mood] : ''}</span><p>${esc(text.length > 220 ? text.slice(0, 220) + '…' : text)}</p>${notes.length ? `<span class="muted">${icon('quote')} мыслей: ${notes.length}</span>` : ''}</a>`;
   }).filter(Boolean);
   if (!items.length) return '';
   return `<section class="card"><h2>${icon('later')}В этот день раньше</h2>${items.join('')}</section>`;
 }
+B.inputs.notebook = el => {
+  B.editDay(el.dataset.d,d=>{d.notebook=el.value;d.notebookFirst=d.notebookFirst||Date.now();d.notebookAt=Date.now();},true);
+  el.style.height='auto';el.style.height=Math.max(380,el.scrollHeight)+'px';
+  const status=B.$('#notebookSaved');if(status)status.textContent='Сохранено на устройстве';
+};
 B.inputs.rv = el => {
   const date = el.dataset.d;
   B.editDay(date, d => { const r = d.review || {}; d.review = Object.assign({}, r, {[el.dataset.k]: el.value, at: Date.now(), first: r.first || Date.now()}); }, true);
@@ -165,6 +181,7 @@ function weekPrompt(){
     if (top.length) lines.push(`Важные (с короной): ${top.map(x => (x.done ? '[x] ' : '[ ] ') + x.title).join('; ')}`);
     if (s.done.length) lines.push(`Сделано: ${s.done.map(x => x.title).join('; ')}`);
     lines.push(`Чтение ${s.rm} мин, тренировка: ${s.ws.length ? s.ws.map(w => B.SPORT_TYPES[w.type]).join(', ') : 'нет'}, привычки: ${s.hs.join(', ') || 'нет'}`);
+    if (d.notebook) lines.push(`Блокнот: ${d.notebook}`);
     if (rv.done) lines.push(`Что сделал: ${rv.done}`);
     if (rv.why) lines.push(`Что не вышло и почему: ${rv.why}`);
     if (rv.mood) lines.push(`Настроение ${rv.mood}/5, энергия ${rv.energy || '?'}/5`);

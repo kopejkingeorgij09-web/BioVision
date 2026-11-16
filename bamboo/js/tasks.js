@@ -230,16 +230,17 @@ function monthWeekCell(ws, withShad, cur){
   </div>`;
 }
 
-const viewToggle = () => `<div class="toggle pl-views">${[['week', 'week', 'Неделя'], ['month', 'grid', 'Месяц'], ['shad', 'chart', 'ШАД'], ['calendar', 'cal', 'Календарь']].map(([v, ic, l]) => `<button class="${S.view === v ? 'on' : ''}" data-act="plView" data-v="${v}" title="${v === 'shad' ? 'Темы и расписание ШАДа' : l}">${icon(ic)}<span>${l}</span></button>`).join('')}</div>`;
+const viewToggle = () => `<div class="toggle pl-views">${[['week', 'week', 'Неделя'], ['month', 'grid', 'Месяц'], ['shad', 'chart', 'ШАД'], ['alberts', 'book', 'Альбертс'], ['calendar', 'cal', 'Календарь']].map(([v, ic, l]) => `<button class="${S.view === v ? 'on' : ''}" data-act="plView" data-v="${v}" title="${v === 'shad' ? 'Темы и расписание ШАДа' : l}">${icon(ic)}<span>${l}</span></button>`).join('')}</div>`;
 function calName(){ if (S.cal === 'all') return 'Все календари'; const p = B.proj(S.cal); return p ? p.name : 'Все календари'; }
 
 B.views.tasks = {
   title: 'Задачи',
   render(arg){
-    if (arg === 'plan' || arg === 'week' || arg === 'month' || arg === 'calendar'){ S.view = arg === 'plan' ? 'shad' : arg; saveS(); }
+    if (arg === 'alberts' || arg === 'shad' || arg === 'plan' || arg === 'week' || arg === 'month' || arg === 'calendar'){ S.view = arg === 'plan' ? 'shad' : arg; saveS(); }
     else if (arg && B.proj(arg)){ S.cal = arg; saveS(); }
     if (S.cal !== 'all' && !B.proj(S.cal)){ S.cal = 'all'; saveS(); }
     if (S.view === 'calendar') return B.calendarView.render(viewToggle());
+    if (S.view === 'alberts') return `<div class="page planner is-alberts"><header class="pl-h"><h1>Трек Альбертса</h1><div class="pl-tools">${viewToggle()}</div></header>${B.alberts.view()}</div>`;
     const month = S.view === 'month', t = B.today();
     if (S.view === 'shad') return `<div class="page planner is-shad">
       <header class="pl-h"><h1>План ШАДа</h1><div class="pl-tools">${viewToggle()}</div></header>

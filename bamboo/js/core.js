@@ -61,13 +61,13 @@ B.ver = 0;
 try { docs = JSON.parse(localStorage.getItem(LS_DOCS) || '{}') || {}; } catch (e) { docs = {}; }
 try { dirty = JSON.parse(localStorage.getItem(LS_DIRTY) || '{}') || {}; } catch (e) { dirty = {}; }
 let lsT;
-function lsSave(){
-  clearTimeout(lsT);
-  lsT = setTimeout(() => {
-    try { localStorage.setItem(LS_DOCS, JSON.stringify(docs)); localStorage.setItem(LS_DIRTY, JSON.stringify(dirty)); B.lsFull = false; }
-    catch (e) { if (!B.lsFull && B.toast) B.toast('Память браузера заполнена: последние изменения сохранены только до перезагрузки. Удали большие вложения или войди в облако.', 8000); B.lsFull = true; }
-  }, 120);
+function persistLocal(){
+  try { localStorage.setItem(LS_DOCS, JSON.stringify(docs)); localStorage.setItem(LS_DIRTY, JSON.stringify(dirty)); B.lsFull=false; }
+  catch(e){if(!B.lsFull&&B.toast)B.toast('Память браузера заполнена. Войди в облако или освободи место.',8000);B.lsFull=true;}
 }
+function lsSave(){clearTimeout(lsT);lsT=setTimeout(persistLocal,120);}
+addEventListener('pagehide',persistLocal);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)persistLocal();});
 B.lsSize = () => JSON.stringify(docs).length;
 B.sync = {mode: 'local', text: 'Только на этом устройстве'};
 function setSync(mode, text){ B.sync = {mode, text}; B.emit('sync'); }
@@ -472,6 +472,8 @@ B.levelOf = total => {
 B.xpForLevel = L => { let xp = 0; for (let k = 1; k < L; k++) xp += B.need(k); return xp; };
 /* 1 — привычка выполнена, 0.5 — минимальная версия (держит серию, половина опыта), 0 — нет */
 B.habitVal = (h, date) => {
+  if (h.auto === 'molbio' && date >= (h.molbioSince || '2026-11-16')) return B.alberts?.pagesOn(date) > 0 ? 1 : 0;
+  if (h.auto === 'molbio') h = Object.assign({},h,{auto:'read'});
   if (h.auto === 'read'){
     const m = B.readMin(date);
     if (m >= (h.min || 30)) return 1;
@@ -486,12 +488,12 @@ B.habitVal = (h, date) => {
 B.habitDone = (h, date) => B.habitVal(h, date) > 0;
 let sportMemo = null, sportVer = -1;
 function sportSet(){ if (sportVer !== B.ver){ sportMemo = new Set(B.list('w_').map(w => w.date)); sportVer = B.ver; } return sportMemo; }
-B.hasReview = d => !!(d.review && ((d.review.done || '').trim() || (d.review.why || '').trim()));
+B.hasReview = d => !!((d.notebook || '').trim() || (d.review && ((d.review.done || '').trim() || (d.review.why || '').trim())));
 /* разбор засчитан, если начат до конца дня (до 4 утра); задним числом не считается */
 B.reviewDone = date => {
-  const d = B.day(date), r = d.review;
+  const d = B.day(date), r = d.review || {};
   if (!B.hasReview(d)) return false;
-  const first = r.first || r.at;
+  const first = (d.notebook || '').trim() ? d.notebookFirst || d.notebookAt : r.first || r.at;
   return !(first && B.dayOf(first) > date);
 };
 /* серия дней подряд, где test(date) верно; сегодняшний пропуск серию пока не рвёт */

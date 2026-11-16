@@ -39,7 +39,7 @@ public class ZovWidget extends AppWidgetProvider {
         prefs(c).edit().putString("items",clean.toString()).putLong("updated",System.currentTimeMillis()).commit();
         refresh(c);
     }
-    static void clear(Context c) {prefs(c).edit().clear().commit();refresh(c);}
+    static void clear(Context c) {prefs(c).edit().clear().commit();StudyWidget.clear(c);refresh(c);}
     static void pin(Context c, boolean agenda) {
         AppWidgetManager m=AppWidgetManager.getInstance(c);
         if(m.isRequestPinAppWidgetSupported())m.requestPinAppWidget(new ComponentName(c,agenda?AgendaWidget.class:TodayWidget.class),null,null);
@@ -47,10 +47,11 @@ public class ZovWidget extends AppWidgetProvider {
     }
     static void refresh(Context c) {
         AppWidgetManager m=AppWidgetManager.getInstance(c);
+        StudyWidget.refresh(c);
         for(Class<?> type:new Class<?>[]{TodayWidget.class,AgendaWidget.class})
             for(int id:m.getAppWidgetIds(new ComponentName(c,type)))render(c,m,id,type==AgendaWidget.class);
     }
-    private static PendingIntent open(Context c,String kind,String id,String date) {
+    static PendingIntent open(Context c,String kind,String id,String date) {
         Intent i=new Intent(c,MainActivity.class).setAction(ReminderScheduler.OPEN)
             .setData(Uri.parse("zov-lesa://widget/"+Uri.encode(kind+"/"+id+"/"+date)))
             .putExtra("kind",kind).putExtra("id",id).putExtra("date",date)
@@ -87,8 +88,8 @@ public class ZovWidget extends AppWidgetProvider {
         if(ongoing(x,now))label="Сейчас · "+time;
         return label;
     }
-    private static int dp(Context c,float n){return Math.round(n*c.getResources().getDisplayMetrics().density);}
-    private static int linesHeight(Context c,String text,float size,int width,int max,boolean bold){
+    static int dp(Context c,float n){return Math.round(n*c.getResources().getDisplayMetrics().density);}
+    static int linesHeight(Context c,String text,float size,int width,int max,boolean bold){
         TextPaint paint=new TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG);
         paint.setTextSize(size*c.getResources().getDisplayMetrics().scaledDensity);
         paint.setTypeface(bold?Typeface.DEFAULT_BOLD:Typeface.DEFAULT);

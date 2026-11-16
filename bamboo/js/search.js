@@ -26,6 +26,7 @@ function results(){
   const dates = B.dayDates().reverse();
   dates.forEach(date => {
     const d = B.day(date), rv = d.review || {};
+    if(d.notebook && has(d.notebook))jr.push({date,t:d.notebook,kind:'блокнот'});
     ['done', 'why', 'tomorrow'].forEach(k => { if (rv[k] && has(rv[k])) jr.push({date, t: rv[k], kind: k === 'why' ? 'что не вышло' : 'разбор'}); });
     (d.notes || []).forEach(n => { if (has(n.t)) jr.push({date, t: n.t, kind: 'мысль'}); });
   });

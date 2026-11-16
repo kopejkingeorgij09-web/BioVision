@@ -4,6 +4,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <application
         android:theme="@style/ZovTheme"
         android:label="Зов леса"
@@ -36,5 +37,18 @@
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_agenda"/>
         </receiver>
+        <receiver android:name=".ShadTodayWidget" android:exported="false" android:label="ШАД сегодня">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_shad_today"/>
+        </receiver>
+        <receiver android:name=".ShadProgressWidget" android:exported="false" android:label="Прогресс ШАДа">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_shad_progress"/>
+        </receiver>
+        <receiver android:name=".AlbertsWidget" android:exported="false" android:label="Альбертс">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_alberts"/>
+        </receiver>
+        <provider android:name=".UpdateProvider" android:authorities="org.biovision.zovlesa.updates" android:exported="false" android:grantUriPermissions="true"/>
     </application>
 </manifest>

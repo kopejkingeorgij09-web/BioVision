@@ -96,7 +96,7 @@
       ${status?.enabled && !status.exact ? '<p class="hint">Без разрешения на точное время Android может задерживать напоминания.</p>' : ''}
       <p class="hint">Для проверки закрой приложение и дождись уведомления.</p>
       <h2>Виджеты рабочего стола</h2>
-      <div class="row wrap"><button class="btn" data-act="androidPinToday">Дела на сегодня</button><button class="btn" data-act="androidPinAgenda">Ближайшие события</button></div>
+      <div class="row wrap"><button class="btn" data-act="androidPinToday">Дела на сегодня</button><button class="btn" data-act="androidPinAgenda">Ближайшие события</button><button class="btn" data-act="androidPinShadToday">ШАД сегодня</button><button class="btn" data-act="androidPinShadProgress">Прогресс ШАДа</button><button class="btn" data-act="androidPinAlberts">Альбертс</button></div>
       <p class="hint">Нажатие на запись открывает её в приложении. Виджеты обновляются после синхронизации; без сети показывают сохранённые данные. Их также можно добавить через меню виджетов Android.</p>
     </section>`;
   }
@@ -121,6 +121,9 @@
   B.acts.androidTestReminder = () => { send('test'); B.toast('Уведомление через 15 секунд. Можно закрыть приложение.'); };
   B.acts.androidPinToday = () => send('pinToday');
   B.acts.androidPinAgenda = () => send('pinAgenda');
+  B.acts.androidPinShadToday = () => send('pinShadToday');
+  B.acts.androidPinShadProgress = () => send('pinShadProgress');
+  B.acts.androidPinAlberts = () => send('pinAlberts');
   B.acts.androidClearPrivate = () => send('clear');
   B.on('change', queue);
   document.addEventListener('visibilitychange', () => document.hidden ? sync() : refresh());

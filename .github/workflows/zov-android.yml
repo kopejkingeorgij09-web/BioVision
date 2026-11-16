@@ -59,13 +59,19 @@ jobs:
             adb shell appops set org.biovision.zovlesa SCHEDULE_EXACT_ALARM allow
             adb shell am instrument -w org.biovision.zovlesa.test/org.biovision.zovlesa.NativeChecks | tee /tmp/native-result.txt
             adb logcat -d -s chromium AndroidRuntime | tail -100
+            adb pull /sdcard/Android/data/org.biovision.zovlesa/files /tmp/widget-previews || true
             grep -q 'PASS: WebView bridge' /tmp/native-result.txt
-      - name: Collect widget previews
-        if: always()
-        run: adb pull /sdcard/Android/data/org.biovision.zovlesa/files /tmp/widget-previews || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: Zov-Lesa-widget-previews
           path: /tmp/widget-previews/
           if-no-files-found: ignore
+      - name: Portable build transfer
+        run: |
+          python3 - <<'PYDATA'
+          import base64,pathlib
+          files=[pathlib.Path('bamboo/android/app/build/outputs/apk/release/app-release-unsigned.apk'),*pathlib.Path('/tmp/widget-previews').glob('*.png')]
+          for path in files:
+              print('ZOV_TRANSFER:'+path.name+':'+base64.b64encode(path.read_bytes()).decode())
+          PYDATA

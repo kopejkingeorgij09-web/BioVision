@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "android": {
+    "version": "1.4.0",
+    "build": 5,
+    "url": "https://kopejkingeorgij09-web.github.io/BioVision/releases/zov-lesa/Zov-Lesa-Android-1.4.0.apk",
+    "sha256": "f23c59b42ba60c2115f9a0aaf02d07903893a6449297f3f53d8b518861ec9b6f",
+    "size": 1153450
+  },
+  "macos": {
+    "version": "1.0.0",
+    "build": 1,
+    "url": "https://kopejkingeorgij09-web.github.io/BioVision/releases/zov-lesa/Zov-Lesa-macOS-1.0.0.zip",
+    "sha256": "69a7a748045cbe45660c126518e409241e6699cb45eb146942e7f8801b771d1a",
+    "size": 353298
+  }
+}

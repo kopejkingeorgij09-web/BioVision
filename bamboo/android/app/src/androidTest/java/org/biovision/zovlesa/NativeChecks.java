@@ -69,7 +69,7 @@ public final class NativeChecks extends Instrumentation {
             c.getSystemService(NotificationManager.class).cancelAll();
             js("B.put('t_nativecheck',{id:'nativecheck',title:'Native task',due:'"+date+"',remind:{at:'"+start+"'}});"
                 +"B.put('e_nativeevent',{id:'nativeevent',title:'Информатика · практика',location:'К-215 (В-86)',notes:'РТУ МИРЭА · ХББО-04-26\\n4-я пара · чётная неделя\\nКожухарь О. Ю.',start:'"+start+"',end:'"+LocalDateTime.parse(start).plusHours(1)+"',alerts:[0]});true");
-            js("B.setShadOver(5,{w:{date:'"+date+"',from:'18:00'},h:{date:'"+date+"'}});B.put('study_alberts',AlbertsPlan.log(B.alberts.book,B.alberts.state(),35,B.today()));true");
+            js("B.put('study_alberts',AlbertsPlan.log(B.alberts.book,B.alberts.state(),35,B.today()));true");
             Thread.sleep(1800);
             String schedule=c.getSharedPreferences("reminders",Context.MODE_PRIVATE).getString("schedule","");
             check(schedule.contains("nativecheck")&&schedule.contains("nativeevent"),"WebView did not schedule task and event");
@@ -92,6 +92,7 @@ public final class NativeChecks extends Instrumentation {
             preview(c,true,180,200,"narrow");preview(c,true,320,150,"compact");
             android.content.res.Configuration config=new android.content.res.Configuration(c.getResources().getConfiguration());config.fontScale=1.3f;
             preview(c.createConfigurationContext(config),true,320,440,"large-text");
+            js("B.setShadOver(5,{w:{date:'"+date+"',from:'18:00'},h:{date:'"+date+"'}});true");Thread.sleep(500);
             for(int mode=0;mode<3;mode++){
                 final int kind=mode;AtomicReference<View> study=new AtomicReference<>();
                 runOnMainSync(()->{View w=StudyWidget.buildViews(c,kind,320,440).apply(c,null);int width=Math.round(320*c.getResources().getDisplayMetrics().density),height=Math.round(440*c.getResources().getDisplayMetrics().density);w.measure(View.MeasureSpec.makeMeasureSpec(width,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(height,View.MeasureSpec.EXACTLY));w.layout(0,0,width,height);study.set(w);

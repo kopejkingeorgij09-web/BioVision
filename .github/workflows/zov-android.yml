@@ -31,7 +31,7 @@ jobs:
           node --test bamboo/tests/*.test.cjs
       - name: Build APK
         run: |
-          gradle -p bamboo/android assembleRelease lintRelease --no-daemon
+          gradle -p bamboo/android assembleRelease lintRelease assembleDebug assembleDebugAndroidTest --no-daemon
           mkdir -p /tmp/zov-release
           cp bamboo/android/app/build/outputs/apk/release/app-release-unsigned.apk /tmp/zov-release/
           cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" /tmp/zov-release/
@@ -39,3 +39,22 @@ jobs:
         with:
           name: Zov-Lesa-1.2.0-unsigned
           path: /tmp/zov-release/
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Native Android integration
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            adb install bamboo/android/app/build/outputs/apk/debug/app-debug.apk
+            adb install bamboo/android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            adb shell pm grant org.biovision.zovlesa android.permission.POST_NOTIFICATIONS
+            adb shell appops set org.biovision.zovlesa SCHEDULE_EXACT_ALARM allow
+            adb shell am instrument -w org.biovision.zovlesa.test/org.biovision.zovlesa.NativeChecks | tee /tmp/native-result.txt
+            grep -q 'PASS: WebView bridge' /tmp/native-result.txt

@@ -13,6 +13,7 @@ android {
         targetSdk 35
         versionCode 3
         versionName '1.2.0'
+        testInstrumentationRunner 'org.biovision.zovlesa.NativeChecks'
     }
     if (signingStore != null) {
         signingConfigs {

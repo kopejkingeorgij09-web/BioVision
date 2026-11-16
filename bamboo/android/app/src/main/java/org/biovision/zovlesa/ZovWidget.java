@@ -55,6 +55,9 @@ public class ZovWidget extends AppWidgetProvider {
         return PendingIntent.getActivity(c,0,i,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
     }
     private static void render(Context c,AppWidgetManager m,int id,boolean agenda) {
+        m.updateAppWidget(id, buildViews(c,m,id,agenda));
+    }
+    static RemoteViews buildViews(Context c,AppWidgetManager m,int id,boolean agenda) {
         RemoteViews v=new RemoteViews(c.getPackageName(),R.layout.zov_widget);
         LocalDate now=LocalDate.now();String today=now.toString(),until=now.plusDays(7).toString();
         v.setTextViewText(R.id.widget_title,agenda?"Ближайшие события":"Дела на сегодня");
@@ -87,7 +90,7 @@ public class ZovWidget extends AppWidgetProvider {
         String footer=updated==0?"Открой приложение для загрузки дел":rows.isEmpty()?"Дел нет · Открыть приложение":rows.size()>max?"Ещё "+(rows.size()-max)+" · Открыть все":"Открыть все";
         if(updated>0)footer+=" · "+java.time.Instant.ofEpochMilli(updated).atZone(java.time.ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d.MM HH:mm"));
         v.setTextViewText(R.id.widget_open,footer);
-        m.updateAppWidget(id,v);
+        return v;
     }
     @Override public void onUpdate(Context c,AppWidgetManager m,int[] ids){refresh(c);}
     @Override public void onAppWidgetOptionsChanged(Context c,AppWidgetManager m,int id,android.os.Bundle options){refresh(c);}

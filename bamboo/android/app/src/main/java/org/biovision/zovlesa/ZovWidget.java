@@ -75,7 +75,8 @@ public class ZovWidget extends AppWidgetProvider {
             }
         } catch(JSONException ignored){}
         rows.sort(Comparator.comparing(x->x.optString("date")+"T"+x.optString("time")));
-        int max=m.getAppWidgetOptions(id).getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,200)<180?3:6;
+        int height=m.getAppWidgetOptions(id).getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,250);
+        int max=Math.max(1,Math.min(6,(height-110)/36));
         for(int i=0;i<ROWS.length;i++) {
             boolean visible=i<Math.min(max,rows.size());v.setViewVisibility(ROWS[i],visible?View.VISIBLE:View.GONE);
             if(!visible)continue;
@@ -84,6 +85,7 @@ public class ZovWidget extends AppWidgetProvider {
             if(!time.isEmpty())label+=(label.isEmpty()?"":" · ")+time;
             if(!label.isEmpty())label+="  ";
             v.setTextViewText(ROWS[i],label+x.optString("title"));
+            v.setContentDescription(ROWS[i],label+x.optString("title"));
             v.setOnClickPendingIntent(ROWS[i],open(c,x.optString("kind"),x.optString("id"),date));
         }
         long updated=prefs(c).getLong("updated",0);

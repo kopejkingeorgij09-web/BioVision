@@ -88,7 +88,7 @@
       <p class="muted">${!status ? 'Проверяю разрешения…' : status.enabled
         ? 'Напоминания о задачах и событиях приходят и при закрытом приложении.'
         : 'Разреши уведомления, чтобы получать напоминания о задачах и событиях.'}</p>
-      ${status ? `<div class="row">
+      ${status ? `<div class="row wrap">
         ${status.enabled ? '<button class="btn" data-act="androidTestReminder">Проверить через 15 секунд</button>'
           : '<button class="btn primary" data-act="androidEnableReminders">Разрешить уведомления</button>'}
         ${status.enabled && !status.exact ? '<button class="btn ghost" data-act="androidExactReminders">Разрешить точное время</button>' : ''}
@@ -96,7 +96,7 @@
       ${status?.enabled && !status.exact ? '<p class="hint">Без разрешения на точное время Android может задерживать напоминания.</p>' : ''}
       <p class="hint">Для проверки закрой приложение и дождись уведомления.</p>
       <h2>Виджеты рабочего стола</h2>
-      <div class="row"><button class="btn" data-act="androidPinToday">Дела на сегодня</button><button class="btn" data-act="androidPinAgenda">Ближайшие события</button></div>
+      <div class="row wrap"><button class="btn" data-act="androidPinToday">Дела на сегодня</button><button class="btn" data-act="androidPinAgenda">Ближайшие события</button></div>
       <p class="hint">Нажатие на запись открывает её в приложении. Виджеты обновляются после синхронизации; без сети показывают сохранённые данные. Их также можно добавить через меню виджетов Android.</p>
     </section>`;
   }

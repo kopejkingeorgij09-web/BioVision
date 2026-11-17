@@ -199,6 +199,12 @@ main{flex:1;width:100%;max-width:1240px;margin:0 auto;padding:34px max(20px,env(
 @media (max-width:560px){.topic>summary{padding:13px 12px;gap:6px 10px}.topic-icon{width:32px;height:32px}.topic>summary strong{font-size:17px}}
 .rows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);background:var(--card);overflow:hidden}
 .rows>li+li{border-top:1px solid var(--line)}
+.rows>li.has-practice{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center}
+.row-practice{display:inline-flex;align-items:center;gap:8px;min-height:42px;margin:0 20px 0 0;padding:6px 12px;border:1px solid var(--line);border-radius:var(--rx);color:var(--ui);font-weight:650;text-decoration:none;white-space:nowrap}
+.row-practice .i{width:15px;height:15px}
+.row-practice:hover{background:color-mix(in oklab,var(--ui) 10%,var(--card));border-color:var(--ui)}
+.row-practice:focus-visible{outline:2px solid var(--ui);outline-offset:2px}
+@media(max-width:640px){.rows>li.has-practice{grid-template-columns:minmax(0,1fr)}.row-practice{justify-self:start;margin:0 16px 16px 80px}}
 .row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px 18px;align-items:center;padding:18px 20px;text-decoration:none;color:var(--ink);transition:background .15s}
 .row:hover{background:color-mix(in oklab,var(--ink) 3%,var(--card))}
 .row .no{font:600 15px/1 var(--font-mono);color:var(--ui);border:1.5px solid var(--ui);border-radius:var(--rx);width:46px;height:46px;display:grid;place-items:center;align-self:start;position:relative}
@@ -470,8 +476,9 @@ const MONTHS=['января','февраля','марта','апреля','ма�
 const fmtDate=d=>{if(!d)return '';const [y,m,dd]=String(d).split('-').map(Number);return m?`${dd} ${MONTHS[m-1]}${y&&y!==new Date().getFullYear()?' '+y:''}`:''};
 BV.fmtDate=fmtDate;
 function lectureRows(list){const h=hiddenL();return list.map(L=>{const p=progress(L);
-  return `<li><a class="row" href="#/l/${L.n}"><span class="no">${String(L.n).padStart(2,'0')}</span><span><b>${esc(L.title)}${h.has(L.id)?' <span class="badge cut">скрыта</span>':''}</b><small>${fmtDate(L.date)} · ${p.total} разделов</small><span class="ab">${esc(L.about)}</span></span>
-    <span class="pr">${p.done?`${p.done} из ${p.total}`:'не начата'}<span class="trk" aria-hidden="true">${Array.from({length:p.total},(_,k)=>`<i${k<p.done?' class="on"':''}></i>`).join('')}</span></span></a></li>`}).join('')}
+  const practice=L.practice?`<a class="row-practice" href="#/l/${L.n}/${L.id}-practice" aria-label="Практика к лекции «${esc(L.title)}»">Практика ${ic('arrow')}</a>`:'';
+  return `<li${practice?' class="has-practice"':''}><a class="row" href="#/l/${L.n}"><span class="no">${String(L.n).padStart(2,'0')}</span><span><b>${esc(L.title)}${h.has(L.id)?' <span class="badge cut">скрыта</span>':''}</b><small>${fmtDate(L.date)} · ${p.total} разделов</small><span class="ab">${esc(L.about)}</span></span>
+    <span class="pr">${p.done?`${p.done} из ${p.total}`:'не начата'}<span class="trk" aria-hidden="true">${Array.from({length:p.total},(_,k)=>`<i${k<p.done?' class="on"':''}></i>`).join('')}</span></span></a>${practice}</li>`}).join('')}
 function lectureTopics(list){
   if(!list.length)return '<p class="empty">Лекций пока нет.</p>';
   const folders=C.topics.map(topic=>({...topic,lectures:list.filter(L=>L.topic===topic.id)}));

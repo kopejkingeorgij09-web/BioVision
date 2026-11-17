@@ -38,14 +38,14 @@ if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWork
 <div id="bvhost"></div>
 <script>
 /* Версия обязательна перед публикацией. Код раздела исполняется один раз за сеанс. */
-const BV_VER='2026-11-16-zov-alberts-left';
+const BV_VER='2026-11-17-nucleic-acids';
 const CORE=['bioviz/x/cloud.js','bioviz/core/base.js','content/course.js','bioviz/core/app.js','bioviz/core/personal.js','bioviz/core/learning.js','bioviz/core/activity.js'];
 const GROUPS={
  common:['bioviz/core/prompt.js','bioviz/core/search.js','bioviz/core/offline.js'],
  reading:['bioviz/core/offline.js','bioviz/core/prompt.js','bioviz/core/reading.js'],
  labs:['bioviz/core/prompt.js','bioviz/core/labworks.js'],
  admin:['bioviz/core/labworks.js','bioviz/core/admin.js'],
- lecture:['bioviz/core/konspekt.js','bioviz/core/mol.js','bioviz/core/vz.js','bioviz/core/split.js','bioviz/core/lnav.js','bioviz/core/terms.js','bioviz/core/prompt.js']
+ lecture:['bioviz/core/konspekt.js','bioviz/core/mol.js','bioviz/core/vz.js','bioviz/core/split.js','bioviz/core/lnav.js','bioviz/core/terms.js','bioviz/core/prompt.js','content/practice.js']
 };
 const TAIL=[...new Set(Object.values(GROUPS).flat())];
 const loaded=new Map(),hints=new Set();
@@ -57,8 +57,8 @@ function one(src){if(loaded.has(src))return loaded.get(src);
 }
 async function files(list){preload(list);for(const src of list)await one(src)}
 window.BV_LOAD={files,ensure:name=>files(GROUPS[name]||[]),
- async lecture(L){await files(GROUPS.lecture);await one(L.file)},
- async allLectures(){await files(GROUPS.lecture);await Promise.all(BV_COURSE.lectures.map(L=>one(L.file)))},
+ async lecture(L){await files(GROUPS.lecture);await one(L.file);if(L.practice){await one(L.practice);BV.practice.attach(L.id)}},
+ async allLectures(){await files(GROUPS.lecture);await Promise.all(BV_COURSE.lectures.map(L=>this.lecture(L)))},
  async route(hash){const p=String(hash).replace(/^#\/?/,'').split('/');if(p[0]==='reading')await files(GROUPS.reading);else if(p[0]==='labs'||p[0]==='lab'||p[0]==='microlab')await files(GROUPS.labs);else if(p[0]==='l'||p[0]==='bact'){const L=BV_COURSE.lectures.find(L=>String(L.n)===(p[0]==='bact'?'1':p[1]));if(L)await this.lecture(L)}}};
 function fail(msg){const b=document.getElementById('boot');if(b){b.innerHTML=msg+' <button>Обновить</button>';b.querySelector('button').onclick=()=>location.reload()}}
 (async()=>{await files(CORE);document.getElementById('boot')?.remove();

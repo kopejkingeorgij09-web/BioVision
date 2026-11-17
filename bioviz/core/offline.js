@@ -57,7 +57,7 @@ function save(force=false){
 }
 async function saveAll(){
   const s=store.get('offline',null),C=window.BV_COURSE;
-  const scripts=[].concat(typeof CORE!=='undefined'?CORE:[],typeof TAIL!=='undefined'?TAIL:[],C.lectures.map(L=>L.file));
+  const scripts=[].concat(typeof CORE!=='undefined'?CORE:[],typeof TAIL!=='undefined'?TAIL:[],C.lectures.flatMap(L=>[L.file,L.practice].filter(Boolean)));
   busy=true;failed=false;paint();
   try{await workerReady();const c=await caches.open(CACHE);
     const shell=[abs('./'),abs('index.html'),abs('manifest.webmanifest'),abs('icons/icon.svg'),abs('icons/icon-192.png')];
@@ -68,7 +68,7 @@ async function saveAll(){
     /* рисунки лекций: пути вида bioviz/img/... прямо в файлах лекций (видео пропускаем, оно тяжёлое) */
     const media=new Set();
     for(const f of C.lectures.map(L=>L.file)){const t=await (await c.match(ver(f))).text();
-      (t.match(/bioviz\/(?:img|vid)\/[\w.-]+\.(?:jpe?g|png|webp|svg|gif)/g)||[]).forEach(m=>media.add(m))}
+      (t.match(/bioviz\/(?:img|vid)\/(?:[\w.-]+\/)*[\w.-]+\.(?:jpe?g|png|webp|svg|gif)/g)||[]).forEach(m=>media.add(m))}
     await cachedFiles(c,[...media].map(abs));
     store.set('offline',{ver:VER,t:Date.now(),n:list.length+media.size});return true}
   catch(e){failed=true;store.del('offline');console.warn('offline',e);return false}

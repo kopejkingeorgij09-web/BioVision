@@ -74,8 +74,29 @@ async function saveAll(){
   catch(e){failed=true;store.del('offline');console.warn('offline',e);return false}
   finally{busy=false;paint()}}
 
-/* A new shell is already cached by the worker; offer a deliberate reload. */
-if('serviceWorker' in navigator)navigator.serviceWorker.addEventListener('message',e=>{if(e.data?.type!=='bv-update')return;BV.toast('Доступна новая версия.',12000);const toast=BVHOST.root.querySelector('.bv-toast');if(toast&&!toast.querySelector('button')){const b=document.createElement('button');b.className='btn sm';b.textContent='Обновить';b.style.pointerEvents='auto';b.onclick=()=>location.reload();toast.append(' ',b)}});
+function offerUpdate(version){
+  if(version===VER||BVHOST.root.querySelector('.bv-toast [data-reload-course]'))return;
+  BV.toast('Доступна новая версия.',12000);
+  const toast=BVHOST.root.querySelector('.bv-toast');
+  const button=document.createElement('button');
+  button.type='button';
+  button.className='btn sm';
+  button.dataset.reloadCourse='';
+  button.style.pointerEvents='auto';
+  button.textContent='Обновить';
+  button.onclick=()=>location.reload();
+  toast.append(' ',button);
+}
+if(can){
+  navigator.serviceWorker.addEventListener('message',e=>{
+    if(e.data?.type==='bv-update')offerUpdate(e.data.ver);
+  });
+  // The worker may have finished revalidation before the handler was attached.
+  caches.open(CACHE).then(cache=>cache.match(abs('./'))).then(async response=>{
+    const version=(await response?.text())?.match(/const BV_VER='([^']+)'/)?.[1];
+    if(version)offerUpdate(version);
+  }).catch(()=>{});
+}
 /* связь пропала и вернулась */
 addEventListener('offline',()=>BV.toast('Нет интернета. Конспекты открываются из сохранённой копии, прочитанное отправится позже.',5200));
 addEventListener('online',()=>{BV.toast('Интернет снова есть.',2400);BV.progress&&BV.progress.sync(true);setTimeout(save,3000)});

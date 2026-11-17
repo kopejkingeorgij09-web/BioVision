@@ -7,7 +7,11 @@ const CACHE = 'bioviz-v3';
 const FONTS = 'bioviz-fonts';
 const SLOW = 4000;
 
-self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then(c => c.add('./')).catch(() => {})); });
+self.addEventListener('install', e => {
+  self.skipWaiting();
+  const shell = new Request(self.registration.scope, {cache:'reload'});
+  e.waitUntil(caches.open(CACHE).then(cache => cache.add(shell)).catch(() => {}));
+});
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('bioviz-') && k !== CACHE && k !== FONTS).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
@@ -36,19 +40,37 @@ function networkFirst(r) {
   });
 }
 
-// Returning visitors get the saved shell immediately; refresh it in the background.
-function navigation(e){
- const r=e.request,key=new Request(new URL('./',self.registration.scope));
- const cached=caches.match(key);
- const net=(async()=>{const res=await fetch(r,{cache:'no-cache'});if(!res.ok)return res;
-  const old=await cached,body=await res.clone().text();
-  await (await caches.open(CACHE)).put(key,res.clone());
-  const version=t=>t.match(/const BV_VER='([^']+)'/)?.[1];
-  if(old&&version(await old.text())!==version(body))for(const client of await self.clients.matchAll({type:'window'}))client.postMessage({type:'bv-update'});
-  return res
- })();
- e.waitUntil(net.catch(()=>{}));
- return cached.then(hit=>hit?hit.clone():net).catch(()=>Response.error())
+// Revalidate the course on navigation. Keep the previous copy for slow or offline visits.
+function navigation(e) {
+  const key = new Request(self.registration.scope);
+  const cached = caches.match(key).catch(() => undefined);
+  const fallback = async () => (await cached)?.clone();
+  const version = html => html.match(/const BV_VER='([^']+)'/)?.[1];
+  const net = (async () => {
+    const response = await fetch(e.request, {cache:'no-cache'});
+    if (!response.ok) return (await fallback()) || response;
+    const body = await response.clone().text();
+    const ver = version(body);
+    if (!ver) return (await fallback()) || response;
+    const old = await cached;
+    try {
+      await (await caches.open(CACHE)).put(key, response.clone());
+    } catch {
+      return response;
+    }
+    if (old && version(await old.text()) !== ver) {
+      for (const client of await self.clients.matchAll({type:'window'})) {
+        client.postMessage({type:'bv-update', ver});
+      }
+    }
+    return response;
+  })().catch(async () => (await fallback()) || Response.error());
+  e.waitUntil(net.then(() => {}));
+  let timer;
+  const slow = new Promise(resolve => {
+    timer = setTimeout(async () => resolve((await fallback()) || net), SLOW);
+  });
+  return Promise.race([net, slow]).finally(() => clearTimeout(timer));
 }
 
 self.addEventListener('fetch', e => {

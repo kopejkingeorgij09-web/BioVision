@@ -17,8 +17,8 @@
   `;
   root.appendChild(style);
 
-  function renderTask(id, index, [title, prompt, criteria]) {
-    const key = `practice:${id}:open:${index + 1}`;
+  function renderTask(id, index, [title, prompt, criteria, storageId]) {
+    const key = `practice:${id}:open:${storageId ?? (index + 1)}`;
     const saved = lectureStore.get(key, {});
     const scores = criteria.map((_, i) => saved.scores?.[i] || 0);
     return `<article class="k-q" data-practice-task="${esc(key)}">
@@ -36,7 +36,11 @@
     </article>`;
   }
 
-  function render(id, { groups, tasks }) {
+  function render(id, { groups, tasks, previousTasks = [] }) {
+    const previousAnswers = previousTasks.filter(task => {
+      const saved = lectureStore.get(`practice:${id}:open:${task[3]}`, {});
+      return saved.answer?.trim() || saved.scores?.some(Boolean);
+    });
     let index = 0;
     const random = rng(Number(id.slice(1)) * 20261117);
     const count = groups.reduce((sum, group) => sum + group.questions.length, 0);
@@ -52,7 +56,9 @@
       </details>`).join('')}
       <h3>Открытые задания</h3>
       <p>Обоснуй ответ своими словами и сверь его с критериями. Текст и баллы сохраняются по мере ввода.</p>
-      ${tasks.map((task, i) => renderTask(id, i, task)).join('')}`;
+      ${tasks.map((task, i) => renderTask(id, i, task)).join('')}
+      ${previousAnswers.length ? `<details class="practice-group"><summary>Ответы из предыдущей версии</summary>
+        ${previousAnswers.map((task, i) => renderTask(id, i, task)).join('')}</details>` : ''}`;
   }
 
   root.addEventListener('input', event => {

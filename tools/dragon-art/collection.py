@@ -48,4 +48,3 @@ if __name__=='__main__':
     jobs=[job for n,g in enumerate(groups,1) for job in extract(n,g)]
     with ProcessPoolExecutor(max_workers=min(os.cpu_count() or 1,5)) as pool:list(pool.map(one,jobs))
     print(f'{len(jobs)} species, portraits and five motion cycles; two defensive buildings')
-

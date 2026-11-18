@@ -1,7 +1,7 @@
 // Run against a local Phagi server, or pass the published page URL.
 // A fresh browser context intercepts RPCs so fault injection never writes classroom data.
 const assert = require('node:assert/strict');
-const {chromium} = require('playwright');
+const {chromium, webkit} = require('playwright');
 const site = process.argv[2] || 'http://127.0.0.1:18748/phagi/';
 const day = '2026-11-17';
 const eventId = 'regression-lesson';
@@ -93,7 +93,7 @@ async function check(browser, width, dark) {
   } finally { await ctx.close(); }
 }
 (async()=>{
-  const browser=await chromium.launch(process.env.PHAGI_CHROME?{executablePath:process.env.PHAGI_CHROME}:{});
+  const browser=process.env.PHAGI_WEBKIT ? await webkit.launch() : await chromium.launch(process.env.PHAGI_CHROME?{executablePath:process.env.PHAGI_CHROME}:{});
   try { await check(browser,390,true);await check(browser,1180,false); }
   finally { await browser.close(); }
 })().catch(error=>{console.error(error);process.exitCode=1;});

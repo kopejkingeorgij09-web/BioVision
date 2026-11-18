@@ -27,9 +27,15 @@ const lessonFiles = (() => {
   async function attach(job) {
     if (!T() || meId() !== job.owner) return false;
     let info = await S.assets.info(job.id);
-    if (!info) info = await S.assets.upload(job.file, {type: job.type, id: job.id});
+    // Older queued jobs contain a File. WebKit private contexts can persist
+    // ArrayBuffers even when IndexedDB refuses File/Blob values.
+    const name = job.name ?? job.file.name;
+    if (!info) {
+      const file = job.file ?? new File([job.bytes], name, {type: job.type});
+      info = await S.assets.upload(file, {type: job.type, id: job.id});
+    }
     await S.db.changeOccurrenceFile(job.event, job.day, {
-      action: 'add', id: job.id, file: {id: job.id, name: job.file.name, type: info.contentType}
+      action: 'add', id: job.id, file: {id: job.id, name, type: info.contentType}
     });
     return true;
   }
@@ -55,7 +61,7 @@ const lessonFiles = (() => {
     }
     await transaction('readwrite', store => store.delete(id));
     refresh(job.event, job.day);
-    toast('К уроку прикреплён файл «'+job.file.name+'»');
+    toast('К уроку прикреплён файл «'+(job.name ?? job.file.name)+'»');
   }
 
   async function resume() {
@@ -87,20 +93,25 @@ const lessonFiles = (() => {
   }
 
   async function enqueue(event, day, files) {
-    const jobs = files.map(file => ({
-      owner: meId(), id: S.assets.newId(), event, day, type: fileType(file), file
-    }));
-    try {
-      await transaction('readwrite', store => { for (const job of jobs) store.add(job); });
-    } catch (error) {
-      toast('Очередь на устройстве недоступна. Оставьте вкладку открытой до окончания загрузки.');
-      for (const job of jobs) {
-        try { if (await attach(job)) { refresh(event,day); toast('К уроку прикреплён файл «'+job.file.name+'»'); } }
-        catch (e) { uplErr(e); }
+    let queued = 0;
+    for (const file of files) {
+      const job = {owner: meId(), id: S.assets.newId(), event, day, type: fileType(file), name: file.name};
+      try {
+        S.assets.validate(file, job.type);
+      } catch (error) { uplErr(error); continue; }
+      try {
+        const bytes = await file.arrayBuffer();
+        await transaction('readwrite', store => store.add({...job, bytes}));
+        queued++;
+      } catch (error) {
+        toast('Очередь на устройстве недоступна. Оставьте вкладку открытой до окончания загрузки.');
+        try {
+          if (await attach({...job, file})) { refresh(event,day); toast('К уроку прикреплён файл «'+file.name+'»'); }
+        } catch (e) { uplErr(e); }
       }
-      return;
     }
-    toast('Прикрепляю '+(jobs.length === 1 ? 'файл к уроку…' : 'файлы к уроку…'));
+    if (!queued) return;
+    toast(queued === 1 ? 'Прикрепляю файл к уроку…' : 'Прикрепляю файлы к уроку…');
     await resume();
   }
 

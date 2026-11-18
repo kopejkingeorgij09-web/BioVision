@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<script src="cloud.js?v=9"></script>
-<script src="lesson-files.js?v=1"></script>
+<script src="cloud.js?v=10"></script>
+<script src="lesson-files.js?v=2"></script>
 <meta charset="utf-8">
 <meta name="ph-ver" content="2026-11-16-shad-homework">
 <meta name="color-scheme" content="light dark">
@@ -3347,8 +3347,8 @@ window.addEventListener('pagehide',()=>{if(dirty.size||streakDirty)flush()});
 
 /* ---------- dialogs ---------- */
 let dlgActs={};
-function openDlg(html,acts){$('#dlgbox').innerHTML=html;dlgActs=acts||{};const d=$('#dlg');if(!d.open)d.showModal();const f=d.querySelector('input:not([type=hidden]):not([type=radio]):not([type=checkbox]):not([type=file]),textarea,select');if(f&&!f.readOnly)f.focus()}
-function closeDlg(){const d=$('#dlg');if(d.open)d.close()}
+function openDlg(html,acts,occ=null){occCtx=occ;$('#dlgbox').innerHTML=html;dlgActs=acts||{};const d=$('#dlg');if(!d.open)d.showModal();const f=d.querySelector('input:not([type=hidden]):not([type=radio]):not([type=checkbox]):not([type=file]),textarea,select');if(f&&!f.readOnly)f.focus()}
+function closeDlg(){occCtx=null;const d=$('#dlg');if(d.open)d.close()}
 $('#dlg').addEventListener('click',async e=>{
   if(e.target===$('#dlg')){closeDlg();return}
   const el=e.target.closest('[data-dact]');if(!el)return;
@@ -4395,7 +4395,7 @@ function openOcc(k,id,date){
     ${T()&&S.assets?`<div class="actions" style="justify-content:flex-start"><label class="upl"><input type="file" accept="application/pdf,image/*" multiple data-dact="addocc"><span class="btn sm">Прикрепить PDF к уроку ${fmtDay(date)}</span></label><span class="muted small">или перетащите файл в это окно</span></div>`:''}</div>`})()}
   <div class="sheet" style="padding:12px 14px;background:var(--soft);border:0"><b>Домашнее задание к занятию</b>${hw.length?`<div class="list" style="margin-top:8px">${hw.map(t=>`<div><button class="item" data-dact="hw" data-id="${t.id}"><span class="grow"><span class="t">${esc(t.title)}</span><br><span class="muted small">${t.due?'до '+fmtDay(t.due):'без срока'}</span></span>${T()?'':`<span class="st ${status(t,meId()).k}">${esc(status(t,meId()).l)}</span>`}</button>${(t.files||[]).length?filesHTML(t.files):''}</div>`).join('')}</div>`:`<p class="muted small" style="margin:6px 0 0">Пока не задано.</p>`}
   ${T()?`<div class="actions" style="justify-content:flex-start"><button class="btn sm" data-dact="addhw">Задать ДЗ к этому занятию</button></div>`:''}</div>`;
-  occCtx={ev,date};
+
   const acts={close:closeDlg,hw:el=>{closeDlg();S.view='task';S.taskId=el.dataset.id;window.scrollTo(0,0)}};
   /* веб ШАДа: вместо «приду / не приду» этап, общий с трекером ШАДа и «Зовом леса» (data/users/<я>/shadst-w<n> → shad/wNN) */
   const shn=(ev.id.match(/^shad-w(\d+)$/)||[])[1];
@@ -4413,7 +4413,8 @@ function openOcc(k,id,date){
     Object.assign(acts,{
       edit:()=>openEventDialog(ev),
       rmocc:async el=>{await S.db.changeOccurrenceFile(ev.id,date,{action:'remove',id:el.dataset.fileId});
-        openOcc('ev',ev.id,date);toast('Файл убран')},
+        if ($('#dlg').open && occCtx?.ev.id===ev.id && occCtx.date===date) openOcc('ev',ev.id,date);
+        toast('Файл убран')},
       del:async()=>{if(!await askConfirm('Удалить событие'+(ev.repeat==='weekly'?' со всеми повторами':'')+'?'))return;await S.db.doc('events/'+ev.id).delete();closeDlg();toast('Событие удалено')},
       skip:async()=>{const sk=new Set(ev.skip||[]);cancel?sk.delete(date):sk.add(date);await S.db.doc('events/'+ev.id).update({skip:[...sk]});closeDlg();toast(cancel?'Занятие возвращено':'Занятие отменено')},
       addhw:()=>{const next=ev.repeat==='weekly'?addDays(date,7):'';openTaskDialog(null,{subject:ev.subject,to:recipients(ev),due:next,lesson:{eventId:ev.id,date}})}
@@ -4433,7 +4434,7 @@ function openOcc(k,id,date){
         await S.db.doc(`rsvp/${meId()}/items/${ev.id}`).set({occ});closeDlg();toast('Учитель увидит ответ')}
     });
   }else body+=`<div class="actions"><button class="btn sm" data-dact="close">Закрыть</button></div>`;
-  openDlg(body,acts);
+  openDlg(body,acts,{ev,date});
 }
 
 function openDeckDialog(d,mode){ // mode: new | add | edit

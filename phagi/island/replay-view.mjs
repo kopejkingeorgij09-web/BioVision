@@ -7,7 +7,7 @@ import {dragonAsset} from './actors.mjs';
 const seconds=t=>Math.floor(t/4)+' с';
 function eventText(e,names){
  const a=names.get(e.from)||'Дракон',b=names.get(e.to)||'цель';
- return ({land:a+' высадился · берег '+(Number(e.shore)+1),target:a+' направлен к цели «'+b+'»',skill:a+' применил способность',fire:a+' атакует «'+b+'»',down:b+' выбыл из боя'})[e.kind]||e.kind;
+ return ({land:a+' высадился · берег '+(Number(e.shore)+1),target:a+' направлен к цели «'+b+'»',skill:a+' применил способность',fire:a+' атакует «'+b+'»',down:'Выбытие из боя · '+b})[e.kind]||e.kind;
 }
 export function replayPage(match){
  if(!match)return page('Повтор боя','<p role="status">Загружаем запись…</p>'+btn('Назад в журнал','go/log'));

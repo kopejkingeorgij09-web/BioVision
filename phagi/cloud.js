@@ -66,7 +66,10 @@ function bar(){css();if(document.getElementById('ph-bar'))return;const b=documen
   b.onclick=e=>{const a=e.target.closest('button');if(!a)return;
     if(a.dataset.a==='out'){if(!confirm('Выйти? На этом устройстве нужно будет снова ввести код.'))return;setCode('');
       /* черновики ответов (hwd:…) и признак учителя на устройстве не стираются: несданные ответы не должны пропадать */
-      try{Object.keys(localStorage).forEach(k=>{if(k!=='theme'&&!k.startsWith('hwd:')&&k!=='ph_teach_dev')localStorage.removeItem(k)})}catch(x){}location.reload()}
+      try {
+        for (const k of ['ph_role','srRecent','tFilt']) localStorage.removeItem(k);
+        for (const k of Object.keys(localStorage)) if (k.startsWith('nbself:')) localStorage.removeItem(k);
+      } catch(x) {}location.reload()}
     else codes()};
   const place=()=>{const w=document.getElementById('who');if(!w||!w.parentNode)return false;if(b.parentNode!==w.parentNode||b.previousElementSibling!==w)w.after(b);return true};
   if(!place()){b.style.cssText='position:fixed;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:40';document.body.append(b)}
@@ -170,7 +173,14 @@ function query(col,q){return{
 function colRef(col){checkCol(col);const base=query(col,{where:[],order:null,lim:0});
   return Object.assign(base,{path:col,doc:id=>docRef(col+'/'+(id||newId())),
     async add(data){const r=docRef(col+'/'+newId());await r.set(data);return r}})}
-const db={doc:docRef,collection:colRef};
+const db={doc:docRef,collection:colRef,
+  async changeOccurrenceFile(event,day,edit){
+    const path='events/'+event, args={p_code:getCode(),p_path:path};
+    const stamp=await rpc('ph_update',{...args,p_data:{occFileEdit:{...edit,day}}});
+    const data=await rpc('ph_get',args);
+    if(!data || data.occFileEdit)throw Error('Обновление вложений не подтверждено');
+    put(path,data,stamp);notify([path]);
+  }};
 
 /* ---------- пользователь и скачивание ---------- */
 const prof={};
@@ -214,15 +224,21 @@ async function shrink(file,type){
     const out=await new Promise(r=>cv.toBlob(r,'image/jpeg',0.85));return out&&out.size<file.size?{blob:out,type:'image/jpeg'}:{blob:file,type}}catch(e){return {blob:file,type}}}
 const fErr=(code,m)=>Object.assign(new Error(m||code),{code});
 const fCache=new Map();
+const newFileId=()=>(me.isOwner?'T-':'S'+me.id+'-')+fRand();
 const assets={
+  newId:newFileId,
+  async info(id){
+    const header=await rpc('ph_get',{p_code:getCode(),p_path:fPath(id)});
+    return header&&header.parts?{id,contentType:header.type,sizeBytes:header.size}:null;
+  },
   async upload(file,opt){if(!me)throw fErr('not_granted');const type=(opt&&opt.type)||file.type||'application/octet-stream';
     if(!/^(image\/|application\/pdf|text\/)/.test(type))throw fErr('unsupported_type');
     const {blob,type:t2}=await shrink(file,type);if(blob.size>FMAX)throw fErr('too_large');
-    const id=(me.isOwner?'T-':'S'+me.id+'-')+fRand(),path=fPath(id),data=b64(await blob.arrayBuffer()),parts=Math.max(1,Math.ceil(data.length/FCH));
+    const id=opt?.id||newFileId(),path=fPath(id),data=b64(await blob.arrayBuffer()),parts=Math.max(1,Math.ceil(data.length/FCH));
     for(let k=0;k<parts;k++)await rpc('ph_set',{p_code:getCode(),p_path:path+'~'+k,p_data:{d:data.slice(k*FCH,(k+1)*FCH)}});
-    await rpc('ph_set',{p_code:getCode(),p_path:path,p_data:{name:file.name||'файл',type:t2,size:blob.size,parts,at:new Date().toISOString()}});
+    try { await rpc('ph_set',{p_code:getCode(),p_path:path,p_data:{name:file.name||'файл',type:t2,size:blob.size,parts,at:new Date().toISOString()}}); }
+    catch(error){if(!await assets.info(id).catch(()=>null))throw error;}
     fCache.set(id,window.URL.createObjectURL(blob));return {id,contentType:t2,sizeBytes:blob.size}},
-  async list(){return {assets:[]}},
   /* файл из базы → blob:-адрес (кешируется на время жизни страницы) */
   async url(id){if(fCache.has(id))return fCache.get(id);const path=fPath(id);if(!path)return null;
     const p=(async()=>{const h=await rpc('ph_get',{p_code:getCode(),p_path:path});if(!h||!h.parts)return null;let data='';

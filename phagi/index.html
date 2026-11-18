@@ -1339,7 +1339,7 @@ tr.ar-me td{background:color-mix(in srgb,var(--ink) 9%,transparent);font-weight:
 .ar-warn{margin:8px 0 0;padding:8px 12px;border-radius:12px;background:color-mix(in srgb,#E0453A 12%,var(--card));border:1px solid color-mix(in srgb,#E0453A 40%,transparent);font-size:13.5px;line-height:1.45}
 /* Биовиз: визуализации и банк задач прямо в странице (теневой DOM #bvhost, код bioviz/bv.js) */
 :root{--p-ink:var(--ink)}
-#bvhost{grid-column:2;min-width:0}
+#bvhost,#bv-work,#bv-shelf{min-width:0}#bv-work:has(#bvhost[hidden]),#bv-return[hidden],#bv-shelf[hidden]{display:none}#bv-return{margin-bottom:12px}#bv-shelf h1{font-size:clamp(32px,5vw,62px);margin:0 0 24px}.bv-books{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:22px}.bv-volume{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--card);text-decoration:none;color:var(--ink)}.bv-volume img{width:100%;height:clamp(135px,17vw,240px);object-fit:cover;background:#173b40}.bv-volume div{padding:clamp(17px,2vw,30px);flex:1;display:flex;flex-direction:column}.bv-volume h2{font:600 clamp(25px,3vw,40px)/1.15 Georgia,serif;margin:7px 0}.bv-volume p{color:var(--muted);line-height:1.55;margin:6px 0 20px}.bv-volume small,.bv-volume strong{color:var(--ink)}.bv-volume strong{margin-top:auto}.bv-volume:hover,.bv-volume:focus-visible{border-color:var(--bio)}.bv-tools{display:flex;gap:12px;flex-wrap:wrap;margin:25px 0}
 body.bvon #main{display:none}
 body.bvon .top,body.bvon .wrap{max-width:min(1680px,100%)}
 @media(max-width:820px){#bvhost{grid-column:1}}
@@ -1609,7 +1609,13 @@ nav button{transition:background .15s,color .15s}
   </div>
   <div class="top-r"><button id="srbtn" class="srbtn" type="button" hidden aria-label="Поиск" aria-keyshortcuts="Control+K"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg><span>Поиск</span><kbd>Ctrl K</kbd></button><button id="thbtn" class="thbtn" type="button" aria-label="Тема оформления" title="Тема оформления" aria-haspopup="true" aria-expanded="false" aria-controls="thmenu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 2-2 0-1.4-1.3-1.7-1.3-3 0-1.1.9-2 2-2h2.1A4.2 4.2 0 0 0 21 9.8C21 6 17 3 12 3z"/><circle cx="7.6" cy="11.4" r="1.1"/><circle cx="10.4" cy="7.4" r="1.1"/><circle cx="15.2" cy="7.6" r="1.1"/></svg></button><div id="rolesw" class="rolesw" role="group" aria-label="Режим" hidden><button type="button" data-role="teacher">Учитель</button><button type="button" data-role="student">Ученик</button></div><div id="who"></div></div>
 </header>
-<div class="wrap"><nav id="nav" aria-label="Разделы"></nav><main id="main"></main><div id="bvhost" hidden></div></div>
+<div class="wrap"><nav id="nav" aria-label="Разделы"></nav><main id="main"></main><section id="bv-shelf" hidden aria-labelledby="bv-library-title">
+<h1 id="bv-library-title" tabindex="-1">Биовиз</h1>
+<div class="bv-tools"><button class="btn ghost" data-workspace="viz">Визуализации →</button><button class="btn ghost" data-workspace="quiz">Банк задач →</button></div><div class="bv-books">
+<a class="bv-volume" href="bioviz/replication/?from=phagi"><img src="bioviz/replication/media/cover.png" alt="" loading="lazy" width="760" height="560"><div><small>Молекулярная биология</small><h2>Репликация ДНК</h2><p>От точки начала до встречи вилок. Схемы, молекулярные модели и разбор опыта Мезельсона и Сталя.</p><strong>Открыть конспект →</strong></div></a>
+<a class="bv-volume" href="bioviz/microbiology/?from=phagi"><img src="bioviz/microbiology/media/mb-ecoli-sem.jpg" alt="" loading="lazy" width="600" height="360"><div><small>Микробиология</small><h2>Бактериальная клетка</h2><p>Строение, энергетика, рост и генетика бактерий. Учебник с атласом микрофотографий.</p><strong>Открыть учебник →</strong></div></a>
+</div></section>
+<div id="bv-work"><button class="btn ghost sm" hidden id="bv-return">← К книгам</button><div id="bvhost" hidden></div></div></div>
 <dialog id="bt" aria-label="Бой"><div class="vw-h"><b id="btt" class="grow"></b><button class="btn ghost sm" data-bt="speed">×2</button><button class="btn ghost sm" data-bt="skip">Пропустить</button><button class="btn sm" data-bt="close">Закрыть</button></div><div id="btbody"></div></dialog>
 <dialog id="dlg"><div id="dlgbox"></div></dialog>
 <dialog id="lab" aria-label="Лаборатория"><div class="vw-h lab-h"><span id="labtabs" class="grow"></span><button class="btn ghost sm" data-lab="close">Закрыть</button></div><div id="labbody"></div></dialog>
@@ -4573,7 +4579,7 @@ function rate(g){
 }
 const focusTyped=()=>{const r=S.rev;if(r&&typeMode(S.decks.find(x=>x.id===r.deckId)))setTimeout(()=>{const i=$('#rvin');if(i&&document.activeElement!==i)i.focus({preventScroll:true})},80)};
 const actions={
-  bvopen:el=>{BVS.want=el.dataset.m;S.view='bio';window.scrollTo(0,0);if(BVS.st===2)bvWant()},
+  bvopen:el=>{BVS.want=el.dataset.m;S.view='bio';window.scrollTo(0,0);bvSync()},
   ai:()=>{aiStart()},aistop:()=>{aiStop()},
   arview:el=>{S.arUid=el.dataset.uid;S.view='arview';window.scrollTo(0,0)},
   bcard:el=>openCardDlg(el.dataset.k,el.dataset.uid||meId()),
@@ -4839,7 +4845,7 @@ $('#owl').addEventListener('click',e=>{
   else if(el.dataset.owl==='bv')owlBvGo();
   else if(el.dataset.owl==='fix'){S.view=errPile(meId()).length?'fix':'marks';S.fixState=null;S.fixPos=0;window.scrollTo(0,0);render()}
 });
-function owlBvGo(){if(typeof BVS!=='undefined'){BVS.want='err';S.view='bio';window.scrollTo(0,0);if(BVS.st===2&&typeof bvWant==='function')bvWant()}else S.view='marks';render()}
+function owlBvGo(){if(typeof BVS!=='undefined'){BVS.want='err';S.view='bio';window.scrollTo(0,0);bvSync()}else S.view='marks';render()}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#owl').hidden&&!document.querySelector('dialog[open]'))owlHide()});
 $('#owlfab').addEventListener('click',()=>{const p=owlLove;if(p){owlLove=null;owlSync();owlFly(p.n,p.title,p.line)}else owlShow()});
 /* the owl never jumps out by itself: the tick only keeps the corner owl and its badge up to date */
@@ -5413,15 +5419,44 @@ function bioHTML(){return '<div data-sig="bv-h"></div>'}
 function bvScript(src){return new Promise((ok,no)=>{const e=document.createElement('script');e.src=src;e.async=false;e.onload=ok;e.onerror=no;document.head.appendChild(e)})}
 function bvTheme(){const h=$('#bvhost');if(h)h.setAttribute('data-theme',document.documentElement.getAttribute('data-eff')||thSys())}
 function bvSync(){
-  const h=$('#bvhost');if(!h)return;
+  const h=$('#bvhost'), shelf=$('#bv-shelf');
+  if(!h||!shelf)return;
   const on=S.view==='bio'&&(S.mode==='teacher'||S.mode==='student');
   document.body.classList.toggle('bvon',on);
-  if(on!==h.hidden)return;
-  h.hidden=!on;
-  if(window.BVHOST)BVHOST.on=on;
-  if(!on){if(BVS.st===2)BV.pause();bvFull(false);return}
-  if(BVS.st===2){BV.resume();bvWant()}else if(!BVS.st)bvLoad();
+  if(on && BVS.want==='replication'){
+    BVS.want=null;
+    location.replace('bioviz/replication/?from=phagi');
+    return;
+  }
+  if(on && BVS.want) BVS.workspace=true;
+  if(!on) BVS.workspace=false;
+  const active=on&&!!BVS.workspace;
+  if(on&&!active&&shelf.hidden){
+    for(const a of shelf.querySelectorAll('.bv-volume')){
+      const key=a.href.includes('/microbiology/')?'microbiology':'replication';
+      try{
+        const place=JSON.parse(localStorage.getItem('phagi.reading.'+key));
+        if(place?.label&&!['start','home'].includes(place.id))a.querySelector('strong').textContent='Продолжить · '+place.label+' →';
+      }catch{}
+    }
+  }
+  shelf.hidden=!on||active;
+  $('#bv-return').hidden=!active;
+  if(active===!h.hidden){
+    if(active&&BVS.st===2&&BVS.want)bvWant();
+    return;
+  }
+  h.hidden=!active;
+  if(window.BVHOST)BVHOST.on=active;
+  if(!active){if(BVS.st===2)BV.pause();bvFull(false);return;}
+  if(BVS.st===2){BV.resume();bvWant();}else if(!BVS.st)bvLoad();
 }
+$('#bv-shelf').addEventListener('click',e=>{
+  const button=e.target.closest('[data-workspace]');
+  if(!button)return;
+  BVS.want=button.dataset.workspace;bvSync();window.scrollTo(0,0);
+});
+$('#bv-return').onclick=()=>{BVS.workspace=false;BVS.want=null;bvSync();window.scrollTo(0,0);$('#bv-shelf h1').focus();};
 async function bvLoad(){
   const h=$('#bvhost');BVS.st=1;bvTheme();
   const root=h.shadowRoot||h.attachShadow({mode:'open'});
@@ -5436,14 +5471,9 @@ async function bvLoad(){
     await bvScript('bioviz/bv.js?v=20261118-replication');
     // The two books have independent content and load on their own timelines.
     BVS.st=2;if(!BVHOST.on)BV.pause();else bvWant();bvBackfill();
-    const loadReplication=()=>bvScript('bioviz/replication/platform.js?v=3').catch(()=>{
-      const mount=root.querySelector('[data-replication-book]');
-      const retry=document.createElement('button');
-      retry.type='button';retry.className='btn ghost';retry.textContent='Загрузить конспект ещё раз';
-      retry.onclick=loadReplication;mount.replaceChildren(retry);
-    });
-    loadReplication();
-    bvScript('bioviz/microbiology/embed.js?v=20261112').catch(e=>console.warn('Microbiology extension unavailable',e));
+    const old=root.querySelector('.nav-item[data-go="prok"]');
+    if(old){const book=document.createElement('a');book.className='nav-item';book.href='bioviz/microbiology/?from=phagi';book.textContent='Микробиология · учебник';old.before(book);}
+    BV.hooks.replication={show(){location.assign('bioviz/replication/?from=phagi');}};
   }catch(e){
     BVS.st=0;root.innerHTML='<div class="ld"></div>';root.querySelector('.ld').innerHTML='Не получилось загрузить Биовиз. Проверьте интернет. <button>Повторить</button>';
     root.querySelector('button').onclick=()=>{document.querySelectorAll('script[src^="bioviz/bv.js"]').forEach(x=>x.remove());bvLoad()};
@@ -5469,7 +5499,7 @@ function bvBackfill(){
 }
 // переход с главной сразу в нужную часть Биовиза
 function bvWant(){const m=BVS.want;BVS.want=null;if(!m||!window.BV)return;
-  if(m==='replication')BV.go('replication');else if(m==='viz')BV.go(BV.store.get('lastMod','tour'));else{BV.go('quiz');if(BV.tasksOpen)BV.tasksOpen(m)}}
+  if(m==='replication')location.assign('bioviz/replication/?from=phagi');else if(m==='quiz')BV.go('quiz');else if(m==='viz'){const last=BV.store.get('lastMod','tour');BV.go(['quiz','replication'].includes(last)?'tour':last);}else{BV.go('quiz');if(BV.tasksOpen)BV.tasksOpen(m)}}
 // на весь экран: прячем шапку и меню платформы и, если браузер разрешает, включаем полноэкранный режим окна
 function bvFull(on,win){
   const h=$('#bvhost');if(!h)return;const was=document.body.classList.contains('bvfull');
@@ -5773,6 +5803,7 @@ $('#rolesw').addEventListener('click',e=>{const b=e.target.closest('button[data-
   S.dual=!!S.me.isOwner||!!S.me.teach||devT;
   S.mode=S.me.isOwner&&roleGet()!=='student'?'teacher':'student';
   if(routePending && S.me.isOwner && ['teacher','student'].includes(lessonRoute.get('role'))) S.mode=lessonRoute.get('role');
+  if(!routePending && lessonRoute.get('bio')==='library')S.view='bio';
   if(!routePending && lessonRoute.get('bio')==='replication'){BVS.want='replication';S.view='bio'}
   const shadHw=new URLSearchParams(location.search).get('shadHw');
   if(!T()&&/^(?:[1-9][0-9]?|10[0-2])$/.test(shadHw||'')){S.shadHw=Number(shadHw);S.view='tasks'}

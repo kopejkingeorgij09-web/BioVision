@@ -125,7 +125,13 @@
   function mount(host,id){host.append(el('h3','',names[id]));if(id==='bands')density(host);else if(id==='clamps')clamps(host);else if(id==='bubble')bubble(host);else stepper(host,id);}
   const parameter=embedded?null:new URLSearchParams(location.search).get('widget');
   if(Object.hasOwn(names,parameter)){document.body.classList.add('widget-only');const container=root.querySelector('#widget-only');container.hidden=false;container.className='widget';mount(container,parameter);return;}
-  root.querySelectorAll('[data-widget]').forEach(n=>mount(n,n.dataset.widget));
+  const widgets=new IntersectionObserver(entries=>{
+    for(const entry of entries)if(entry.isIntersecting){
+      widgets.unobserve(entry.target);
+      mount(entry.target,entry.target.dataset.widget);
+    }
+  },{rootMargin:'350px 0px'});
+  root.querySelectorAll('[data-widget]').forEach(n=>widgets.observe(n));
   const sequence = root.querySelector('.sequence-player');
   const player = sequence ? mountSequence(sequence, root) : null;
   if(embedded) {

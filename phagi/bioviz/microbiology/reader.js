@@ -66,7 +66,7 @@ function recallHTML(id){const selected=B.chapters.find(c=>c.id===id&&B.recall[c.
 function open(id,{hash=true,focus=true}={}){
 const basic=['home','primer','atlas','sources','guide','glossary','recall'];
 if(!basic.includes(id)&&!id.startsWith('chapter:')&&!id.startsWith('recall:')&&!byId.has(id))id='home';
-route=id;root.dataset.contents='false';root.querySelector('[data-action=contents]').setAttribute('aria-expanded','false');
+route=id;root.dataset.route=id;root.dataset.contents='false';root.querySelector('[data-action=contents]').setAttribute('aria-expanded','false');
 if(byId.has(id))main.innerHTML=sectionHTML(byId.get(id));
 else if(id==='home')main.innerHTML=home();
 else if(id.startsWith('chapter:')){const c=B.chapters.find(c=>c.id===id.split(':')[1]);if(!c){open('home');return;}main.innerHTML=chapter(c);}
@@ -79,6 +79,7 @@ else main.innerHTML='<div class="mb-eyebrow">МАРШРУТ ЧТЕНИЯ</div><h
 nav();main.querySelectorAll('[data-model]').forEach(el=>window.MicroModels.mount(el,el.dataset.model));
 if(!opt.embedded&&hash){const h='#'+encodeURIComponent(id);if(location.hash!==h)history.pushState(null,'',h);}
 root.querySelector('.mb-scroll-progress i').style.width='0%';
+document.dispatchEvent(new Event('micro-route'));
 if(focus){main.focus({preventScroll:true});if(opt.embedded)root.scrollIntoView({block:'start',behavior:'instant'});else window.scrollTo(0,0);}
 }
 function showPhoto(id){const p=photos.find(x=>x.id===id);if(!p)return;lastFocus=root.getRootNode().activeElement||document.activeElement;dialog.querySelector('.mb-photo-title').textContent=p.organism+' · '+p.title;dialog.querySelector('.mb-dialog-image').innerHTML='<img src="'+photoURL(p)+'" alt="'+esc(p.organism+'; '+p.method)+'">';dialog.querySelector('[data-photo-zoom]').value='100';dialog.querySelector('.mb-photo-description').innerHTML='<p>'+esc(p.observation)+'</p><p><b>Метод:</b> '+esc(p.method)+'<br><b>Масштаб:</b> '+esc(p.scale)+'<br><b>Автор:</b> '+esc(p.author)+'<br><b>Права:</b> '+(p.licenseURL?'<a href="'+p.licenseURL+'" target="_blank" rel="noopener">'+esc(p.license)+'</a>':esc(p.license))+'</p><a href="'+esc(p.source)+'" target="_blank" rel="noopener">Первоисточник и исходное разрешение ↗</a>';dialog.showModal();}
@@ -95,12 +96,12 @@ target.disabled=true;target.textContent='Сохраняю…';try{
 if(!('caches'in window)||!('serviceWorker'in navigator))throw Error('offline unavailable');
 await navigator.serviceWorker.register(new URL('../../sw.js',assets));await navigator.serviceWorker.ready;
 const cache=await caches.open('microbook-v2'),v='20261112';
-const urls=['','index.html','content.js?v='+v,'enrichment.js?v='+v,'sources.js?v='+v,'olympiad.js?v='+v,'models.js?v='+v,'diagrams.js?v='+v,'reader.js?v='+v,'embed.js?v='+v,'style.css?v='+v].map(s=>new URL(s,assets).href).concat(photos.map(photoURL));
+const urls=['','index.html','content.js?v='+v,'enrichment.js?v='+v,'sources.js?v='+v,'olympiad.js?v='+v,'models.js?v='+v,'diagrams.js?v='+v,'reader.js?v=20261118-desk','../reading-desk.css?v=1','../reading-desk.js?v=1','?from=phagi','embed.js?v='+v,'style.css?v='+v].map(s=>new URL(s,assets).href).concat(photos.map(photoURL));
 await cache.addAll(urls);target.textContent='✓ Учебник сохранён';target.title='Теория, схемы и все микрофотографии сохранены; видео загружается отдельно';
 }catch{target.textContent='Не удалось сохранить — повторить';target.title='Проверь соединение и свободное место';}target.disabled=false;
 }
 if(action==='done'){saved.done=saved.done.includes(route)?saved.done.filter(x=>x!==route):[...saved.done,route];write();target.setAttribute('aria-pressed',String(saved.done.includes(route)));target.textContent=saved.done.includes(route)?'✓ Отмечено прочитанным':'Отметить прочитанным';nav();}
-if(action==='copy-link'){const u=new URL('index.html',assets);u.hash=route;const toast=root.querySelector('.mb-toast');try{await navigator.clipboard.writeText(u.href);toast.textContent='Ссылка скопирована';}catch{toast.textContent='Ссылка: '+u.href;}}
+if(action==='copy-link'){const u=new URL('index.html',assets);if(document.documentElement.classList.contains('reading-desk'))u.search='?from=phagi';u.hash=route;const toast=root.querySelector('.mb-toast');try{await navigator.clipboard.writeText(u.href);toast.textContent='Ссылка скопирована';}catch{toast.textContent='Ссылка: '+u.href;}}
 });
 dialog.addEventListener('close',()=>lastFocus?.focus?.());
 root.addEventListener('input',e=>{if(e.target.matches('[data-photo-zoom]'))dialog.querySelector('.mb-dialog-image img').style.width=e.target.value+'%';
@@ -114,5 +115,5 @@ let initial='home';if(!opt.embedded&&location.hash)try{initial=decodeURIComponen
 open(initial,{focus:false,hash:false});return {open,setTheme(t){root.dataset.theme=t==='dark'?'dark':'light';}};
 }
 window.MicroReader={mount,assets};
-if(document.getElementById('microbook')&&!window.BVHOST)mount(document.getElementById('microbook'));
+if(document.getElementById('microbook')&&!window.BVHOST)window.MicroBookPage=mount(document.getElementById('microbook'));
 })();

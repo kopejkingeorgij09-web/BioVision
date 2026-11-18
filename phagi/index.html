@@ -5434,10 +5434,16 @@ async function bvLoad(){
   try{
     if(!window.THREE)bvScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js').catch(()=>{});
     await bvScript('bioviz/bv.js?v=20261118-replication');
-    await bvScript('bioviz/replication/platform.js?v=2');
-    // Additive textbook extension; existing BioViz keeps working if it cannot load.
-    try{await bvScript('bioviz/microbiology/embed.js?v=20261112');await window.MicroBookReady}catch(e){console.warn('Microbiology extension unavailable',e)}
+    // The two books have independent content and load on their own timelines.
     BVS.st=2;if(!BVHOST.on)BV.pause();else bvWant();bvBackfill();
+    const loadReplication=()=>bvScript('bioviz/replication/platform.js?v=3').catch(()=>{
+      const mount=root.querySelector('[data-replication-book]');
+      const retry=document.createElement('button');
+      retry.type='button';retry.className='btn ghost';retry.textContent='Загрузить конспект ещё раз';
+      retry.onclick=loadReplication;mount.replaceChildren(retry);
+    });
+    loadReplication();
+    bvScript('bioviz/microbiology/embed.js?v=20261112').catch(e=>console.warn('Microbiology extension unavailable',e));
   }catch(e){
     BVS.st=0;root.innerHTML='<div class="ld"></div>';root.querySelector('.ld').innerHTML='Не получилось загрузить Биовиз. Проверьте интернет. <button>Повторить</button>';
     root.querySelector('button').onclick=()=>{document.querySelectorAll('script[src^="bioviz/bv.js"]').forEach(x=>x.remove());bvLoad()};

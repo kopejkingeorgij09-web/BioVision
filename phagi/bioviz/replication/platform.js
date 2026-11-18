@@ -3,6 +3,7 @@
   const base = new URL('.', document.currentScript.src);
   const section = BVHOST.root.querySelector('#m-replication');
   const element = section.querySelector('[data-replication-book]');
+  element.replaceChildren();
   const root = element.attachShadow({mode:'open'});
   const sheet = document.createElement('link');
   sheet.rel='stylesheet'; sheet.href=new URL('reader.css?v=2',base);
@@ -12,8 +13,10 @@
   let loading, reader;
   async function load() {
     content.textContent='Загружается конспект…';
-    if(!window.ReplicationReader) await bvScript(new URL('reader.js?v=2',base).href);
-    const response = await fetch(new URL('index.html?v=2',base));
+    const [response] = await Promise.all([
+      fetch(new URL('index.html?v=3',base)),
+      window.ReplicationReader || bvScript(new URL('reader.js?v=3',base).href)
+    ]);
     if(!response.ok) throw new Error(String(response.status));
     const template = document.createElement('template');
     template.innerHTML=await response.text();

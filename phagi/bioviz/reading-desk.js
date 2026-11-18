@@ -2,6 +2,7 @@
 (() => {
   const url=new URL(location.href);
   if(url.searchParams.get('from')!=='phagi' || url.searchParams.has('widget'))return;
+  if(!window.PhagiBookIndex || !window.PhagiReading || !window.PhagiBookAppearance){window.ReplicationBook?.showSequence();return;}
   const micro=document.getElementById('microbook');
   if(micro && !window.MicroBookPage)return;
   const key=micro?'microbiology':'replication', book=PhagiBookIndex[key];
@@ -51,11 +52,7 @@
   let tick=0,saveTimer=0,noticeTimer=0,releaseRestore=()=>{};
   function announce(message){notice.textContent=message;notice.classList.add('visible');clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>notice.classList.remove('visible'),1700);}
   function applySettings(){
-    root.style.setProperty('--desk-size',([17,19,21,23].includes(prefs.size)?prefs.size:19)+'px');
-    root.dataset.deskFace=prefs.face==='sans'?'sans':'serif';
-    root.dataset.deskWidth=prefs.width==='wide'?'wide':'standard';
-    const theme=['light','dark'].includes(prefs.theme)?prefs.theme:(dark.matches?'dark':'light');
-    root.dataset.deskTheme=theme;
+    const theme=PhagiBookAppearance(prefs);
     if(micro)MicroBookPage.setTheme(theme);
     const defaults={size:19,face:'serif',width:'standard',theme:'auto'};
     for(const s of settings.querySelectorAll('select'))s.value=String(prefs[s.name]||defaults[s.name]);
@@ -97,12 +94,12 @@
     let nearest=null, distance=-Infinity;
     for(const block of positionedBlocks){
       const box=block.getBoundingClientRect();
-      if(box.height && box.top<=top+2 && box.top>=distance){nearest=block;distance=box.top;}
+      if(box.height && box.top<=top+(block.tagName==='P'?10:2) && box.top>=distance){nearest=block;distance=box.top;}
     }
     const rect=nearest?.getBoundingClientRect();
     return {id:route,label:byId.get(route)?.title||activePage.querySelector('h1,h2')?.textContent||book.title,
       fraction:bounded((top-r.top)/Math.max(1,r.height)),block:nearest?.dataset.place||'',within:rect?bounded((top-rect.top)/rect.height):0,
-      excerpt:nearest?.textContent.trim().replace(/\s+/g,' ').slice(0,75)||''};
+      excerpt:(nearest?.querySelector('figcaption')?.textContent || nearest?.textContent || '').trim().replace(/\s+/g,' ').slice(0,75)};
   }
   function align(place){
     if(!place || !activePage || place.id!==route)return;
@@ -436,5 +433,6 @@
   requestAnimationFrame(revealCurrent);
   window.addEventListener('scroll',schedule,{passive:true});window.addEventListener('resize',schedule);
   window.addEventListener('pagehide',persist);document.addEventListener('visibilitychange',()=>{if(document.hidden)persist();});
+  root.dataset.readingReady='true';root.classList.remove('desk-opening');
   meter();
 })();

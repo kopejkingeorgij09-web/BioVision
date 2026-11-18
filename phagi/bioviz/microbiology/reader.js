@@ -90,7 +90,7 @@ target.disabled=true;target.textContent='Сохраняю…';try{
 if(!('caches'in window)||!('serviceWorker'in navigator))throw Error('offline unavailable');
 await navigator.serviceWorker.register(new URL('../../sw.js',assets));await navigator.serviceWorker.ready;
 const cache=await caches.open('microbook-v2'),v='20261112';
-const urls=['','index.html','content.js?v='+v,'enrichment.js?v='+v,'sources.js?v='+v,'olympiad.js?v='+v,'models.js?v='+v,'diagrams.js?v='+v,'reader.js?v=20261118-edition','../book-entry.js?v=1','../book-index.js?v=1','../book-navigation.js?v=1','../reading-desk.css?v=3','../reading-desk.js?v=3','../type/type.css?v=1','../type/pt-serif-cyrillic.woff2','../type/pt-serif-latin.woff2','?from=phagi','embed.js?v='+v,'style.css?v='+v].map(s=>new URL(s,assets).href).concat(photos.map(photoURL));
+const urls=['','index.html','content.js?v='+v,'enrichment.js?v='+v,'sources.js?v='+v,'olympiad.js?v='+v,'models.js?v='+v,'diagrams.js?v='+v,'reader.js?v=20261118-edition2','../book-entry.js?v=2','../book-index.js?v=1','../book-navigation.js?v=1','../reading-desk.css?v=4','../reading-desk.js?v=4','../type/type.css?v=1','../type/pt-serif-cyrillic.woff2','../type/pt-serif-latin.woff2','?from=phagi','embed.js?v='+v,'style.css?v='+v].map(s=>new URL(s,assets).href).concat(photos.map(photoURL));
 await cache.addAll(urls);target.textContent='✓ Учебник сохранён';target.title='Теория, схемы и все микрофотографии сохранены; видео загружается отдельно';
 }catch{target.textContent='Не удалось сохранить — повторить';target.title='Проверь соединение и свободное место';}target.disabled=false;
 }

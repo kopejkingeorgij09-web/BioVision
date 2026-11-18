@@ -205,7 +205,7 @@ const gate=ready.then(m=>{if(m)return m;
   return new Promise(()=>{})});
 gate.then(()=>{const go=()=>bar();document.readyState==='loading'?document.addEventListener('DOMContentLoaded',go):go()});
 
-window.PHCLOUD={rpc,teacherLogin:()=>loginScreen(true),get me(){return me},sync,codes:()=>me&&me.isOwner&&codes()};
+window.PHCLOUD={rpc,dragonWallet:()=>rpc("ph_dragon_wallet",{p_code:getCode()}),teacherLogin:()=>loginScreen(true),get me(){return me},sync,codes:()=>me&&me.isOwner&&codes()};
 /* ---------- файлы (28.10.2026): фото и PDF к работам и заданиям ----------
    Хранятся в той же базе, кусками по ~300 КБ (base64): заголовок <путь>/<id> {name,type,size,parts}, куски <путь>/<id>~k {d}.
    Файл ученицы — subs/<uid>/files/<id> (читают она и учитель, правило subs/{self}), файл учителя — files/<id> (читают все).

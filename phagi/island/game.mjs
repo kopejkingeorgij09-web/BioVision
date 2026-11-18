@@ -1,3 +1,4 @@
+import {boardSize} from './world.mjs';
 import {species,byId,starPrices,foodPrice,distribution,draw} from './catalog.mjs';
 import {defenses} from './defenses.mjs';
 import {battleMap,battleSeconds,tickMs,replay} from './battle.mjs';
@@ -12,21 +13,34 @@ export function need(condition,msg){if(!condition)throw new Error(msg);}
 const id=()=>crypto.randomUUID();
 const makeDragon=(sid,home)=>({id:id(),species:sid,level:1,stars:0,home,guard:false,recover:0});
 export function newIsland(now,name='Остров'){
-  const plots=[['home',0,0],['tower',2,0],['farm',4,0],['nest',0,2],['incubator',4,2],['food',1,3],['gold',3,3],['mine',4,4],['garrison',0,4]];
-  const bs=plots.map(([kind,col,row])=>({id:kind,kind,col,row,level:1,slots:1,stock:kind==='food'?280:kind==='gold'?350:0,since:now-120000}));
-  return {v:1,name,buildings:bs,dragons:['s3','s1'].map(s=>makeDragon(s,'home')),seen:['s3','s1'],eggs:[],symbols:Array(10).fill(0),spent:0,
+  const plots=[['home',3,4],['home',6,4,'water-home'],['tower',4,1],['farm',7,2],['nest',2,5],['incubator',3,7],['food',6,7],['gold',7,5],['mine',8,3],['garrison',2,8]];
+  const bs=plots.map(([kind,col,row,key=kind])=>({id:key,kind,col,row,level:1,slots:1,stock:kind==='food'?280:kind==='gold'?350:0,since:now-120000}));
+  return {v:2,name,buildings:bs,dragons:[makeDragon('s3','home'),makeDragon('s1','water-home')],seen:['s3','s1'],eggs:[],symbols:Array(10).fill(0),spent:0,
     feeds:0,hatches:0,sorties:0,claimed:{},shield:now+limits.day,raid:null,reports:[]};
 }
 export function npcWorld(key,now){
   const tier=['reef','pine','summit'].indexOf(key);need(tier>=0,'Неизвестный остров');
   const s=newIsland(now,['Меловая отмель','Сосновый мыс','Грозовой утёс'][tier]);
   s.buildings=s.buildings.filter(b=>['tower','food','gold','nest'].includes(b.kind));
-  s.buildings.forEach(b=>{b.col=(b.col+tier)%5;b.row=(b.row+2*tier)%5;b.level=1+tier;if(['food','gold'].includes(b.kind))b.stock=250*(tier+1);});
-  if(tier){const cells=Array.from({length:25},(_,i)=>({col:i%5,row:Math.floor(i/5)})).filter(p=>!s.buildings.some(b=>b.col===p.col&&b.row===p.row));
-    for(const [i,kind] of (tier===1?['ice']:['ice','storm','ward']).entries())s.buildings.push({id:kind,kind,...cells[[3,6,9][i]],level:tier,stock:0});}
+  const layouts=[[[4,4],[4,6],[6,6],[3,5]],[[4,3],[3,6],[6,6],[6,4]],[[5,4],[3,4],[7,6],[5,7]]];
+  s.buildings.forEach((b,i)=>{[b.col,b.row]=layouts[tier][i];b.level=1+tier;if(['food','gold'].includes(b.kind))b.stock=250*(tier+1);});
+  const defensePlots=tier===2?[['ice',5,6],['storm',4,5],['ward',6,5]]:tier===1?[['ice',4,6]]:[];
+  for(const [kind,col,row] of defensePlots)s.buildings.push({id:kind,kind,col,row,level:tier,stock:0});
   s.dragons=[];s.shield=0;return s;
 }
 export function refresh(s,now){
+  if(s.v===1){
+    const home=s.buildings.find(b=>b.id==='home'&&b.kind==='home');
+    const water=s.dragons.find(d=>d.species==='s1'&&d.home==='home'&&!d.born);
+    if(home&&water&&s.dragons.some(d=>d.species==='s3'&&d.home==='home'&&!d.born)&&!s.buildings.some(b=>b.id==='water-home')){
+      const free=Array.from({length:boardSize**2},(_,i)=>({col:i%boardSize,row:Math.floor(i/boardSize)}))
+        .filter(p=>!s.buildings.some(b=>b.col===p.col&&b.row===p.row));
+      const dist=p=>Math.abs(p.col-home.col-2)+Math.abs(p.row-home.row-1);
+      free.sort((a,b)=>dist(a)-dist(b));
+      if(free.length){s.buildings.push({id:'water-home',kind:'home',level:1,slots:1,stock:0,since:now,...free[0]});water.home='water-home';}
+    }
+    s.v=2;
+  }
   for(const b of s.buildings)if(b.finish&&b.finish<=now){b.level++;delete b.finish;}
 }
 export const available=(s,d,now)=>d&&!d.guard&&d.recover<=now&&!s.eggs.some(e=>e.stage==='nest'&&e.end>now&&e.parents.includes(d.id))&&!s.raid?.team.some(r=>r.id===d.id);
@@ -48,7 +62,7 @@ export function objectives(s){
 }
 const balance=(s,credit)=>credit-s.spent;
 function spend(s,credit,amount){need(amount>=0&&balance(s,credit)>=amount,'Недостаточно алмазов');s.spent+=amount;}
-function plot(s,c,r,except){need(Number.isInteger(c)&&c>=0&&c<5&&Number.isInteger(r)&&r>=0&&r<5,'За пределами острова');
+function plot(s,c,r,except){need(Number.isInteger(c)&&c>=0&&c<boardSize&&Number.isInteger(r)&&r>=0&&r<boardSize,'За пределами острова');
   need(!s.buildings.some(b=>b.id!==except&&b.col===c&&b.row===r),'Клетка занята');}
 function house(s,h){need(h?.kind==='home'&&s.dragons.filter(d=>d.home===h.id).length<homeSize(h),'В жилище нет места');}
 export const buildCost=k=>Object.hasOwn(prices,k)?{gems:prices[k]}:{gold:defenses[k]?.gold??(k==='home'?150:200)};
@@ -78,6 +92,7 @@ export function apply(s,cmd,{now,credit=0,defender=null,uid='',target='',random=
     need(byId[cmd.species]?.rarity===1&&!s.seen.includes(cmd.species),'Вид уже открыт');house(s,b);change(s,'gold',-unlockPrice(s));s.dragons.push(makeDragon(cmd.species,b.id));s.seen.push(cmd.species);return;
   }
   case 'feed':need(d&&d.level<limits.level&&available(s,d,now),'Кормление недоступно');change(s,'food',-foodPrice(d.level));d.level++;s.feeds++;return;
+  case 'rehome':need(d&&available(s,d,now)&&d.home!==b?.id,'Дракон занят или уже живёт здесь');house(s,b);d.home=b.id;return;
   case 'guard':need(d&&(d.guard||available(s,d,now)),'Дракон занят');need(d.guard||s.dragons.filter(x=>x.guard).length<3,'Гарнизон полон');d.guard=!d.guard;return;
   case 'sell':need(d&&available(s,d,now)&&s.dragons.some(x=>x.id!==d.id&&x.species===d.species),'Можно отпустить свободного дубликата');s.dragons=s.dragons.filter(x=>x.id!==d.id);change(s,'gold',25);return;
   case 'symbol':{
@@ -104,7 +119,7 @@ export function apply(s,cmd,{now,credit=0,defender=null,uid='',target='',random=
     need(Array.isArray(cmd.team)&&cmd.team.length>=1&&cmd.team.length<=3&&new Set(cmd.team).size===cmd.team.length,'Выберите от одного до трёх драконов');
     const team=cmd.team.map(k=>s.dragons.find(x=>x.id===k));need(team.every(x=>available(s,x,now)),'Дракон занят');
     if(!target.startsWith('npc:'))s.shield=0;
-    s.raid={id:id(),target,name:defender.name,start:now,team:structuredClone(team),targets:battleMap(defender),commands:[]};return;
+    s.raid={id:id(),boardSize,target,name:defender.name,start:now,team:structuredClone(team),targets:battleMap(defender),commands:[]};return;
   }
   case 'order':{
     const r=s.raid;need(r&&cmd.raid===r.id&&now<r.start+battleSeconds*1000,'Набег закончился');

@@ -1,7 +1,8 @@
 import {byId,stats} from './catalog.mjs';
 import {defenseStats} from './defenses.mjs';
-export const battleSeconds=90, tickMs=250, shores=[[8,98],[50,98],[92,98]];
-export const position=b=>({x:10+b.col*20,y:10+b.row*20});
+import {position,shorePositions,legacyRaidSize} from './world.mjs';
+export {position};
+export const battleSeconds=90, tickMs=250;
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 export function battleMap(island) {
   return island.buildings.map(b=>({id:b.id,kind:b.kind,level:b.level,...position(b),stock:b.stock||0})).concat(
@@ -9,7 +10,7 @@ export function battleMap(island) {
 }
 const health=t=>t.kind==='guard'?t.hp:(defenseStats(t.kind,t.level)?.hp??(({gold:88,food:88}[t.kind]||66)*(1+.25*(t.level-1))));
 function initial(raid) {
-  return {tick:0,end:'',flashes:[],targets:raid.targets.map(t=>({...t,hp:health(t),max:health(t),freeze:0})),
+  return {shores:shorePositions(raid.boardSize??legacyRaidSize),tick:0,end:'',flashes:[],targets:raid.targets.map(t=>({...t,hp:health(t),max:health(t),freeze:0})),
     units:raid.team.map(d=>({...d,...stats(d),max:stats(d).hp,landed:false,hp:stats(d).hp,target:null,next:0,skillAt:0,ward:0}))};
 }
 function choose(u,targets) {
@@ -31,8 +32,8 @@ function strike(s,u,t,power,skill=false) {
 }
 function command(s,c) {
   const u=s.units.find(d=>d.id===c.unit);if(!u||u.hp<=0)return false;
-  if(c.action==='land'&&!u.landed&&Number.isInteger(c.shore)&&shores[c.shore]){
-    [u.x,u.y]=shores[c.shore];u.landed=true;return true;
+  if(c.action==='land'&&!u.landed&&Number.isInteger(c.shore)&&s.shores[c.shore]){
+    [u.x,u.y]=s.shores[c.shore];u.landed=true;return true;
   }
   if(!u.landed)return false;
   if(c.action==='target'&&s.targets.some(t=>t.id===c.target&&t.hp>0)){u.order=c.target;return true;}

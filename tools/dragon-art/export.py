@@ -18,10 +18,11 @@ def crop_atlas(name, bounds):
         part=im.crop(box)
         bbox=part.getchannel('A').point(lambda a: 255 if a>32 else 0).getbbox()
         save(part.crop(bbox), tag, 288)
-save(source('coast'), 'coast', 780)
-crop_atlas('stores', {'nest':(0,0,680,620),'tower':(680,0,1254,621),'food':(0,622,682,1254),'gold':(682,622,1254,1254)})
-crop_atlas('village', {tag:(i%3*512,i//3*512,(i%3+1)*512,(i//3+1)*512) for i,tag in enumerate(['farm','mine','incubator','home','garrison','ice'])})
-crop_atlas('nursery', {'egg':(0,0,865,887),'baby':(875,0,1774,887)})
+def landmarks():
+    save(source('coast'), 'coast', 780)
+    crop_atlas('stores', {'nest':(0,0,680,620),'tower':(680,0,1254,621),'food':(0,622,682,1254),'gold':(682,622,1254,1254)})
+    crop_atlas('village', {tag:(i%3*512,i//3*512,(i%3+1)*512,(i//3+1)*512) for i,tag in enumerate(['farm','mine','incubator','home','garrison','ice'])})
+    crop_atlas('nursery', {'egg':(0,0,865,887),'baby':(875,0,1774,887)})
 # name, parent, pivot x/y, influence centre x/y, influence radius x/y, phase, rotation (degrees).
 RIG={
  'earth':[('spine',None,.48,.65,.55,.5,.49,.5,0,1),('shoulder','spine',.58,.62,.7,.4,.28,.32,0,4),
@@ -40,8 +41,10 @@ def matrix(pivot,theta,dx,dy):
     x,y=pivot
     c,s=math.cos(theta),math.sin(theta)
     return np.array([[c,-s,x-c*x+s*y+dx],[s,c,y-s*x-c*y+dy],[0,0,1]])
-def bake(name):
-    original=source(name).convert('RGBA')
+def bake(name, rig=None, original=None, compact=False):
+    rig=rig or name
+    if original is None:original=source(name).convert('RGBA')
+    W,H,N=(152,98,8) if compact else (224,144,12)
     save(original.copy(),name+'-portrait',960,90)
     im=original.copy()
     im.thumbnail((W-24,H-22),Image.Resampling.LANCZOS)
@@ -49,16 +52,17 @@ def bake(name):
     plate=Image.new('RGBA',(W,H));plate.paste(im,(x0,y0))
     pix=np.array(plate.convert('RGBa'))
     y,x=np.mgrid[:H,:W];u=(x-x0)/im.width;v=(y-y0)/im.height
-    bones=RIG[name]
+    bones=RIG[rig]
     weights=np.array([np.exp(-2*((u-cx)/rx)**2-2*((v-cy)/ry)**2) for _,_,_,_,cx,cy,rx,ry,_,_ in bones])
-    if name=='metal':
+    if rig=='metal':
         wing=(u < .67) & (v < .49+.32*(u-.55))
         for i in (1,2,3): weights[i]*=wing*9
         # Rigid blade cores with narrow weighted joints.
         weights[1:4]=weights[1:4]**2
     weights/=np.maximum(weights.sum(axis=0),1e-30)
     xy=np.stack([x,y,np.ones_like(x)]).reshape(3,-1)
-    for pose in POSES:
+    combined=Image.new('RGBA',(W*N,H*len(POSES))) if compact else None
+    for row,pose in enumerate(POSES):
         strip=Image.new('RGBA',(W*N,H))
         for frame in range(N):
             phase=frame/N*math.tau; mats={}; coords=np.zeros((2,H*W))
@@ -70,14 +74,17 @@ def bake(name):
                     if pose=='attack':dx=8*math.sin(phase-.8);dy=-2*math.sin(phase)
                     if pose=='hit':dx=-5*max(0,math.sin(phase));dy=2*math.sin(phase)
                     if pose=='finish':dy=-2*abs(math.sin(phase))
-                if name=='earth' and bone=='shoulder':dy=2.7*moving*amp
-                if name=='metal' and bone in ('wing','middle','outer'):moving=(1+moving)*.65
+                if rig=='earth' and bone=='shoulder':dy=2.7*moving*amp
+                if rig=='metal' and bone in ('wing','middle','outer'):moving=(1+moving)*.65
                 m=matrix((x0+px*im.width,y0+py*im.height),math.radians(angle*amp*moving),dx,dy)
                 mats[bone]=mats[parent]@m if parent else m
                 coords+=(np.linalg.inv(mats[bone])@xy)[:2]*weights[i].reshape(1,-1)
             mx,my=coords.reshape(2,H,W)
             out=np.stack([map_coordinates(pix[:,:,c],[my,mx],order=1,mode='constant') for c in range(4)],axis=2)
             strip.paste(Image.fromarray(out,'RGBa').convert('RGBA'),(frame*W,0))
-        strip.save(OUT/(name+'-'+pose+'.webp'),quality=82,method=4)
-for name in RIG:bake(name)
-
+        if compact:combined.paste(strip,(0,row*H))
+        else:strip.save(OUT/(name+'-'+pose+'.webp'),quality=82,method=4)
+    if compact:combined.save(OUT/(name+'-motion.webp'),quality=77,method=3)
+if __name__=='__main__':
+    landmarks()
+    for name in RIG:bake(name)

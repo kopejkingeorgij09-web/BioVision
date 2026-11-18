@@ -1,6 +1,7 @@
 import {species,byId,starPrices,foodPrice,distribution,draw} from './catalog.mjs';
+import {defenses} from './defenses.mjs';
 import {battleMap,battleSeconds,tickMs,replay} from './battle.mjs';
-export const buildings={nest:'Гнездо',tower:'Дозорная башня',food:'Склад еды',gold:'Золотой резервуар',farm:'Фруктовый сад',mine:'Золотая жила',incubator:'Инкубатор',home:'Жилище',garrison:'Гарнизон',ice:'Ледяной маяк'};
+export const buildings={nest:'Гнездо',tower:'Дозорная башня',food:'Склад еды',gold:'Золотой резервуар',farm:'Фруктовый сад',mine:'Золотая жила',incubator:'Инкубатор',home:'Жилище',garrison:'Гарнизон',ice:'Ледяной маяк',storm:'Грозовой обелиск',ward:'Оберег скалы'};
 export const limits={day:86400000,shield:43200000,recovery:300000,level:30,stars:5};
 export const prices={nest:70,incubator:100,slot:40};
 export const upgrade=b=>({price:120*b.level,ms:60000*b.level});
@@ -21,7 +22,8 @@ export function npcWorld(key,now){
   const s=newIsland(now,['Меловая отмель','Сосновый мыс','Грозовой утёс'][tier]);
   s.buildings=s.buildings.filter(b=>['tower','food','gold','nest'].includes(b.kind));
   s.buildings.forEach(b=>{b.col=(b.col+tier)%5;b.row=(b.row+2*tier)%5;b.level=1+tier;if(['food','gold'].includes(b.kind))b.stock=250*(tier+1);});
-  if(tier)s.buildings.push({id:'ice',kind:'ice',col:tier,row:1,level:tier,stock:0});
+  if(tier){const cells=Array.from({length:25},(_,i)=>({col:i%5,row:Math.floor(i/5)})).filter(p=>!s.buildings.some(b=>b.col===p.col&&b.row===p.row));
+    for(const [i,kind] of (tier===1?['ice']:['ice','storm','ward']).entries())s.buildings.push({id:kind,kind,...cells[[3,6,9][i]],level:tier,stock:0});}
   s.dragons=[];s.shield=0;return s;
 }
 export function refresh(s,now){
@@ -49,7 +51,7 @@ function spend(s,credit,amount){need(amount>=0&&balance(s,credit)>=amount,'Не�
 function plot(s,c,r,except){need(Number.isInteger(c)&&c>=0&&c<5&&Number.isInteger(r)&&r>=0&&r<5,'За пределами острова');
   need(!s.buildings.some(b=>b.id!==except&&b.col===c&&b.row===r),'Клетка занята');}
 function house(s,h){need(h?.kind==='home'&&s.dragons.filter(d=>d.home===h.id).length<homeSize(h),'В жилище нет места');}
-export const buildCost=k=>Object.hasOwn(prices,k)?{gems:prices[k]}:{gold:k==='home'?150:200};
+export const buildCost=k=>Object.hasOwn(prices,k)?{gems:prices[k]}:{gold:defenses[k]?.gold??(k==='home'?150:200)};
 export function apply(s,cmd,{now,credit=0,defender=null,uid='',target='',random=Math.random}){
   refresh(s,now);
   const d=s.dragons.find(x=>x.id===cmd.dragon), b=s.buildings.find(x=>x.id===cmd.building), egg=s.eggs.find(e=>e.id===cmd.egg);

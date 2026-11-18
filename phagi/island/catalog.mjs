@@ -108,7 +108,7 @@ export const species = records.split('\n').map((line,index) => {
   const [key,name] = line.split('|');
   const types = Array.from(key,Number);
   const role = ({'3':1,'1':2,'26':0})[key] ?? ((index+types.at(-1))%roles.length);
-  return {id:'s'+key, name, types, rarity:types.length, role, index, art:({'3':'earth','1':'water','26':'metal'})[key] || 'study',
+  return {id:'s'+key, name, types, rarity:types.length, role, index, art:({'3':'earth','1':'water','26':'metal'})[key] || 's'+key,
     hp:[145,210,106,132,165][role]+index%11, power:[21,16,23,17,25][role]+index%4, range:[12,10,30,22,15][role], speed:[15,8,10,13,9][role]};
 });
 export const byId = Object.fromEntries(species.map(s=>[s.id,s]));

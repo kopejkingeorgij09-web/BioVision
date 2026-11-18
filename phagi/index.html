@@ -4,7 +4,7 @@
 <script src="cloud.js?v=11"></script>
 <script src="lesson-files.js?v=2"></script>
 <meta charset="utf-8">
-<meta name="ph-ver" content="2026-11-18-dragon-island">
+<meta name="ph-ver" content="2026-11-18-dragon-archipelago">
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Фаги естественных наук</title>
@@ -2085,7 +2085,7 @@ function navHTML(){
     :[['home','Главная'],['cal','Расписание'],['track','Трекер',tkLate(meId())],['tasks','Задания',myTasks().filter(t=>!inNb(t)&&['todo','late'].includes(status(t,meId()).k)).length],['cards','Карточки',dueCards],['nbs','Тетради',nbBadge()],['arena','Арена'],['bio','Биовиз'],['marks','Журнал',errPile(meId()).length+bvPile(meId()).length]];
   const cur=S.view==='task'?'tasks':['deck','review','stview'].includes(S.view)?'cards':S.view==='fix'?'marks':S.view==='arview'?'arena':S.view==='nb'?'nbs':S.view;
   const kb=/Mac|iPhone|iPad/.test(navigator.platform||'')?'⌥':'Alt+';
-  return items.map(([v,l,n],i)=>`<button data-act="go" data-v="${v}" aria-current="${cur===v}" aria-label="${l}${n?`, ${n}`:''}" title="${l}${i<9?` (${kb}${i+1})`:''}"><span class="ni" aria-hidden="true"><svg viewBox="0 0 24 24">${IC[v]}</svg></span><span class="nl">${l}</span>${n?`<span class="badge">${n}</span>`:''}</button>`).join('') + (T()?'':'<button data-act="dragonisland"><span class="ni" aria-hidden="true">♜</span><span class="nl">Остров драконов</span></button>');
+  return items.map(([v,l,n],i)=>`<button data-act="go" data-v="${v}" aria-current="${cur===v}" aria-label="${l}${n?`, ${n}`:''}" title="${l}${i<9?` (${kb}${i+1})`:''}"><span class="ni" aria-hidden="true"><svg viewBox="0 0 24 24">${IC[v]}</svg></span><span class="nl">${l}</span>${n?`<span class="badge">${n}</span>`:''}</button>`).join('') + '<button data-act="dragonisland"><span class="ni" aria-hidden="true">♜</span><span class="nl">Остров драконов</span></button>';
 }
 
 function forestDue(t){
@@ -3266,8 +3266,8 @@ function subscribe(){
   const db=S.db;
   db.collection('people').onSnapshot(q=>{
     S.people=listOf(q).sort((a,b)=>(a.joinedAt||'').localeCompare(b.joinedAt||''));
-    if(T())S.people.forEach(p=>watch(p.id));
-    else{const m=S.people.find(p=>p.id===meId());S.joined=!!m;S.myLabel=m?m.label:'';if(m&&!dragonWallet)refreshDragonWallet()}
+    if(T()){if(new URLSearchParams(location.search).get('island')==='1'){location.replace('island/');return}S.people.forEach(p=>watch(p.id));}
+    else{const m=S.people.find(p=>p.id===meId());S.joined=!!m;S.myLabel=m?m.label:'';if(m&&new URLSearchParams(location.search).get('island')==='1'){location.replace('island/');return}if(m&&!dragonWallet)refreshDragonWallet()}
     syncArena();render(true)},err);
   db.collection('arena').onSnapshot(q=>{S.arena=Object.fromEntries(q.docs.map(d=>[d.id,d.data()]));S.arenaLoaded=true;
     if(!T())Object.entries(S.arena).forEach(([id,x])=>{if(id!==meId()&&!S.peekIn[id])S.streak[id]={days:x.days||{},ack:x.ack||null,muts:x.muts||[]}});
@@ -4667,7 +4667,7 @@ const actions={
   typemode:el=>{const d=S.decks.find(x=>x.id===el.dataset.id);if(!d)return;const on=!typeMode(d);setTypeMode(d,on);
     if(on)focusTyped()},
   rate:el=>rate(Number(el.dataset.g)),
-  dragonisland:async()=>{if(T())return;flush();await chain;if(streakDirty){toast("Повторение ещё сохраняется. Проверьте связь и повторите переход.");return}location.assign("island/")},
+  dragonisland:async()=>{if(T()){location.assign("island/");return}flush();await chain;if(streakDirty){toast("Повторение ещё сохраняется. Проверьте связь и повторите переход.");return}location.assign("island/")},
   endreview:()=>{aiStop();flush();if(S.rev&&S.rev.mix){S.view='cards';window.scrollTo(0,0)}else{S.view='deck';S.deckId=S.rev?S.rev.deckId:S.deckId}S.rev=null}
 };
 async function saveSub(id,status){

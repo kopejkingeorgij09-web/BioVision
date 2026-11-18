@@ -2,9 +2,10 @@ import {apply,need,newIsland,npcWorld,refresh} from '../../../phagi/island/game.
 import {battleSeconds} from '../../../phagi/island/battle.mjs';
 const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'apikey,authorization,content-type,x-client-info','Content-Type':'application/json','Cache-Control':'no-store'};
 const base=Deno.env.get('SUPABASE_URL'), key=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+class ServiceUnavailable extends Error {}
 async function rpc(name:string,args:object){
   const response=await fetch(base+'/rest/v1/rpc/'+name,{method:'POST',headers:{apikey:key!,Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify(args)});
-  if(!response.ok){console.error('Dragon RPC',name,response.status);throw new Error('Облако временно недоступно');}
+  if(!response.ok){console.error('Dragon RPC',name,response.status);if(response.status===403)throw new Error('Требуется личный ученический профиль');throw new ServiceUnavailable('Облако временно недоступно');}
   return await response.json();
 }
 const reply=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers});
@@ -34,7 +35,7 @@ async function run(user:any,cmd:any,op:string|null,depth=0):Promise<any>{
     if(human&&peer)changes.push({uid:target,rev:snap.peer.rev,state:peer});
     if(await rpc('dragon_commit',{p_uid:uid,p_op:op,p_result:result??null,p_changes:changes}))return view(result);
   }
-  throw new Error('Остров изменился. Повторите действие.');
+  throw new ServiceUnavailable('Остров изменился. Повторите действие.');
 }
 Deno.serve(async req=>{
   if(req.method==='OPTIONS')return new Response(null,{headers});
@@ -50,5 +51,5 @@ Deno.serve(async req=>{
     need(read||uuid.test(op),'Нужен номер операции');
     if(cmd.action==='raid')need(typeof cmd.target==='string'&&cmd.target.length<=100,'Выберите остров');
     return reply(await run(user,cmd,read?null:op));
-  }catch(error){return reply({error:error instanceof Error?error.message:'Не удалось выполнить действие'},400);}
+  }catch(error){return reply({error:error instanceof Error?error.message:'Не удалось выполнить действие'},error instanceof ServiceUnavailable||error instanceof TypeError?503:400);}
 });

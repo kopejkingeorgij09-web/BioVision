@@ -43,7 +43,15 @@ act('slot',{building:'incubator'});act('incubate',{egg:egg2.id,building:'incubat
 t=egg2.end;act('hatch',{egg:egg.id,building:'home'});assert.throws(()=>act('hatch',{egg:egg.id,building:'home'}));act('hatch',{egg:egg2.id,building:'home'});
 act('breed',{dragon:left.id,other:right.id,building:'nest'});const egg3=state.eggs[0];t=egg3.end;act('incubate',{egg:egg3.id,building:'incubator'});t=egg3.end;assert.throws(()=>act('hatch',{egg:egg3.id,building:'home'}));act('upgrade',{building:'home'});t+=60000;refresh(state,t);act('hatch',{egg:egg3.id,building:'home'});assert.equal(state.dragons.length,5);
 const peer=npcWorld('reef',t);assert.throws(()=>apply(state,{action:'raid',team:state.dragons.slice(0,4).map(d=>d.id)},{now:t,defender:peer,target:'npc:reef'}));
-for(const kind of ['earth','water','metal'])for(const pose of ['idle','walk','attack','hit','finish','portrait'])assert.ok(fs.statSync(new URL('../phagi/island/art/'+kind+'-'+pose+'.webp',import.meta.url)).size>1000);
+for(const s of species){
+ const suffixes=s.art===s.id?['portrait','motion']:['portrait','idle','walk','attack','hit','finish'];
+ for(const suffix of suffixes){
+  const name=s.art+'-'+suffix+'.webp';
+  const asset=fs.readFileSync(new URL('../phagi/island/art/'+name,import.meta.url));
+  assert.ok(asset.length>1000&&asset.toString('ascii',8,12)==='WEBP',name);
+ }
+}
+assert.equal(new Set(species.map(s=>s.art)).size,100);
 for(const targets of [[],['gold'],['food'],['food','gold']]){
  const attack=newIsland(0,'А'),defend=newIsland(0,'Б');defend.shield=0;
  for(const s of [attack,defend])for(const b of s.buildings.filter(b=>['gold','food'].includes(b.kind))){b.level=b.kind==='gold'?10:5;b.stock=s===attack?0:capacity(b);}

@@ -1,49 +1,51 @@
 import {byId,colors} from './catalog.mjs';
 import {position,shores,replay} from './battle.mjs';
 import {buildings,capacity} from './game.mjs';
-const cache=new Map(), sketches=new Map();
+import {project,screenStyle,boardSvg,rangeRadii} from './board.mjs';
+import {defenses,defenseStats} from './defenses.mjs';
+const cache=new Map();
 export const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const esc=escape;
 function image(src){if(!cache.has(src)){const im=new Image();im.src='art/'+src+'.webp';cache.set(src,im);}return cache.get(src);}
-function sketch(s){
-  if(sketches.has(s.id))return sketches.get(s.id);
-  const cv=document.createElement('canvas');cv.width=300;cv.height=165;const c=cv.getContext('2d');
-  const n=s.index, morph=n%7, back=71+(n%6)*3, head=34+(morph%4)*12, ink='#34493e',fill=colors[s.types[0]];
-  function line(points,color,width,closed=false){c.lineJoin='round';c.lineCap='round';c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));if(closed){c.closePath();c.fillStyle=color;c.fill();c.lineWidth=2;c.strokeStyle=ink;}else{c.lineWidth=width;c.strokeStyle=color;}c.stroke();}
-  line([[132,back+19],[102,back+16],[70,back+22],[39,back+13],[20,back-12+morph*3]],ink,11);
-  line([[132,back+18],[100,back+15],[64,back+20],[36,back+10],[20,back-12+morph*3]],fill,7);
-  for(const [x,y] of [[118,back+10],[157,back+12],[128,back+18],[178,back+12]]){const len=18+morph*2;line([[x,y],[x-7,y+len],[x+2,y+len+12],[x+13,y+len+12]],ink,7);}
-  c.beginPath();c.ellipse(148,back+8,38+(n%4)*5,14+morph*1.5,-.08,0,Math.PI*2);c.fillStyle=fill;c.fill();c.lineWidth=2;c.strokeStyle=ink;c.stroke();
-  const accent=colors[s.types[1]??(s.types[0]+2)%10];
-  if(morph<4)line([[157,back],[140,back-40],[83+morph*7,14+morph*4],[95,back-9],[118,back-17],[138,back+2]],accent,1,true);
-  else for(let i=0;i<3+morph;i++)line([[105+i*9,back-3],[102+i*9,back-14-(i%3)*6],[113+i*9,back-3]],accent,2,true);
-  line([[170,back+17],[180,back-11],[193,head],[210,head-4],[225,head+4],[242,head+8],[237,head+16],[211,head+18],[197,head+18],[187,back+16]],fill,1,true);
-  for(let i=0;i<1+n%4;i++) line([[202+i*4,head],[190+i*4,head-12-(n+i)%12],[209+i*4,head-2]],accent,1,true);
-  c.fillStyle=ink;c.beginPath();c.arc(216,head+4,2.8,0,Math.PI*2);c.fill();sketches.set(s.id,cv);return cv;
-}
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 export function dragon(cv,id,pose='idle',time=performance.now()){
   const s=byId[id];if(!cv||!s)return;
   const ctx=cv.getContext('2d'),w=cv.width,h=cv.height;ctx.clearRect(0,0,w,h);
-  if(s.art==='study'){const p=sketch(s);ctx.drawImage(p,0,0,w,h);return;}
-  const sheet=image(s.art+'-'+pose);if(!sheet.complete||!sheet.naturalWidth)return;
-  const sw=sheet.naturalWidth/12,sh=sheet.naturalHeight,scale=Math.min(w/sw,h/sh);
-  const frame=reduced.matches?0:Math.floor(time/(pose==='attack'?52:100))%12;
-  ctx.drawImage(sheet,frame*sw,0,sw,sh,(w-sw*scale)/2,(h-sh*scale)/2,sw*scale,sh*scale);
+  const compact=s.art===s.id, frames=compact?8:12;
+  const sheet=image(s.art+(compact?'-motion':'-'+pose));
+  if(!sheet.complete||!sheet.naturalWidth){
+    const still=image(s.art+'-portrait');
+    if(still.complete&&still.naturalWidth){const k=Math.min(w/still.width,h/still.height);ctx.drawImage(still,(w-still.width*k)/2,(h-still.height*k)/2,still.width*k,still.height*k);}return;
+  }
+  const sw=sheet.naturalWidth/frames,sh=sheet.naturalHeight/(compact?5:1),scale=Math.min(w/sw,h/sh);
+  const frame=reduced.matches?0:Math.floor(time/(pose==='attack'?52:100))%frames;
+  const row=compact?['idle','walk','attack','hit','finish'].indexOf(pose):0;
+  ctx.drawImage(sheet,frame*sw,row*sh,sw,sh,(w-sw*scale)/2,(h-sh*scale)/2,sw*scale,sh*scale);
 }
-export function art(s,cls='thumb'){return s.art==='study'?'<canvas class="'+cls+'" width="300" height="160" data-drawing="'+s.id+'"></canvas>':'<img loading="lazy" class="'+cls+'" style="object-fit:contain" alt="'+esc(s.name)+'" src="art/'+s.art+'-portrait.webp">';}
-const mapX=x=>5+.9*x, mapY=y=>25+y*.56;
-const point=(x,y)=>'left:'+mapX(x)+'%;top:'+mapY(y)+'%';
+export function art(s,cls='thumb'){return '<img loading="lazy" class="'+cls+'" style="object-fit:contain" alt="'+esc(s.name)+'" src="art/'+s.art+'-portrait.webp">';}
+const point=screenStyle;
 function piece(b,chosen,battle){
   const pos='x' in b?b:position(b), kind=b.kind;const hp=battle?100:capacity(b)?Math.min(100,100*(b.stock||0)/capacity(b)):0;
   if(kind==='guard')return animal(b.species,b.id,pos.x,pos.y,true);
   return '<button class="piece '+kind+(chosen===b.id?' chosen':'')+'" style="'+point(pos.x,pos.y)+';z-index:'+Math.round(2+pos.y/30)+'" data-'+(battle?'mark':'building')+'="'+esc(b.id)+'" aria-label="'+buildings[kind]+'"><img src="art/'+kind+'.webp" alt="">'+(battle||['gold','food'].includes(kind)?'<span class="meter"><i style="width:'+hp+'%"></i></span>':'')+(b.finish?'<span class="tag">⌛</span>':'')+'</button>';
 }
 function animal(sid,id,x,y,battle){return '<button class="animal" style="'+point(x,y)+'" data-'+(battle?'unit':'dragon')+'="'+esc(id)+'" aria-label="'+esc(byId[sid].name)+'"><canvas class="dragon-canvas" width="250" height="155" data-sprite="'+sid+'"></canvas>'+(battle?'<span class="meter"><i></i></span>':'')+'</button>';}
-export function islandMap(s,chosen){
- return '<section class="map" aria-label="Карта острова"><div class="hero"><small class="eyebrow">Остров драконов</small><h1 class="hero-title">Янтарный берег</h1></div>'+s.buildings.map(b=>piece(b,chosen,false)).join('')+s.dragons.slice(0,3).map((d,i)=>animal(d.species,d.id,[21,52,76][i],[44,52,40][i],false)).join('')+s.eggs.map(e=>{const b=s.buildings.find(b=>b.id===e.building),p=position(b);return '<img alt="Яйцо" style="position:absolute;pointer-events:none;width:6%;z-index:8;transform:translate(-50%,-120%);'+point(p.x,p.y)+'" src="art/egg.webp">';}).join('')+'<span class="caption">'+s.dragons.length+' · '+(s.dragons.length===1?'дракон':'на острове')+'</span></section>';
+function rangeFor(kind,level,p){const v=defenseStats(kind,level);return v&&{...p,radius:v.range,color:defenses[kind].color};}
+export function islandMap(s,chosen,edit=null){
+ const selected=s.buildings.find(b=>b.id===(edit?.building||chosen));
+ const preview=edit?.cell!=null?{kind:edit.kind||selected?.kind,level:selected?.level||1,col:edit.cell%5,row:Math.floor(edit.cell/5)}:null;
+ const here=preview||selected;
+ const ring=here?rangeFor(here.kind,here.level,position(here)):null;
+ const objects=s.buildings.map(b=>piece(b,chosen,false)).join('');
+ const dragons=edit?'':s.dragons.slice(0,3).map((d,i)=>{
+  if(d.species==='s3'&&d.born&&d.level===1)return '<button class="animal" style="'+point(32,42)+'" data-dragon="'+esc(d.id)+'" aria-label="Детёныш"><img src="art/baby.webp" alt=""></button>';
+  return animal(d.species,d.id,[28,65,57][i],[39,61,25][i],false);
+ }).join('');
+ const eggs=s.eggs.map(e=>{const b=s.buildings.find(b=>b.id===e.building),p=position(b);return '<img class="nest-egg" alt="Яйцо" style="'+point(p.x,p.y)+'" src="art/egg.webp">';}).join('');
+ const ghost=preview?'<img class="plot-preview" alt="Предпросмотр постройки" src="art/'+preview.kind+'.webp" style="'+point(position(preview).x,position(preview).y)+'">':'';
+ return '<section class="map'+(edit?' editing':'')+'" aria-label="Карта острова"><div class="hero"><small class="eyebrow">Остров драконов</small><h1 class="hero-title">Янтарный берег</h1></div><div class="map-world">'+boardSvg(s,edit,ring)+objects+dragons+eggs+ghost+'</div><span class="caption">'+(edit?'Расстановка · 5 × 5':s.dragons.length+' · на острове')+'</span></section>';
 }
-export function battleView(r){return '<section class="map battle" aria-label="Поле боя"><div class="hero"><small class="eyebrow">Набег · <b id="clock"></b></small><h1 class="hero-title">'+esc(r.name)+'</h1></div>'+r.targets.map(b=>piece(b,'',true)).join('')+r.team.map(d=>animal(d.species,d.id,50,98,true)).join('')+shores.map(([x,y],i)=>'<button class="landing" data-shore="'+i+'" aria-label="Высадка '+(i+1)+'" style="'+point(x,y)+'">⚑ '+(i+1)+'</button>').join('')+'<canvas class="fx" width="600" height="660"></canvas></section>';}
+export function battleView(r){return '<section class="map battle" aria-label="Поле боя"><div class="hero"><small class="eyebrow">Набег · <b id="clock"></b></small><h1 class="hero-title">'+esc(r.name)+'</h1></div><div class="map-world">'+boardSvg(null)+r.targets.map(b=>piece(b,'',true)).join('')+r.team.map(d=>animal(d.species,d.id,50,98,true)).join('')+shores.map(([x,y],i)=>'<button class="landing" data-shore="'+i+'" aria-label="Высадка '+(i+1)+'" style="'+point(x,y)+'">⚑ '+(i+1)+'</button>').join('')+'<canvas class="fx" width="1000" height="960"></canvas></div></section>';}
 let previousBattle, currentBattle, battleKey;
 export function paintBattle(r,now,selected){
  const key=r.id+'-'+r.commands.length+'-'+Math.floor((now-r.start)/250);
@@ -57,21 +59,37 @@ export function paintBattle(r,now,selected){
   el.hidden=unit&&!o.landed;if(el.hidden)continue;
   const prior=unit?previousBattle?.units.find(d=>d.id===o.id):null;
   const x=prior?.landed?prior.x+(o.x-prior.x)*fraction:o.x,y=prior?.landed?prior.y+(o.y-prior.y)*fraction:o.y;
-  el.style.left=mapX(x)+'%';el.style.top=mapY(y)+'%';el.classList.toggle('chosen',o.id===selected||o.id===sel?.target);
-  el.classList.toggle('dead',o.hp<=0);const meter=el.querySelector('.meter i');if(meter)meter.style.width=Math.max(0,100*o.hp/o.max)+'%';
+  const p=project(x,y);el.style.left=p.x/10+'%';el.style.top=p.y/9.6+'%';el.classList.toggle('chosen',o.id===selected||o.id===sel?.target);
+  el.classList.toggle('dead',o.hp<=0);el.classList.toggle('damaged',o.hp>0&&o.hp<o.max*.55);const meter=el.querySelector('.meter i');if(meter)meter.style.width=Math.max(0,100*o.hp/o.max)+'%';
   if(o.species){const hitting=sim.flashes.some(f=>f.from===o.id),hit=sim.flashes.some(f=>f.to===o.id);dragon(el.querySelector('canvas'),o.species,sim.end?'finish':hit?'hit':hitting?'attack':'walk',now);}
  }
  const cv=document.querySelector('.fx'),c=cv.getContext('2d');c.clearRect(0,0,cv.width,cv.height);
- const px=o=>mapX(o.x)*6,py=o=>mapY(o.y)*6.6-26;
- for(const t of sim.targets.filter(t=>t.hp>0&&['tower','ice'].includes(t.kind))){c.beginPath();c.ellipse(px(t),py(t)+15,t.kind==='tower'?185:153,t.kind==='tower'?114:96,0,0,7);c.strokeStyle='#ffe99878';c.lineWidth=2;c.setLineDash([6,9]);c.stroke();}c.setLineDash([]);
+ const px=o=>project(o.x,o.y).x,py=o=>project(o.x,o.y).y-14;
+ for(const t of sim.targets.filter(t=>t.hp>0&&Object.hasOwn(defenses,t.kind))){const v=defenseStats(t.kind,t.level),[rx,ry]=rangeRadii(v.range);c.beginPath();c.ellipse(px(t),py(t)+14,rx,ry,0,0,7);c.strokeStyle=defenses[t.kind].color+'ac';c.lineWidth=2;c.setLineDash([7,10]);c.stroke();}c.setLineDash([]);
  for(const f of sim.flashes){const a=nodes.get(f.from),b=nodes.get(f.to);if(!a||!b)continue;
    const x=px(a),y=py(a),tx=px(b),ty=py(b);c.strokeStyle=colors[f.type];c.fillStyle=colors[f.type];c.lineWidth=f.skill?7:4;c.beginPath();c.moveTo(x,y);
-   const k=f.type%5;if(k===0||k===4){c.quadraticCurveTo((x+tx)/2,(y+ty)/2-17-k*3,tx,ty);}else if(k===1){c.bezierCurveTo(x+25,y-24,tx-25,ty+24,tx,ty);}else{c.lineTo((x+tx)/2,(y+ty)/2+(k===2?12:-12));c.lineTo(tx,ty);}c.stroke();c.beginPath();c.arc(tx,ty,6+f.type%4,0,7);c.fill();
+   elementTrail(c,f.type,x,y,tx,ty,sim.tick-f.tick);
  }
+ const targetInfo=document.querySelector('#target-info'),mark=nodes.get(sel?.target);
+ if(targetInfo){const value=sel?.landed&&mark?'Цель · '+(buildings[mark.kind]||byId[mark.species]?.name||'Защитник')+' · '+Math.ceil(mark.hp)+' / '+Math.ceil(mark.max):'Ожидает высадки';
+ if(targetInfo.textContent!==value)targetInfo.textContent=value;}
  const cd=document.querySelector('#ability');if(cd){const seconds=Math.ceil(((sel?.skillAt||0)-sim.tick)/4);cd.disabled=!sel?.landed||sel.hp<=0||seconds>0||!!sim.end;cd.textContent=seconds>0?'Откат · '+seconds+' с':'Применить способность';}
  return sim;
 }
-export function drawings(){document.querySelectorAll('[data-drawing]').forEach(cv=>dragon(cv,cv.dataset.drawing));}
 export function idle(time){document.querySelectorAll('.map:not(.battle) [data-sprite]').forEach((cv,i)=>{
  const el=cv.parentElement,t=time/1700+i*1.8;el.style.translate=reduced.matches?'none':Math.sin(t)*6+'px '+Math.cos(t)*1.5+'px';
  dragon(cv,cv.dataset.sprite,Math.sin(t*.45)>.75?'idle':'walk',time+230*i);});}
+
+function elementTrail(c,type,x,y,tx,ty,age){
+ const dx=tx-x,dy=ty-y,l=Math.hypot(dx,dy)||1,nx=-dy/l,ny=dx/l;
+ const p=(t,k=0)=>[x+t*dx+k*nx,y+t*dy+k*ny];
+ if(type===0)c.quadraticCurveTo(...p(.55,-25),tx,ty);
+ if(type===1||type===2){const bend=type===1?20:37;c.bezierCurveTo(...p(.32,-bend),...p(.65,bend),tx,ty);}
+ if(type===3){for(const t of [.25,.5,.75,1]){const [a,b]=p(t);c.fillRect(a-4,b-3,9,7);}}
+ if(type===4){c.lineTo(tx,ty);for(const t of [.2,.48,.72]){c.moveTo(...p(t));c.quadraticCurveTo(...p(t+.07,-15),...p(t+.12,-9));}}
+ if(type===5){for(const [t,k] of [[.27,0],[.38,12],[.55,-10],[.64,8],[1,0]])c.lineTo(...p(t,k));}
+ if(type===6){c.moveTo(...p(.55));c.lineTo(tx,ty);c.lineTo(...p(.88,5));c.moveTo(tx,ty);c.lineTo(...p(.88,-5));}
+ if(type===7||type===8){for(const t of [.3,.55,.8,1]){const [a,b]=p(t);c.moveTo(a+7,b);c.arc(a,b,7,0,type===7?Math.PI*2:Math.PI*1.4);}}
+ if(type===9){c.lineWidth=6;c.moveTo(x,y);c.lineTo(tx,ty);}
+ c.stroke();c.beginPath();c.arc(tx,ty,5+age*2,0,Math.PI*2);c.fill();
+}

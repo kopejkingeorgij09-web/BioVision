@@ -15,9 +15,15 @@ export async function request(cmd,op=null){
     sessionStorage.setItem(demoKey,JSON.stringify(s));return {state:s,now,wallet:{balance:0,credit:0,days:{}},islands:[],result};
   }
   if(!code())throw Error('Откройте «Фаги» и войдите по ученическому коду.');
-  let r;try{r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmd,op,code:code(),studentMode:localStorage.getItem("ph_role")==="student"}),signal:AbortSignal.timeout(18000)});}
+  let r;try{r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmd,op,code:code(),studentMode:true}),signal:AbortSignal.timeout(18000)});}
   catch{throw Object.assign(Error('Связь прервалась. Повторите отправку сохранённой команды.'),{retry:true});}
   const data=await r.json().catch(()=>({}));if(!r.ok||!data.state)throw Object.assign(Error(data.error||'Облако временно недоступно'),{retry:r.status>=500||!data.error});
   return data;
 }
-export const pendingKey=()=>tour?'tour-op':'island-operation-'+(localStorage.getItem('ph_code')||'').slice(-4);
+let key='tour-op';
+export async function identifySession(){
+  if(tour)return;
+  const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(code()));
+  key='island-op/'+Array.from(new Uint8Array(hash),n=>n.toString(16).padStart(2,'0')).join('');
+}
+export const pendingKey=()=>key;

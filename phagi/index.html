@@ -5434,6 +5434,12 @@ async function bvLoad(){
   try{
     if(!window.THREE)bvScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js').catch(()=>{});
     await bvScript('bioviz/bv.js');
+    const dnaTopic=root.querySelector('.nav-item[data-go="dna"]');
+    if(dnaTopic){
+      const reading=document.createElement('a');
+      reading.className='nav-item';reading.href='bioviz/replication/';reading.textContent='Репликация ДНК · конспект';
+      dnaTopic.after(reading);
+    }
     // Additive textbook extension; existing BioViz keeps working if it cannot load.
     try{await bvScript('bioviz/microbiology/embed.js?v=20261112');await window.MicroBookReady}catch(e){console.warn('Microbiology extension unavailable',e)}
     BVS.st=2;if(!BVHOST.on)BV.pause();else bvWant();bvBackfill();

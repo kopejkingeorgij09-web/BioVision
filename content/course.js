@@ -35,6 +35,7 @@ window.BV_COURSE={
        {id:'l03-11',no:11,t:'Словарь'},
        {id:'l03-12',no:12,t:'Источники'}
      ],
-     file:'content/lectures/03-vydelenie-dnk-i-rnk.js',practice:'content/practice-03.js'}
+     file:'content/lectures/03-vydelenie-dnk-i-rnk.js',practice:'content/practice-03.js'},
+    {"n": 4, "id": "l04", "topic": "molecular-biology", "date": "2026-11-18", "title": "Репликация ДНК", "about": "Инициация, движение двух вилок, созревание фрагментов Оказаки и завершение репликации у E. coli и эукариот.", "sections": [{"id": "l04-evidence", "no": 1, "t": "Судьба родительских цепей"}, {"id": "l04-chemistry", "no": 2, "t": "Химия удлинения ДНК"}, {"id": "l04-bacterial-origin", "no": 3, "t": "Инициация у Escherichia coli"}, {"id": "l04-licensing", "no": 4, "t": "Лицензирование и запуск у эукариот"}, {"id": "l04-fork", "no": 5, "t": "Белки у репликационной вилки"}, {"id": "l04-clamps", "no": 6, "t": "Полимеразы и скользящий зажим"}, {"id": "l04-okazaki", "no": 7, "t": "Ведущая и отстающая цепи"}, {"id": "l04-maturation", "no": 8, "t": "Созревание фрагмента Оказаки"}, {"id": "l04-bubble", "no": 9, "t": "Одна матрица по обе стороны от точки начала"}, {"id": "l04-termination", "no": 10, "t": "Терминация и разделение дочерних молекул"}, {"id": "l04-ends", "no": 11, "t": "Концевая репликация и теломераза"}, {"id": "l04-comparison", "no": 12, "t": "Сравнение и источники"}], "file": "content/lectures/04-replikatsiya-dnk.js"}
   ]
 };

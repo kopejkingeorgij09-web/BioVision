@@ -2,9 +2,9 @@ import {defenses,defenseText} from './defenses.mjs';
 import {cellName,project} from './board.mjs';
 import {boardSize,position} from './world.mjs';
 import {icon} from './icons.mjs';
-import {actorMarkup,mountActors} from './actors.mjs';
+import {actorMarkup,mountActors,dragonAsset} from './actors.mjs';
 import {mountCamera,focusCamera} from './camera.mjs';
-import {species,byId,elements,rarities,roles,skills,signs,stats,distribution,percentages,pairing,starPrices,foodPrice} from './catalog.mjs';
+import {species,byId,elements,colors,rarities,roles,skills,signs,stats,distribution,percentages,pairing,starPrices,foodPrice} from './catalog.mjs';
 import {buildings,total,capacity,room,available,upgrade,buildCost,gemSpeed,production,homeSize,objectives,unlockPrice,nestTime,hatchTime,npcWorld} from './game.mjs';
 import {art,escape as esc,islandMap,battleView,paintBattle,idle,showResident,rotateResidents} from './paint.mjs';
 import {request,pendingKey,tour,identifySession} from './client.mjs';
@@ -14,6 +14,19 @@ const select=(id,html,label)=>'<select aria-label="'+label+'" id="'+id+'">'+html
 const row=(name,details,control='')=>'<div class="row"><div><b>'+name+'</b><br><small>'+details+'</small></div>'+control+'</div>';
 const panel=(title,body)=>'<section class="panel"><h3>'+title+'</h3>'+body+'</section>';
 const labelTypes=s=>s.types.map(t=>signs[t]+' '+elements[t]).join(' · ');
+const elementBadges=s=>s.types.map(t=>'<span class="affinity" style="--affinity:'+colors[t]+'"><i aria-hidden="true">'+signs[t]+'</i>'+elements[t]+'</span>').join('');
+const fieldNotes=[
+ 'В трещинах обсидиановых пластин светится лава. На кончике хвоста горит открытое пламя.',
+ 'Жаберные веера пропускают свет, а широкий хвостовой плавник изгибается вслед за телом.',
+ 'Длинные маховые перья лежат внахлёст. Два хвостовых пера расходятся за спиной, как ленты на ветру.',
+ 'На спине вырастают друзы кварца. Тяжёлые лапы покрыты слоями охристого камня.',
+ 'Между пластинками коры растёт мох. На рогах распускаются цветы, а вдоль хвоста тянутся листья папоротника.',
+ 'Золотые жилки разветвляются по синим перепонкам крыльев. Два острия на хвосте похожи на разряд молнии.',
+ 'Серебристые пластины крыла перекрывают друг друга. На сгибах между ними поблёскивает медь.',
+ 'Сквозь полые рога видно небо. На спине искрятся светлые вкрапления, а хвост сворачивается в кольцо.',
+ 'Тёмные перья ложатся на плечи плотной мантией. Из-под неё видны гранатовые рога и красный блеск чешуи.',
+ 'Тонкие рёбра крыльев расходятся веером. Золотые лучи за головой образуют солнечный венец.',
+];
 const duration=ms=>{const n=Math.max(0,Math.ceil(ms/1000));return n>=3600?Math.floor(n/3600)+' ч '+Math.floor(n%3600/60)+' мин':n>=60?Math.floor(n/60)+' мин '+n%60+' с':n+' с';};
 const date=t=>new Date(t).toLocaleString('ru',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
 let state,wallet,offset=0,busy=false,chosen='',selectedUnit='',opponents=[],team=[],target='npc:reef',pair=[],filters=['','',''],plotMode=null,toastTimer;
@@ -94,7 +107,7 @@ function detail(s,d=null){
 
  controls=housing+panel('Рост и назначение','<p>Уровень '+d.level+' / 30 · '+d.stars+' / 5 ★ · '+availability(d)+'</p>'+ (d.level<30?'<p>После кормления: здоровье '+st.hp+' → '+next.hp+', удар '+st.power+' → '+next.power+'. Уровень учитывается при разведении.</p>'+btn('Кормить · '+foodPrice(d.level)+' еды','feed/'+d.id,'primary',!isFree):'')+'<div class="tools">'+btn(d.guard?'Снять из гарнизона':'В гарнизон','guard/'+d.id,'',!d.guard&&!isFree)+btn('Улучшить звезду','go/star/'+d.id,'',!isFree||d.stars===5)+(state.dragons.filter(x=>x.species===d.species).length>1?btn('Отпустить дубликата · +25 зол.','sell/'+d.id,'',!isFree):'')+'</div>');}
  else if(!state.seen.includes(s.id)&&s.rarity===1)controls=panel('Экспедиция','<p>Выберите жилище для нового дракона.</p>'+homes()+btn('Пригласить · '+unlockPrice(state)+' зол.','unlock/'+s.id,'primary'));
- return page(esc(s.name),'<div class="pills"><span>'+rarities[s.rarity]+'</span><span>'+labelTypes(s)+'</span></div><div class="plate">'+actorMarkup(d?.born&&s.id==='s3'&&d.level===1?'baby':s.id,esc(s.name))+'<button class="bones-toggle" data-do="skeleton" aria-pressed="false">Скелет</button><div class="poses" aria-label="Движение">'+[['idle','Покой'],['walk','Движение'],['attack','Атака']].map(([k,label])=>btn(label,'pose/'+k,k==='idle'?'active':'')).join('')+'</div></div>'+(s.id==='s3'?'<div class="lifecycle"><figure><img src="art/egg.webp" alt="Яйцо Янтарного кряжа"><figcaption>Яйцо</figcaption></figure><figure><img src="art/dragons/thumbs/baby.svg" alt="Детёныш Янтарного кряжа"><figcaption>Детёныш</figcaption></figure></div>':'')+controls+panel(roles[s.role]+' · '+skills[s.role],'<p>Здоровье '+st.hp+' · удар '+st.power+' · дальность '+st.range+' · скорость '+st.speed+'</p><small>+25% урона по следующей стихии в круге: '+elements.join(' → ')+' → Огонь.</small>')+panel('Как получить',esc(method))+btn('В книгу','go/book'));
+ return page(esc(s.name),'<div class="pills"><span>'+rarities[s.rarity]+'</span>'+elementBadges(s)+'</div><div class="plate" style="--element-a:'+colors[s.types[0]]+';--element-b:'+colors[s.types.at(-1)]+'">'+actorMarkup(d?.born&&s.id==='s3'&&d.level===1?'baby':s.id,esc(s.name))+'<button class="bones-toggle" data-do="skeleton" aria-pressed="false">Скелет</button><div class="poses" aria-label="Движение">'+[['idle','Покой'],['walk','Движение'],['attack','Атака']].map(([k,label])=>btn(label,'pose/'+k,k==='idle'?'active':'')).join('')+'</div></div>'+(s.id==='s3'?'<div class="lifecycle"><figure><img src="art/egg.webp" alt="Яйцо Янтарного кряжа"><figcaption>Яйцо</figcaption></figure><figure><img src="'+dragonAsset('thumbs/baby.svg')+'" alt="Детёныш Янтарного кряжа"><figcaption>Детёныш</figcaption></figure></div>':'')+controls+panel(roles[s.role]+' · '+skills[s.role],(s.types.length===1?'<p class="field-note">'+fieldNotes[s.types[0]]+'</p>':'')+'<p>Здоровье '+st.hp+' · удар '+st.power+' · дальность '+st.range+' · скорость '+st.speed+'</p><small>+25% урона по следующей стихии в круге: '+elements.join(' → ')+' → Огонь.</small>')+panel('Как получить',esc(method))+btn('В книгу','go/book'));
 }
 function homes(){return select('home',state.buildings.filter(b=>b.kind==='home').map(b=>opt(b.id,buildings.home+' '+cellName(b.col,b.row)+' · '+state.dragons.filter(d=>d.home===b.id).length+'/'+homeSize(b))).join(''),'Жилище');}
 function nest(){

@@ -38,6 +38,7 @@ async function run(engine,phone){
   const saved=await p.evaluate(()=>JSON.parse(sessionStorage.getItem('ph_dragon_art_tour_v1')));
   const moved=saved.buildings.find(b=>b.id===home);assert.deepEqual([moved.col,moved.row],[9,9]);assert.equal(saved.dragons[0].home,home);
   await p.locator('[data-do="go/book"]').click();await p.locator('[data-do="go/species/s26"]').click();await p.waitForSelector('.plate svg.rigged');
+  assert.deepEqual(await p.locator('.pills .affinity').allTextContents(),['≋Ветер','⬡Металл']);
   await p.locator('[data-do="pose/attack"]').click();await p.waitForTimeout(250);await screenshot(tag+'-book');
   await p.locator('[data-do=skeleton]').click();await p.waitForSelector('.armature:visible');
   const bones=p.locator('.armature path'),before=await bones.nth(2).getAttribute('d');

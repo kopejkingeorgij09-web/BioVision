@@ -11,7 +11,11 @@ const dist=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
 let poses=0,lowest=Infinity,longestFootDrift=0;
 for(const id of [...species.map(s=>s.id),'baby']){
  const read=f=>fs.readFileSync(new URL(f,root),'utf8');
- const svg=read(id+'.svg');
+ const svg=read(id+'.svg'),types=id==='baby'?'3':id.slice(1);
+ for(const picture of [svg,read('thumbs/'+id+'.svg')]){
+  assert.ok(picture.includes('data-elements="'+types+'"'),id+' has wrong elemental art');
+  if(types.length>1)assert.deepEqual(Array.from(picture.matchAll(/data-material="(\d)"/g),m=>m[1]),[...types],id+' lacks a material');
+ }
  assert.match(svg,/<path /);assert.doesNotMatch(svg,/<image\b|data:image|<canvas|\.png|\.webp/);assert.match(read('thumbs/'+id+'.svg'),/<path /);
  const r=prepareRig(JSON.parse(read('rigs/'+id+'.json')));
  assert.equal(r.id,id);assert.ok(r.faces.length>35);

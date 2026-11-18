@@ -33,12 +33,14 @@
   // Full asset paths also let the offline reader discover the diagrams.
   const fractionMethods = [
     {
-      title: 'Кремнезёмная колонка', aim: 'Очистить несколько проб',
-      image: 'bioviz/img/nucleic-acids/fractions/silica.webp',
+      title: 'Кремнезёмная колонка', aim: 'Очистить один продукт ПЦР перед секвенированием',
+      compare: ['gel', 'А если после ПЦР две полосы? Сравнить с выделением из геля'],
+      principle: 'Фосфатный остов ДНК и поверхность кремнезёма в воде обычно несут отрицательный заряд. Соли экранируют отталкивание, а среда связывания меняет гидратацию обеих поверхностей. При промывке ДНК удерживается на мембране. В малосолевом водном буфере она вновь хорошо гидратируется и выходит в элюат.',
+      image: 'bioviz/img/nucleic-acids/plates/silica.svg',
       example: 'В одной ПЦР получен единственный ампликон нужной длины. Перед секвенированием надо убрать праймеры, фермент и избыток нуклеотидов. Если ампликон входит в рабочий диапазон колонки, его удобно удержать на мембране и сменить раствор.',
       steps: [
-        ['Исходная смесь', 'Ампликон и компоненты ПЦР находятся в одной жидкости.', 'Всю пробу для нанесения.'],
-        ['Связывание', 'В среде связывания ДНК удерживается на кремнезёме. Часть примесей проходит в нижнюю пробирку.', 'Колонку с ДНК на мембране.'],
+        ['Исходная смесь', 'Копии нужного фрагмента находятся в той же жидкости, что и свободные праймеры, нуклеотиды и полимераза.', 'Всю пробу для нанесения.'],
+        ['Связывание', 'Ампликон связывается с кремнезёмом. В условиях этого примера короткие свободные праймеры и нуклеотиды проходят через мембрану в нижнюю пробирку.', 'Колонку с ДНК на мембране.'],
         ['Промывка', 'Остаточные соли и растворимые примеси уходят с промывной жидкостью. ДНК остаётся связанной.', 'Колонку. Промывной фильтрат отделяют.'],
         ['Элюция', 'В малосолевой среде ДНК переходит с мембраны в жидкость, собранную в чистой пробирке.', 'Элюат под колонкой.']
       ],
@@ -46,7 +48,9 @@
     },
     {
       title: 'Высаливание белков', aim: 'Удалить основную массу белка',
-      image: 'bioviz/img/nucleic-acids/fractions/salting.webp',
+      compare: ['alcohol', 'Белок уже убран. Как собрать саму ДНК в осадок?'],
+      principle: 'При высокой концентрации соли растворимость многих белков падает. Белковые агрегаты можно отделить от жидкости, в которой остаётся ДНК. Избыток соли при этом всё ещё находится в растворе с ДНК.',
+      image: 'bioviz/img/nucleic-acids/plates/salting.svg',
       example: 'В клеточном лизате много растворённого белка, а нужна суммарная ДНК. Высаливание подходит, если белки можно собрать в осадок, оставив ДНК в водном растворе. Органический растворитель для этого разделения не требуется.',
       steps: [
         ['Белковый лизат', 'После вскрытия клеток ДНК и растворимые белки находятся вместе.', 'Водный лизат.'],
@@ -57,7 +61,9 @@
     },
     {
       title: 'Спиртовое осаждение ДНК', aim: 'Собрать ДНК из большого объёма',
-      image: 'bioviz/img/nucleic-acids/fractions/alcohol.webp',
+      compare: ['ultrafiltration', 'Как уменьшить объём, сохранив ДНК в растворе?'],
+      principle: 'Ионы экранируют заряд фосфатных групп. При добавлении спирта среда хуже поддерживает растворённое состояние ДНК, и молекулы собираются в осадок. После отделения жидкости и промывки осадок снова растворяют в воде или буфере.',
+      image: 'bioviz/img/nucleic-acids/plates/alcohol.svg',
       example: 'После удаления белков ДНК осталась в большом объёме жидкости. Спиртовое осаждение позволяет собрать её и затем растворить в меньшем объёме. Если вместе с целью есть другая ДНК, обе могут попасть в осадок.',
       steps: [
         ['Разбавленный раствор', 'Молекулы ДНК распределены по всему объёму вместе с растворимыми примесями.', 'Исходную жидкость.'],
@@ -69,7 +75,9 @@
     },
     {
       title: 'Фенол-хлороформная экстракция', aim: 'Разделить водную и органическую фазы',
-      image: 'bioviz/img/nucleic-acids/fractions/phenol.webp',
+      compare: ['salting', 'Как убрать белки без органического растворителя?'],
+      principle: 'Фенол денатурирует белки. При подходящем для выделения ДНК pH её заряженный остов удерживает молекулу в водной фазе. Денатурированные белки скапливаются на границе фаз и в органическом слое, куда также переходят липиды.',
+      image: 'bioviz/img/nucleic-acids/plates/phenol.svg',
       example: 'Белки и липиды мешают анализу суммарной ДНК из ткани. Фазовая экстракция позволяет одновременно отделить значительную часть белкового материала и гидрофобных компонентов. Ниже показан вариант с близким к нейтральному pH.',
       steps: [
         ['Контакт фаз', 'ДНК поступает с водным лизатом. Органическая среда способствует денатурации белков и извлечению липидов.', 'Обе фазы до их расслоения.'],
@@ -80,7 +88,9 @@
     },
     {
       title: 'Растительная ДНК: CTAB и PVP', aim: 'Убрать мешающие компоненты листа',
-      image: 'bioviz/img/nucleic-acids/fractions/ctab.webp',
+      compare: ['nuclei', 'А если из того же листа нужна длинная ядерная ДНК?'],
+      principle: 'CTAB — катионный детергент. Он помогает разрушить мембраны, а солевой состав среды определяет, какие комплексы остаются растворёнными. PVP связывает полифенолы листа. Благодаря этому меньше растительных примесей переходит вместе с ДНК в следующую фракцию.',
+      image: 'bioviz/img/nucleic-acids/plates/ctab.svg',
       example: 'Лизат листа вязкий и при растирании темнеет. Полисахариды могут соосаждаться с ДНК, а окисляющиеся полифенолы — загрязнять препарат. CTAB и солевой состав помогают разделять полимеры. PVP связывает полифенолы. На схеме показан растительный вариант с высокосолевой средой и фазовой очисткой.',
       steps: [
         ['Растительный лизат', 'В одном объёме находятся ДНК, белки, полисахариды и фенольные соединения. Высокая ионная сила помогает сохранять ДНК в растворе.', 'Лизат для удаления примесей.'],
@@ -91,7 +101,9 @@
     },
     {
       title: 'Обогащение ядрами', aim: 'Сохранить длинную ядерную ДНК',
-      image: 'bioviz/img/nucleic-acids/fractions/nuclei.webp',
+      compare: ['ctab', 'Как меняется выбор, если анализу мешают полифенолы листа?'],
+      principle: 'Ядерная оболочка позволяет сначала отделить целые ядра от части содержимого листа. ДНК до этого момента упакована в хроматин. После вскрытия ядер длинные молекулы легче рвутся при механической нагрузке.',
+      image: 'bioviz/img/nucleic-acids/plates/nuclei.svg',
       example: 'Из того же листа нужны длинные ядерные молекулы для длинных прочтений. Пока ядерная оболочка цела, ДНК можно переносить вместе с ядрами и отделять от части цитоплазмы. После вскрытия ядер сохранение длины становится отдельной задачей.',
       steps: [
         ['Ядра в ткани', 'Длинная ядерная ДНК заключена внутри ядер. Ткань также содержит органеллы и растворимые вещества.', 'Суспензию, содержащую целые ядра.'],
@@ -102,7 +114,9 @@
     },
     {
       title: 'Магнитные частицы с кремнезёмом', aim: 'Очистить серию однотипных проб',
-      image: 'bioviz/img/nucleic-acids/fractions/magnetic-silica.webp',
+      compare: ['spri', 'А если в планшете нужно ещё отобрать фрагменты по длине?'],
+      principle: 'ДНК удерживает кремнезёмное покрытие. Магнит собирает частицы со связанной ДНК у стенки, пока раствор заменяют. Когда ДНК переходит в элюат, магнит снова удерживает частицы, и теперь ценная фракция — жидкость.',
+      image: 'bioviz/img/nucleic-acids/plates/magnetic-silica.svg',
       example: 'Нужно одинаково обработать целый планшет проб. Кремнезёмное покрытие связывает ДНК по тому же принципу, что и колонка, а магнит позволяет быстро собрать носитель у стенки каждой лунки.',
       steps: [
         ['Исходная проба', 'В исходном растворе ДНК и примеси смешаны. Предстоит связать ДНК с кремнезёмным покрытием.', 'Весь раствор для связывания.'],
@@ -113,7 +127,9 @@
     },
     {
       title: 'Магнитные частицы SPRI', aim: 'Отобрать диапазон длин',
-      image: 'bioviz/img/nucleic-acids/fractions/spri.webp',
+      compare: ['magnetic-silica', 'Как очистить серию проб, когда отбор по длине не нужен?'],
+      principle: 'В присутствии полиэтиленгликоля и соли фрагменты разной длины по-разному распределяются между раствором и поверхностью частиц. При двустороннем отборе сначала отделяют слишком длинные фрагменты, затем в изменённой среде удерживают целевой диапазон, оставляя короткие фрагменты в жидкости.',
+      image: 'bioviz/img/nucleic-acids/plates/spri.svg',
       example: 'В библиотеке нужны фрагменты промежуточной длины. Есть и слишком длинные, и слишком короткие. В подходящей системе SPRI состав среды с ПЭГ и солью меняет диапазон ДНК, удерживаемой частицами. Ниже показан двусторонний отбор.',
       steps: [
         ['Смесь длин', 'Целевые молекулы и посторонние фрагменты имеют одинаковый тип остова. По длине различается их поведение при связывании.', 'Исходную смесь.'],
@@ -125,7 +141,9 @@
     },
     {
       title: 'Щелочное выделение плазмиды', aim: 'Отделить кольцевую ДНК от хромосомной',
-      image: 'bioviz/img/nucleic-acids/fractions/plasmid.webp',
+      compare: ['silica', 'Как очищают уже отделённую плазмидную фракцию на кремнезёме?'],
+      principle: 'В щелочной среде цепи ДНК денатурируют. У небольшой ковалентно замкнутой плазмиды они остаются топологически сцепленными и при нейтрализации восстанавливают дуплекс. Длинная хромосомная ДНК захватывается осадком из белков, детергента и клеточных остатков.',
+      image: 'bioviz/img/nucleic-acids/plates/plasmid.svg',
       example: 'Нужна небольшая замкнутая плазмида, а в пробе есть и гораздо более длинная хромосомная ДНК. Обычная силика способна связать обе. Первое разделение использует их разное поведение после денатурации и нейтрализации.',
       steps: [
         ['Лизис и денатурация', 'Плазмидная и хромосомная ДНК попадают в один лизат. Кольца на рисунке обозначают происхождение целевой молекулы.', 'Лизат до нейтрализации.'],
@@ -136,7 +154,9 @@
     },
     {
       title: 'Извлечение полосы из агарозы', aim: 'Разделить два продукта ПЦР',
-      image: 'bioviz/img/nucleic-acids/fractions/gel.webp',
+      compare: ['silica', 'Как упростить очистку, если после ПЦР одна нужная полоса?'],
+      principle: 'В электрическом поле линейные фрагменты ДНК проходят через поры агарозы. Более короткие фрагменты обычно уходят дальше. Выбор полосы определяет, какая ДНК попадёт в пробирку, а последующая очистка освобождает её от агарозы и солей.',
+      image: 'bioviz/img/nucleic-acids/plates/gel.svg',
       example: 'Нужен продукт 620 п. о., а рядом есть побочный продукт 410 п. о. Оба могут удерживаться обычной колонкой. Если гель разрешает полосы, электрофорез позволяет сначала физически отделить одну от другой.',
       steps: [
         ['Разделение в геле', 'Нужная и побочная ДНК занимают разные положения в одной дорожке. Слева нанесён маркер длины.', 'Гель с различимыми полосами.'],
@@ -148,7 +168,9 @@
     },
     {
       title: 'Ультрафильтрация', aim: 'Сконцентрировать ДНК без осадка',
-      image: 'bioviz/img/nucleic-acids/fractions/ultrafiltration.webp',
+      compare: ['alcohol', 'Как сконцентрировать ту же ДНК осаждением?'],
+      principle: 'Мембрана пропускает воду и небольшие растворённые вещества. Молекулы ДНК подходящего размера задерживаются в верхней камере. По мере ухода жидкости их концентрация растёт. Вместе с ДНК могут удержаться другие крупные молекулы.',
+      image: 'bioviz/img/nucleic-acids/plates/ultrafiltration.svg',
       example: 'ДНК уже очищена, но раствор слишком разбавлен для следующего измерения. Если мембрана удерживает фрагменты нужной длины, ультрафильтрация уменьшит объём без переноса малозаметного осадка.',
       steps: [
         ['Раствор над мембраной', 'В исходном объёме растворены ДНК и небольшие молекулы.', 'Весь раствор до фильтрования.'],
@@ -160,59 +182,107 @@
   ];
 
   function fractionAtlas() {
+    const choices = fractionMethods.map(method => `<option value="${method.image.split('/').pop().replace('.svg', '')}">${method.title}</option>`).join('');
     return `<style>
-      .l03-atlas{container-type:inline-size;margin:12px 0 22px}
-      .l03-method{border:1px solid var(--line);border-radius:10px;background:var(--surface);margin:8px 0;overflow:hidden}
-      .l03-method>summary{cursor:pointer;padding:12px 15px;display:flex;align-items:center;gap:10px;list-style:none;line-height:1.35}
-      .l03-method>summary::-webkit-details-marker{display:none}
-      .l03-method>summary::before{content:'▸';color:var(--cut);font-size:18px;flex:none}
-      .l03-method[open]>summary::before{content:'▾'}
-      .l03-method>summary:focus-visible{outline:2px solid var(--cut);outline-offset:-3px}
-      .l03-method>summary strong{font-size:1.03em;color:var(--ink)}
-      .l03-method>summary span{color:var(--muted);font-size:.87em;margin-left:auto;text-align:right}
-      .l03-method[open]>summary{background:var(--surface-2)}
-      .l03-method-body{padding:14px}
-      .l03-method-body>p{margin:0 0 14px}
-      .l03-method-body>p:last-child{margin:14px 0 0}
-      .k-sheet ol.l03-stages{padding:0;margin:0;list-style:none;display:grid;grid-template-columns:repeat(var(--steps),minmax(0,1fr));gap:8px}
-      .k-sheet .l03-stages li{padding:0;margin:0;display:flex;flex-direction:column;min-width:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
-      .l03-panel{background-color:#f4f6ee;background-image:var(--strip);background-size:calc(var(--steps)*100%) 100%;background-position:var(--pos) center;aspect-ratio:124/118}
-      .l03-stage-caption{padding:9px;display:flex;flex-flow:column;gap:5px;flex:1;font-size:.9em;line-height:1.45}
-      .l03-stage-caption h5{margin:0;font:650 1.03em/1.35 var(--font-body);color:var(--ink)}
-      .l03-step-no{color:var(--cut);font-family:var(--font-mono);margin-right:.3em}
-      .l03-stage-caption h5 .l03-step-no{font-weight:600}
-      .k-sheet .l03-stage-caption p{font-size:inherit;line-height:inherit;margin:0}
-      .k-sheet .l03-stage-caption .l03-keep{border-top:1px solid var(--line);margin-top:auto;padding-top:6px}
-      .l03-keep b{color:var(--cut)}
-      .l03-legend{color:var(--muted);font-size:.9em;line-height:1.6}
-      .l03-legend span{display:inline-block;margin-right:9px}
-      .l03-legend i{display:inline-grid;place-items:center;min-width:1.2em;border-radius:3px;background:#f4f6ee;font:700 1.15em/1.2 system-ui}
-      .l03-symbol-target,.l03-symbol-keep{color:#176357}.l03-symbol-debris{color:#a54e24}.l03-symbol-other{color:#854a82}
-      @container (max-width:760px){.k-sheet .l03-stages[data-count="4"]{grid-template-columns:repeat(2,minmax(0,1fr))}}
-      @container (max-width:530px){
-        .l03-method>summary{display:grid;grid-template-columns:16px 1fr;gap:3px 6px;padding:10px 12px}
-        .l03-method>summary::before{grid-row:span 2}.l03-method>summary span{grid-column:2;text-align:left;margin:0}
-        .l03-method-body{padding:11px}
-        .k-sheet ol.l03-stages,.k-sheet ol.l03-stages[data-count]{grid-template-columns:1fr}
-        .k-sheet .l03-stages li{display:grid;grid-template-columns:clamp(75px,28%,116px) minmax(0,1fr);align-items:start}
-        .l03-panel{margin:7px 0 0 4px;border-radius:4px}.l03-stage-caption{padding:8px 9px}
+      .l03-reader{margin:20px 0 26px}
+      .l03-reader label{display:block;font-size:.9em;font-weight:650;margin-bottom:5px}
+      .l03-reader select{display:block;width:100%;min-height:46px;padding:8px 12px;font:600 1em/1.3 var(--font-body,system-ui);color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:7px}
+      .l03-reader select:focus-visible,.l03-track button:focus-visible{outline:2px solid var(--cut);outline-offset:2px}
+      .l03-reader h4{font-family:var(--font-display,Georgia);font-size:1.22em;font-weight:600;line-height:1.25;margin:20px 0 6px}
+      .l03-reader .l03-caution{border-left:2px solid var(--line);padding-left:12px;color:var(--muted);margin:14px 0}
+      .l03-reader .kf-ph{margin:10px 0}
+      #f-l03-fractions{border:1px solid var(--line);border-radius:12px;box-shadow:none;background:var(--surface);color:var(--ink);opacity:1}
+      #f-l03-fractions .kf-ctl{display:block;margin:0;padding:15px 18px 12px}
+      .l03-method-name{color:var(--muted);font:600 14px/1.35 var(--font-body,system-ui);margin-bottom:4px}
+      .l03-stage-name{font:600 clamp(20px,2vw,26px)/1.18 var(--font-display,Georgia)}
+      #f-l03-fractions .kf-st{border:0;border-block:1px solid var(--line);border-radius:0;background:#f0f3ef;width:100%;max-width:100%;margin:0;overflow:hidden}
+      #f-l03-fractions .kf-st>svg{display:block;width:100%;height:auto;max-height:clamp(230px,34vh,345px);overflow:hidden}
+      #f-l03-fractions .kf-info{display:none}
+      #f-l03-fractions .kf-zoom{background:#f7faf8;color:#294c46;border:1px solid #c5d2cc}
+      .l03-compare{font:600 .94em/1.4 var(--font-body,system-ui);background:none;border:0;padding:6px 0;text-align:left;color:var(--cut);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+      .l03-compare:focus-visible{outline:2px solid var(--cut);outline-offset:2px}
+      .l03-reader label{scroll-margin-top:85px}
+      .l03-thumb{width:38px;height:48px;flex:none;border-radius:3px;background:#f0f3ef}
+      .l03-track{display:flex;gap:4px;padding:10px 14px 0}
+      .l03-track button{display:flex;align-items:center;gap:7px;min-width:0;flex:1;border:0;border-top:3px solid var(--line);padding:7px 5px;background:transparent;text-align:left;font:500 13px/1.2 var(--font-body,system-ui);color:var(--muted);cursor:pointer;overflow-wrap:anywhere}
+      .l03-track button[aria-current=step]{border-color:var(--cut);color:var(--ink);font-weight:650}
+      .l03-track button:hover{background:var(--surface-2)}
+      .l03-track .l03-num{margin-right:4px;font:600 12px var(--font-mono,monospace);color:var(--muted)}
+      .l03-readout{padding:9px 18px 13px;font-size:15px;line-height:1.45}
+      .l03-readout p{margin:0}
+      .l03-readout .l03-keep{margin:8px 0 0;padding:8px 10px;border-left:3px solid var(--cut);background:var(--surface-2);color:var(--ink)}
+      .l03-readout .l03-keep strong{margin-right:.35em}
+      #f-l03-fractions figcaption{margin:0;border-top:1px solid var(--line);padding:7px 18px;color:var(--muted);font-size:12px}
+      #f-l03-fractions.full .kf-st{min-width:0;max-width:1000px;margin-inline:auto}
+      #f-l03-fractions.full .kf-st>svg{max-height:60vh}
+      #f-l03-fractions.full .l03-readout,#f-l03-fractions.full .l03-track{max-width:1000px;margin-inline:auto}
+      @media(max-width:600px){
+        .l03-track{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+        .l03-track button{min-height:46px;padding:4px;gap:5px}
+        .l03-thumb{width:30px;height:40px}
+        #f-l03-fractions .kf-ctl,.l03-readout{padding-inline:12px}
+        .l03-track{padding-inline:10px}
       }
-      @media print{.l03-method{break-inside:avoid}.l03-method::details-content{display:block;content-visibility:visible}.l03-panel{print-color-adjust:exact}}
     </style>
-    <p class="l03-legend">Обозначения на схемах <span><i class="l03-symbol-target" aria-hidden="true">∿</i> целевая ДНК</span> <span><i class="l03-symbol-debris" aria-hidden="true">▲</i> примеси</span> <span><i class="l03-symbol-other" aria-hidden="true">∿</i> посторонняя ДНК</span> <span><i class="l03-symbol-keep" aria-hidden="true">✓</i> оставляемая фракция</span></p>
-    <div class="l03-atlas">${fractionMethods.map(({ title, aim, image, example, steps, check }, methodIndex) => `
-      <details class="l03-method"${methodIndex === 0 ? ' open' : ''}>
-        <summary><strong>${title}</strong><span>${aim}</span></summary>
-        <div class="l03-method-body"><p><b>Когда выбрать.</b> ${example}</p>
-          <ol class="l03-stages" role="list" data-count="${steps.length}" style="--steps:${steps.length};--strip:url('${image}')">
-            ${steps.map(([action, where, keep], i) => `<li>
-              <div class="l03-panel" aria-hidden="true" style="--pos:${100 * i / (steps.length - 1)}%"></div>
-              <div class="l03-stage-caption"><h5><span class="l03-step-no">${i+1}.</span>${action}</h5>
-                <p>${where}</p><p class="l03-keep"><b>Оставляем</b><br>${keep}</p>
-              </div></li>`).join('')}
-          </ol><p><b>При выборе учти.</b> ${check}</p>
-        </div>
-      </details>`).join('')}</div>`;
+    <div class="l03-reader">
+      <label for="l03-method">Метод выделения или очистки</label><select id="l03-method">${choices}</select>
+      <h4 data-l03-aim></h4><p data-l03-example></p>
+      ${K.fig({id:'l03-fractions',n:'7.1',t:'Путь ДНК по фракциям',vb:[376,193],
+        ctl:'<div class="l03-method-name"></div><div class="l03-stage-name"></div>',
+        svg:'<svg width="376" height="193" viewBox="0 0 376 193" overflow="hidden"><image class="l03-plate" y="0" height="193"/></svg>',
+        after:'<div class="l03-track" role="group" aria-label="Этапы метода"></div><div class="l03-readout" aria-live="polite" aria-atomic="true"><p data-l03-where></p><p class="l03-keep"><strong>Сохраняем</strong> <span data-l03-keep></span></p></div>'})}
+      <h4>Почему метод работает</h4><p data-l03-principle></p>
+      <p class="l03-caution" data-l03-check></p>
+      <button class="l03-compare" type="button"></button>
+    </div>`;
+  }
+
+  function initFractionAtlas(page) {
+    const reader = page.querySelector('.l03-reader');
+    if (!reader) return;
+    const selector = reader.querySelector('#l03-method');
+    const figure = reader.querySelector('#f-l03-fractions');
+    const track = figure.querySelector('.l03-track');
+    const compare = reader.querySelector('.l03-compare');
+    const drawing = figure.querySelector('.l03-plate');
+    function showStep(index) {
+      const method = fractionMethods[selector.selectedIndex];
+      const [action, where, keep] = method.steps[index];
+      drawing.setAttribute('x', String(-376 * index));
+      figure.querySelector('.kf-st > svg').setAttribute('aria-label', `${method.title}. ${action}. ${where}`);
+      figure.querySelector('.l03-stage-name').textContent = `${index + 1}. ${action}`;
+      figure.querySelector('[data-l03-where]').textContent = where;
+      figure.querySelector('[data-l03-keep]').textContent = keep;
+      Array.from(track.children).forEach((button, i) => {
+        if (i === index) button.setAttribute('aria-current', 'step');
+        else button.removeAttribute('aria-current');
+      });
+    }
+    function showMethod() {
+      const method = fractionMethods[selector.selectedIndex];
+      reader.querySelector('[data-l03-aim]').textContent = method.aim;
+      reader.querySelector('[data-l03-example]').textContent = method.example;
+      reader.querySelector('[data-l03-principle]').textContent = method.principle;
+      reader.querySelector('[data-l03-check]').textContent = method.check;
+      compare.textContent = method.compare[1];
+      figure.querySelector('.l03-method-name').textContent = method.title;
+      drawing.setAttribute('width', String(376 * method.steps.length));
+      drawing.setAttribute('href', method.image);
+      track.innerHTML = method.steps.map(([name], i) => `<button type="button" data-step="${i}" aria-label="Шаг ${i + 1}. ${name}"><svg class="l03-thumb" viewBox="56 10 132 173" aria-hidden="true"><use href="${method.image}#drawing-${i + 1}"/></svg><span><span class="l03-num">${i + 1}</span>${name}</span></button>`).join('');
+      showStep(0);
+    }
+    track.addEventListener('click', event => {
+      const button = event.target.closest('[data-step]');
+      if (button) showStep(Number(button.dataset.step));
+    });
+    compare.addEventListener('click', () => {
+      selector.value = fractionMethods[selector.selectedIndex].compare[0];
+      showMethod();
+      reader.querySelector('label').scrollIntoView({block: 'start'});
+      selector.focus({preventScroll: true});
+    });
+    selector.addEventListener('change', showMethod);
+    showMethod();
   }
 
   function link(key) {
@@ -232,6 +302,7 @@
   }
   const by = '<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>';
   VZ.doc(id, {
+    init: initFractionAtlas,
     kick: 'Молекулярная биология · 12 ноября 2026', title: course.title,
     lead: 'В пробирке есть ДНК. Чья она, достаточно ли длинны молекулы и сработает ли с ней следующая реакция?',
     intro: `<p>На занятии этот вопрос возникает трижды. В опыте с кровью видна ДНК, но нужный ядерный участок не удаётся обнаружить. В практикуме с фруктами после добавления спирта появляются белёсые нити. В конце занятия одна плазмида даёт сразу три полосы. Чтобы объяснить каждое наблюдение, проследим путь молекулы от исходного образца до измерения.</p>`,
@@ -299,9 +370,9 @@
     ${cite('msu', 'dnaGel')}`);
 
   section(7, '1:01:18–1:27:51', () => `
-    <h3 id="l03-7-choice">Как выбрать метод по исходной пробе</h3>
-    <p>Сначала назови материал, нужную молекулу и то, что ей мешает. «ДНК из листа для короткой ПЦР» и «длинная ядерная ДНК из того же листа» — две разные задачи. Выбери ниже схему по своей задаче и проследи, в какую фракцию переходит молекула.</p>
-    <h3 id="l03-7-schemes">Путь ДНК по фракциям</h3>
+    <h3 id="l03-7-choice" data-hl="l03-fractions">Как выбрать метод по исходной пробе</h3>
+    <p>Сначала определи, из чего нужно выделить ДНК, какие молекулы сохранить и что мешает дальнейшему анализу. «ДНК из листа для короткой ПЦР» и «длинная ядерная ДНК из того же листа» — две разные задачи. Выбери ниже схему по своей задаче и проследи, в какую фракцию переходит молекула.</p>
+    <h3 id="l03-7-schemes" data-hl="l03-fractions">Путь ДНК по фракциям</h3>
     ${fractionAtlas()}
     <h3>Восемь ситуаций для сравнения методов</h3>
     ${K.tbl(['Что на входе и что нужно получить', 'Обоснованный выбор', 'Что покажет, что выбор сработал'], [

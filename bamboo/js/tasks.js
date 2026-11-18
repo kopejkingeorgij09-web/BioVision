@@ -185,7 +185,7 @@ function shadBox(ws, mobile = false){
   const h = x => (Math.round(x * 2) / 2).toString().replace('.', ',');
   const sub = !all.length ? 'на этой неделе вебов нет' : left ? `осталось ≈${h(left)} ч${open ? ` · без дня ${open}` : ' · всё расставлено'}` : 'неделя закрыта';
   return `<section class="pl-shbox">
-    ${mobile ? `<button class="pool-toggle" data-act="poolToggle" aria-expanded="${poolOpen}">ШАД на неделю <span>${all.filter(x=>x.kind==='web').length} веб. · ${all.filter(x=>x.kind==='hw').length} ДЗ</span> ${icon(poolOpen?'up':'down')}</button>` : `<h2>ШАД на неделю <span>${sub}</span></h2>`}
+    ${mobile ? `<button class="pool-toggle" data-act="poolToggle" aria-expanded="${poolOpen}">ШАД на неделю <span>${all.filter(x=>x.kind==='web').length} веб. · ${all.filter(x=>x.kind==='hw').length} ДЗ</span> ${icon('right')}</button>` : `<h2>ШАД на неделю <span>${sub}</span></h2>`}
     <div class="pl-list" data-d="" data-shbox="1" ${mobile && !poolOpen ? 'hidden' : ''}>
       ${list.map(shadRow).join('')}
       ${list.length ? '' : `<div class="pl-shempty">${all.length ? 'Всё стоит по дням. Перетащи карточку сюда, чтобы снять день.' : 'Свободная неделя.'}</div>`}

@@ -1455,3 +1455,6 @@ kbd{font:600 12px var(--f-mono);background:var(--paper-2);border:1px solid var(-
 .shad-row .row small{font-size:13px;color:var(--ink-2)}
 .agenda-next{display:grid;gap:4px;border-left:3px solid var(--accent);padding:6px 12px;margin:12px 0}
 .sync.pending i{background:var(--warn)}
+.shad-free.btn{max-width:100%;white-space:normal;text-align:start}
+.pool-toggle .ic{transform:rotate(90deg)}
+.pool-toggle[aria-expanded="true"] .ic{transform:rotate(-90deg)}

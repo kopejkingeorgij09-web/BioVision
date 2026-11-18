@@ -13,7 +13,7 @@ function plan(bs){
  const width=Math.max(340,Math.max(...xs)-Math.min(...xs)+170),height=Math.max(200,Math.max(...ys)-Math.min(...ys)+115);
  const view=[(Math.max(...xs)+Math.min(...xs)-width)/2,(Math.max(...ys)+Math.min(...ys)-height)/2-12,width,height].join(' ');
  const objects=pieces.map(({b,p})=>'<image x="'+(p.x-29)+'" y="'+(p.y-44)+'" width="58" height="59" href="'+structureArt(b)+'"><title>'+esc(structureName(b,buildings))+' · '+b.level+'</title></image>').join('');
- return '<svg class="fort-plan" viewBox="'+view+'" role="img" aria-label="Разведка острова"><image width="1000" height="960" preserveAspectRatio="none" href="art/settlement/map-1100.webp"/>'+objects+'</svg>';
+ return '<svg class="fort-plan" viewBox="'+view+'" role="img" aria-label="Разведка острова"><image width="1000" height="960" preserveAspectRatio="none" href="art/settlement/plateau.svg"/>'+objects+'</svg>';
 }
 export function warRoom(s,{mode,stage,chapter,target,opponents,team,due,now}){
  const limit=unlockedStage(s),personal=mode==='pvp';

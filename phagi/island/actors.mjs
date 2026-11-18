@@ -1,9 +1,10 @@
+import {cachedIslandSurface} from './scene.mjs';
 import {prepareRig,poseBones,skinVertices,faceMatrix} from './skeleton.mjs';
 
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 const assets=new Map(), actors=new WeakMap(), visible=new WeakSet();
 const observer=new IntersectionObserver(entries=>{
- for(const e of entries){if(e.isIntersecting){visible.add(e.target);hydrate(e.target);}else visible.delete(e.target);}
+ for(const e of entries){if(e.isIntersecting){visible.add(e.target);hydrate(e.target);sharpen(e.target);}else visible.delete(e.target);}
 });
 const ns='http://www.w3.org/2000/svg';
 const rootUrl=new URL('./art/dragons/',import.meta.url);
@@ -14,7 +15,9 @@ export const dragonAsset=path=>new URL(path+'?v=elemental-1',rootUrl).href;
 const paintCache=new Map();
 function discardUnusedPaint(){
  if(paintCache.size<=18)return;
- const retained=new Set([...document.querySelectorAll('.rigged defs image')].map(e=>e.getAttribute('href')));
+ const roots=[document],island=cachedIslandSurface();
+ if(island&&!island.isConnected)roots.push(island);
+ const retained=new Set(roots.flatMap(root=>[...root.querySelectorAll('.rigged defs image')].map(e=>e.getAttribute('href'))));
  for(const [key,item] of paintCache){if(paintCache.size<=14)break;if(item.url&&!retained.has(item.url)){URL.revokeObjectURL(item.url);paintCache.delete(key);}}
 }
 async function screenPaint(id,rig,pixels){
@@ -23,9 +26,13 @@ async function screenPaint(id,rig,pixels){
  if(!paintCache.has(key)){
   discardUnusedPaint();const item={url:null};
   const promise=(async()=>{
-    const source=new Image();source.src=dragonAsset(id+'.svg');await source.decode();
-    const buffer=document.createElement('canvas');buffer.width=pixels;buffer.height=Math.ceil(pixels*h/w);
-    buffer.getContext('2d').drawImage(source,0,0,buffer.width,buffer.height);
+    const response=await fetch(dragonAsset(id+'.svg'),{cache:'force-cache'});
+    if(!response.ok)throw Error('Не удалось загрузить рисунок дракона');
+    const height=Math.ceil(pixels*h/w),drawing=(await response.text()).replace('<svg ', '<svg width="'+pixels+'" height="'+height+'" ');
+    const source=new Image(),vector=URL.createObjectURL(new Blob([drawing],{type:'image/svg+xml'}));
+    const buffer=document.createElement('canvas');buffer.width=pixels;buffer.height=height;
+    try{source.src=vector;await source.decode();buffer.getContext('2d').drawImage(source,0,0);}
+    finally{URL.revokeObjectURL(vector);}
     const blob=await new Promise(resolve=>buffer.toBlob(resolve,'image/png'));
     if(!blob)throw Error('Не удалось отрисовать векторную кожу');
     item.url=URL.createObjectURL(blob);return item.url;
@@ -80,11 +87,27 @@ function actorSvg(id,rig,book,paint){
  return {svg,groups,overlay};
 }
 export const actorMarkup=(id,label='')=>'<span class="actor" data-actor="'+id+'" role="img" aria-label="'+label+'"><img class="rest-pose" loading="lazy" alt="" draggable="false" src="'+dragonAsset(id+'.svg')+'"></span>';
+// Request a denser skin only when its physical on-screen dimensions grow.
+function skinWidth(el,rig){
+ const {width,height}=el.getBoundingClientRect(),[w,h]=rig.size,pad=Math.round(w*.12);
+ const displayed=Math.min(width*w/(w+2*pad),height*w/(h+2*pad));
+ return Math.max(192,Math.ceil(displayed*(window.devicePixelRatio||1)*1.25/128)*128);
+}
+function sharpen(el){
+ const actor=actors.get(el);if(!actor||!visible.has(el))return;
+ const pixels=skinWidth(el,actor.rig);
+ if(pixels<=actor.pixels||pixels<=actor.requested)return;
+ actor.requested=pixels;
+ screenPaint(el.dataset.actor,actor.rig,pixels).then(url=>{
+  if(pixels>actor.pixels){actor.image.setAttribute('href',url);actor.pixels=pixels;}
+ }).catch(()=>{}).finally(()=>{if(actor.requested===pixels)actor.requested=0;});
+}
+const sizes=new ResizeObserver(entries=>{for(const {target} of entries)sharpen(target);});
 const observed=new Set();
 export function mountActors(root){
  const next=new Set(root.querySelectorAll('[data-actor]'));
- for(const el of observed)if(!next.has(el)){observer.unobserve(el);visible.delete(el);observed.delete(el);}
- for(const el of next)if(!observed.has(el)){observed.add(el);observer.observe(el);}
+ for(const el of observed)if(!next.has(el)){observer.unobserve(el);sizes.unobserve(el);visible.delete(el);observed.delete(el);}
+ for(const el of next)if(!observed.has(el)){observed.add(el);observer.observe(el);sizes.observe(el);}
 }
 const preparing=new WeakSet();
 function hydrate(el){
@@ -93,13 +116,13 @@ function hydrate(el){
   asset(id).then(async rig=>{
    if(!el.isConnected)return;
    const book=!!el.closest('.plate');
-   const paint=await screenPaint(id,rig,book?Math.max(550,Math.min(1650,Math.ceil(el.clientWidth*devicePixelRatio/128)*128)):Math.max(256,Math.min(768,Math.ceil(el.clientWidth*devicePixelRatio*2/128)*128)));
+   const pixels=skinWidth(el,rig),paint=await screenPaint(id,rig,pixels);
    if(!el.isConnected)return;
    const {svg,groups,overlay}=actorSvg(id,rig,book,paint);el.replaceChildren(svg);
    const owner=el.closest('[data-dragon],[data-unit]');
    const seed=owner?.dataset.dragon||owner?.dataset.unit||id;
-   actors.set(el,{rig,groups,overlay,pose:'idle',previous:null,changed:0,last:-Infinity,
-    phase:(rig.width*13+Array.from(seed).reduce((a,c)=>a+c.charCodeAt(0),0))%97/17});
+   actors.set(el,{rig,groups,overlay,image:svg.querySelector('defs image'),pixels,requested:0,pose:'idle',previous:null,changed:0,last:-Infinity,
+    phase:(rig.width*13+Array.from(seed).reduce((a,c)=>a+c.charCodeAt(0),0))%97/17});sharpen(el);
   }).catch(()=>{/* The vector rest pose stays visible during a network interruption. */}).finally(()=>preparing.delete(el));
 }
 function drawBones(overlay,rig,points){

@@ -15,7 +15,7 @@ header .brand{gap:8px;color:#ffebb8;font:600 21px Georgia,serif;letter-spacing:-
 .res .ui-icon{width:19px;height:19px}.res-coin svg{color:#f4c959;fill:#d4932780}.res-food svg{color:#ffa582;fill:#b9514880}.res-gem svg{color:#8de9ea;fill:#309caa80}
 .dock button .ui-icon{width:22px;height:22px;flex:none}.dock button span{font:650 12px system-ui}.dock button.active{background:#4e6358;outline-color:#e8c681}
 .layout:has(>.map){position:relative;display:block;background:#396c77}
-.layout>.map{width:100%;max-height:none;height:calc(100svh - 64px);min-height:380px;aspect-ratio:auto;border:0;background:#84babe url(art/settlement/sunset.webp) center 42%/cover no-repeat;contain:layout paint}
+.layout>.map{width:100%;max-height:none;height:calc(100svh - 64px);min-height:380px;aspect-ratio:auto;border:0;background:#84babe url(art/settlement/sunset.webp?v=master-1) center 42%/cover no-repeat;contain:layout paint}
 .world-window{position:absolute;inset:0;overflow:hidden;touch-action:none;outline-offset:-4px;user-select:none;-webkit-user-select:none;cursor:grab}
 .world-window:active{cursor:grabbing}.world-window button,.terrain [data-cell]{cursor:pointer}
 .map .map-world{position:absolute;width:100%;left:0;top:0;transform:none;aspect-ratio:1000/960;isolation:isolate}
@@ -96,9 +96,8 @@ header .brand{gap:8px;color:#ffebb8;font:600 21px Georgia,serif;letter-spacing:-
 .plate{background:radial-gradient(ellipse at 50% 58%,#fff8e2 4%,#f0ead7 54%,color-mix(in srgb,var(--element-b,#8da99a) 34%,#e7e2cc) 80%,color-mix(in srgb,var(--element-a,#8da99a) 52%,#e0ddca))}
 .panel .field-note{font-family:Georgia,serif;line-height:1.48;color:#435650}
 
-.map .map-world{width:1000px;height:960px;transform-origin:0 0;will-change:transform}
+.map .map-world{transform-origin:0 0;will-change:transform}
 .map.editing .resident,.map.editing .more-residents{visibility:hidden}
-.map-world .ground-art{will-change:auto}
 
 .shop-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:start}
 .shop-grid section>h2,.chapter-head h2{font:700 22px Georgia,serif;color:var(--ink);margin:14px 0 10px}

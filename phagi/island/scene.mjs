@@ -13,7 +13,7 @@ function syncWorld(world,fresh){
  for(const next of [...fresh.children]){
   const id=key(next),old=existing.get(id);existing.delete(id);
   if(!old){world.append(next);continue;}
-  if(next.localName==='picture'||next.localName==='canvas')continue;
+  if(next.classList.contains('ground-art')||next.classList.contains('fx'))continue;
   if(next.classList.contains('terrain')){
    const markup=next.innerHTML;if(terrainMarkup.get(old)!==markup){old.replaceChildren(...next.childNodes);terrainMarkup.set(old,markup);}
    continue;
@@ -34,6 +34,7 @@ function syncWorld(world,fresh){
  for(const el of existing.values())el.remove();
 }
 let cachedIsland,lastMapKey;
+export const cachedIslandSurface=()=>cachedIsland;
 function patchMap(old,next){
  attrs(old,next);syncWorld(old.querySelector('.map-world'),next.querySelector('.map-world'));
  const hero=old.querySelector('.hero'),updated=next.querySelector('.hero');

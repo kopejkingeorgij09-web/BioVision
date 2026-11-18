@@ -16,6 +16,8 @@ async function run(engine,phone){
    const client=await page.context().newCDPSession(page);await client.send('Performance.enable');
    metrics=async()=>(await client.send('Performance.getMetrics')).metrics.find(m=>m.name==='LayoutCount').value;
   }
+  let idleLayouts=null;
+  if(metrics){const startIdle=await metrics();await page.waitForTimeout(3400);idleLayouts=(await metrics())-startIdle;}
   const layouts=metrics?await metrics():0;
   const frames=page.evaluate(()=>new Promise(resolve=>{
    const times=[];const until=performance.now()+3400;
@@ -37,8 +39,8 @@ async function run(engine,phone){
   await page.locator('[data-do="confirmPlot"]').click();await page.locator('.map:not(.editing)').waitFor();
   const after=await page.locator('.map-world').boundingBox();
   const identity=await page.evaluate(()=>({world:savedWorld===document.querySelector('.map-world'),ground:savedTexture===document.querySelector('.ground-art'),resident:savedResident===document.querySelector('.resident .actor')}));
-  console.log(JSON.stringify({engine:phone?'mobile WebKit':'desktop Chrome',pan:perf,layoutCount,pointerSamples:steps,identity,positionDrift:Math.hypot(before.x-after.x,before.y-after.y)}));
-  if(!baseline){assert.ok(identity.world&&identity.ground&&identity.resident);assert.ok(Math.hypot(before.x-after.x,before.y-after.y)<1);if(metrics)assert.ok(layoutCount<20);
+  console.log(JSON.stringify({engine:phone?'mobile WebKit':'desktop Chrome',pan:perf,layoutCount,idleLayouts,pointerSamples:steps,identity,positionDrift:Math.hypot(before.x-after.x,before.y-after.y)}));
+  if(!baseline){assert.ok(identity.world&&identity.ground&&identity.resident);assert.ok(Math.hypot(before.x-after.x,before.y-after.y)<1);if(metrics)assert.ok(layoutCount-idleLayouts<20,'camera adds unnecessary layout passes over the moving dragons');
    await page.locator('.dock [data-do="go/book"]').click();await page.selectOption('#f1','2');
    await page.locator('.dock [data-do="go/island"]').click();await page.locator('.map-world .resident').first().waitFor();
    assert.ok(await page.evaluate(()=>window.savedWorld===document.querySelector('.map-world')));
@@ -47,6 +49,23 @@ async function run(engine,phone){
    assert.ok(Math.hypot(restored.x-before.x,restored.y-before.y)<1,'camera position after a menu change and reload');
    const cell=await page.evaluate(()=>JSON.parse(sessionStorage.getItem('ph_dragon_art_tour_v1')).buildings.find(b=>b.id==='home'));
    assert.deepEqual([cell.col,cell.row],[9,9]);
+   await page.locator('[data-camera=fit]').click();await page.waitForTimeout(160);
+   const fit=await page.locator('.map-world').boundingBox();
+   await page.evaluate(()=>{
+    const world=document.querySelector('.map-world');window.zoomWidths=new Set();
+    window.zoomObserver=new MutationObserver(()=>window.zoomWidths.add(world.style.width));
+    window.zoomObserver.observe(world,{attributes:true,attributeFilter:['style']});
+   });
+   await page.mouse.move(x,y);
+   await page.evaluate(async()=>{const surface=document.querySelector('.world-window'),r=surface.getBoundingClientRect();
+    for(let i=0;i<12;i++){surface.dispatchEvent(new WheelEvent('wheel',{deltaY:-22,clientX:r.left+r.width/2,clientY:r.top+r.height/2,bubbles:true,cancelable:true}));await new Promise(done=>setTimeout(done,15));}
+   });
+   await page.waitForTimeout(750);
+   const magnified=await page.locator('.map-world').boundingBox();
+   assert.ok(magnified.width>fit.width*1.15);
+   const widths=await page.evaluate(()=>{window.zoomObserver.disconnect();return window.zoomWidths.size;});
+   assert.ok(widths<=4,'zoom allocated '+widths+' different scene sizes during one wheel gesture');
+
   }
  }finally{await browser.close();}
 }

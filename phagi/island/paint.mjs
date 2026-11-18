@@ -4,7 +4,7 @@ import {byId,colors} from './catalog.mjs';
 import {replay} from './battle.mjs';
 import {boardSize,position,shorePositions,legacyRaidSize} from './world.mjs';
 import {actorMarkup,animateActor,dragonAsset} from './actors.mjs';
-import {cameraControls,cameraMoving as cameraIsMoving} from './camera.mjs';
+import {cameraControls} from './camera.mjs';
 import {buildings,capacity} from './game.mjs';
 import {project,screenStyle,boardSvg,rangeRadii} from './board.mjs';
 import {defenses,defenseStats} from './defenses.mjs';
@@ -61,14 +61,14 @@ export function islandMap(s,chosen,edit=null){
  const objects=s.buildings.map(b=>piece(b,chosen,false)).join('');
  const dragons=residents(s);
  const eggs=s.eggs.map(e=>{const b=s.buildings.find(b=>b.id===e.building),p=position(b);return '<img class="nest-egg" data-egg="'+esc(e.id)+'" alt="Яйцо" style="'+screenStyle(p.x,p.y)+'" src="art/egg.webp">';}).join('');
- const ghost=preview?'<img class="plot-preview" alt="Предпросмотр постройки" src="art/settlement/'+preview.kind+'.webp" style="'+screenStyle(position(preview).x,position(preview).y)+'">':'';
+ const ghost=preview?'<img class="plot-preview" alt="Предпросмотр постройки" src="'+structureArt(preview)+'" style="'+screenStyle(position(preview).x,position(preview).y)+'">':'';
  return '<section class="map settlement'+(edit?' editing':'')+'" aria-label="Карта острова"><div class="world-window" tabindex="0" aria-label="Карта. Стрелки перемещают обзор, плюс и минус меняют масштаб"><div class="map-world">'+boardSvg(s,edit,ring)+objects+dragons+eggs+ghost+'</div></div><div class="hero"><h1 class="hero-title">Янтарный берег</h1><small class="map-info">'+(edit?'Расстановка':'Уровень острова '+islandLevel(s.xp)+' · '+s.xp+'/'+xpFor(islandLevel(s.xp)+1)+' опыта · 10 × 10 клеток')+'</small></div>'+cameraControls+'</section>';
 }
 export function battleView(r){
  const n=r.boardSize??legacyRaidSize;
  const objects=r.targets.map(b=>piece(b,'',true,n)).join('')+r.team.map(d=>battleAnimal(d.species,d.id,0,0,n)).join('');
  const landings=shorePositions(n).map(([x,y],i)=>'<button class="landing" data-shore="'+i+'" aria-label="Высадка '+(i+1)+'" style="'+screenStyle(x,y,n)+'">⚑ '+(i+1)+'</button>').join('');
- return '<section class="map battle" aria-label="Поле боя"><div class="world-window" tabindex="0" aria-label="Карта боя"><div class="map-world">'+boardSvg(null,null,null,n)+objects+landings+'<canvas class="fx" width="1000" height="960"></canvas></div></div><div class="hero"><small class="map-info">Набег · <b id="clock"></b></small><h1 class="hero-title">'+esc(r.name)+'</h1></div>'+cameraControls+'</section>';
+ return '<section class="map battle" aria-label="Поле боя"><div class="world-window" tabindex="0" aria-label="Карта боя"><div class="map-world">'+boardSvg(null,null,null,n)+objects+landings+'<svg class="fx" viewBox="0 0 1000 960" aria-hidden="true"></svg></div></div><div class="hero"><small class="map-info">Набег · <b id="clock"></b></small><h1 class="hero-title">'+esc(r.name)+'</h1></div>'+cameraControls+'</section>';
 }
 let previousBattle,currentBattle,battleKey,field,targetsById,lastEffectsTick;
 function fieldNodes(world){
@@ -99,14 +99,14 @@ export function paintBattle(r,now,selected){
    const interpolate=prior&&(!unit||prior.landed);
    const p=project(interpolate?prior.x+(o.x-prior.x)*fraction:o.x,interpolate?prior.y+(o.y-prior.y)*fraction:o.y,n);
    if(el.style.left!=='0px'){el.style.left='0px';el.style.top='0px';}
-   el.style.translate=p.x.toFixed(2)+'px '+p.y.toFixed(2)+'px';
+   el.style.translate='calc('+p.x.toFixed(2)+' * var(--map-unit)) calc('+p.y.toFixed(2)+' * var(--map-unit))';
   }
   el.classList.toggle('chosen',o.id===selected||o.id===sel?.target);
   el.classList.toggle('dead',o.hp<=0);el.classList.toggle('damaged',o.hp>0&&o.hp<o.max*.55);
   const hp=Math.max(0,100*o.hp/o.max)+'%';if(meter&&meter.style.width!==hp)meter.style.width=hp;
   if(actor){const hitting=sim.flashes.some(f=>f.from===o.id),hit=sim.flashes.some(f=>f.to===o.id);const prev=previousBattle?.units.find(u=>u.id===o.id)||previousBattle?.targets.find(t=>t.id===o.id);
     const moving=prev&&Math.hypot(o.x-prev.x,o.y-prev.y)>.01;
-    if(!cameraIsMoving())animateActor(actor,sim.end?'finish':hit?'hit':hitting?'attack':moving?'walk':'idle',performance.now());}
+    animateActor(actor,sim.end?'finish':hit?'hit':hitting?'attack':moving?'walk':'idle',performance.now());}
  }
  if(lastEffectsTick!==key){lastEffectsTick=key;drawEffects(sim,n,nodes,field.querySelector('.fx'));}
  const targetInfo=document.querySelector('#target-info'),mark=nodes.get(sel?.target);
@@ -117,26 +117,33 @@ export function paintBattle(r,now,selected){
 }
 export function idle(time){for(const el of document.querySelectorAll('.resident .actor,.plate .actor'))animateActor(el,el.dataset.pose||'idle',time);}
 
-function elementTrail(c,type,x,y,tx,ty,age){
- const dx=tx-x,dy=ty-y,l=Math.hypot(dx,dy)||1,nx=-dy/l,ny=dx/l;
- const p=(t,k=0)=>[x+t*dx+k*nx,y+t*dy+k*ny];
- if(type===0)c.quadraticCurveTo(...p(.55,-25),tx,ty);
- if(type===1||type===2){const bend=type===1?20:37;c.bezierCurveTo(...p(.32,-bend),...p(.65,bend),tx,ty);}
- if(type===3){for(const t of [.25,.5,.75,1]){const [a,b]=p(t);c.fillRect(a-4,b-3,9,7);}}
- if(type===4){c.lineTo(tx,ty);for(const t of [.2,.48,.72]){c.moveTo(...p(t));c.quadraticCurveTo(...p(t+.07,-15),...p(t+.12,-9));}}
- if(type===5){for(const [t,k] of [[.27,0],[.38,12],[.55,-10],[.64,8],[1,0]])c.lineTo(...p(t,k));}
- if(type===6){c.moveTo(...p(.55));c.lineTo(tx,ty);c.lineTo(...p(.88,5));c.moveTo(tx,ty);c.lineTo(...p(.88,-5));}
- if(type===7||type===8){for(const t of [.3,.55,.8,1]){const [a,b]=p(t);c.moveTo(a+7,b);c.arc(a,b,7,0,type===7?Math.PI*2:Math.PI*1.4);}}
- if(type===9){c.lineWidth=6;c.moveTo(x,y);c.lineTo(tx,ty);}
- c.stroke();c.beginPath();c.arc(tx,ty,5+age*2,0,Math.PI*2);c.fill();
+function elementTrail(f,from,to,age){
+ const dx=to.x-from.x,dy=to.y-from.y,length=Math.hypot(dx,dy)||1;
+ const point=(fraction,offset=0)=>[(from.x+fraction*dx-offset*dy/length).toFixed(2),(from.y+fraction*dy+offset*dx/length).toFixed(2)].join(' ');
+ const start='M'+point(0),tip=point(1),color=colors[f.type];let path='',marks='';
+ switch(f.type){
+  case 0:path=start+'Q'+point(.55,-25)+' '+tip;break;
+  case 1:case 2:{const bend=f.type===1?20:37;path=start+'C'+point(.32,-bend)+' '+point(.65,bend)+' '+tip;break;}
+  case 3:marks=[.25,.5,.75,1].map(t=>'<path d="M'+point(t)+'m-4-3h9v7h-9z"/>').join('');break;
+  case 4:path=start+'L'+tip+[.2,.48,.72].map(t=>'M'+point(t)+'Q'+point(t+.07,-15)+' '+point(t+.12,-9)).join('');break;
+  case 5:path=start+[[.27,0],[.38,12],[.55,-10],[.64,8],[1,0]].map(([t,k])=>'L'+point(t,k)).join('');break;
+  case 6:path='M'+point(.55)+'L'+tip+'L'+point(.88,5)+'M'+tip+'L'+point(.88,-5);break;
+  case 7:case 8:path=[.3,.55,.8,1].map(t=>'M'+point(t)+'m7 0a7 7 0 1 1-14 0'+(f.type===7?'a7 7 0 1 1 14 0':'a7 7 0 0 1 5-6.7')).join('');break;
+  default:path=start+'L'+tip;
+ }
+ return '<g fill="'+color+'">'+marks+(path?'<path d="'+path+'" stroke="'+color+'" fill="none" stroke-width="'+(f.skill?7:f.type===9?6:4)+'"/>':'')+'<circle cx="'+to.x+'" cy="'+to.y+'" r="'+(5+age*2)+'"/></g>';
 }
 
-function drawEffects(sim,n,nodes,cv){
- const c=cv.getContext('2d');c.clearRect(0,0,cv.width,cv.height);
- const px=o=>project(o.x,o.y,n).x,py=o=>project(o.x,o.y,n).y-14;
- for(const t of sim.targets.filter(t=>t.hp>0&&Object.hasOwn(defenses,t.kind))){const v=defenseStats(t.kind,t.level),[rx,ry]=rangeRadii(v.range,n);c.beginPath();c.ellipse(px(t),py(t)+14,rx,ry,0,0,7);c.strokeStyle=defenses[t.kind].color+'ac';c.lineWidth=2;c.setLineDash([7,10]);c.stroke();}c.setLineDash([]);
- for(const f of sim.flashes){const a=nodes.get(f.from),b=nodes.get(f.to);if(!a||!b)continue;
-   const x=px(a),y=py(a),tx=px(b),ty=py(b);c.strokeStyle=colors[f.type];c.fillStyle=colors[f.type];c.lineWidth=f.skill?7:4;c.beginPath();c.moveTo(x,y);
-   elementTrail(c,f.type,x,y,tx,ty,sim.tick-f.tick);
- }
+function drawEffects(sim,n,nodes,layer){
+ const ranges=sim.targets.filter(t=>t.hp>0&&Object.hasOwn(defenses,t.kind)).map(t=>{
+  const p=project(t.x,t.y,n),[rx,ry]=rangeRadii(defenseStats(t.kind,t.level).range,n);
+  return '<ellipse cx="'+p.x+'" cy="'+p.y+'" rx="'+rx+'" ry="'+ry+'" stroke="'+defenses[t.kind].color+'" stroke-opacity=".675" stroke-width="2" stroke-dasharray="7 10" fill="none"/>';
+ });
+ const hits=sim.flashes.map(f=>{
+  const a=nodes.get(f.from),b=nodes.get(f.to);if(!a||!b)return '';
+  const from=project(a.x,a.y,n),to=project(b.x,b.y,n);from.y-=14;to.y-=14;
+  return elementTrail(f,from,to,sim.tick-f.tick);
+ });
+ const markup=ranges.concat(hits).join('');
+ if(layer._markup!==markup){layer.innerHTML=markup;layer._markup=markup;}
 }

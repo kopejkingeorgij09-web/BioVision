@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<script src="cloud.js?v=10"></script>
+<script src="cloud.js?v=11"></script>
 <script src="lesson-files.js?v=2"></script>
 <meta charset="utf-8">
-<meta name="ph-ver" content="2026-11-16-shad-homework">
+<meta name="ph-ver" content="2026-11-18-dragon-archipelago">
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Фаги естественных наук</title>
@@ -2065,6 +2065,18 @@ const IC={sum:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
 IC.arena='<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20.5h7M10 17h4"/>';
 IC.marks=IC.journal;
 IC.bio='<path d="M9.5 3h5M10.5 3v6.2L5 18.4A1.8 1.8 0 0 0 6.6 21h10.8a1.8 1.8 0 0 0 1.6-2.6l-5.5-9.2V3"/><path d="M7.6 15h8.8"/>';
+let dragonWallet=null, dragonWalletRequest=0;
+function refreshDragonWallet(){
+  if(T()||!S.me||!window.PHCLOUD)return;
+  const n=++dragonWalletRequest;
+  PHCLOUD.dragonWallet().then(w=>{if(n===dragonWalletRequest){dragonWallet=w;render(true)}}).catch(()=>{});
+}
+function dragonRewardHTML(){
+  if(T())return '';
+  const day=today(),info=dragonWallet?.days?.[day];
+  const balance=dragonWallet?'Баланс: '+dragonWallet.balance+' ◈.':'';
+  return '<div class="actions"><button class="btn ghost sm" data-act="dragonisland">Остров драконов</button><small>'+balance+' '+(info?day+' · '+info.cards+' карточек · '+info.gems+' ◈':'Алмазы зарабатываются с 20 зачтённых карточек за день.')+'</small></div>';
+}
 function navHTML(){
   if(!['teacher','student'].includes(S.mode)||(S.mode==='student'&&!S.joined))return'';
   const dueCards=T()?0:myDecks().reduce((s,d)=>{const st=deckStats(d,(S.srs[meId()]||{})[d.id]);return s+st.due+st.newToday},0);
@@ -2073,7 +2085,7 @@ function navHTML(){
     :[['home','Главная'],['cal','Расписание'],['track','Трекер',tkLate(meId())],['tasks','Задания',myTasks().filter(t=>!inNb(t)&&['todo','late'].includes(status(t,meId()).k)).length],['cards','Карточки',dueCards],['nbs','Тетради',nbBadge()],['arena','Арена'],['bio','Биовиз'],['marks','Журнал',errPile(meId()).length+bvPile(meId()).length]];
   const cur=S.view==='task'?'tasks':['deck','review','stview'].includes(S.view)?'cards':S.view==='fix'?'marks':S.view==='arview'?'arena':S.view==='nb'?'nbs':S.view;
   const kb=/Mac|iPhone|iPad/.test(navigator.platform||'')?'⌥':'Alt+';
-  return items.map(([v,l,n],i)=>`<button data-act="go" data-v="${v}" aria-current="${cur===v}" aria-label="${l}${n?`, ${n}`:''}" title="${l}${i<9?` (${kb}${i+1})`:''}"><span class="ni" aria-hidden="true"><svg viewBox="0 0 24 24">${IC[v]}</svg></span><span class="nl">${l}</span>${n?`<span class="badge">${n}</span>`:''}</button>`).join('');
+  return items.map(([v,l,n],i)=>`<button data-act="go" data-v="${v}" aria-current="${cur===v}" aria-label="${l}${n?`, ${n}`:''}" title="${l}${i<9?` (${kb}${i+1})`:''}"><span class="ni" aria-hidden="true"><svg viewBox="0 0 24 24">${IC[v]}</svg></span><span class="nl">${l}</span>${n?`<span class="badge">${n}</span>`:''}</button>`).join('') + '<button data-act="dragonisland"><span class="ni" aria-hidden="true">♜</span><span class="nl">Остров драконов</span></button>';
 }
 
 function forestDue(t){
@@ -2411,7 +2423,7 @@ function taskHTML(){
 
 function cardsHTML(){
   const ds=myDecks();
-  const head=`<div class="page-h"><h1>Карточки</h1>${T()?`<button class="btn" data-act="newdeck">Новая колода</button>`:canAssign()?`<button class="btn" data-act="newdeck">Колода ученицам</button>`:''}</div>
+  const head=`<div class="page-h"><h1>Карточки</h1>${dragonRewardHTML()}${T()?`<button class="btn" data-act="newdeck">Новая колода</button>`:canAssign()?`<button class="btn" data-act="newdeck">Колода ученицам</button>`:''}</div>
   <p class="muted small" style="margin:-8px 0 16px">Интервальное повторение: карточка возвращается тогда, когда вы начинаете её забывать. Чем лучше помните, тем реже.</p>`;
   const sHero=T()?(S.people.length?`<div class="st-strip">${S.people.map(p=>`<button class="st-chip" data-act="stview" data-uid="${p.id}" title="Открыть чашку подробно"><span class="nm">${esc(p.label)}</span>${streakHTML(p.id,true)}<span class="go" aria-hidden="true">›</span></button>`).join('')}</div>`:''):streakHTML(meId(),false)+peekStrip();
   const given=canAssign()?S.decks.filter(ownAsg):[];
@@ -2469,7 +2481,7 @@ function reviewHTML(){
   const sti=streakInfo(S.streak[meId()]);
   const tm=!!d&&typeMode(d);
   const top=`<div class="rv-top"><button class="back" data-act="endreview">← Закончить</button><span class="ttl">${r.mix?(r.sub?'Всё '+SUBJ_PO[r.sub]:'Все колоды'):esc(d.title)}</span>${d?`<button class="rv-tm" data-act="typemode" data-id="${d.id}" aria-pressed="${tm}" title="${r.mix?'Писать ответ с клавиатуры в колоде «'+esc(d.title)+'»':'Писать ответ с клавиатуры'}">⌨<span class="l"> Ввод ответа</span></button>`:''}<span class="rv-dish" title="Чашка Петри">${dishSVG(meId(),{size:30,pulse:S.pulseAt&&Date.now()-S.pulseAt<700})}<small>${sti.done?'+'+spawnN(sti.todayN)+' кол.':sti.todayN+'/'+GOAL}</small></span><span class="cnt">${r.done} / ${total}</span></div><div class="rv-bar" aria-hidden="true"><i style="width:${total?r.done/total*100:0}%"></i></div>`;
-  if(!r.queue.length){const inf=streakInfo(S.streak[meId()]);return `<div class="rv" style="--c:${col}">${top}<section class="rv-card"><div class="rv-done${r.newDay?' party':''}">${r.newDay?`<div class="party-dish">${dishSVG(meId(),{size:150,ring:false})}<span class="plus">+1</span></div><div class="big">${inf.cur} ${plural(inf.cur,'день','дня','дней')}</div><p><b>Серия продлена!</b> В чашке выросла новая колония, а старые получили порцию питания. Каждые 5 карточек сверх ${GOAL} дают ещё одну колонию.</p>`:`<div class="big">${r.done}</div><p>${plural(r.done,'повторение','повторения','повторений')} на сегодня сделано. Карточки вернутся, когда начнут забываться.${inf.done?(inf.cur?` Серия: ${inf.cur} ${plural(inf.cur,'день','дня','дней')} подряд.`:''):` Для серии сегодня ${inf.todayN} из ${GOAL}: повторите ещё ${GOAL-inf.todayN}, можно через «Пройти всю колоду».`}</p>`}<button class="btn" data-act="endreview">${r.mix?'К колодам':'К колоде'}</button></div></section></div>`}
+  if(!r.queue.length){const inf=streakInfo(S.streak[meId()]);return `<div class="rv" style="--c:${col}">${top}<section class="rv-card"><div class="rv-done${r.newDay?' party':''}">${r.newDay?`<div class="party-dish">${dishSVG(meId(),{size:150,ring:false})}<span class="plus">+1</span></div><div class="big">${inf.cur} ${plural(inf.cur,'день','дня','дней')}</div><p><b>Серия продлена!</b> В чашке выросла новая колония, а старые получили порцию питания. Каждые 5 карточек сверх ${GOAL} дают ещё одну колонию.</p>`:`<div class="big">${r.done}</div><p>${plural(r.done,'повторение','повторения','повторений')} на сегодня сделано. Карточки вернутся, когда начнут забываться.${inf.done?(inf.cur?` Серия: ${inf.cur} ${plural(inf.cur,'день','дня','дней')} подряд.`:''):` Для серии сегодня ${inf.todayN} из ${GOAL}: повторите ещё ${GOAL-inf.todayN}, можно через «Пройти всю колоду».`}</p>`}${dragonRewardHTML()}<button class="btn" data-act="endreview">${r.mix?'К колодам':'К колоде'}</button></div></section></div>`}
   const c=(d.cards||[]).find(x=>x.i===ci);
   if(!c){r.queue.shift();return reviewHTML()}
   const st=((S.srs[meId()]||{})[d.id]||{s:{}}).s[c.i];
@@ -3254,8 +3266,8 @@ function subscribe(){
   const db=S.db;
   db.collection('people').onSnapshot(q=>{
     S.people=listOf(q).sort((a,b)=>(a.joinedAt||'').localeCompare(b.joinedAt||''));
-    if(T())S.people.forEach(p=>watch(p.id));
-    else{const m=S.people.find(p=>p.id===meId());S.joined=!!m;S.myLabel=m?m.label:''}
+    if(T()){if(new URLSearchParams(location.search).get('island')==='1'){location.replace('island/');return}S.people.forEach(p=>watch(p.id));}
+    else{const m=S.people.find(p=>p.id===meId());S.joined=!!m;S.myLabel=m?m.label:'';if(m&&new URLSearchParams(location.search).get('island')==='1'){location.replace('island/');return}if(m&&!dragonWallet)refreshDragonWallet()}
     syncArena();render(true)},err);
   db.collection('arena').onSnapshot(q=>{S.arena=Object.fromEntries(q.docs.map(d=>[d.id,d.data()]));S.arenaLoaded=true;
     if(!T())Object.entries(S.arena).forEach(([id,x])=>{if(id!==meId()&&!S.peekIn[id])S.streak[id]={days:x.days||{},ack:x.ack||null,muts:x.muts||[]}});
@@ -3340,7 +3352,7 @@ function flush(){
       chain=chain.then(()=>data?S.db.doc(path).set(data):S.db.doc(path).delete()).then(()=>{if(data)srsSaved.set(path,js);else srsSaved.delete(path)}).catch(e=>{fail(e)})})});
   if(streakDirty&&S.streak[uid]){const lim=addDays(today(),-400),days={};Object.entries(S.streak[uid].days||{}).forEach(([k,v])=>{if(k>=lim)days[k]=v});
     const rev=streakRev,ack=S.streak[uid].ack||null,muts=(S.streak[uid].muts||[]).slice(-60);
-    chain=chain.then(()=>S.db.doc(`srs/${uid}/meta/streak`).set({days,ack,muts,updatedAt:now()})).then(()=>{if(streakRev===rev)streakDirty=false;syncArena()}).catch(e=>{fail(e)})}
+    chain=chain.then(()=>S.db.doc(`srs/${uid}/meta/streak`).set({days,ack,muts,updatedAt:now()})).then(()=>{if(streakRev===rev)streakDirty=false;syncArena();refreshDragonWallet()}).catch(e=>{fail(e)})}
 }
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&(dirty.size||streakDirty))flush()});
 window.addEventListener('pagehide',()=>{if(dirty.size||streakDirty)flush()});
@@ -4655,6 +4667,7 @@ const actions={
   typemode:el=>{const d=S.decks.find(x=>x.id===el.dataset.id);if(!d)return;const on=!typeMode(d);setTypeMode(d,on);
     if(on)focusTyped()},
   rate:el=>rate(Number(el.dataset.g)),
+  dragonisland:async()=>{if(T()){location.assign("island/");return}flush();await chain;if(streakDirty){toast("Повторение ещё сохраняется. Проверьте связь и повторите переход.");return}location.assign("island/")},
   endreview:()=>{aiStop();flush();if(S.rev&&S.rev.mix){S.view='cards';window.scrollTo(0,0)}else{S.view='deck';S.deckId=S.rev?S.rev.deckId:S.deckId}S.rev=null}
 };
 async function saveSub(id,status){

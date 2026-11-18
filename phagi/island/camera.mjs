@@ -1,0 +1,72 @@
+const views=new Map();
+let active;
+const clamp=(n,lo,hi)=>Math.max(lo,Math.min(hi,n));
+
+export const cameraControls='<div class="camera-tools" aria-label="Масштаб карты"><button type="button" data-camera="out" aria-label="Отдалить">−</button><button type="button" data-camera="fit" title="Весь остров" aria-label="Показать весь остров"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6"/></svg></button><button type="button" data-camera="in" aria-label="Приблизить">+</button></div>';
+export function mountCamera(section,key,focus){
+ active?.disconnect();active=null;
+ if(!section)return;
+ const viewport=section.querySelector('.world-window'),world=section.querySelector('.map-world');
+ const v=views.get(key)||{x:focus.x,y:focus.y,zoom:section.classList.contains('battle')?1.25:innerWidth<900?2.18:2};
+ views.set(key,v);
+ let width,height,base,dragged=false,suppress=0,gesture;
+ const fingers=new Map();
+ function paint(){
+   const r=viewport.getBoundingClientRect();width=r.width;height=r.height;
+   if(!width||!height)return;
+   base=Math.min(width*.95,height/.96*.97);
+   const w=base*v.zoom,h=w*.96;
+   const limit=(d,extent,mid)=>{if(extent<=d)return mid;const edge=(d/2-24)/extent;return clamp(mid,edge,1-edge);};
+   v.x=limit(width,w,v.x);v.y=limit(height,h,v.y);
+   if(w<=width)v.x=.5;
+   if(h<=height)v.y=v.zoom===1?.46:.37;
+   world.style.width=w+'px';world.style.left=(width/2-v.x*w)+'px';world.style.top=(height/2-v.y*h)+'px';
+   for(const b of section.querySelectorAll('[data-camera]'))b.disabled=b.dataset.camera==='out'&&v.zoom<=1.001||b.dataset.camera==='in'&&v.zoom>=3.39;
+ }
+ function zoom(n,point){
+  const old=v.zoom;v.zoom=clamp(n,1,3.4);
+  if(point){const w=base*old,w2=base*v.zoom;v.x+=(point.x-width/2)*(1/w-1/w2);v.y+=(point.y-height/2)*(1/w-1/w2)/.96;}
+  paint();
+ }
+ function fit(){v.zoom=1;v.x=.5;v.y=.46;paint();}
+ function local(e){const r=viewport.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top};}
+ function sample(){
+  const [a,b]=fingers.values();if(!a)return null;
+  return b?{x:(a.x+b.x)/2,y:(a.y+b.y)/2,gap:Math.hypot(a.x-b.x,a.y-b.y)}:{...a,gap:0};
+ }
+ function start(){const s=sample();gesture=s&&{...s,vx:v.x,vy:v.y,z:v.zoom};}
+ viewport.onpointerdown=e=>{
+  if(e.button!==0)return;
+  if(!fingers.size)dragged=false;
+  fingers.set(e.pointerId,local(e));if(fingers.size>=2)dragged=true;start();
+ };
+ viewport.onpointermove=e=>{
+  if(!fingers.has(e.pointerId)||!gesture)return;
+  fingers.set(e.pointerId,local(e));const s=sample(),dx=s.x-gesture.x,dy=s.y-gesture.y;
+  if(!dragged&&Math.hypot(dx,dy)<5)return;
+  dragged=true;viewport.setPointerCapture(e.pointerId);
+  const oldW=base*gesture.z;
+  v.zoom=gesture.gap?clamp(gesture.z*s.gap/gesture.gap,1,3.4):gesture.z;
+  const w=base*v.zoom;
+  v.x=gesture.vx+(gesture.x-width/2)/oldW-(s.x-width/2)/w;
+  v.y=gesture.vy+((gesture.y-height/2)/oldW-(s.y-height/2)/w)/.96;
+  paint();
+ };
+ function release(e){if(!fingers.delete(e.pointerId))return;if(dragged)suppress=performance.now()+330;start();}
+ viewport.onpointerup=viewport.onpointercancel=release;
+ viewport.onpointerleave=e=>{if(!viewport.hasPointerCapture(e.pointerId))release(e);};
+ viewport.addEventListener('click',e=>{if(e.detail&&performance.now()<suppress){e.preventDefault();e.stopImmediatePropagation();}},true);
+ viewport.addEventListener('wheel',e=>{e.preventDefault();zoom(v.zoom*Math.exp(-e.deltaY*.0024),local(e));},{passive:false});
+ viewport.onkeydown=e=>{
+  if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','+','-','='].includes(e.key))return;
+  e.preventDefault();
+  if(e.key==='Home')return fit();
+  if(['-','+','='].includes(e.key))return zoom(v.zoom*(e.key==='-'?1/1.25:1.25));
+  const delta=58/(base*v.zoom);v.x+=({'ArrowRight':delta,'ArrowLeft':-delta}[e.key]||0);v.y+=({'ArrowDown':delta,'ArrowUp':-delta}[e.key]||0)/.96;paint();
+ };
+ section.querySelector('.camera-tools').onclick=e=>{const dir=e.target.closest('[data-camera]')?.dataset.camera;if(!dir)return;
+  if(dir==='fit')fit();else zoom(v.zoom*(dir==='in'?1.3:1/1.3));};
+ const observer=new ResizeObserver(paint);observer.observe(viewport);paint();
+ active={disconnect:()=>observer.disconnect()};
+}
+export function focusCamera(key,x,y){const v=views.get(key);if(v){v.x=x;v.y=y;}}

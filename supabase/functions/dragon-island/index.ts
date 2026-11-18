@@ -19,14 +19,14 @@ async function run(user:any,cmd:any,op:string|null,depth=0):Promise<any>{
     need(!human||(target.startsWith('qa-isle-')===uid.startsWith('qa-isle-')&&target!==uid),'Остров недоступен');
     const snap=await rpc('dragon_read',{p_uid:uid,p_peer:human?target:null,p_op:op});
     const now=snap.now, wallet=snap.wallet, s=snap.me?.state||newIsland(now,user.name||'Мой остров');
-    refresh(s,now);
+    const oldVersion=s.v;refresh(s,now);
     const view=(result:any=null)=>({state:s,wallet:{...wallet,balance:wallet.credit-s.spent},now,result});
     if(snap.receipt)return view(snap.receipt.result);
     if(s.raid&&s.raid.start+battleSeconds*1000<=now&&cmd.action!=='finish'){
       await run(user,{action:'finish',raid:s.raid.id},s.raid.id,depth+1);continue;
     }
     if(cmd.action==='map')return {...view(),islands:await rpc('dragon_map',{p_uid:uid})};
-    if(cmd.action==='read'&&snap.me)return view();
+    if(cmd.action==='read'&&snap.me&&s.v===oldVersion)return view();
     if(cmd.action==='finish'&&s.raid&&target!==s.raid.target){target=s.raid.target;continue;}
     const peer=human?snap.peer?.state:target?npcWorld(target.slice(4),now):null;
     if(peer)refresh(peer,now);

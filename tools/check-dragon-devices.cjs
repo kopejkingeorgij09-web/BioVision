@@ -17,7 +17,7 @@ async function checkedBounds(p){
  const r=el.getBoundingClientRect();
  for(const x of [r.left,r.right])for(const y of [r.top,r.bottom]){
  const u=(x-world.left)/world.width*1000,v=(y-world.top)/world.height*960;
- if(Math.abs(u-500)/490+Math.abs(v-455)/308>1.001)throw Error(el.className+' outside island');
+ if(Math.abs(u-500)/475+Math.abs(v-325)/215>1.001)throw Error(el.className+' outside island');
  }}
  return {viewport:[innerWidth,innerHeight],cells:document.querySelectorAll('.terrain polygon[stroke-linejoin=round]').length,overflow:document.documentElement.scrollWidth>innerWidth};
  });
@@ -35,21 +35,21 @@ async function run(){
  const phone=await mobile.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:2,colorScheme:'dark',timezoneId:'Europe/Moscow'});
  const errors=[];for(const p of [pc,phone]){p.setDefaultTimeout(25000);p.on('pageerror',e=>errors.push(e.message));}
  await Promise.all([login(pc),login(phone)]);const before=await checkedBounds(pc),narrow=await checkedBounds(phone);
- assert.ok(!before.overflow&&!narrow.overflow);assert.equal(before.cells,25);assert.equal(narrow.cells,25);
+ assert.ok(!before.overflow&&!narrow.overflow);assert.equal(before.cells,100);assert.equal(narrow.cells,100);
  const tower=pc.locator('[data-building="tower"]');const prior=await tower.getAttribute('style');
- await pick(phone,'tower');await phone.locator('[data-do="move/tower"]').click();await phone.locator('.terrain [data-cell]').first().waitFor();
+ await pick(phone,'tower');await phone.locator('[data-do="move/tower"]').click();await phone.locator('.terrain [data-cell]').first().waitFor();await phone.locator('[data-camera=fit]').click();
  const cells=phone.locator('[data-cell][aria-disabled=false]');const dest=await cells.nth(1).getAttribute('data-cell');
  const select=phone.locator('[data-cell="'+dest+'"] polygon');await select.tap();await phone.locator('[data-do="confirmPlot"]').click();
  await phone.locator('.map:not(.editing)').waitFor();await pc.reload({waitUntil:'domcontentloaded'});await tower.waitFor();
  assert.notEqual(await tower.getAttribute('style'),prior);assert.equal(await tower.getAttribute('style'),await phone.locator('[data-building="tower"]').getAttribute('style'));await checkedBounds(phone);
- await pc.locator('[data-do="go/build"]').click();await pc.locator('[data-do="place/storm"]').click();
+ await pc.locator('[data-do="go/build"]').click();await pc.locator('[data-do="place/storm"]').click();await pc.locator('[data-camera=fit]').click();
  await pc.locator('[data-cell][aria-disabled=false] polygon').first().click();await pc.locator('[data-do="confirmPlot"]').click();await pc.locator('.piece.storm').waitFor();
  await phone.reload({waitUntil:'domcontentloaded'});await phone.locator('.piece.storm').waitFor();await checkedBounds(phone);
  const name=await phone.locator('.piece.storm').getAttribute('data-building');
  await pick(phone,name);assert.match(await phone.locator('.side').innerText(),/Разряд перепрыгивает/);
  await phone.locator('[data-do="clear"]').click();await phone.locator('[data-do="go/book"]').click();assert.equal(await phone.locator('.spec').count(),100);
- await phone.selectOption('#f1','4');assert.equal(await phone.locator('.spec').count(),15);await phone.locator('.spec').first().click();await phone.locator('.plate img').waitFor();
- await phone.waitForFunction(()=>document.querySelector('.plate img')?.naturalWidth>100);assert.deepEqual(errors,[]);
+ await phone.selectOption('#f1','4');assert.equal(await phone.locator('.spec').count(),15);await phone.locator('.spec').first().click();await phone.locator('.plate .actor svg').waitFor();
+ await phone.waitForFunction(()=>document.querySelectorAll('.plate .actor svg use').length>25);assert.deepEqual(errors,[]);
  console.log(JSON.stringify({platform:base.href,desktop:desktop.version(),webkit:mobile.version(),desktopView:before,phoneView:narrow,roster:'100 / 15 legendary',crossDevice:'phone moved tower; desktop built storm; phone found it after reload'}));
  }finally{await Promise.all([desktop.close(),mobile.close()]);}
 }

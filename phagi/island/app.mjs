@@ -1,8 +1,12 @@
 import {defenses,defenseText} from './defenses.mjs';
-import {cellName} from './board.mjs';
+import {cellName,project} from './board.mjs';
+import {boardSize,position} from './world.mjs';
+import {icon} from './icons.mjs';
+import {actorMarkup,mountActors} from './actors.mjs';
+import {mountCamera,focusCamera} from './camera.mjs';
 import {species,byId,elements,rarities,roles,skills,signs,stats,distribution,percentages,pairing,starPrices,foodPrice} from './catalog.mjs';
 import {buildings,total,capacity,room,available,upgrade,buildCost,gemSpeed,production,homeSize,objectives,unlockPrice,nestTime,hatchTime,npcWorld} from './game.mjs';
-import {art,escape as esc,islandMap,battleView,paintBattle,idle} from './paint.mjs';
+import {art,escape as esc,islandMap,battleView,paintBattle,idle,showResident,rotateResidents} from './paint.mjs';
 import {request,pendingKey,tour,identifySession} from './client.mjs';
 const $=s=>document.querySelector(s), val=s=>$(s)?.value, btn=(label,a,cl='',disabled=false)=>'<button class="'+cl+'" data-do="'+a+'" '+(disabled?'disabled':'')+'>'+label+'</button>';
 const opt=(v,l,sel)=>'<option value="'+esc(v)+'" '+(String(sel)===String(v)?'selected':'')+'>'+esc(l)+'</option>';
@@ -39,24 +43,28 @@ function availability(d){
  if(state.raid?.team.some(x=>x.id===d.id))return 'В набеге';
  const e=state.eggs.find(e=>e.parents.includes(d.id)&&e.stage==='nest'&&e.end>now());return e?'В гнезде до '+date(e.end):'Свободен';
 }
-const docks=[['island','⌂','Остров'],['book','▤','Книга'],['nest','◉','Гнездо'],['raids','⚑','Набеги']];
-const shell=(body,section)=>'<header><a href="../">‹ Фаги</a><span>'+(tour?'Мастерская · пробная сцена':'Архипелаг')+'</span><small>Остров драконов</small></header><div class="wallet"><span title="Золото"><i class="coin">•</i>'+total(state,'gold')+'</span><span title="Еда"><i class="fruit">⌁</i>'+total(state,'food')+'</span><span title="Алмазы"><i class="gem">⋄</i>'+wallet.balance+'</span></div><div class="layout">'+body+'</div><nav class="dock">'+docks.map(([p,ico,l])=>btn('<span aria-hidden="true">'+ico+'</span>'+l,'go/'+p,p===section?'active':'')).join('')+'</nav>';
+const docks=[['island','Остров'],['book','Книга'],['nest','Гнездо'],['raids','Набеги']];
+function resource(type,label,n){return '<span class="res res-'+type+'" title="'+label+'" aria-label="'+label+' '+n+'">'+icon(type)+'<b>'+n+'</b></span>';}
+function shell(body,section){return '<header><a class="return-link" href="../">'+icon('back')+'Фаги</a><span class="brand">'+icon('dragons')+'Архипелаг</span></header><div class="wallet">'+resource('coin','Золото',total(state,'gold'))+resource('food','Еда',total(state,'food'))+resource('gem','Алмазы',wallet.balance)+'</div><div class="layout">'+body+'</div><nav class="dock" aria-label="Разделы игры">'+docks.map(([p,l])=>btn(icon(p)+'<span>'+l+'</span>','go/'+p,p===section?'active':'')).join('')+'</nav>';}
 const page=(title,html)=>'<div class="page"><h1>'+title+'</h1>'+html+'</div>';
 const islandLink=btn('На остров','go/island');
 function roster(){return state.dragons.map(d=>row(esc(byId[d.species].name),'Ур. '+d.level+' · '+d.stars+' ★ · '+availability(d),btn('Осмотреть','go/dragon/'+d.id))).join('');}
 function island(){const b=thing(chosen);
  if(plotMode){
  const k=plotMode.kind||thing(plotMode.building)?.kind, i=plotMode.cell,c=buildCost(k);
- const where=i==null?'Коснитесь свободной клетки.':'Клетка '+cellName(i%5,Math.floor(i/5));
+ const where=i==null?'Коснитесь свободной клетки.':'Клетка '+cellName(i%boardSize,Math.floor(i/boardSize));
  const price=plotMode.action==='move'?'Перемещение бесплатно':c.gold?'Цена '+c.gold+' золота':'Цена '+c.gems+' ◈';
  return islandMap(state,chosen,plotMode)+'<div class="page compact side">'+panel(buildings[k],'<p>'+where+' '+price+'.</p>'+(defenses[k]?'<p>'+defenses[k].role+'</p><small>'+defenseText(k,thing(plotMode.building)?.level||1)+'</small>':'')+'<div class="tools">'+btn('Подтвердить','confirmPlot','primary',i==null)+btn('Отмена','cancelPlot')+'</div>')+'</div>';
  }
- return islandMap(state,chosen)+'<div class="page compact side"><div class="side-intro"><small class="eyebrow">Янтарный берег</small><h2>Управление островом</h2></div>'+(b?buildingPanel(b):panel('Мой остров','<div class="tools">'+btn('Постройки и оборона','go/build','primary')+btn('Испытания','go/trials')+btn('Журнал','go/log')+'</div>'))+'<h2 class="subhead">Мои драконы</h2>'+roster()+'</div>';
+ return islandMap(state,chosen)+(b?'<aside class="page compact side">'+buildingPanel(b)+'</aside>':'<div class="island-tools">'+btn(icon('build')+'Постройки','go/build','build-action')+btn(icon('dragons')+'Драконы','go/residents')+btn(icon('trials')+'Испытания','go/trials')+btn(icon('log')+'Журнал','go/log')+'</div>');
 }
 function buildingPanel(b){const kind=b.kind,u=upgrade(b);let details='';
  if(['food','gold'].includes(kind))details='Запас '+b.stock+' / '+capacity(b)+'. Улучшение добавит 1000 мест.';
  if(['mine','farm'].includes(kind))details='Готово к сбору: '+production(b,now())+'. Темп '+b.level+' за 10 с. '+btn('Собрать','collect/'+b.id,'primary');
- if(kind==='home')details='Занято '+state.dragons.filter(d=>d.home===b.id).length+' из '+homeSize(b)+' мест. Улучшение добавит 4 места.';
+ if(kind==='home'){
+  const residents=state.dragons.filter(d=>d.home===b.id);
+  details='Жители · '+residents.length+' / '+homeSize(b)+'<span class="home-residents">'+residents.map(d=>btn(esc(byId[d.species].name),'go/dragon/'+d.id)).join('')+'</span>';
+ }
  if(kind==='garrison')details='До трёх защитников. Назначение — в карточке дракона.';
  if(defenses[kind])details=defenses[kind].role+'<br>'+defenseText(kind,b.level);
  if(kind==='incubator')details='Параллельное вылупление: '+b.slots+' '+(b.slots===1?btn('Второе место · 40 ◈ (4 нормы)','slot/'+b.id):'');
@@ -66,10 +74,10 @@ function buildingPanel(b){const kind=b.kind,u=upgrade(b);let details='';
  return panel(buildings[kind]+' · '+cellName(b.col,b.row)+' · ур. '+b.level,'<p>'+details+'</p><div class="tools">'+btn('Переместить','move/'+b.id)+(b.finish?'Строительство '+cd(b.finish)+btn('Ускорить · '+gemSpeed(b.finish,now())+' ◈','speedB/'+b.id+'/'+gemSpeed(b.finish,now())):b.level<30?btn('Улучшить до '+(b.level+1)+' · '+u.price+' зол. · '+duration(u.ms),'upgrade/'+b.id):'')+btn('Закрыть','clear')+'</div>');
 }
 function build(){
- const open=25-state.buildings.length;
+ const open=boardSize**2-state.buildings.length;
  const listing=([k,l])=>{const c=buildCost(k),cost=c.gems?c.gems+' ◈ ('+c.gems/10+' дневных наград)':c.gold+' золота';
- return row('<img class="build-thumb" src="art/'+k+'.webp" alt="">'+l,(defenses[k]?defenses[k].role+' ':'')+cost,btn('Разместить','place/'+k,'',!open));};
- return page('План острова','<p class="muted">5 × 5 клеток · свободно '+open+'.</p><h2>Оборона</h2>'+Object.entries(buildings).filter(([k])=>defenses[k]).map(listing).join('')+'<h2 class="subhead">Хозяйство</h2>'+Object.entries(buildings).filter(([k])=>!defenses[k]).map(listing).join('')+'<h2 class="subhead">На острове</h2>'+state.buildings.map(b=>row(buildings[b.kind],'Клетка '+cellName(b.col,b.row)+' · уровень '+b.level,btn('Выбрать','selectB/'+b.id))).join(''));
+ return row('<img class="build-thumb" src="art/settlement/'+k+'.webp" alt="">'+l,(defenses[k]?defenses[k].role+' ':'')+cost,btn('Разместить','place/'+k,'',!open));};
+ return page('План острова','<p class="muted">10 × 10 клеток · свободно '+open+'.</p><h2>Оборона</h2>'+Object.entries(buildings).filter(([k])=>defenses[k]).map(listing).join('')+'<h2 class="subhead">Хозяйство</h2>'+Object.entries(buildings).filter(([k])=>!defenses[k]).map(listing).join('')+'<h2 class="subhead">На острове</h2>'+state.buildings.map(b=>row(buildings[b.kind],'Клетка '+cellName(b.col,b.row)+' · уровень '+b.level,btn('Выбрать','selectB/'+b.id))).join(''));
 }
 function book(){
  const list=species.filter(s=>(!filters[0]||s.types.includes(+filters[0]-1))&&(!filters[1]||s.rarity===+filters[1])&&(!filters[2]||(filters[2]==='own'?state.dragons.some(d=>d.species===s.id):!state.seen.includes(s.id))));
@@ -80,12 +88,15 @@ function detail(s,d=null){
  const parents=s.rarity>1?pairing(s.id):[];
  const method=s.rarity===1?(s.id==='s1'||s.id==='s3'?'Стартовая пара острова.':'Экспедиция за золото.'):parents.length?parents.map(p=>p.name).join(' × '):'Скрещивание доступных родителей.';
  let controls='';
- if(d){const isFree=available(state,d,now());
- controls=panel('Рост и назначение','<p>Уровень '+d.level+' / 30 · '+d.stars+' / 5 ★ · '+availability(d)+'</p>'+ (d.level<30?'<p>После кормления: здоровье '+st.hp+' → '+next.hp+', удар '+st.power+' → '+next.power+'. Уровень учитывается при разведении.</p>'+btn('Кормить · '+foodPrice(d.level)+' еды','feed/'+d.id,'primary',!isFree):'')+'<div class="tools">'+btn(d.guard?'Снять из гарнизона':'В гарнизон','guard/'+d.id,'',!d.guard&&!isFree)+btn('Улучшить звезду','go/star/'+d.id,'',!isFree||d.stars===5)+(state.dragons.filter(x=>x.species===d.species).length>1?btn('Отпустить дубликата · +25 зол.','sell/'+d.id,'',!isFree):'')+'</div>');}
+ if(d){const isFree=available(state,d,now());const own=thing(d.home);
+ const options=state.buildings.filter(b=>b.kind==='home'&&b.id!==d.home&&state.dragons.filter(r=>r.home===b.id).length<homeSize(b));
+ const housing=panel('Жилище · '+(own?cellName(own.col,own.row):'Остров'),btn('Показать на острове','showHome/'+d.id)+(options.length&&isFree?'<div class="tools">'+select('relocate',options.map(b=>opt(b.id,'Жилище '+cellName(b.col,b.row))).join(''),'Новое жилище')+btn('Переселить','rehome/'+d.id)+'</div>':''));
+
+ controls=housing+panel('Рост и назначение','<p>Уровень '+d.level+' / 30 · '+d.stars+' / 5 ★ · '+availability(d)+'</p>'+ (d.level<30?'<p>После кормления: здоровье '+st.hp+' → '+next.hp+', удар '+st.power+' → '+next.power+'. Уровень учитывается при разведении.</p>'+btn('Кормить · '+foodPrice(d.level)+' еды','feed/'+d.id,'primary',!isFree):'')+'<div class="tools">'+btn(d.guard?'Снять из гарнизона':'В гарнизон','guard/'+d.id,'',!d.guard&&!isFree)+btn('Улучшить звезду','go/star/'+d.id,'',!isFree||d.stars===5)+(state.dragons.filter(x=>x.species===d.species).length>1?btn('Отпустить дубликата · +25 зол.','sell/'+d.id,'',!isFree):'')+'</div>');}
  else if(!state.seen.includes(s.id)&&s.rarity===1)controls=panel('Экспедиция','<p>Выберите жилище для нового дракона.</p>'+homes()+btn('Пригласить · '+unlockPrice(state)+' зол.','unlock/'+s.id,'primary'));
- return page(esc(s.name),'<div class="pills"><span>'+rarities[s.rarity]+'</span><span>'+labelTypes(s)+'</span></div><div class="plate">'+(d?.born&&s.id==='s3'&&d.level===1?'<img src="art/baby.webp" alt="Земной детёныш">':art(s,'portrait'))+'<span class="figure">'+s.name+'</span></div>'+(s.id==='s3'?'<div class="lifecycle"><figure><img src="art/egg.webp" alt="Яйцо Янтарного кряжа"><figcaption>Яйцо</figcaption></figure><figure><img src="art/baby.webp" alt="Детёныш Янтарного кряжа"><figcaption>Детёныш</figcaption></figure></div>':'')+controls+panel(roles[s.role]+' · '+skills[s.role],'<p>Здоровье '+st.hp+' · удар '+st.power+' · дальность '+st.range+' · скорость '+st.speed+'</p><small>+25% урона по следующей стихии в круге: '+elements.join(' → ')+' → Огонь.</small>')+panel('Как получить',esc(method))+btn('В книгу','go/book'));
+ return page(esc(s.name),'<div class="pills"><span>'+rarities[s.rarity]+'</span><span>'+labelTypes(s)+'</span></div><div class="plate">'+actorMarkup(d?.born&&s.id==='s3'&&d.level===1?'baby':s.id,esc(s.name))+'<button class="bones-toggle" data-do="skeleton" aria-pressed="false">Скелет</button><div class="poses" aria-label="Движение">'+[['idle','Покой'],['walk','Движение'],['attack','Атака']].map(([k,label])=>btn(label,'pose/'+k,k==='idle'?'active':'')).join('')+'</div></div>'+(s.id==='s3'?'<div class="lifecycle"><figure><img src="art/egg.webp" alt="Яйцо Янтарного кряжа"><figcaption>Яйцо</figcaption></figure><figure><img src="art/dragons/thumbs/baby.svg" alt="Детёныш Янтарного кряжа"><figcaption>Детёныш</figcaption></figure></div>':'')+controls+panel(roles[s.role]+' · '+skills[s.role],'<p>Здоровье '+st.hp+' · удар '+st.power+' · дальность '+st.range+' · скорость '+st.speed+'</p><small>+25% урона по следующей стихии в круге: '+elements.join(' → ')+' → Огонь.</small>')+panel('Как получить',esc(method))+btn('В книгу','go/book'));
 }
-function homes(){return select('home',state.buildings.filter(b=>b.kind==='home').map(b=>opt(b.id,buildings.home+' · '+state.dragons.filter(d=>d.home===b.id).length+'/'+homeSize(b))).join(''),'Жилище');}
+function homes(){return select('home',state.buildings.filter(b=>b.kind==='home').map(b=>opt(b.id,buildings.home+' '+cellName(b.col,b.row)+' · '+state.dragons.filter(d=>d.home===b.id).length+'/'+homeSize(b))).join(''),'Жилище');}
 function nest(){
  const free=state.dragons.filter(d=>available(state,d,now()));if(!free.some(d=>d.id===pair[0]))pair[0]=free[0]?.id;if(!free.some(d=>d.id===pair[1])||pair[0]===pair[1])pair[1]=free.find(d=>d.id!==pair[0])?.id;
  const a=dragon(pair[0]),b=dragon(pair[1]),rows=a&&b?distribution(a,b):[],pct=percentages(rows);
@@ -109,12 +120,21 @@ function raids(){
 function journal(){return page('Журнал острова',panel('Защита острова',state.shield>now()?'Щит до '+date(state.shield):'Щит снят')+panel('Алмазы · '+wallet.balance,Object.entries(wallet.days).sort().reverse().slice(0,20).map(([d,v])=>row(d,v.cards+' карточек','+'+v.gems+' ◈')).join('')||'За 20 зачтённых карточек полагается 10 алмазов.')+state.reports.map(r=>panel((r.incoming?'Защита · ':'Набег · ')+esc(r.enemy),'<p>'+esc(r.reason)+' · '+date(r.time)+'</p>Разрушено: '+(r.destroyed.map(k=>buildings[k]||'Защитник').join(', ')||'0')+'<br>'+ (r.incoming?'Потеряно':'Добыча')+': '+r.loot.gold+' золота, '+r.loot.food+' еды.')).join(''));}
 function render(){
  if(!state)return;const [p,k]=route().split('/');let body,sect=p;switch(p){
+ case 'residents':body=page('Мои драконы',roster()+islandLink);sect='island';break;
  case 'book':body=book();break;case 'species':body=byId[k]?detail(byId[k]):book();sect='book';break;
  case 'dragon':body=dragon(k)?detail(byId[dragon(k).species],dragon(k)):island();sect='island';break;
  case 'star':body=dragon(k)?star(dragon(k)):island();sect='island';break;case 'build':body=build();sect='island';break;
  case 'nest':body=nest();break;case 'trials':body=trials();sect='island';break;case 'raids':body=raids();break;case 'log':body=journal();sect='island';break;default:body=island();sect='island';
  }
- $('#app').innerHTML=shell(body,sect);if(sessionStorage.getItem(pendingKey()))$('#app').insertAdjacentHTML('afterbegin','<div class="panel">'+btn('Повторить отправку','retry')+'</div>');
+ $('#app').innerHTML=shell(body,sect);
+ const map=$('.map');let focus={x:.5,y:.36};
+ if(map&&!map.classList.contains('battle')){
+  const points=state.buildings.map(b=>{const p=position(b);return project(p.x,p.y);});
+  focus={x:points.reduce((n,p)=>n+p.x,0)/points.length/1000,y:points.reduce((n,p)=>n+p.y,0)/points.length/960+.018};
+ }
+ mountCamera(map,map?.classList.contains('battle')?'battle/'+state.raid.id:'island',focus);
+ mountActors($('#app'));
+ if(sessionStorage.getItem(pendingKey()))$('#app').insertAdjacentHTML('afterbegin','<div class="panel">'+btn('Повторить отправку','retry')+'</div>');
 }
 async function mapLoad(){try{accept(await request({action:'map'}));render();}catch(e){message(e.message);}}
 window.addEventListener('hashchange',()=>{render();if(route()==='raids'&&!state?.raid)mapLoad();});
@@ -130,13 +150,18 @@ document.addEventListener('click',async e=>{
  if(el.dataset.unit){if(r.team.some(d=>d.id===el.dataset.unit)){selectedUnit=el.dataset.unit;render();}else await order('target',{mark:el.dataset.unit});return;}
  const [a,k,v]=String(el.dataset.do||'').split('/');
  switch(a){
+ case 'skeleton':{const actor=$('.plate .actor');if(actor){const on=actor.dataset.bones!=='on';actor.dataset.bones=on?'on':'off';el.setAttribute('aria-pressed',String(on));}break;}
+ case 'pose':{const actor=$('.plate .actor');if(actor){actor.dataset.pose=k;for(const b of document.querySelectorAll('.poses button'))b.classList.toggle('active',b===el);}break;}
+ case 'rehome':await action({action:'rehome',dragon:k,building:val('#relocate')},'Дракон переселился');break;
+ case 'residentsPage':rotateResidents(state,k);render();break;
+ case 'showHome':{const d=dragon(k);chosen=showResident(state,k)||d.home;const b=thing(chosen);if(b){const p=position(b),f=project(p.x,p.y);focusCamera('island',f.x/1000,f.y/960);}go('island');break;}
  case 'go':plotMode=null;go(k+(v?'/'+v:''));break;case 'clear':chosen='';render();break;case 'selectB':chosen=k;go('island');break;
  case 'retry':{const p=JSON.parse(sessionStorage.getItem(pendingKey())||'null');if(p)await action(p.cmd,'Действие подтверждено');break;}
  case 'move':plotMode={action:'move',building:k};go('island');break;
  case 'place':plotMode={action:'build',kind:k};go('island');break;
  case 'cancelPlot':plotMode=null;render();break;
  case 'confirmPlot':{if(plotMode?.cell==null)break;const {cell,...cmd}=plotMode;
-   await action({...cmd,col:cell%5,row:Math.floor(cell/5)},'Планировка сохранена',()=>{plotMode=null;});break;}
+   await action({...cmd,col:cell%boardSize,row:Math.floor(cell/boardSize)},'Планировка сохранена',()=>{plotMode=null;});break;}
  case 'collect':case 'upgrade':case 'slot':await action({action:a,building:k},'Остров обновлён');break;
  case 'speedB':case 'speedE':await action({action:'speed',[a==='speedB'?'building':'egg']:k,max:+v},'Готово');break;
  case 'feed':case 'guard':case 'sell':await action({action:a,dragon:k},'Изменения сохранены',a==='sell'?()=>go('island'):null);break;
@@ -154,9 +179,9 @@ document.addEventListener('keydown',e=>{const cell=e.target.closest?.('[data-cel
 let lastPaint=0,lastPoll=Date.now(),endedAt=0;
 function frame(time){
  if(!document.hidden&&state){
-  if(time-lastPaint>(state.raid?12:45)){lastPaint=time;const r=state.raid;
+  if(time-lastPaint>(state.raid||route().startsWith('dragon/')||route().startsWith('species/')?12:42)){lastPaint=time;const r=state.raid;
     if(r&&route()==='raids'){const sim=paintBattle(r,now(),selectedUnit);if(!sim?.end)endedAt=0;else if(!endedAt)endedAt=Date.now();if(sim?.end&&Date.now()-endedAt>1050&&!busy&&!sessionStorage.getItem(pendingKey()))action({action:'finish',raid:r.id},'Бой завершён',()=>go('log'));}
-    else if(route()==='island')idle(time);
+    else idle(time);
     for(const t of document.querySelectorAll('time[data-end]')){const text=duration(+t.dataset.end-now());if(t.textContent!==text){t.textContent=text;if(text==='0 с'&&!busy)render();}}
   }
   if(Date.now()-lastPoll>15000&&!busy&&!state.raid&&!document.activeElement?.matches('input,select')&&!sessionStorage.getItem(pendingKey())){lastPoll=Date.now();if(['island','log'].includes(route()))fetchState().catch(()=>{});}

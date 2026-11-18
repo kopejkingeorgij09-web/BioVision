@@ -29,7 +29,8 @@ assert.deepEqual([0,19,20,21,22,23,24,40].map(earned),[0,0,10,10,11,11,12,20]);
 assert.deepEqual(stats({species:'s3',level:10,stars:1}),stats({species:'s3',level:12,stars:0}));
 const state=newIsland(0);let t=0,credit=500;
 const act=(action,values={})=>apply(state,{action,...values},{now:t,credit,random:()=>.25});
-const [left,right]=state.dragons;
+const [left,right]=state.dragons;assert.notEqual(left.home,right.home);
+act('rehome',{dragon:right.id,building:left.home});
 act('feed',{dragon:left.id});assert.equal(total(state,'food'),280-foodPrice(1));assert.equal(left.level,2);
 act('symbol',{objective:'feed',type:3});assert.throws(()=>act('symbol',{objective:'feed',type:3}));
 act('star',{dragon:left.id,pay:[0,0,0,10,0,0,0,0,0,0]});assert.equal(state.symbols[3],0);
@@ -44,12 +45,10 @@ t=egg2.end;act('hatch',{egg:egg.id,building:'home'});assert.throws(()=>act('hatc
 act('breed',{dragon:left.id,other:right.id,building:'nest'});const egg3=state.eggs[0];t=egg3.end;act('incubate',{egg:egg3.id,building:'incubator'});t=egg3.end;assert.throws(()=>act('hatch',{egg:egg3.id,building:'home'}));act('upgrade',{building:'home'});t+=60000;refresh(state,t);act('hatch',{egg:egg3.id,building:'home'});assert.equal(state.dragons.length,5);
 const peer=npcWorld('reef',t);assert.throws(()=>apply(state,{action:'raid',team:state.dragons.slice(0,4).map(d=>d.id)},{now:t,defender:peer,target:'npc:reef'}));
 for(const s of species){
- const suffixes=s.art===s.id?['portrait','motion']:['portrait','idle','walk','attack','hit','finish'];
- for(const suffix of suffixes){
-  const name=s.art+'-'+suffix+'.webp';
-  const asset=fs.readFileSync(new URL('../phagi/island/art/'+name,import.meta.url));
-  assert.ok(asset.length>1000&&asset.toString('ascii',8,12)==='WEBP',name);
- }
+ const asset=fs.readFileSync(new URL('../phagi/island/art/dragons/'+s.id+'.svg',import.meta.url),'utf8');
+ assert.ok(asset.startsWith('<svg')&&asset.includes('<path'),s.id);
+ const rig=JSON.parse(fs.readFileSync(new URL('../phagi/island/art/dragons/rigs/'+s.id+'.json',import.meta.url)));
+ assert.equal(rig.id,s.id);
 }
 assert.equal(new Set(species.map(s=>s.art)).size,100);
 for(const targets of [[],['gold'],['food'],['food','gold']]){

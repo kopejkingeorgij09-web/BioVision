@@ -5433,19 +5433,14 @@ async function bvLoad(){
   if(!T())BVHOST.bvErr=()=>bvPile(meId()).map(x=>({src:x.src,id:x.id}));
   try{
     if(!window.THREE)bvScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js').catch(()=>{});
-    await bvScript('bioviz/bv.js');
-    const dnaTopic=root.querySelector('.nav-item[data-go="dna"]');
-    if(dnaTopic){
-      const reading=document.createElement('a');
-      reading.className='nav-item';reading.href='bioviz/replication/';reading.textContent='Репликация ДНК · конспект';
-      dnaTopic.after(reading);
-    }
+    await bvScript('bioviz/bv.js?v=20261118-replication');
+    await bvScript('bioviz/replication/platform.js?v=2');
     // Additive textbook extension; existing BioViz keeps working if it cannot load.
     try{await bvScript('bioviz/microbiology/embed.js?v=20261112');await window.MicroBookReady}catch(e){console.warn('Microbiology extension unavailable',e)}
     BVS.st=2;if(!BVHOST.on)BV.pause();else bvWant();bvBackfill();
   }catch(e){
-    BVS.st=0;root.querySelector('.ld').innerHTML='Не получилось загрузить Биовиз. Проверьте интернет. <button>Повторить</button>';
-    root.querySelector('button').onclick=()=>{document.querySelectorAll('script[src="bioviz/bv.js"]').forEach(x=>x.remove());bvLoad()};
+    BVS.st=0;root.innerHTML='<div class="ld"></div>';root.querySelector('.ld').innerHTML='Не получилось загрузить Биовиз. Проверьте интернет. <button>Повторить</button>';
+    root.querySelector('button').onclick=()=>{document.querySelectorAll('script[src^="bioviz/bv.js"]').forEach(x=>x.remove());bvLoad()};
   }
 }
 new MutationObserver(bvTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-eff']});
@@ -5468,7 +5463,7 @@ function bvBackfill(){
 }
 // переход с главной сразу в нужную часть Биовиза
 function bvWant(){const m=BVS.want;BVS.want=null;if(!m||!window.BV)return;
-  if(m==='viz')BV.go(BV.store.get('lastMod','tour'));else{BV.go('quiz');if(BV.tasksOpen)BV.tasksOpen(m)}}
+  if(m==='replication')BV.go('replication');else if(m==='viz')BV.go(BV.store.get('lastMod','tour'));else{BV.go('quiz');if(BV.tasksOpen)BV.tasksOpen(m)}}
 // на весь экран: прячем шапку и меню платформы и, если браузер разрешает, включаем полноэкранный режим окна
 function bvFull(on,win){
   const h=$('#bvhost');if(!h)return;const was=document.body.classList.contains('bvfull');
@@ -5772,6 +5767,7 @@ $('#rolesw').addEventListener('click',e=>{const b=e.target.closest('button[data-
   S.dual=!!S.me.isOwner||!!S.me.teach||devT;
   S.mode=S.me.isOwner&&roleGet()!=='student'?'teacher':'student';
   if(routePending && S.me.isOwner && ['teacher','student'].includes(lessonRoute.get('role'))) S.mode=lessonRoute.get('role');
+  if(!routePending && lessonRoute.get('bio')==='replication'){BVS.want='replication';S.view='bio'}
   const shadHw=new URLSearchParams(location.search).get('shadHw');
   if(!T()&&/^(?:[1-9][0-9]?|10[0-2])$/.test(shadHw||'')){S.shadHw=Number(shadHw);S.view='tasks'}
   subscribe();render();

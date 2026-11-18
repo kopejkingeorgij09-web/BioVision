@@ -1,5 +1,49 @@
 'use strict';
 (() => {
+  const base = new URL('.', document.currentScript.src);
+  const media = name => new URL('media/' + name, base).href;
+  const stages = [
+    ['Открытие oriC','DnaA в комплексе с АТФ связывает участки oriC. Локальное расплетение открывает матрицы для загрузки двух геликаз DnaB. Отсюда вилки расходятся в противоположные стороны.','bacterial-origin'],
+    ['Лицензирование и запуск','В G1 два гексамера MCM2–7 располагаются на двуцепочечной ДНК. При активации в S-фазе каждый входит в комплекс CMG и начинает двигаться по одной матрице будущей ведущей цепи.','licensing'],
+    ['Репликационная вилка','CMG раскрывает дуплекс. Pol ε обычно удлиняет ведущую цепь, Pol δ синтезирует фрагменты отстающей. PCNA удерживает полимеразу на ДНК. RPA связывает открытые одноцепочечные участки.','fork'],
+    ['Фрагменты Оказаки','Обе дочерние цепи растут в направлении 5′→3′. На отстающей матрице каждый новый праймер появляется возле вилки. Его 3′-конец удлиняется в сторону уже синтезированного фрагмента.','okazaki'],
+    ['Созревание фрагментов','В одном из основных путей у эукариот Pol δ вытесняет 5′-конец соседнего фрагмента. FEN1 удаляет образовавшийся лоскут. Лигаза I соединяет смежные 3′-OH и 5′-фосфат.','maturation'],
+    ['Слияние вилок','Две вилки сходятся на одном участке родительской молекулы. После достройки и лигирования получаются два непрерывных дуплекса. Оставшиеся переплетения снимают топоизомеразы.','termination'],
+    ['Репликация теломеры','Теломераза удлиняет G-богатую цепь по собственной РНК-матрице. Затем Pol α–праймаза начинает синтез комплементарной цепи. После созревания сохраняется выступающий 3′-конец.','ends']
+  ];
+  function mountSequence(host) {
+    host.innerHTML = '<div class="sequence-grid"><div class="sequence-stage"><video muted playsinline preload="none" disablepictureinpicture aria-label="Анимированная схема"></video></div><div class="sequence-copy"><span class="sequence-counter"></span><h2></h2><p></p><a>Читать раздел ↓</a></div></div><div class="sequence-controls"><button type="button" data-seq="prev" aria-label="Предыдущий шаг">←</button><button type="button" data-seq="play">Пуск</button><button type="button" data-seq="next" aria-label="Следующий шаг">→</button><div class="sequence-dots" role="group" aria-label="Стадии репликации"></div><label class="sequence-speed">Скорость <select aria-label="Скорость анимации"><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="1.5">1,5×</option><option value="2">2×</option></select></label></div>';
+    const get = s => host.querySelector(s), video = get('video'), play = get('[data-seq=play]');
+    const dots = get('.sequence-dots'), select = get('select');
+    let index=0, playing=false, request=0;
+    function update(){play.textContent=playing?'Пауза':(index===stages.length-1 && video.ended?'Сначала':'Пуск');play.setAttribute('aria-pressed',String(playing));}
+    function pause(){request++;playing=false;video.pause();update();}
+    function start(){
+      const token=++request;playing=true;update();video.playbackRate=Number(select.value);
+      video.play().catch(()=>{if(token===request)pause();});
+    }
+    function choose(i,keep=false){
+      request++;index=i;
+      const [title, explanation, section] = stages[i];
+      video.pause();video.poster=media('process-'+(i+1)+'.png');video.src=media('process-'+(i+1)+'.mp4');
+      video.setAttribute('aria-label',title);video.load();
+      get('.sequence-counter').textContent='Шаг '+(i+1)+' из '+stages.length;
+      get('h2').textContent=title;get('p').textContent=explanation;get('.sequence-copy a').href='#'+section;
+      get('[data-seq=prev]').disabled=i===0;get('[data-seq=next]').disabled=i===stages.length-1;
+      [...dots.children].forEach((b,j)=>b.setAttribute('aria-pressed',String(i===j)));
+      playing=false;update();if(keep)start();
+    }
+    stages.forEach(([title],i)=>{const b=document.createElement('button');b.type='button';b.textContent=i+1;b.setAttribute('aria-label','Шаг '+(i+1)+'. '+title);b.onclick=()=>choose(i);dots.append(b);});
+    get('[data-seq=prev]').onclick=()=>choose(index-1);get('[data-seq=next]').onclick=()=>choose(index+1);
+    play.onclick=()=>{if(playing)pause();else if(video.ended&&index===stages.length-1)choose(0,true);else start();};
+    select.onchange=()=>{video.playbackRate=Number(select.value);};
+    video.onended=()=>{if(playing&&index<stages.length-1)choose(index+1,true);else pause();};
+    document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
+    choose(0);
+    return {pause};
+  }
+
+  function mountBook(root, embedded = false) {
   const names = {bands:'Опыт Мезельсона и Сталя',clamps:'Два скользящих зажима в 3D',mature:'От праймера до непрерывной ДНК',bubble:'Прочитайте репликационный пузырь',telomere:'Три состояния конца хромосомы'};
   const button = (label,fn) => {const b=document.createElement('button');b.type='button';b.textContent=label;b.addEventListener('click',fn);return b;};
   function el(tag,cls,text) {const node=document.createElement(tag);if(cls)node.className=cls;if(text)node.textContent=text;return node;}
@@ -10,7 +54,7 @@
     const notes=id==='mature'?['3′-конец предыдущей по ходу синтеза ДНК может служить праймером для замещения.','В этом состоянии ДНК содержит все основания, но связь в одном месте ещё отсутствует.','Каталитическое действие лигазы делает остов непрерывным.']:['Для заполнения крайнего промежутка отсутствует внешний 3′-OH.','Удлиняется G-богатый 3′-конец самой ДНК. Матрицей служит РНК теломеразы.','Pol α–праймаза начинает комплементарную цепь. Зрелая теломера сохраняет 3′-выступ.'];
     const row=controls(host),fig=el('figure'),img=el('img'),p=el('figcaption');fig.append(img,p);host.append(fig);p.setAttribute('aria-live','polite');
     img.width=1484;img.height=686;
-    function choose(i){img.src='media/'+id+'-'+i+'.png';img.alt=labels[i]+'. '+notes[i];p.textContent=notes[i];[...row.children].forEach((b,k)=>b.setAttribute('aria-pressed',String(k===i)));}
+    function choose(i){img.src=media(id+'-'+i+'.png');img.alt=labels[i]+'. '+notes[i];p.textContent=notes[i];[...row.children].forEach((b,k)=>b.setAttribute('aria-pressed',String(k===i)));}
     labels.forEach((l,i)=>row.append(button(l,()=>choose(i))));choose(0);
   }
   function density(host){
@@ -35,7 +79,7 @@
     const lab=el('label','','Верхняя матрица');lab.append(orient);row.append(lab);const fig=el('figure'),img=el('img');img.width=1484;img.height=686;fig.append(img);host.append(fig);
     const prompt=el('p','hint','У какой вилки верхняя матрица служит для непрерывного синтеза?');host.append(prompt);const answers=controls(host),out=status(host);let visible=false;
     const reveal=button('Показать схему',()=>{visible=!visible;draw();});
-    function draw(){img.src='media/bubble-'+orient.value+Number(visible)+'.png';img.alt='Верхняя матрица '+orient.options[orient.selectedIndex].text+'. '+(visible?'Сплошные и прерывистые дочерние цепи показаны стрелками.':'Показаны только родительские цепи.');reveal.textContent=visible?'Скрыть дочерние цепи':'Показать схему';reveal.setAttribute('aria-pressed',String(visible));}
+    function draw(){img.src=media('bubble-'+orient.value+Number(visible)+'.png');img.alt='Верхняя матрица '+orient.options[orient.selectedIndex].text+'. '+(visible?'Сплошные и прерывистые дочерние цепи показаны стрелками.':'Показаны только родительские цепи.');reveal.textContent=visible?'Скрыть дочерние цепи':'Показать схему';reveal.setAttribute('aria-pressed',String(visible));}
     function answer(side){const correct=side===(orient.value==='0'?'right':'left');out.textContent=correct?'Верно. Полимераза следует за этой вилкой, читая верхнюю матрицу 3′→5′.':'Проследите верхнюю матрицу от 3′ к 5′. Какая вилка движется в ту же сторону?';if(correct){visible=true;draw();}}
     answers.append(button('У левой',()=>answer('left')),button('У правой',()=>answer('right')),reveal);
     orient.onchange=()=>{visible=false;out.textContent='';draw();};draw();
@@ -73,18 +117,39 @@
     canvas.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home'].includes(e.key))return;e.preventDefault();if(e.key==='Home')choose(code);if(e.key==='ArrowLeft')ay-=.15;if(e.key==='ArrowRight')ay+=.15;if(e.key==='ArrowUp')ax-=.15;if(e.key==='ArrowDown')ax+=.15;draw();};
     choose(code);
     try{
-      structures??=fetch('media/clamps.json').then(r=>{if(!r.ok)throw Error('coordinates');return r.json();});
+      structures??=fetch(media('clamps.json')).then(r=>{if(!r.ok)throw Error('coordinates');return r.json();});
       const raw=await structures;models={};Object.entries(raw).forEach(([k,chains])=>{models[k]={chains,radius:Math.max(...chains.flat().map(v=>Math.hypot(...v)))};});
       new ResizeObserver(draw).observe(canvas);draw();
-    }catch{const img=el('img');img.src='media/clamp.png';img.alt='Две экспериментальные структуры скользящих зажимов';canvas.replaceWith(img);tip.textContent='Показана статическая проекция двух структур.';}
+    }catch{const img=el('img');img.src=media('clamp.png');img.alt='Две экспериментальные структуры скользящих зажимов';canvas.replaceWith(img);tip.textContent='Показана статическая проекция двух структур.';}
   }
   function mount(host,id){host.append(el('h3','',names[id]));if(id==='bands')density(host);else if(id==='clamps')clamps(host);else if(id==='bubble')bubble(host);else stepper(host,id);}
-  const parameter=new URLSearchParams(location.search).get('widget');
-  if(Object.hasOwn(names,parameter)){document.body.classList.add('widget-only');const container=document.querySelector('#widget-only');container.hidden=false;container.className='widget';mount(container,parameter);return;}
-  document.querySelectorAll('[data-widget]').forEach(n=>mount(n,n.dataset.widget));
-  const contents=document.querySelector('#contents details');if(matchMedia('(max-width:780px)').matches)contents.open=false;
-  const links=Array.from(document.querySelectorAll('.contents nav a'));
+  const parameter=embedded?null:new URLSearchParams(location.search).get('widget');
+  if(Object.hasOwn(names,parameter)){document.body.classList.add('widget-only');const container=root.querySelector('#widget-only');container.hidden=false;container.className='widget';mount(container,parameter);return;}
+  root.querySelectorAll('[data-widget]').forEach(n=>mount(n,n.dataset.widget));
+  const sequence = root.querySelector('.sequence-player');
+  const player = sequence ? mountSequence(sequence, root) : null;
+  if(embedded) {
+    root.addEventListener('click', event => {
+      const link = event.target.closest('a[href^="#"]');
+      if(!link) return;
+      const target = root.getElementById(link.hash.slice(1));
+      if(!target) return;
+      event.preventDefault();
+      target.scrollIntoView({block:'start'});
+      if(target.tagName === 'SECTION') { target.tabIndex=-1; target.focus({preventScroll:true}); }
+    });
+  }
+  const contents=root.querySelector('#contents details');if(matchMedia('(max-width:780px)').matches)contents.open=false;
+  const links=Array.from(root.querySelectorAll('.contents nav a'));
   const observer=new IntersectionObserver(entries=>{const active=entries.filter(e=>e.isIntersecting).sort((a,b)=>a.boundingClientRect.top-b.boundingClientRect.top)[0];if(active)links.forEach(a=>a.classList.toggle('active',a.hash==='#'+active.target.id));},{rootMargin:'-8% 0px -65% 0px',threshold:0});
-  document.querySelectorAll('.unit').forEach(s=>observer.observe(s));
-  const dialog=document.querySelector('#zoom-dialog');document.querySelectorAll('.zoom').forEach(a=>a.addEventListener('click',e=>{if(!dialog.showModal)return;e.preventDefault();const img=dialog.querySelector('img');img.src=a.href;img.alt=a.querySelector('img').alt;dialog.showModal();}));dialog.querySelector('button').onclick=()=>dialog.close();
+  root.querySelectorAll('.unit').forEach(s=>observer.observe(s));
+  const dialog=root.querySelector('#zoom-dialog');root.querySelectorAll('.zoom').forEach(a=>a.addEventListener('click',e=>{if(!dialog.showModal)return;e.preventDefault();const img=dialog.querySelector('img');img.src=a.href;img.alt=a.querySelector('img').alt;dialog.showModal();}));dialog.querySelector('button').onclick=()=>dialog.close();
+  return {pause() {
+    player?.pause();
+    root.querySelectorAll('video').forEach(video => video.pause());
+    if(dialog.open) dialog.close();
+  }};
+  }
+  window.ReplicationReader={mount:mountBook};
+  if(document.querySelector('#book .unit')) mountBook(document);
 })();

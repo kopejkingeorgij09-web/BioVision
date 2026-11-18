@@ -96,7 +96,7 @@ target.disabled=true;target.textContent='Сохраняю…';try{
 if(!('caches'in window)||!('serviceWorker'in navigator))throw Error('offline unavailable');
 await navigator.serviceWorker.register(new URL('../../sw.js',assets));await navigator.serviceWorker.ready;
 const cache=await caches.open('microbook-v2'),v='20261112';
-const urls=['','index.html','content.js?v='+v,'enrichment.js?v='+v,'sources.js?v='+v,'olympiad.js?v='+v,'models.js?v='+v,'diagrams.js?v='+v,'reader.js?v=20261118-desk','../reading-desk.css?v=1','../reading-desk.js?v=1','?from=phagi','embed.js?v='+v,'style.css?v='+v].map(s=>new URL(s,assets).href).concat(photos.map(photoURL));
+const urls=['','index.html','content.js?v='+v,'enrichment.js?v='+v,'sources.js?v='+v,'olympiad.js?v='+v,'models.js?v='+v,'diagrams.js?v='+v,'reader.js?v=20261118-desk2','../reading-desk.css?v=2','../reading-desk.js?v=1','?from=phagi','embed.js?v='+v,'style.css?v='+v].map(s=>new URL(s,assets).href).concat(photos.map(photoURL));
 await cache.addAll(urls);target.textContent='✓ Учебник сохранён';target.title='Теория, схемы и все микрофотографии сохранены; видео загружается отдельно';
 }catch{target.textContent='Не удалось сохранить — повторить';target.title='Проверь соединение и свободное место';}target.disabled=false;
 }

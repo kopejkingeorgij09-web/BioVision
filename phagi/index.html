@@ -1,7 +1,8 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<script src="cloud.js?v=8"></script>
+<script src="cloud.js?v=9"></script>
+<script src="lesson-files.js?v=1"></script>
 <meta charset="utf-8">
 <meta name="ph-ver" content="2026-11-16-shad-homework">
 <meta name="color-scheme" content="light dark">
@@ -1657,7 +1658,7 @@ const safeId=id=>typeof id==='string'&&/^[0-9a-zA-Z_-]{8,64}$/.test(id);
 function filesHTML(list,removeAct){
   const fs=(list||[]).filter(f=>f&&safeId(f.id));if(!fs.length)return'';
   return `<div class="files">${fs.map((f,i)=>{const u='_blob/'+f.id,img=/^image\//.test(f.type||'');
-    return `<span class="file">${removeAct?`<button class="x" ${removeAct} data-i="${i}" aria-label="Убрать файл ${esc(f.name||'')}">×</button>`:''}<a href="${u}" data-fid="${f.id}" data-fn="${esc(f.name||'файл')}" data-ft="${esc(f.type||'')}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${img?`<img src="${u}" alt="${esc(f.name||'Фото')}" loading="lazy">`:`<span class="doc">${esc(((f.name||'').split('.').pop()||'файл').toUpperCase().slice(0,4))}</span>`}<span>${esc(f.name||'файл')}</span></a></span>`}).join('')}</div>`;
+    return `<span class="file">${removeAct?`<button class="x" ${removeAct} data-i="${i}" data-file-id="${esc(f.id)}" aria-label="Убрать файл ${esc(f.name||'')}">×</button>`:''}<a href="${u}" data-fid="${f.id}" data-fn="${esc(f.name||'файл')}" data-ft="${esc(f.type||'')}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${img?`<img src="${u}" alt="${esc(f.name||'Фото')}" loading="lazy">`:`<span class="doc">${esc(((f.name||'').split('.').pop()||'файл').toUpperCase().slice(0,4))}</span>`}<span>${esc(f.name||'файл')}</span></a></span>`}).join('')}</div>`;
 }
 function uplErr(e){const c=e&&e.code;
   if(c==='unsupported_type')toast('Такой тип файла не поддерживается. Подойдут фото (JPG, PNG, WebP, GIF, HEIC), PDF или текст.');
@@ -1668,33 +1669,14 @@ function uplErr(e){const c=e&&e.code;
 const EXT_TYPE={pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',gif:'image/gif',heic:'image/heic',heif:'image/heif',bmp:'image/bmp',txt:'text/plain',csv:'text/csv',md:'text/markdown',json:'application/json'};
 const fileType=f=>{const t=(f.type||'').split(';')[0].trim().toLowerCase();if(t&&t!=='application/octet-stream'&&t!=='application/x-pdf')return t;
   return EXT_TYPE[((f.name||'').split('.').pop()||'').toLowerCase()]||t||'application/pdf'};
-// ids of files already referenced somewhere, so a recovered upload never grabs someone else's file
-function usedIds(){const u=new Set(),add=l=>(l||[]).forEach(f=>f&&f.id&&u.add(f.id));
-  S.events.forEach(e=>{add(e.files);Object.values(e.ofiles||{}).forEach(add)});
-  S.tasks.forEach(t=>{add(t.files);(t.q||[]).forEach(q=>{const m=/^\/?_blob\/(.+)$/.exec(q.img||'');if(m)u.add(m[1])})});
-  Object.values(S.subs).forEach(m=>Object.values(m||{}).forEach(s=>add(s&&s.files)));
-  Object.values(S.grades).forEach(m=>Object.values(m||{}).forEach(g=>add(g&&g.notes)));
-  return u}
-// the store sometimes keeps the file while the call itself reports an error: look for it before giving up
-async function findStored(size,since,skip){
-  for(let k=0;k<4;k++){
-    try{const{assets}=await S.assets.list();const used=usedIds();
-      const hit=assets.filter(a=>a.sizeBytes===size&&Date.parse(a.createdAt)>=since-120000&&!used.has(a.id)&&!(skip&&skip.has(a.id))).pop();
-      if(hit)return hit}catch(e){}
-    await new Promise(r=>setTimeout(r,2500));
-  }
-  return null}
 async function uploadFiles(fileList){
   if(!S.assets){toast('Загрузка файлов недоступна в этом окне.');return[]}
-  const out=[],got=new Set();
+  const out=[];
   for(const f of fileList){
-    const t0=Date.now(),type=fileType(f);
+    const type=fileType(f);
     toast(fileList.length>1?`Загружаю «${short(f.name||'файл',40)}»…`:'Загружаю файл…',0);
-    try{const r=await S.assets.upload(f,{type});out.push({id:r.id,name:f.name||'файл',type:r.contentType||type});got.add(r.id)}
-    catch(e){const c=e&&e.code;
-      const hard=['unsupported_type','too_large','quota_or_state','not_granted','invalid_request'].includes(c);
-      const r=hard?null:await findStored(f.size,t0,got);
-      if(r){out.push({id:r.id,name:f.name||'файл',type:r.contentType||type});got.add(r.id)}else uplErr(e)}
+    try{const r=await S.assets.upload(f,{type});out.push({id:r.id,name:f.name||'файл',type:r.contentType||type})}
+    catch(e){uplErr(e)}
   }
   return out;
 }
@@ -1782,7 +1764,7 @@ const norm=s=>String(s??'').toLowerCase().replace(/ё/g,'е').replace(/,/g,'.').
 function checkQ(q,a){
   if(q.t==='text'){const v=norm(a);if(!v)return false;
     return q.acc.some(x=>{const n=norm(x);if(n===v)return true;const a1=parseFloat(n),b1=parseFloat(v);return /^-?\d+(\.\d+)?$/.test(n)&&/^-?\d+(\.\d+)?$/.test(v)&&Math.abs(a1-b1)<1e-9})}
-  if(q.t==='single')return a!=null&&q.ans.includes(Number(a));
+  if(q.t==='single')return a!=null&&a!==''&&q.ans.includes(Number(a));
   const set=new Set((a||[]).map(Number));return set.size===q.ans.length&&q.ans.every(i=>set.has(i));
 }
 const testMax=t=>(t.q||[]).reduce((s,q)=>s+(q.pts||1),0);
@@ -2344,7 +2326,7 @@ function testBody(t,answers,reveal,keyPrefix,extra){
     }else{
       const type=q.t==='single'?'radio':'checkbox';
       inner=q.opts.map((o,j)=>{
-        const chosen=reveal?(q.t==='single'?Number(a)===j:(a||[]).map(Number).includes(j)):(q.t==='single'?val(k,'')===String(j):(val(k,'')||'').split(',').includes(String(j)));
+        const chosen=reveal?(q.t==='single'?a!=null&&a!==''&&Number(a)===j:(a||[]).map(Number).includes(j)):(q.t==='single'?val(k,'')===String(j):(val(k,'')||'').split(',').includes(String(j)));
         const right=q.ans.includes(j),cls=reveal?(right?(who&&!chosen?' ok miss':' ok'):chosen?' bad':''):'';
         const tags=keyPrefix==='pv'&&right?`<span class="otags"><span class="otag ok">Верный</span></span>`:who&&(chosen||right)?`<span class="otags">${chosen?`<span class="otag ${right?'ok':'bad'}">${who}</span>`:''}${right?`<span class="otag ok">Верный</span>`:''}</span>`:'';
         return `<label class="opt${cls}"><input type="${type}" name="${k}" data-q="${k}" value="${j}" ${chosen?'checked':''} ${reveal?'disabled':''}><span class="grow">${tx(o)}</span>${tags}</label>`}).join('')+(who&&a==null||who&&Array.isArray(a)&&!a.length?`<div class="small muted" style="margin-top:4px">${T()?'Ученица не выбрала ни одного варианта.':'Вы не выбрали ни одного варианта.'}</div>`:'');
@@ -3283,7 +3265,7 @@ function subscribe(){
   db.collection('nbooks').onSnapshot(q=>{S.nbooks=listOf(q);render(true)},err);
   db.collection('cfg').onSnapshot(q=>{const d=q.docs.find(x=>x.id==='main');S.cfg=d?d.data():{};subAssign();render(true)},err);
   db.collection('posts').orderBy('createdAt','desc').limit(60).onSnapshot(q=>{S.posts=listOf(q);render(true)},err);
-  db.collection('events').onSnapshot(q=>{S.events=listOf(q);render(true);if(!occPendDone)setTimeout(resumeOccPend,3000)},err);
+  db.collection('events').onSnapshot(q=>{S.events=listOf(q);render(true);if(!occRecoveryStarted&&T()){occRecoveryStarted=true;resumeLessonFiles()}},err);
   db.collection('decks').orderBy('createdAt','desc').onSnapshot(q=>{S.tdecks=listOf(q);rebuildDecks();render(true)},err);
   db.collection('deckparts').onSnapshot(q=>{S.dparts=partsOf(listOf(q));rebuildDecks();render(true)},err);
   if(!T())db.collection('petri/'+meId()+'/from').onSnapshot(q=>{
@@ -3376,25 +3358,14 @@ $('#dlg').addEventListener('click',async e=>{
   try{await fn(el)}catch(x){fail(x)}finally{el.disabled=false;render()}
 });
 let dlgFiles=[],occCtx=null;
-async function attachOcc(evId,date,added){
-  const ref=S.db.doc('events/'+evId);let cur=S.events.find(e=>e.id===evId)||{};
-  try{const sn=await ref.get();if(sn.exists)cur=sn.data()}catch(e){}
-  const have=new Set((((cur.ofiles||{})[date])||[]).map(f=>f.id));
-  const l=[...(((cur.ofiles||{})[date])||[]),...added.filter(f=>!have.has(f.id))];
-  try{await ref.update({ofiles:{[date]:l}})}catch(e){await new Promise(r=>setTimeout(r,1500));await ref.update({ofiles:{[date]:l}})}
-  const ev=S.events.find(e=>e.id===evId);if(ev)ev.ofiles={...(ev.ofiles||{}),[date]:l};
-}
-// an attach in flight is remembered in this browser: if the page reloads mid-upload, it finishes on the next open
-function occPend(v){try{v?localStorage.setItem('occPend',JSON.stringify(v)):localStorage.removeItem('occPend')}catch(e){}}
-let occPendDone=false;
-async function resumeOccPend(){
-  if(occPendDone||!T()||!S.assets||!S.events.length)return;occPendDone=true;
-  let p=null;try{p=JSON.parse(localStorage.getItem('occPend')||'null')}catch(e){}
-  if(!p||!p.ev||!p.date||Date.now()-p.t>3600e3){occPend(null);return}
-  const found=[],skip=new Set();
-  for(let i=0;i<(p.sizes||[]).length;i++){const r=await findStored(p.sizes[i],p.t,skip);if(r){skip.add(r.id);found.push({id:r.id,name:(p.names||[])[i]||'файл',type:r.contentType||''})}}
-  occPend(null);if(!found.length)return;
-  try{await attachOcc(p.ev,p.date,found);render();toast(`Дозагрузил конспект к уроку ${fmtDay(p.date)}`,5000)}catch(x){fail(x)}
+let occRecoveryStarted=false;
+function resumeLessonFiles(){
+  // Older versions saved only names and sizes. These cannot identify an upload.
+  try{if(localStorage.getItem('occPend')){
+    toast('Осталась незавершённая загрузка из прежней версии. Проверьте материалы урока и при необходимости выберите файл ещё раз.',9000);
+    localStorage.removeItem('occPend');
+  }}catch{}
+  lessonFiles.resume();
 }
 // some in-app browsers (the Claude app on Android) ignore file pickers: when nothing opens, say so instead of staying silent
 document.addEventListener('click',e=>{const i=e.target;if(!i||i.tagName!=='INPUT'||i.type!=='file')return;
@@ -3414,11 +3385,9 @@ $('#dlg').addEventListener('dragleave',e=>{if(e.target===$('#dlg')||!$('#dlg').c
 $('#dlg').addEventListener('drop',e=>{$('#dlg').classList.remove('drop');const k=dropKind(),fs=[...((e.dataTransfer&&e.dataTransfer.files)||[])];if(!k||!fs.length)return;e.preventDefault();dlgFiles_(k,fs)});
 async function dlgFiles_(kind,list){
   const ctx=kind==='addocc'&&occCtx?{ev:occCtx.ev,date:occCtx.date}:null;
-  if(ctx)occPend({ev:ctx.ev.id,date:ctx.date,sizes:list.map(f=>f.size),names:list.map(f=>f.name||'файл'),t:Date.now()});
-  const added=await uploadFiles(list);if(!added.length){if(ctx)occPend(null);return}
+  if(ctx){await lessonFiles.enqueue(ctx.ev.id,ctx.date,list);return}
+  const added=await uploadFiles(list);if(!added.length)return;
   if(kind==='addevf'){dlgFiles.push(...added);$('#evfiles').innerHTML=filesHTML(dlgFiles,'data-dact="rmevf"');toast('Файл прикреплён. Не забудьте сохранить')}
-  else if(kind==='addocc'&&ctx){try{await attachOcc(ctx.ev.id,ctx.date,added);occPend(null);
-      if($('#dlg').open&&occCtx&&occCtx.ev.id===ctx.ev.id&&occCtx.date===ctx.date)openOcc('ev',ctx.ev.id,ctx.date);render();toast(added.length>1?'Файлы прикреплены к уроку':'Файл прикреплён к уроку')}catch(x){fail(x)}}
   else if(kind==='addnbf'){const f=added[0];if(!/pdf/i.test(f.type||'')&&!/\.pdf$/i.test(f.name||''))return toast('Нужен файл PDF');
     NB.dlgFile=f;NB.dlgPages=await nbPdfPages(list[0]);const box=$('#nbfile');if(box)box.innerHTML=nbFileHTML(f);toast('PDF загружен. Не забудьте сохранить')}
   else if(kind==='addtf'){dlgFiles.push(...added);$('#tfiles').innerHTML=filesHTML(dlgFiles,'data-dact="rmtf"');toast('Файл прикреплён')}
@@ -4443,8 +4412,8 @@ function openOcc(k,id,date){
     <div class="actions">${ev.repeat==='weekly'?`<button class="btn ghost sm" data-dact="skip">${cancel?'Вернуть это занятие':'Отменить только это занятие'}</button>`:''}<button class="btn danger sm" data-dact="del">Удалить${ev.repeat==='weekly'?' все повторы':''}</button><button class="btn ghost sm" data-dact="edit">Изменить</button><button class="btn sm" data-dact="close">Закрыть</button></div>`;
     Object.assign(acts,{
       edit:()=>openEventDialog(ev),
-      rmocc:async el=>{const of={...(ev.ofiles||{})};const l=(of[date]||[]).slice();l.splice(Number(el.dataset.i),1);of[date]=l;
-        await S.db.doc('events/'+ev.id).update({ofiles:{[date]:l}});ev.ofiles=of;openOcc('ev',ev.id,date);toast('Файл убран')},
+      rmocc:async el=>{await S.db.changeOccurrenceFile(ev.id,date,{action:'remove',id:el.dataset.fileId});
+        openOcc('ev',ev.id,date);toast('Файл убран')},
       del:async()=>{if(!await askConfirm('Удалить событие'+(ev.repeat==='weekly'?' со всеми повторами':'')+'?'))return;await S.db.doc('events/'+ev.id).delete();closeDlg();toast('Событие удалено')},
       skip:async()=>{const sk=new Set(ev.skip||[]);cancel?sk.delete(date):sk.add(date);await S.db.doc('events/'+ev.id).update({skip:[...sk]});closeDlg();toast(cancel?'Занятие возвращено':'Занятие отменено')},
       addhw:()=>{const next=ev.repeat==='weekly'?addDays(date,7):'';openTaskDialog(null,{subject:ev.subject,to:recipients(ev),due:next,lesson:{eventId:ev.id,date}})}

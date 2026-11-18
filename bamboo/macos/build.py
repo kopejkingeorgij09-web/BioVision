@@ -18,12 +18,12 @@ for name in ['bamboo','bioviz/x','shad']:
   shutil.copy2(repo/'bamboo/android/web/app-updates.js',dst/'app-updates.js')
  elif name=='shad':shutil.copy2(repo/name/'plan.json',dst/'plan.json')
  else:shutil.copy2(repo/name/'cloud.js',dst/'cloud.js')
-info={'CFBundleIdentifier':'org.biovision.zovlesa.mac','CFBundleName':'Зов леса','CFBundleDisplayName':'Зов леса','CFBundleExecutable':'ZovLesa','CFBundlePackageType':'APPL','CFBundleShortVersionString':'1.0.1','CFBundleVersion':'2','LSMinimumSystemVersion':'12.0','NSHighResolutionCapable':True,'NSAppTransportSecurity':{'NSAllowsLocalNetworking':True}}
+info={'CFBundleIdentifier':'org.biovision.zovlesa.mac','CFBundleName':'Зов леса','CFBundleDisplayName':'Зов леса','CFBundleExecutable':'ZovLesa','CFBundlePackageType':'APPL','CFBundleShortVersionString':'1.0.2','CFBundleVersion':'3','LSMinimumSystemVersion':'12.0','NSHighResolutionCapable':True,'NSAppTransportSecurity':{'NSAllowsLocalNetworking':True}}
 (out/'Contents/Info.plist').write_bytes(plistlib.dumps(info))
 for arch in ['arm64','x86_64']:
  subprocess.run(['xcrun','swiftc',str(repo/'bamboo/macos/main.swift'),'-O','-target',arch+'-apple-macosx12.0','-framework','AppKit','-framework','WebKit','-framework','Network','-framework','CryptoKit','-o','/private/tmp/ZovLesa-'+arch],check=True)
 subprocess.run(['lipo','-create','/private/tmp/ZovLesa-arm64','/private/tmp/ZovLesa-x86_64','-output',str(exe/'ZovLesa')],check=True)
 subprocess.run(['codesign','--force','--deep','--sign','-',str(out)],check=True)
 subprocess.run(['codesign','--verify','--deep','--strict',str(out)],check=True)
-subprocess.run(['ditto','-c','-k','--sequesterRsrc','--keepParent',str(out),str(args.output/'Zov-Lesa-macOS-1.0.1.zip')],check=True)
+subprocess.run(['ditto','-c','-k','--sequesterRsrc','--keepParent',str(out),str(args.output/'Zov-Lesa-macOS-1.0.2.zip')],check=True)
 print(out)

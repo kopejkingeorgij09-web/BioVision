@@ -227,12 +227,16 @@ const fCache=new Map();
 const newFileId=()=>(me.isOwner?'T-':'S'+me.id+'-')+fRand();
 const assets={
   newId:newFileId,
+  validate(file,type){
+    if(!/^(image\/|application\/pdf|text\/)/.test(type))throw fErr('unsupported_type');
+    if(file.size>FMAX && !/^image\/(jpeg|png|webp)$/.test(type))throw fErr('too_large');
+  },
   async info(id){
     const header=await rpc('ph_get',{p_code:getCode(),p_path:fPath(id)});
     return header&&header.parts?{id,contentType:header.type,sizeBytes:header.size}:null;
   },
   async upload(file,opt){if(!me)throw fErr('not_granted');const type=(opt&&opt.type)||file.type||'application/octet-stream';
-    if(!/^(image\/|application\/pdf|text\/)/.test(type))throw fErr('unsupported_type');
+    assets.validate(file,type);
     const {blob,type:t2}=await shrink(file,type);if(blob.size>FMAX)throw fErr('too_large');
     const id=opt?.id||newFileId(),path=fPath(id),data=b64(await blob.arrayBuffer()),parts=Math.max(1,Math.ceil(data.length/FCH));
     for(let k=0;k<parts;k++)await rpc('ph_set',{p_code:getCode(),p_path:path+'~'+k,p_data:{d:data.slice(k*FCH,(k+1)*FCH)}});

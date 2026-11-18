@@ -174,6 +174,18 @@ function colRef(col){checkCol(col);const base=query(col,{where:[],order:null,lim
   return Object.assign(base,{path:col,doc:id=>docRef(col+'/'+(id||newId())),
     async add(data){const r=docRef(col+'/'+newId());await r.set(data);return r}})}
 const db={doc:docRef,collection:colRef,
+  async publishLesson(bundle){
+    await rpc('ph_publish_lesson',{p_code:getCode(),p_bundle:bundle});
+    const paths=['events/'+bundle.eventId,...bundle.tasks.map(t=>'tasks/'+bundle.batch+'-'+t.kind)];
+    const rows=await Promise.all(paths.map(p=>rpc('ph_get',{p_code:getCode(),p_path:p})));
+    if(rows.some(d=>!d))throw Error('Publication not confirmed');
+    paths.forEach((p,i)=>put(p,rows[i],''));notify(paths);
+  },
+  async reviewAnswer(id,uid,submitted,returned,feedback,score){
+    await rpc('ph_review_answer',{p_code:getCode(),p_task:id,p_uid:uid,p_submitted:submitted,p_returned:returned,p_feedback:feedback,p_score:score});
+    const path='grades/'+uid+'/items/'+id;
+    const data=await rpc('ph_get',{p_code:getCode(),p_path:path});put(path,data,'');notify([path]);
+  },
   async changeOccurrenceFile(event,day,edit){
     const path='events/'+event, args={p_code:getCode(),p_path:path};
     const stamp=await rpc('ph_update',{...args,p_data:{occFileEdit:{...edit,day}}});

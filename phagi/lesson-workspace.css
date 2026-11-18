@@ -1,0 +1,13 @@
+.forest-back{display:inline-block;margin-bottom:12px}
+.lesson-card{padding:12px 0;border-bottom:1px solid var(--line)}
+.lesson-card .back{margin-bottom:6px;text-align:left}
+.lesson-task{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0}
+.lesson-task span{min-width:0;overflow-wrap:anywhere}.lesson-task small{display:block;color:var(--muted)}
+.quiz-nav{position:sticky;top:0;z-index:3;background:var(--card);border:1px solid var(--line);border-radius:10px;margin:8px 0;padding:5px}
+.quiz-tools,.quiz-map{display:flex;flex-wrap:wrap;align-items:center;gap:5px}.quiz-tools .back{margin:0;padding:8px}
+.quiz-map{max-height:32vh;overflow:auto;padding:4px}.quiz-map[hidden]{display:none}
+.quiz-map button,.quiz-flag{border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);cursor:pointer}
+.quiz-map button{min-width:42px;min-height:42px}.quiz-map .answered,.quiz-flag[aria-pressed=true]{background:var(--ink);color:var(--card)}
+.quiz-flag{float:right;padding:6px;margin:0 0 4px 8px}.q[data-quiz-index]{scroll-margin-top:120px}
+.timer + .sheet .quiz-nav{top:58px}
+@media(max-width:800px){.quiz-nav{top:54px}.timer + .sheet .quiz-nav{top:110px}.q[data-quiz-index]{scroll-margin-top:168px}.lesson-task{flex-wrap:wrap}.quiz-map button{min-width:44px;min-height:44px}}

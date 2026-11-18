@@ -1,10 +1,13 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<script src="cloud.js?v=10"></script>
+<script src="cloud.js?v=11"></script>
+<script src="lesson-workspace.js?v=1"></script>
+<script src="prepare-lesson.js?v=1"></script>
+<link rel="stylesheet" href="lesson-workspace.css?v=1">
 <script src="lesson-files.js?v=2"></script>
 <meta charset="utf-8">
-<meta name="ph-ver" content="2026-11-16-shad-homework">
+<meta name="ph-ver" content="2026-11-18-lesson-workspace">
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Фаги естественных наук</title>
@@ -2132,7 +2135,7 @@ function homeHTML(){
       <div class="hchips">${heroChip(pend.length,'на проверку','journal','var(--accent)')}${heroChip(actT,'активных заданий','tasks','var(--bio)')}${heroChip(lessons,'занятий на неделе','cal','var(--phys)')}${heroChip(S.people.length,plural(S.people.length,'ученица','ученицы','учениц'),'people','var(--math)')}</div></div>
       <div class="hacts"><button class="btn" data-act="newtask">Новое задание</button><button class="btn ghost" data-act="newevent">Новое событие</button><button class="btn ghost" data-act="newdeck">Новая колода</button></div></section>
     ${pend.length||absent.length?`<section class="sheet"><h2>Требует внимания</h2><div class="list">
-      ${pend.map(({t,uid})=>`<button class="item" data-act="open" data-id="${t.id}"><span class="grow"><span class="t">${esc(name(uid))}</span> <span class="muted">сдала «${esc(t.title)}»</span></span><span class="st sub">Проверить</span></button>`).join('')}
+      ${pend.map(({t,uid})=>`<button class="item" data-act="openanswer" data-uid="${esc(uid)}" data-id="${t.id}"><span class="grow"><span class="t">${esc(name(uid))}</span> <span class="muted">сдала «${esc(t.title)}»</span></span><span class="st sub">Проверить</span></button>`).join('')}
       ${absent.map(({o,p,r})=>`<button class="item" ${occAttrs(o)}><span class="grow"><span class="t">${esc(p.label)}</span> <span class="muted">${r.st==='no'?'не сможет':'опоздает'}: ${esc(o.ev.title)}, ${fmtDay(o.date)}</span>${r.note?`<br><span class="small">${esc(r.note)}</span>`:''}</span><span class="st late">${RS[r.st]}</span></button>`).join('')}
     </div></section>`:''}
     <div class="grid2"><section class="sheet"><h2>Ближайшая неделя</h2>${agendaList(soon,'Занятий на неделе нет. Добавьте их в расписание.')}</section>
@@ -2150,7 +2153,7 @@ function homeHTML(){
     <p>${todo.length?`${late?`Просрочено ${late} ${plural(late,'задание','задания','заданий')}, начни с ${late===1?'него':'них'}.`:`К сдаче ${todo.length} ${plural(todo.length,'задание','задания','заданий')}.`}`:'Все задания сданы.'}${cards?` Карточек на сегодня: ${cards}.`:''}</p>
     <div class="hchips">${heroChip(todo.length,'к сдаче','tasks',late?'var(--accent)':'var(--bio)')}${heroChip(cards,'карточек сегодня','cards','var(--chem)')}${heroChip(errs,'ошибок разобрать','marks','var(--accent)')}</div></div>${heroDate()}</section>
   <div class="grid2">
-  <section class="sheet"><h2>Сделать</h2>${todo.length?`<div class="list">${todo.slice(0,6).map(taskRow).join('')}</div>${todo.length>6?`<button class="btn ghost sm more-l" data-act="go" data-v="tasks">Ещё ${todo.length-6} в «Заданиях»</button>`:''}`:`<p class="muted">Все задания сданы.</p>`}</section>
+  <section class="sheet">${lessonHome(todo)}</section>
   <section class="sheet"><h2>Ближайшие занятия</h2>${agendaList(soon,'На этой неделе занятий нет.')}</section>
   </div>
   <section class="sheet" style="margin-top:16px"><div class="row" style="flex-wrap:wrap">${streakHTML(meId(),true)}<div class="grow"><h2 style="margin:0">Карточки на сегодня</h2><p class="muted small" style="margin:4px 0 0">${cards?`${cards} ${plural(cards,'карточка','карточки','карточек')} ждут повторения`:'На сегодня всё повторено'}</p></div>${cards?`<button class="btn" data-act="go" data-v="cards">Повторить</button>`:''}</div></section>
@@ -2279,7 +2282,7 @@ function calHTML(){
   const unit={month:['месяц','Предыдущий','Следующий'],week:['неделя','Предыдущая','Следующая'],'3d':['3 дня','Предыдущие','Следующие'],day:['день','Предыдущий','Следующий']}[v];
   const isNow=v==='month'?S.calMonth===dkey(new Date(pd(t0).getFullYear(),pd(t0).getMonth(),1)):t0>=from&&t0<=addDays(from,n-1);
   const views=`<div class="cvs" role="group" aria-label="Вид календаря">${CALV.map(([k,l])=>`<button data-act="calview" data-v="${k}" aria-pressed="${k===v}">${l}</button>`).join('')}</div>`;
-  const newBtn=`<button class="btn cal-new" data-act="newevent" aria-label="${T()?'Новое событие':'Своё событие'}"><span class="pl" aria-hidden="true">+</span><span class="tx">${T()?'Новое событие':'Своё событие'}</span></button>`;
+  const newBtn=`${T()?'<button class="btn ghost sm" data-act="preparelesson">Подготовить урок</button>':''}<button class="btn cal-new" data-act="newevent" aria-label="${T()?'Новое событие':'Своё событие'}"><span class="pl" aria-hidden="true">+</span><span class="tx">${T()?'Новое событие':'Своё событие'}</span></button>`;
   const hwHint=T()?'Когда домашку сдали все, кому она задана, срок становится зелёным с галочкой ✓, а когда всё проверено, с двумя ✓✓. Пока сдали не все, видно, сколько сдали, например 1/3.':'Сданная домашка становится зелёной, с галочкой ✓ и зачёркнутым названием, проверенная учителем отмечена двумя галочками ✓✓.';
   if(v==='day')return `<div class="cal-head cv-${v}"><div class="cal-nav"><button class="icon" data-act="calnav" data-n="-1" aria-label="${unit[1]} ${unit[0]}">‹</button><h1>${calTitle(from,n)}</h1><button class="icon" data-act="calnav" data-n="1" aria-label="${unit[2]} ${unit[0]}">›</button></div><button class="btn ghost sm cal-today${isNow?' on':''}" data-act="caltoday">Сегодня</button><span class="grow"></span>${views}<button class="icon cal-fs" data-act="calfull" aria-pressed="${!!S.calFull}" title="${S.calFull?'Обычный вид (Esc)':'Во весь экран (⌥⇧F)'}" aria-label="${S.calFull?'Обычный вид':'Во весь экран'}">${S.calFull?'⤡':'⤢'}</button>${newBtn}</div>
   <div class="calwrap cv-${v}">${grid}
@@ -2331,7 +2334,9 @@ function testBody(t,answers,reveal,keyPrefix,extra){
         const tags=keyPrefix==='pv'&&right?`<span class="otags"><span class="otag ok">Верный</span></span>`:who&&(chosen||right)?`<span class="otags">${chosen?`<span class="otag ${right?'ok':'bad'}">${who}</span>`:''}${right?`<span class="otag ok">Верный</span>`:''}</span>`:'';
         return `<label class="opt${cls}"><input type="${type}" name="${k}" data-q="${k}" value="${j}" ${chosen?'checked':''} ${reveal?'disabled':''}><span class="grow">${tx(o)}</span>${tags}</label>`}).join('')+(who&&a==null||who&&Array.isArray(a)&&!a.length?`<div class="small muted" style="margin-top:4px">${T()?'Ученица не выбрала ни одного варианта.':'Вы не выбрали ни одного варианта.'}</div>`:'');
     }
-    return `<div class="q"><div class="qt"><span class="num">${i+1}</span>${tagChip(q)}${tx(q.text)}${(q.pts||1)!==1?` <span class="muted small">(${q.pts} б.)</span>`:''}</div>${safeImg(q.img)?`<img class="qimg" src="${esc(q.img)}" alt="Рисунок к заданию ${i+1}">`:''}${inner}${reveal&&keyPrefix!=='pv'?`<div class="verdict ${ok?'ok':'bad'}">${ok?'Верно':'Неверно'}</div>`:''}${reveal&&keyPrefix==='pv'&&q.exp?`<div class="exp">${rich(q.exp)}</div>`:''}${reveal&&keyPrefix!=='pv'?`${q.exp?`<div class="exp">${rich(q.exp)}</div>`:''}`:''}${extra?extra(q,i,ok):''}</div>`;
+    const navigate=!reveal && keyPrefix==='ta-'+t.id && S.view==='task';
+    const flagged=navigate && (quizMemo(t.id).flags||[]).includes(i);
+    return `<div class="q" ${navigate?`id="quiz-question-${i}" data-quiz-index="${i}" tabindex="-1"`:''}>${navigate?`<button class="quiz-flag" data-act="quizflag" data-i="${i}" aria-pressed="${!!flagged}" aria-label="Отметить вопрос ${i+1} для возврата">${flagged?'⚑ Отмечен':'⚐ Отметить'}</button>`:''}<div class="qt"><span class="num">${i+1}</span>${tagChip(q)}${tx(q.text)}${(q.pts||1)!==1?` <span class="muted small">(${q.pts} б.)</span>`:''}</div>${safeImg(q.img)?`<img class="qimg" src="${esc(q.img)}" alt="Рисунок к заданию ${i+1}">`:''}${inner}${reveal&&keyPrefix!=='pv'?`<div class="verdict ${ok?'ok':'bad'}">${ok?'Верно':'Неверно'}</div>`:''}${reveal&&keyPrefix==='pv'&&q.exp?`<div class="exp">${rich(q.exp)}</div>`:''}${reveal&&keyPrefix!=='pv'?`${q.exp?`<div class="exp">${rich(q.exp)}</div>`:''}`:''}${extra?extra(q,i,ok):''}</div>`;
   }).join('');
 }
 
@@ -2356,13 +2361,15 @@ function taskHTML(){
     return html}
   if(t.kind==='material')return html;
   if(T()){
-    const to=t.to||[];
+    const context=reviewContext(t),to=context?(t.to||[]).filter(uid=>uid===context.uid):t.to||[];
+    if(context)html+=`<div class="actions"><button data-act="open" data-id="${esc(t.id)}" class="back">Все ответы по заданию</button><button class="btn ghost sm" data-act="nextanswer">${pending().some(x=>x.uid!==context.uid||x.t.id!==t.id)?'Следующая работа':'К очереди проверки'}</button></div>`;
     if(t.kind==='test')html+=`<details class="sheet" data-k="pv-${t.id}"><summary style="cursor:pointer;font-weight:600">Ключ теста: правильные ответы (${(t.q||[]).length} ${plural((t.q||[]).length,'вопрос','вопроса','вопросов')})</summary><p class="muted small" style="margin:6px 0 0">Здесь только верные варианты. Что выбрала ученица, смотрите ниже, в её блоке «Открыть ответы ученицы».</p>${testBody(t,(t.q||[]).map(q=>q.t==='text'?q.acc[0]:q.t==='single'?q.ans[0]:q.ans),true,'pv')}</details>`;
     if(t.kind==='test')html+=analysisHTML(t);
     if(!to.length)return html+`<div class="empty">Задание никому не назначено. Нажмите «Изменить» и отметьте учениц.</div>`;
     return html+to.map(uid=>{
       const s=(S.subs[uid]||{})[t.id],g=(S.grades[uid]||{})[t.id],st=status(t,uid),k=`${t.id}-${uid}`;
       const submitted=s&&s.status==='submitted';
+      if(context && submitted && S.grades[uid] && !context.submitted){context.submitted=s.updatedAt;context.returned=g?.returnedAt??null;}
       let ans='';
       if(t.kind==='test')ans=submitted?`<div class="row" style="margin:8px 0">${markHTML({score:s.auto},max,'sm')}<span class="muted small">Автопроверка, ${fmtTime(s.updatedAt)}${s.startedAt?`, решала ${durLabel(s.startedAt,s.updatedAt)}`:''}</span><span class="grow"></span><button class="btn ghost sm" data-act="retake" data-id="${t.id}" data-uid="${uid}">Разрешить пересдачу</button></div><details class="ansd" data-k="tv-${t.id}-${uid}"><summary><span class="ansd-o">Открыть ответы ученицы</span><span class="ansd-c">Свернуть ответы ученицы</span> <span class="muted">· верно ${(t.q||[]).filter((q,i)=>checkQ(q,(s.answers||[])[i])).length} из ${(t.q||[]).length}</span></summary>${testBody(t,s.answers||[],true,'tv-'+uid)}</details>`:`<p class="muted small">${s&&s.startedAt?`Тест начат ${fmtTime(s.startedAt)}, ответы ещё не отправлены.`:'Тест ещё не пройден.'}</p>`;
       else ans=submitted?`<div class="answer">${s.text?rich(s.text):(s.files&&s.files.length?'':'<span class="muted">Без текста</span>')}${filesHTML(s.files)}${okUrl(s.link)?`<div class="links"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.link)}</a></div>`:''}<div class="muted small" style="margin-top:6px">Сдано ${fmtTime(s.updatedAt)}</div></div>${annotRow(t,uid,s,g)}`:`<p class="muted small">Работа ещё не сдана${s&&s.status==='draft'?' (есть черновик)':''}.</p>`;
@@ -2370,7 +2377,7 @@ function taskHTML(){
       return `<section class="sheet"><div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(name(uid))}</h2><span class="st ${st.k}">${esc(st.l)}</span></div>${hwPctHTML(tsc,max,'sm')}${ans}
       <div class="row" style="align-items:flex-start;margin-top:10px"><label style="width:130px">${t.kind==='test'?'Своя оценка':'Оценка'}${max?' из '+esc(max):''}<input id="sc-${k}" type="number" min="0" step="0.5" value="${esc(val('sc-'+k,g&&g.score!=null?g.score:''))}"></label>
       <label class="grow">Комментарий<textarea id="fb-${k}" rows="2">${esc(val('fb-'+k,g?g.feedback:''))}</textarea></label></div>
-      <div class="actions">${g?`<span class="muted small" style="margin-right:auto;align-self:center">Возвращено ${fmtTime(g.returnedAt)}</span>`:''}<button class="btn sm" data-act="grade" data-id="${t.id}" data-uid="${uid}">${g?'Обновить оценку':'Вернуть с оценкой'}</button></div></section>`}).join('');
+      <div class="actions">${g?`<span class="muted small" style="margin-right:auto;align-self:center">Возвращено ${fmtTime(g.returnedAt)}</span>`:''}<button class="btn sm" ${context && !context.submitted?'disabled':''} data-act="grade" data-id="${t.id}" data-uid="${uid}">${context&&st.k==='sub'?'Вернуть и перейти дальше':g?'Обновить оценку':'Вернуть с оценкой'}</button></div></section>`}).join('');
   }
   const uid=meId(),s=(S.subs[uid]||{})[t.id],st=status(t,uid),g=st.g;
   const submitted=s&&s.status==='submitted';
@@ -2388,7 +2395,7 @@ function taskHTML(){
         hwLocal(t.id);if(s&&s.draft)Object.entries(s.draft).forEach(([k,v])=>{if(!(k in S.fv))S.fv[k]=v});
         const end=tl?Date.parse(s.startedAt)+tl*60000:0;
         html+=`${end?`<div class="timer" data-end="${end}" data-total="${tl*60000}" data-id="${t.id}" role="timer" aria-live="off"><span class="tl">Осталось</span><b class="tval">${fmtLeft(end-Date.now())}</b><span class="ttrack"><span class="tfill"></span></span></div>`:''}
-        <section class="sheet"><h2>Тест</h2><p class="muted small">Отправить ответы можно один раз, проверка мгновенная.</p>${svHTML(t.id,s)}${testBody(t,null,false,'ta-'+t.id)}<div class="actions"><button class="btn" data-act="submittest" data-id="${t.id}">Отправить ответы</button></div></section>`;
+        <section class="sheet"><h2>Тест</h2><p class="muted small">Отправить ответы можно один раз, проверка мгновенная.</p>${svHTML(t.id,s)}${quizNav(t)}${testBody(t,null,false,'ta-'+t.id)}<div class="actions"><button class="btn" data-act="submittest" data-id="${t.id}">Отправить ответы</button></div></section>`;
       }
     }
     return html;
@@ -2858,7 +2865,7 @@ function errPile(uid){
     const s=(S.subs[uid]||{})[t.id];if(!s||s.status!=='submitted'||!Array.isArray(s.answers))return;
     const f=(S.fix[uid]||{})[t.id],fx=f&&f.at===s.updatedAt?f:{};
     (t.q||[]).forEach((q,i)=>{if(!checkQ(q,s.answers[i])&&!(fx.done||{})[i])out.push({t,i,q,tries:(fx.tries||{})[i]||0})})});
-  return out;
+  return S.view==='fix'&&S.fixTask?out.filter(x=>x.t.id===S.fixTask):out;
 }
 const groupPile=pile=>{const m=new Map();pile.forEach(x=>{if(!m.has(x.t.id))m.set(x.t.id,{t:x.t,n:[]});m.get(x.t.id).n.push(x.i+1)});return[...m.values()]};
 function pileHTML(uid,mine){
@@ -2899,11 +2906,16 @@ async function submitTest(id,force){
   const t=S.tasks.find(x=>x.id===id);if(!t)return;
   const uid=meId(),old=(S.subs[uid]||{})[t.id];if(old&&old.status==='submitted')return;
   const pre='ta-'+t.id,answers=(t.q||[]).map((q,i)=>{const v=val(`${pre}-${i}`,'');return q.t==='text'?v:q.t==='single'?(v===''?null:Number(v)):(v?String(v).split(',').filter(Boolean).map(Number):[])});
-  const empty=answers.filter(a=>a==null||a===''||(Array.isArray(a)&&!a.length)).length;
-  if(!force&&empty&&!await askConfirm(`Без ответа ${empty} ${plural(empty,'вопрос','вопроса','вопросов')}. Всё равно отправить?`,'Отправить'))return;
+  const empty=answers.filter(a=>a==null||String(a).trim()==='').length;
+  if(!force && empty){
+    const missing=answers.flatMap((a,i)=>a==null || String(a).trim()===''?[i]:[]);
+    if(S.view==='task' ? !await confirmQuiz(missing) : !await askConfirm('Без ответа: '+empty+'. Всё равно отправить?','Отправить'))return;
+  }
+  if((S.subs[uid]||{})[id]?.status==='submitted')return;
   const auto=(t.q||[]).reduce((sum,q,i)=>sum+(checkQ(q,answers[i])?(q.pts||1):0),0);
   const d={answers,auto,total:testMax(t),status:'submitted',updatedAt:now()};if(old&&old.startedAt)d.startedAt=old.startedAt;
   if(draftTask&&draftTask.id===t.id){clearTimeout(draftT);draftTask=null}
+  await finishDraft(t.id);
   try{await S.db.doc(`subs/${uid}/items/${t.id}`).set(d)}catch(e){autoSub.delete(t.id);return fail(e)}
   hwClear(t.id);
   S.resAnim=S.resAnim||{};S.resAnim[t.id]=Date.now();S.resSel=null;S.resTask=t.id;
@@ -2924,6 +2936,12 @@ setInterval(()=>{document.querySelectorAll('.timer[data-end]').forEach(el=>{
    Kept in localStorage (hwd:<uid>:<task>) at once and on the server 1.2 s after typing; after a refused write the
    server part pauses 10 min so it never loops. Restored by hwLocal() into S.fv before the form is drawn. */
 let draftT=null,draftTask=null,draftFail=0;
+const draftWrites=new Map();
+async function finishDraft(id){
+  if(draftTask?.id===id){clearTimeout(draftT);draftTask=null;}
+  await draftWrites.get(id);
+  clearTimeout(SV[id]?.rt);
+}
 /* статус сохранения ответа (4.4): виден у теста и у ДЗ. SV[id] = {st:'saving'|'ok'|'err', at, n — номер повтора}.
    При сбое запись повторяется через 5, 15, 30, 60 с, ответы всё это время лежат в браузере (hwd:…) */
 const SV={},SV_DELAY=[5,15,30,60];
@@ -2938,7 +2956,7 @@ const svHTML=(id,s)=>`<p class="svst${SV[id]?' '+SV[id].st:''}" data-sv="${esc(i
 function svSet(id,st){const v=SV[id]=Object.assign(SV[id]||{n:0},{st,at:Date.now()});if(st==='err')v.n++;else if(st==='ok')v.n=0;
   document.querySelectorAll(`[data-sv="${CSS.escape(id)}"]`).forEach(e=>{e.className='svst '+st;e.innerHTML=svText(id,(S.subs[meId()]||{})[id])})}
 /* закрыть вкладку, пока ответ не дошёл до облака: браузер переспросит */
-window.addEventListener('beforeunload',e=>{if(Object.values(SV).some(v=>v.st==='err'||v.st==='saving')||draftTask){try{if(draftTask)draftSave()}catch{}e.preventDefault();e.returnValue=''}});
+window.addEventListener('beforeunload',e=>{if(Object.values(SV).some(v=>v && (v.st==='err'||v.st==='saving'))||draftTask){try{if(draftTask)draftSave()}catch{}e.preventDefault();e.returnValue=''}});
 const hwKey=id=>'hwd:'+meId()+':'+id;
 function hwFields(t){const d={};if(t.kind==='test'){const pre='ta-'+t.id+'-';Object.keys(S.fv).forEach(k=>{if(k.startsWith(pre))d[k]=S.fv[k]})}
   else['ans-'+t.id,'lnk-'+t.id].forEach(k=>{if(k in S.fv)d[k]=S.fv[k]});return d}
@@ -2965,7 +2983,8 @@ function draftSave(){
   else if(s&&s.status==='submitted'){SV[t.id]=null;return} // already handed in (resubmitting after a mark): keep it local, «Сдать заново» saves it
   else{const text=val('ans-'+t.id,s?s.text||'':''),link=val('lnk-'+t.id,s?s.link||'':'');
     p=ref.set({text,link,files:(s&&s.files)||[],status:'draft',updatedAt:now()})}
-  p.then(()=>{draftFail=0;svSet(t.id,'ok')}).catch(bad);
+  const write=p.then(()=>{draftFail=0;svSet(t.id,'ok')}).catch(bad);
+  draftWrites.set(t.id,Promise.all([draftWrites.get(t.id),write]));
 }
 function draftHook(el){
   const t=draftTaskOf(el);if(!t)return;
@@ -3140,13 +3159,13 @@ function sumRows(uid){
 function sumAlerts(){if(!T())return 0;return S.people.reduce((n,p)=>{const r=sumRows(p.id);return n+r.wait.length+r.late.length},0)}
 function sumHTML(){
   if(!T())return `<div class="empty">Сводка видна учителю.</div>`;
-  const link=t=>`<button class="sum-l" data-act="open" data-id="${esc(t.id)}">${esc(t.title||'Задание')}${t.due?` <small>до ${fmtDay(t.due)}</small>`:''}</button>`;
+  const link=(t,uid)=>`<button class="sum-l" ${typeof uid==='string'?`data-act="openanswer" data-uid="${esc(uid)}"`:'data-act="open"'} data-id="${esc(t.id)}">${esc(t.title||'Задание')}${t.due?` <small>до ${fmtDay(t.due)}</small>`:''}</button>`;
   const pcC=pc=>pc==null?'var(--muted)':pc>=85?'var(--bio)':pc>=60?'var(--chem)':'var(--accent)';
   const cards=S.people.map(p=>{const r=sumRows(p.id);
     return `<section class="sheet sum-c"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 style="margin:0">${esc(p.label||'Без имени')}</h2>${r.avg!=null?`<b class="sum-avg" style="--c:${pcC(r.avg)}">${r.avg}%</b>`:''}</div>
       <div class="sum-k"><span><b>${r.ts.length}</b>задано</span><span><b>${r.graded.length}</b>проверено</span><span class="${r.wait.length?'on':''}"><b>${r.wait.length}</b>ждут проверки</span><span class="${r.late.length?'bad':''}"><b>${r.late.length}</b>просрочено</span><span><b>${r.todo.length}</b>в работе</span></div>
       ${r.subj.length?`<div class="sum-s">${r.subj.map(([k,a,n])=>`<span>${subj(k)} <b style="color:${pcC(a)}">${a}%</b> <small>${n} ${plural(n,'работа','работы','работ')}</small></span>`).join('')}</div>`:''}
-      ${r.wait.length?`<h3>Ждут проверки</h3><div class="sum-ls">${r.wait.map(link).join('')}</div>`:''}
+      ${r.wait.length?`<h3>Ждут проверки</h3><div class="sum-ls">${r.wait.map(t=>link(t,p.id)).join('')}</div>`:''}
       ${r.late.length?`<h3>Просрочено</h3><div class="sum-ls">${r.late.map(link).join('')}</div>`:''}
       ${r.weak.length?`<h3>Слабые темы по тестам</h3><div class="sum-ls">${r.weak.map(x=>`<span class="sum-w">${esc(x.tag)} <b style="color:${pcC(Math.round(x.ok/x.n*100))}">${x.ok} из ${x.n}</b></span>`).join('')}</div>`:''}
     </section>`}).join('');
@@ -3218,6 +3237,7 @@ function patchMain(M,html){
   M._keys=keys;
 }
 function draw(soft){
+  checkLessonRoute();
   const a=document.activeElement,aid=a&&a.id;let ss,se;try{ss=a.selectionStart;se=a.selectionEnd}catch{}
   const sy=window.scrollY;
   $('#who').textContent=S.dual?'':T()?'Учитель':(S.mode==='student'&&S.joined?S.myLabel:'');
@@ -3226,13 +3246,14 @@ function draw(soft){
   document.body.classList.toggle('rvmode',S.view==='review');
   bvSync();owlSync();
   const nav=navHTML();if(nav!==lastNav){$('#nav').innerHTML=nav;lastNav=nav}
-  const M=$('#main');let html;DISH.main=true;DISH.m=0;try{html=mainHTML()}finally{DISH.main=false}
+  const M=$('#main');let html;DISH.main=true;DISH.m=0;try{html=forestBack()+mainHTML()}finally{DISH.main=false}
   // nothing changed on the page: leave the DOM alone, so images do not reload and nothing jumps or closes
   if(html===lastMain&&M.childNodes.length){held=false;runCounters();ctRefresh();nbMount();return}
   if(soft&&typingInMain()){held=true;return}
   held=false;lastMain=html;dSave(M);
   if(S.view!==lastView){lastView=S.view;M.classList.remove('vin');void M.offsetWidth;M.classList.add('vin');setTimeout(()=>M.classList.remove('vin'),320)}
   patchMain(M,html);
+  mountQuizNav();
   dRestore(M);
   if(aid){const e=document.getElementById(aid);if(e&&e!==document.activeElement&&!$('#dlg').open){e.focus({preventScroll:true});try{if(ss!=null)e.setSelectionRange(ss,se)}catch{}}}
   if(window.scrollY!==sy)window.scrollTo(0,sy);
@@ -3253,7 +3274,7 @@ const listOf=q=>q.docs.map(d=>({id:d.id,...d.data()}));
 function subscribe(){
   const db=S.db;
   db.collection('people').onSnapshot(q=>{
-    S.people=listOf(q).sort((a,b)=>(a.joinedAt||'').localeCompare(b.joinedAt||''));
+    routeReady.people=true;S.people=listOf(q).sort((a,b)=>(a.joinedAt||'').localeCompare(b.joinedAt||''));
     if(T())S.people.forEach(p=>watch(p.id));
     else{const m=S.people.find(p=>p.id===meId());S.joined=!!m;S.myLabel=m?m.label:''}
     syncArena();render(true)},err);
@@ -3261,11 +3282,11 @@ function subscribe(){
     if(!T())Object.entries(S.arena).forEach(([id,x])=>{if(id!==meId()&&!S.peekIn[id])S.streak[id]={days:x.days||{},ack:x.ack||null,muts:x.muts||[]}});
     syncArena();render(true)},err);
   db.collection('arenacfg').onSnapshot(q=>{const d=q.docs.find(x=>x.id==='main');S.acfgDoc=d?d.data():{};render(true)},err);
-  db.collection('tasks').orderBy('createdAt','desc').onSnapshot(q=>{S.ttasks=listOf(q);rebuildTasks();render(true)},err);
+  db.collection('tasks').orderBy('createdAt','desc').onSnapshot(q=>{routeReady.tasks=true;S.ttasks=listOf(q);rebuildTasks();render(true)},err);
   db.collection('nbooks').onSnapshot(q=>{S.nbooks=listOf(q);render(true)},err);
   db.collection('cfg').onSnapshot(q=>{const d=q.docs.find(x=>x.id==='main');S.cfg=d?d.data():{};subAssign();render(true)},err);
   db.collection('posts').orderBy('createdAt','desc').limit(60).onSnapshot(q=>{S.posts=listOf(q);render(true)},err);
-  db.collection('events').onSnapshot(q=>{S.events=listOf(q);render(true);if(!occRecoveryStarted&&T()){occRecoveryStarted=true;resumeLessonFiles()}},err);
+  db.collection('events').onSnapshot(q=>{routeReady.events=true;S.events=listOf(q);render(true);if(!occRecoveryStarted&&T()){occRecoveryStarted=true;resumeLessonFiles()}},err);
   db.collection('decks').orderBy('createdAt','desc').onSnapshot(q=>{S.tdecks=listOf(q);rebuildDecks();render(true)},err);
   db.collection('deckparts').onSnapshot(q=>{S.dparts=partsOf(listOf(q));rebuildDecks();render(true)},err);
   if(!T())db.collection('petri/'+meId()+'/from').onSnapshot(q=>{
@@ -3374,7 +3395,7 @@ document.addEventListener('click',e=>{const i=e.target;if(!i||i.tagName!=='INPUT
     if(!left&&!document.hidden&&document.hasFocus())toast('Окно выбора файла не открылось. Похоже, это приложение не умеет выбирать файлы: откройте страницу в браузере телефона (Chrome) или на компьютере.',9000)},1500)},true);
 async function onDlgFiles(e){
   const el=e.target;if(!el.files||!el.files.length)return;
-  const kind=el.dataset.dact;const list=[...el.files];el.value='';
+  const kind=el.dataset.dact;if(!kind)return;const list=[...el.files];el.value='';
   await dlgFiles_(kind,list)}
 $('#dlg').addEventListener('change',onDlgFiles);
 $('#dlg').addEventListener('input',e=>{if(e.target.type==='file')onDlgFiles(e)});
@@ -4342,6 +4363,7 @@ function openEventDialog(ev,preset={}){ // teacher: shared event; student: perso
   const to=new Set(ev?(ev.to||[]):(preset.to||[]));
   dlgFiles=((ev&&ev.files)||[]).slice();
   openDlg(`<h2>${ev?'Изменить событие':personal?'Своё событие':'Новое событие'}</h2>
+  ${!ev && !personal && S.view==='cal'?'<button class="btn ghost sm" data-dact="prepare">Подготовить урок с материалами</button>':''}
   ${personal?'<p class="muted small" style="margin-top:-6px">Его видишь только ты.</p>':''}
   <label>Название<input name="title" maxlength="100" value="${esc(ev?ev.title:'')}" placeholder="${personal?'Например: повторить клетку':'Например: Биология, разбор ОГЭ'}"></label>
   ${personal?'':`<label>Предмет<select name="subject">${subjOptions(ev?ev.subject:'bio')}</select></label>`}
@@ -4355,6 +4377,7 @@ function openEventDialog(ev,preset={}){ // teacher: shared event; student: perso
   <p class="err"></p>
   <div class="actions"><button class="btn ghost" data-dact="cancel">Отмена</button><button class="btn" data-dact="save">${ev?'Сохранить':'Добавить'}</button></div>`,{
     cancel:closeDlg,
+    prepare:()=>prepareLesson(null,fv('date'),{start:fv('start')}),
     rmevf:el=>{dlgFiles.splice(Number(el.dataset.i),1);$('#evfiles').innerHTML=filesHTML(dlgFiles,'data-dact="rmevf"')},
     save:async()=>{
       const data={title:fv('title').trim(),date:fv('date'),start:fv('start'),note:fv('note').trim(),updatedAt:now()};
@@ -4394,7 +4417,7 @@ function openOcc(k,id,date){
     ${sf.length?`<p class="muted small" style="margin:8px 0 0">Ко всем занятиям${ev.repeat==='weekly'?' серии':''}:</p>${filesHTML(sf)}`:''}
     ${T()&&S.assets?`<div class="actions" style="justify-content:flex-start"><label class="upl"><input type="file" accept="application/pdf,image/*" multiple data-dact="addocc"><span class="btn sm">Прикрепить PDF к уроку ${fmtDay(date)}</span></label><span class="muted small">или перетащите файл в это окно</span></div>`:''}</div>`})()}
   <div class="sheet" style="padding:12px 14px;background:var(--soft);border:0"><b>Домашнее задание к занятию</b>${hw.length?`<div class="list" style="margin-top:8px">${hw.map(t=>`<div><button class="item" data-dact="hw" data-id="${t.id}"><span class="grow"><span class="t">${esc(t.title)}</span><br><span class="muted small">${t.due?'до '+fmtDay(t.due):'без срока'}</span></span>${T()?'':`<span class="st ${status(t,meId()).k}">${esc(status(t,meId()).l)}</span>`}</button>${(t.files||[]).length?filesHTML(t.files):''}</div>`).join('')}</div>`:`<p class="muted small" style="margin:6px 0 0">Пока не задано.</p>`}
-  ${T()?`<div class="actions" style="justify-content:flex-start"><button class="btn sm" data-dact="addhw">Задать ДЗ к этому занятию</button></div>`:''}</div>`;
+  ${T()?`<div class="actions" style="justify-content:flex-start">${!cancel?'<button class="btn sm" data-dact="prepare">Подготовить урок</button>':''}<button class="btn ghost sm" data-dact="addhw">Задать ДЗ к этому занятию</button></div>`:''}</div>`;
 
   const acts={close:closeDlg,hw:el=>{closeDlg();S.view='task';S.taskId=el.dataset.id;window.scrollTo(0,0)}};
   /* веб ШАДа: вместо «приду / не приду» этап, общий с трекером ШАДа и «Зовом леса» (data/users/<я>/shadst-w<n> → shad/wNN) */
@@ -4411,6 +4434,7 @@ function openOcc(k,id,date){
     body+=`<h3 style="font-size:15px;margin:14px 0 6px">Ответы учениц</h3>${rs.length?rs.map(uid=>{const r=myRsvp(uid,ev.id,date);return `<div class="row small" style="padding:4px 0"><span class="grow">${esc(name(uid))}${r&&r.note?`<br><span class="muted">${esc(r.note)}</span>`:''}</span><span class="st ${r?(r.st==='yes'?'graded':'late'):''}">${r?RS[r.st]:'нет ответа'}</span></div>`}).join(''):'<p class="muted small">Событие никому не назначено.</p>'}
     <div class="actions">${ev.repeat==='weekly'?`<button class="btn ghost sm" data-dact="skip">${cancel?'Вернуть это занятие':'Отменить только это занятие'}</button>`:''}<button class="btn danger sm" data-dact="del">Удалить${ev.repeat==='weekly'?' все повторы':''}</button><button class="btn ghost sm" data-dact="edit">Изменить</button><button class="btn sm" data-dact="close">Закрыть</button></div>`;
     Object.assign(acts,{
+      prepare:()=>prepareLesson(ev,date),
       edit:()=>openEventDialog(ev),
       rmocc:async el=>{await S.db.changeOccurrenceFile(ev.id,date,{action:'remove',id:el.dataset.fileId});
         if ($('#dlg').open && occCtx?.ev.id===ev.id && occCtx.date===date) openOcc('ev',ev.id,date);
@@ -4558,8 +4582,16 @@ const actions={
     if(!/^\d{4}-\d\d-\d\d$/.test(st)||!/^\d{4}-\d\d-\d\d$/.test(en))return toast('Укажите даты начала и конца');
     if(st>en)return toast('Конец турнира раньше начала');if(diffDays(st,en)>59)return toast('Турнир может длиться не больше 60 дней');
     await S.db.doc('arenacfg/main').set({open:c.open,start:st,end:en,prize:pz,updatedAt:now()});delete S.fv.arst;delete S.fv.aren;delete S.fv.arpz;toast('Турнир сохранён')},
-  go:el=>{S.shadHw=null;S.view=el.dataset.v;if(S.view==='fix'){S.fixState=null;S.fixPos=0}if(S.view==='cal')S.calMonth=null;window.scrollTo(0,0)},
-  open:el=>{S.view='task';S.taskId=el.dataset.id;window.scrollTo(0,0)},
+  openanswer:el=>openAnswer(el.dataset.id,el.dataset.uid),
+  nextanswer:nextAnswer,
+  preparelesson:()=>prepareLesson(null,S.calDay||today()),
+  quizmap:el=>{const grid=el.closest('.quiz-nav').querySelector('.quiz-map');grid.hidden=!grid.hidden;el.setAttribute('aria-expanded',String(!grid.hidden));},
+  quizjump:el=>jumpQuiz(Number(el.dataset.i)),
+  quizflag:el=>{const id=S.taskId,i=Number(el.dataset.i),flags=new Set(quizMemo(id).flags||[]);if(flags.has(i))flags.delete(i);else flags.add(i);quizMemo(id,{flags:[...flags]});},
+  quizresume:el=>{const t=myTasks().find(t=>t.id===el.dataset.id);if(!t)return;const i=quizProgress(t).indexOf(false);S.quizStart=Math.max(0,i);S.view='task';S.taskId=t.id;window.scrollTo(0,0);},
+  quizerrors:el=>{S.fixTask=el.dataset.id;S.fixPos=0;S.fixState=null;S.view='fix';window.scrollTo(0,0);},
+  go:el=>{review=null;S.fixTask=null;S.shadHw=null;S.view=el.dataset.v;if(S.view==='fix'){S.fixState=null;S.fixPos=0}if(S.view==='cal')S.calMonth=null;window.scrollTo(0,0)},
+  open:el=>{review=null;S.view='task';S.taskId=el.dataset.id;window.scrollTo(0,0)},
   newtask:()=>openTaskDialog(null),
   edittask:el=>openTaskDialog(S.tasks.find(t=>t.id===el.dataset.id)),
   deltask:async el=>{if(!await askConfirm('Удалить задание? Ученицы перестанут его видеть.'))return;const t=S.tasks.find(x=>x.id===el.dataset.id);await S.db.doc(tColl(t)+'/'+el.dataset.id).delete();S.view='tasks';toast('Задание удалено')},
@@ -4622,7 +4654,11 @@ const actions={
   grade:async el=>{const id=el.dataset.id,uid=el.dataset.uid,k=`${id}-${uid}`,g=(S.grades[uid]||{})[id]||{};
     const raw=val('sc-'+k,g.score!=null?String(g.score):'');const score=raw===''?null:Number(raw);
     if(score!=null&&Number.isNaN(score))return toast('Оценка должна быть числом');
-    await S.db.doc(`grades/${uid}/items/${id}`).set({score,feedback:val('fb-'+k,g.feedback||'').trim(),returnedAt:now(),...(g.notes?{notes:g.notes}:{})});delete S.fv['sc-'+k];delete S.fv['fb-'+k];toast('Работа возвращена')},
+    if(review?.id===id && review.uid===uid && review.submitted){
+      try{await S.db.reviewAnswer(id,uid,review.submitted,review.returned,val('fb-'+k,g.feedback||'').trim(),score);}
+      catch(e){if(e.message?.includes('review changed')){toast('Ответ или оценка изменились. Откройте работу заново перед проверкой.',7000);return;}throw e;}
+      nextAnswer();
+    }else await S.db.doc(`grades/${uid}/items/${id}`).set({score,feedback:val('fb-'+k,g.feedback||'').trim(),returnedAt:now(),...(g.notes?{notes:g.notes}:{})});delete S.fv['sc-'+k];delete S.fv['fb-'+k];toast('Работа возвращена')},
   rename:async el=>{const uid=el.dataset.uid,label=val('lbl-'+uid).trim();if(!label)return;await S.db.doc('people/'+uid).update({label});delete S.fv['lbl-'+uid];toast('Имя сохранено')},
   remove:async el=>{const uid=el.dataset.uid;if(!await askConfirm(`Убрать ${name(uid)} из класса? Чтобы закрыть доступ полностью, удалите её и в меню «Поделиться».`,'Убрать'))return;await S.db.doc('people/'+uid).delete();
     const drop=[...Object.keys(S.peek[uid]||{}).map(s=>`petri/${uid}/from/${s}`),...Object.keys(S.peek).filter(v=>(S.peek[v]||{})[uid]).map(v=>`petri/${v}/from/${uid}`)];
@@ -4663,6 +4699,7 @@ async function saveSub(id,status){
   if(link&&!okUrl(link))return toast('Ссылка должна начинаться с https://');
   const files=s.files||[];
   if(status==='submitted'&&!text&&!link&&!files.length)return toast('Добавь ответ, фото или ссылку');
+  await finishDraft(id);
   await S.db.doc(`subs/${uid}/items/${id}`).set({text,link,files,status,updatedAt:now()});
   if(draftTask&&draftTask.id===id){clearTimeout(draftT);draftTask=null}if(status==='submitted')hwClear(id);
   delete S.fv['ans-'+id];delete S.fv['lnk-'+id];toast(status==='submitted'?'Работа сдана':'Черновик сохранён');
@@ -5187,7 +5224,7 @@ document.addEventListener('click',async e=>{
 });
 document.addEventListener('input',e=>{const el=e.target;if(el.closest('dialog')||el.id==='bvhost')return;
   if(el.dataset.q){if(el.type==='radio')S.fv[el.dataset.q]=el.value;else S.fv[el.dataset.q]=[...document.querySelectorAll(`[name="${el.name}"]:checked`)].map(x=>x.value).join(',')}
-  else if(el.id)S.fv[el.id]=el.value;draftHook(el)});
+  else if(el.id)S.fv[el.id]=el.value;draftHook(el);const t=draftTaskOf(el);if(t?.kind==='test'&&S.view==='task')refreshQuizNav(t)});
 document.addEventListener('change',async e=>{const el=e.target;
   if(el.dataset&&el.dataset.upload&&el.files&&el.files.length&&!el.closest('dialog')){
     const id=el.dataset.upload,uid=meId();toast('Загружаю…');
@@ -5699,6 +5736,7 @@ async function roleSet(r){if(!S.dual||r===S.mode)return;
   if(dirty.size||streakDirty)flush();
   try{await Promise.race([chain,new Promise(f=>setTimeout(f,4000))])}catch{}
   try{localStorage.setItem(ROLE_K,r)}catch{}
+  if(lessonRoute.has('role')){const url=new URL(location.href);for(const key of ['task','review','lesson','role','date'])url.searchParams.delete(key);history.replaceState(null,'',url);}
   location.reload()}
 $('#rolesw').addEventListener('click',e=>{const b=e.target.closest('button[data-role]');if(!b)return;
   /* на телефоне видна только кнопка текущего режима: нажатие переключает на другой */
@@ -5722,6 +5760,7 @@ $('#rolesw').addEventListener('click',e=>{const b=e.target.closest('button[data-
   let devT=false;try{devT=localStorage.getItem('ph_teach_dev')===S.me.id}catch{}
   S.dual=!!S.me.isOwner||!!S.me.teach||devT;
   S.mode=S.me.isOwner&&roleGet()!=='student'?'teacher':'student';
+  if(routePending && S.me.isOwner && ['teacher','student'].includes(lessonRoute.get('role'))) S.mode=lessonRoute.get('role');
   const shadHw=new URLSearchParams(location.search).get('shadHw');
   if(!T()&&/^(?:[1-9][0-9]?|10[0-2])$/.test(shadHw||'')){S.shadHw=Number(shadHw);S.view='tasks'}
   subscribe();render();

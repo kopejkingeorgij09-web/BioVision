@@ -1,0 +1,31 @@
+name: Build Zov Lesa for macOS
+on:
+  pull_request:
+    branches: ['main']
+    paths: ['bamboo/macos/**', '.github/workflows/zov-macos-release.yml']
+permissions:
+  contents: read
+jobs:
+  release:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and verify the universal application
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/zov-build"
+          python3 bamboo/macos/build.py --output "$out"
+          app="$out/Зов леса.app"
+          bin="$app/Contents/MacOS/ZovLesa"
+          version=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Contents/Info.plist")
+          build=$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$app/Contents/Info.plist")
+          zip="$out/Zov-Lesa-macOS-$version.zip"
+          lipo -verify_arch arm64 x86_64 "$bin"
+          "$bin" --self-test
+          "$bin" --verify-archive "$zip" "$(shasum -a 256 "$zip" | cut -d' ' -f1)" "$build"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Zov-Lesa-macOS
+          path: ${{ runner.temp }}/zov-build/Zov-Lesa-macOS-*.zip
+          if-no-files-found: error

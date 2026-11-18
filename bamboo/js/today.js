@@ -3,6 +3,7 @@
 (function(){
 const {esc, icon} = B;
 B.views = B.views || {};
+B.acts.reloadTeaching = () => B.refreshTeaching();
 
 function greet(){
   const h = new Date().getHours();
@@ -99,10 +100,18 @@ function phagiCard(c){
   if (!B.cloud) return '';
   const soon = Object.values(B.phx.dl).filter(x => !x.done && x.due && x.due <= B.add(c.today, 7) && (!x.shad || x.fix)).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 4);
   const day = B.phxDay(c.today), cards = day ? day.cards || 0 : 0;
-  if (!soon.length && !cards) return '';
+  const week = B.teaching;
+  const lesson = l => `<a class="ph-dl" href="${esc(B.phagiLink({lesson:l.id,date:l.day,role:'teacher'}))}"><b>${esc(B.fmtW(l.day))} ${esc(l.start || '')}</b><span>${esc(l.title)}<br><small>${esc(l.names)} · ${l.files || l.tasks ? [l.files && 'есть материалы', l.tasks && ('ДЗ: '+l.tasks)].filter(Boolean).join(', ') : 'Подготовить урок'}</small></span></a>`;
+  const upcoming = (week?.lessons || []).filter(l => l.day >= c.today);
+  const recent = (week?.lessons || []).filter(l => l.day < c.today);
+  const reviews = week?.reviews || [];
   return `<section class="card ph-card">
     <div class="row between"><h2>${icon('book')}Фаги</h2><a class="muted" href="${B.PHAGI}" target="_blank" rel="noopener">открыть →</a></div>
-    ${soon.length ? `<div class="sub-h">Сдать</div>${soon.map(x => { const k = B.diff(c.today, x.due); return `<a class="ph-dl ${k < 0 ? 'late' : k <= 1 ? 'near' : ''}" href="${B.PHAGI}" target="_blank" rel="noopener"><b>${k < 0 ? 'просрочено' : k === 0 ? 'сегодня' : k === 1 ? 'завтра' : B.fmtW(x.due)}</b><span>${esc(x.title)}</span></a>`; }).join('')}` : ''}
+    ${week?.failed ? '<p class="muted">Не удалось загрузить занятия и ответы. <button class="btn sm" data-act="reloadTeaching">Повторить</button></p>' : ''}
+    ${upcoming.length ? '<div class="sub-h">Мои уроки на неделе</div>' + upcoming.map(lesson).join('') : ''}
+    ${recent.length ? '<details><summary>Вчерашние уроки</summary>' + recent.map(lesson).join('') + '</details>' : ''}
+    ${reviews.length ? '<div class="sub-h">Проверить работы · '+reviews.length+'</div>' + reviews.map(r=>`<a class="ph-dl" href="${esc(B.phagiLink({task:r.id,review:r.uid,role:'teacher'}))}"><b>${esc(r.name)}</b><span>${esc(r.title)}</span></a>`).join('') : ''}
+    ${soon.length ? `<div class="sub-h">Моя учёба · сдать</div>${soon.map(x => { const k = B.diff(c.today, x.due); return `<a class="ph-dl ${k < 0 ? 'late' : k <= 1 ? 'near' : ''}" href="${esc(B.phagiTask(x.id))}"><b>${k < 0 ? 'просрочено' : k === 0 ? 'сегодня' : k === 1 ? 'завтра' : B.fmtW(x.due)}</b><span>${esc(x.title)}</span></a>`; }).join('')}` : ''}
     ${cards ? `<p class="muted ph-cards">Карточек за сегодня: ${cards}</p>` : ''}
   </section>`;
 }

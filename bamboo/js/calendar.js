@@ -19,7 +19,8 @@ const prefsKey = 'bamboo-calendar';
 let prefs = {};
 try { prefs = JSON.parse(localStorage.getItem(prefsKey) || '{}') || {}; } catch (_) {}
 let mode = Object.hasOwn(MODES,prefs.mode) ? prefs.mode : (innerWidth < 650 ? 'day' : 'week');
-let date = today(), side = prefs.side ?? innerWidth >= 950;
+const returnDay=new URLSearchParams(location.search).get('day');
+let date = C.validDate(returnDay || '') ? returnDay : today(), side = prefs.side ?? innerWidth >= 950;
 let weekFrom = null, weekFraction = 0;
 let scroll = null, scrollLeft = 0, draggedAt = 0, editContext = null;
 const hidden = new Set(Array.isArray(prefs.hidden) ? prefs.hidden : []);
@@ -100,7 +101,7 @@ function eachDay(items,from,to){
   return index;
 }
 const color = proj => proj === '@shad' ? 'blue' : proj === '@phagi' ? 'violet' : B.proj(proj)?.color || 'ink';
-const phagiHref = id => B.phagiTask ? B.phagiTask(id) : B.PHAGI;
+const phagiHref = id => B.phagiTask ? B.phagiTask(id,date) : B.PHAGI;
 function chip(e,style='',segment=null){
   const attrs = `data-k="${e.kind}" data-id="${esc(e.id)}" data-on="${esc(e.on)}" data-start="${e.start}" data-end="${e.end}" data-part="${esc(e.part || '')}"`;
   const timed = !!segment;

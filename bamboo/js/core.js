@@ -322,7 +322,25 @@ function onShadX(snap){
 /* лента с «Фагов» (коллекция 'phx', пишет сервер, см. supabase/migrations/20261104c_phagi_bamboo_bridge.sql):
    ev_<id> занятия (в «Зове леса» не показываются), dl_<id> сроки ДЗ, day_<дата> что было на Фагах за день */
 B.phx = {ev: {}, dl: {}, day: {}};
-B.PHAGI = '../phagi/';
+B.PHAGI = !['appassets.androidplatform.net','127.0.0.1:49191'].includes(location.host) && /^https?:$/.test(location.protocol) ? '../phagi/' : 'https://kopejkingeorgij09-web.github.io/BioVision/phagi/';
+B.phagiLink = params => B.PHAGI + '?' + new URLSearchParams({...params, from:'forest', back:location.hash || '#/today'});
+B.phagiTask = (id,day) => B.phagiLink({task:id, role:'student', ...(day?{backDay:day}:{})});
+B.teaching = null;
+let loadingTeaching = false;
+async function refreshTeaching(){
+  if (!B.cloud || loadingTeaching || (document.hidden && B.teaching && !B.teaching.failed)) return;
+  loadingTeaching = true;
+  try {
+    const week = await BVAUTH.teachingWeek(B.today());
+    if (JSON.stringify(week) !== JSON.stringify(B.teaching)){ B.teaching = week; changed(); }
+  } catch { if (!B.teaching){ B.teaching = {failed:true}; changed(); } }
+  finally { loadingTeaching = false; }
+}
+B.refreshTeaching = refreshTeaching;
+window.addEventListener('pageshow', refreshTeaching);
+window.addEventListener('focus', refreshTeaching);
+document.addEventListener('visibilitychange', refreshTeaching);
+setInterval(refreshTeaching, 60000);
 function onPhx(snap){
   const m = {ev: {}, dl: {}, day: {}};
   snap.docs.forEach(d => { const i = d.id.indexOf('_'), k = d.id.slice(0, i), id = d.id.slice(i + 1); if (m[k]) m[k][id] = Object.assign({id}, d.data() || {}); });
@@ -407,6 +425,7 @@ B.connect = async (retry = false) => {
     flushShadQueue();
     db.collection('shadx').onSnapshot(onShadX, () => {});
     db.collection('phx').onSnapshot(onPhx, () => {});
+    refreshTeaching();
   } else {
     if (!docs.cfg) seed();
     try { B.shad.marks = overlayShad(JSON.parse(localStorage.getItem(LS_SHADMARKS) || '{}') || {}); } catch (e) {}

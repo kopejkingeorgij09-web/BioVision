@@ -12,7 +12,7 @@ from scipy.ndimage import distance_transform_edt
 source=Path(__file__).resolve().parent/"sources"
 out=source.parents[2]/"phagi/island/art/settlement"
 out.mkdir(exist_ok=True)
-Image.open(source/"sunset.png").save(out/"sunset.webp",quality=89,method=6)
+Image.open(source/"sunset.png").save(out/"sunset.webp",lossless=True,method=6)
 
 def compact_curve(path):
     # The tracer emits absolute integer cubic curves. Relative deltas are smaller.
@@ -62,5 +62,5 @@ for master,names in [("habitats",["home","nest","incubator","food","gold","farm"
     for i,name in enumerate(names):
         x,y=i%3*w,i//3*h; im=atlas.crop((x,y,x+w,y+h))
         mask=im.getchannel("A").point(lambda a:255 if a>40 else 0)
-        im=im.crop(mask.getbbox());im.thumbnail((360,360),Image.Resampling.LANCZOS)
-        im.save(out/(name+".webp"),quality=88,method=6)
+        im=im.crop(mask.getbbox())
+        im.save(out/(name+".webp"),lossless=True,method=6)

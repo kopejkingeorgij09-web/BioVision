@@ -8,4 +8,4 @@ export const page=(title,html)=>'<div class="page"><h1>'+title+'</h1>'+html+'</d
 export const moscowDate=t=>new Date(t).toLocaleString('ru-RU',{timeZone:'Europe/Moscow',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
 
 export const structureName=(b,names)=>b.landmark==='fortress'?'Цитадель главы':b.id==='keep'?'Крепость':names[b.kind];
-export const structureArt=b=>b.id==='keep'?'art/settlement/'+(b.landmark==='fortress'?'fortress':'keep')+'.svg':'art/settlement/'+b.kind+'.webp';
+export const structureArt=b=>b.id==='keep'?'art/settlement/'+(b.landmark==='fortress'?'fortress':'keep')+'.svg':'art/settlement/'+b.kind+'.webp?v=master-1';

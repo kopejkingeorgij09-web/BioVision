@@ -29,5 +29,5 @@ export function boardSvg(island,edit=null,ring=null,size=boardSize){
  let radius='';
  if(ring){const p=project(ring.x,ring.y,size),[rx,ry]=rangeRadii(ring.radius,size);
   radius='<ellipse cx="'+p.x+'" cy="'+p.y+'" rx="'+rx+'" ry="'+ry+'" fill="'+ring.color+'" fill-opacity=".16" stroke="'+ring.color+'" stroke-width="2" stroke-dasharray="5 4" pointer-events="none"/>';}
- return '<picture><source type="image/webp" srcset="art/settlement/map-1100.webp 1100w, art/settlement/map-2000.webp 2000w" sizes="(max-width: 700px) 850px, 1800px"><img class="ground-art" src="art/settlement/plateau.svg" alt="" draggable="false"></picture><svg class="terrain" viewBox="0 0 1000 960" aria-label="Квадратное поле '+size+' на '+size+'">'+cells+radius+'</svg>';
+ return '<img class="ground-art" fetchpriority="high" decoding="async" src="art/settlement/plateau.svg" alt="" draggable="false"><svg class="terrain" viewBox="0 0 1000 960" aria-label="Квадратное поле '+size+' на '+size+'">'+cells+radius+'</svg>';
 }

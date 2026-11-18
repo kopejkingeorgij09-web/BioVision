@@ -1,7 +1,5 @@
 const views=new Map();
 let active;
-let movingUntil=0;
-export const cameraMoving=()=>performance.now()<movingUntil;
 function saved(key){
  try{const view=JSON.parse(sessionStorage.getItem('dragon-camera/'+key));return view&&[view.x,view.y,view.zoom].every(Number.isFinite)?view:null;}catch{return null;}
 }
@@ -16,11 +14,11 @@ export function mountCamera(section,key,focus){
  const v=views.get(key)||saved(key)||{x:focus.x,y:focus.y,zoom:section.classList.contains('battle')?1.25:innerWidth<900?2.18:2};
  v.zoom=clamp(v.zoom,1,3.4);views.set(key,v);
  let width,height,base,rect,frame=0,saveTimer,dragged=false,suppress=0,gesture;
- const buttons=[...section.querySelectorAll('[data-camera]')];let previousZoom;
+ const buttons=[...section.querySelectorAll('[data-camera]')];let previousZoom,paintedWidth,zoomTimer,continuousZoom=false;
  function save(){try{sessionStorage.setItem('dragon-camera/'+key,JSON.stringify(v));}catch{}}
  function remember(){clearTimeout(saveTimer);saveTimer=setTimeout(save,200);}
  function measure(){rect=viewport.getBoundingClientRect();width=rect.width;height=rect.height;base=Math.min(width*.95,height/.96*.97);paint();}
- function schedule(){movingUntil=performance.now()+130;if(!frame)frame=requestAnimationFrame(()=>{frame=0;paint();});}
+ function schedule(){if(!frame)frame=requestAnimationFrame(()=>{frame=0;paint();});}
  const fingers=new Map(),events=new AbortController();
  function paint(){
    if(!width||!height)return;
@@ -29,9 +27,21 @@ export function mountCamera(section,key,focus){
    v.x=limit(width,w,v.x);v.y=limit(height,h,v.y);
    if(w<=width)v.x=.5;
    if(h<=height)v.y=v.zoom===1?.46:.37;
-   world.style.transform='translate3d('+(width/2-v.x*w)+'px,'+(height/2-v.y*h)+'px,0) scale('+w/1000+')';
+   // Lay out artwork at its displayed size. Panning changes only the compositor translation.
+   const surface=continuousZoom?base*3.4:w;
+   if(paintedWidth!==surface){
+     paintedWidth=surface;world.style.width=surface+'px';world.style.height=surface*.96+'px';
+     world.style.setProperty('--map-unit',(surface/1000)+'px');
+   }
+   const transform='translate3d('+(width/2-v.x*w)+'px,'+(height/2-v.y*h)+'px,0)';
+   world.style.transform=continuousZoom?transform+' scale('+w/surface+')':transform;
    if(previousZoom===v.zoom)return;previousZoom=v.zoom;
    for(const b of buttons)b.disabled=b.dataset.camera==='out'&&v.zoom<=1.001||b.dataset.camera==='in'&&v.zoom>=3.39;
+ }
+ // A pinch or wheel burst reuses a surface large enough for its entire zoom range.
+ function continuous(){
+  continuousZoom=true;clearTimeout(zoomTimer);
+  zoomTimer=setTimeout(()=>{continuousZoom=false;schedule();},600);
  }
  function zoom(n,point){
   const old=v.zoom;v.zoom=clamp(n,1,3.4);
@@ -56,6 +66,7 @@ export function mountCamera(section,key,focus){
   if(!dragged&&Math.hypot(dx,dy)<5)return;
   dragged=true;if(!viewport.hasPointerCapture(e.pointerId))viewport.setPointerCapture(e.pointerId);
   const oldW=base*gesture.z;
+  if(gesture.gap)continuous();
   v.zoom=gesture.gap?clamp(gesture.z*s.gap/gesture.gap,1,3.4):gesture.z;
   const w=base*v.zoom;
   v.x=gesture.vx+(gesture.x-width/2)/oldW-(s.x-width/2)/w;
@@ -66,7 +77,7 @@ export function mountCamera(section,key,focus){
  viewport.onpointerup=viewport.onpointercancel=release;
  viewport.onpointerleave=e=>{if(!viewport.hasPointerCapture(e.pointerId))release(e);};
  viewport.addEventListener('click',e=>{if(e.detail&&performance.now()<suppress){e.preventDefault();e.stopImmediatePropagation();}},{capture:true,signal:events.signal});
- viewport.addEventListener('wheel',e=>{e.preventDefault();zoom(v.zoom*Math.exp(-e.deltaY*.0024),local(e));},{passive:false,signal:events.signal});
+ viewport.addEventListener('wheel',e=>{e.preventDefault();continuous();zoom(v.zoom*Math.exp(-e.deltaY*.0024),local(e));},{passive:false,signal:events.signal});
  viewport.onkeydown=e=>{
   if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','+','-','='].includes(e.key))return;
   e.preventDefault();
@@ -77,6 +88,6 @@ export function mountCamera(section,key,focus){
  section.querySelector('.camera-tools').onclick=e=>{const dir=e.target.closest('[data-camera]')?.dataset.camera;if(!dir)return;
   if(dir==='fit')fit();else zoom(v.zoom*(dir==='in'?1.3:1/1.3));};
  const observer=new ResizeObserver(measure);observer.observe(viewport);measure();
- active={section,key,paint,disconnect(){events.abort();observer.disconnect();cancelAnimationFrame(frame);clearTimeout(saveTimer);save();}};
+ active={section,key,paint,disconnect(){events.abort();observer.disconnect();clearTimeout(zoomTimer);cancelAnimationFrame(frame);clearTimeout(saveTimer);save();}};
 }
 export function focusCamera(key,x,y){const v=views.get(key);if(v){v.x=x;v.y=y;if(active?.key===key)active.paint();}}

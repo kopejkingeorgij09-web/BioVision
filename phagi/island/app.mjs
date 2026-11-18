@@ -10,7 +10,7 @@ import {boardSize,position} from './world.mjs';
 import {icon} from './icons.mjs';
 import {actorMarkup,mountActors,dragonAsset} from './actors.mjs';
 import {renderShell} from './scene.mjs';
-import {mountCamera,focusCamera,cameraMoving} from './camera.mjs';
+import {mountCamera,focusCamera} from './camera.mjs';
 import {species,byId,elements,colors,rarities,roles,skills,signs,stats,strength,distribution,percentages,pairing,starPrices,foodPrice} from './catalog.mjs';
 import {buildings,total,capacity,available,upgrade,buildCost,gemSpeed,production,homeSize,objectives,unlockPrice,nestTime,hatchTime} from './game.mjs';
 import {art,escape as esc,islandMap,battleView,paintBattle,idle,showResident,rotateResidents} from './paint.mjs';
@@ -239,7 +239,7 @@ function frame(time){
  if(!document.hidden&&state){
   if(time-lastPaint>(state.raid||route().startsWith('dragon/')||route().startsWith('species/')?12:42)){lastPaint=time;const r=state.raid;
     if(r&&route()==='raids'){const sim=paintBattle(r,now(),selectedUnit);if(!sim?.end)endedAt=0;else if(!endedAt)endedAt=Date.now();if(sim?.end&&Date.now()-endedAt>1050&&!busy&&!sessionStorage.getItem(pendingKey()))action({action:'finish',raid:r.id},'Бой завершён',()=>go('log'));}
-    else if(!cameraMoving())idle(time);
+    else idle(time);
     for(const t of document.querySelectorAll('time[data-end]')){const text=duration(+t.dataset.end-now());if(t.textContent!==text){t.textContent=text;if(text==='0 с'&&!busy)render();}}
   }
   const overdue=nextAttack&&now()>=nextAttack;

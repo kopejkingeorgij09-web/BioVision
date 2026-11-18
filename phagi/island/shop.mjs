@@ -2,8 +2,8 @@ import {buildings,buildCost,total} from './game.mjs';
 import {functions,unlockLevel,islandLevel} from './progression.mjs';
 import {defenses} from './defenses.mjs';
 import {boardSize,cellName} from './world.mjs';
-import {page,btn} from './ui.mjs';
-const thumb=k=>'<img width="60" height="60" loading="lazy" src="art/settlement/'+k+'.webp" alt="">';
+import {page,btn,structureArt} from './ui.mjs';
+const thumb=k=>'<img width="60" height="60" loading="lazy" src="'+structureArt({kind:k})+'" alt="">';
 const role=k=>functions[k]||defenses[k].role;
 export function shop(s,wallet,tab){
  const level=islandLevel(s.xp),free=boardSize**2-s.buildings.length,gold=total(s,'gold');

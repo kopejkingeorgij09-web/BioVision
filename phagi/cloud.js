@@ -21,7 +21,7 @@ async function rpc(fn,args){
   return j}
 
 /* ---------- вход ---------- */
-let me=null;const BOOT=getCode();
+let me=null;
 const ready=(async()=>{const c=getCode();if(!c)return null;
   try{me=await rpc('ph_login',{p_code:c});if(!me)setCode('')}catch(e){me=null}
   return me})();
@@ -195,15 +195,7 @@ const gate=ready.then(m=>{if(m)return m;
   return new Promise(()=>{})});
 gate.then(()=>{const go=()=>bar();document.readyState==='loading'?document.addEventListener('DOMContentLoaded',go):go()});
 
-/* fresh — документ прямо с сервера, мимо кеша страницы (кеш может держать неподтверждённую запись): нужен сохранению острова */
-window.PHCLOUD={rpc,teacherLogin:()=>loginScreen(true),get me(){return me},sync,codes:()=>me&&me.isOwner&&codes(),fresh:path=>rpc('ph_get',{p_code:getCode(),p_path:path}),
-  /* тот ли код входа, с которым открыта страница: в другой вкладке могли выйти или войти под другим кодом */
-  session:()=>getCode()===BOOT,
-  /* запись «только если в базе та же версия» (ph_set_if, supabase/migrations/20261028_ph_set_if_rev.sql, применена 28.10.2026).
-     Остров пишется одной атомарной записью; false вернёт обычный ph_set. План и откат: supabase/proposals/CAS-PLAN-RU.md */
-  CAS:true,
-  casSet:async(path,data,rev,op)=>{const r=await rpc('ph_set_if',{p_code:getCode(),p_path:path,p_data:data,p_rev:rev,p_op:op});
-    if(r&&r.ok){put(path,clone(data),r.t);notify([path])}return r}};
+window.PHCLOUD={rpc,teacherLogin:()=>loginScreen(true),get me(){return me},sync,codes:()=>me&&me.isOwner&&codes()};
 /* ---------- файлы (28.10.2026): фото и PDF к работам и заданиям ----------
    Хранятся в той же базе, кусками по ~300 КБ (base64): заголовок <путь>/<id> {name,type,size,parts}, куски <путь>/<id>~k {d}.
    Файл ученицы — subs/<uid>/files/<id> (читают она и учитель, правило subs/{self}), файл учителя — files/<id> (читают все).

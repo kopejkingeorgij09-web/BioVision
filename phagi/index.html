@@ -1,9 +1,7 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<script src="cloud.js?v=7"></script>
-<link rel="stylesheet" href="dragons/dragons.css?v=33">
-<link rel="stylesheet" href="dragons/world.css?v=33"><script src="dragons/world.js?v=33"></script><script src="dragons/genetics.js?v=33"></script><script src="dragons/element-art/manifest.js?v=33"></script><script src="dragons/art-motion.js?v=33"></script><script src="dragons/element-art.js?v=33"></script><script src="dragons/draw.js?v=33"></script><script src="dragons/puzzles.js?v=33"></script><script src="dragons/economy.js?v=33"></script><script src="dragons/island.js?v=33"></script><script src="dragons/store.js?v=33"></script><script src="dragons/battle.js?v=33"></script><script src="dragons/campaign.js?v=33"></script><script src="dragons/learning.js?v=33"></script><script src="dragons/ui.js?v=33"></script><script src="dragons/inspect.js?v=33"></script><script src="dragons/live.js?v=33"></script><script src="dragons/fight.js?v=33"></script>
+<script src="cloud.js?v=8"></script>
 <meta charset="utf-8">
 <meta name="ph-ver" content="2026-11-16-shad-homework">
 <meta name="color-scheme" content="light dark">
@@ -1804,20 +1802,16 @@ const maxOf=t=>t.kind==='test'?testMax(t):t.max;
 // v99 приписка к проценту выполнения
 const hwVerdict=pc=>pc>=90?['Шикарно!','var(--bio)']:pc>=85?['Хорошо','var(--bio)']:pc>=80?['Хорошо, но надо лучше','var(--bio)']:pc>=60?['Не ахти(','var(--chem)']:['Плохо, тема не закрыта','var(--accent)'];
 const hwPct=(score,max)=>score==null||score===''||!(Number(max)>0)||!isFinite(Number(score))?null:Math.round(Math.max(0,Math.min(1,Number(score)/Number(max)))*100);
-/* бонус за ДЗ (с 28 окт 2026): по ступеням процента, один раз за задание. Остров берёт сумму и начисляет только прирост
-   (поле credited.hwg/hwf), поэтому пересдача, повторная проверка и перезагрузка второй раз ничего не дают. Чашка получает
-   подкормку: дополнительные колонии в день проверки, если этот день есть в нынешней культуре */
+/* Подкормка за ДЗ: дополнительные колонии в день проверки, если этот день есть в нынешней культуре. */
 const HW_FROM='2026-10-28';
-/* 4.4: ДЗ весит больше — к самоцветам и корму золото и опыт острова, за 95 %+ ещё подарочное яйцо (редкий дракон) */
-const HW_TIERS=[[95,{gems:6,food:250,gold:900,xp:220,col:4,egg:1}],[90,{gems:4,food:150,gold:600,xp:140,col:3}],[85,{gems:3,food:100,gold:400,xp:90,col:2}],[80,{gems:2,food:60,gold:250,xp:60,col:2}],[60,{gems:1,food:30,gold:100,xp:25,col:1}]];
-const hwTier=pc=>{for(const [m,b] of HW_TIERS)if(pc>=m)return b;return null};
+const HW_TIERS=[[95,4],[90,3],[85,2],[80,2],[60,1]];
+const hwTier=pc=>{for(const [m,col] of HW_TIERS)if(pc>=m)return col;return null};
 function hwBonus(uid){const out=[];
   (S.tasks||[]).forEach(t=>{if(!(t.to||[]).includes(uid))return;const g=(S.grades[uid]||{})[t.id],sb=(S.subs[uid]||{})[t.id];
     const own=g&&g.returnedAt&&g.score!=null,auto=!own&&t.kind==='test'&&sb&&sb.status==='submitted';if(!own&&!auto)return;
-    const pc=hwPct(own?g.score:sb.auto||0,maxOf(t)),b=pc==null?null:hwTier(pc),d=String((own?g.returnedAt:sb.updatedAt)||'').slice(0,10);
-    if(b&&d>=HW_FROM)out.push({id:t.id,title:t.title||'Задание',pc,d,...b})});
+    const pc=hwPct(own?g.score:sb.auto||0,maxOf(t)),col=pc==null?null:hwTier(pc),d=String((own?g.returnedAt:sb.updatedAt)||'').slice(0,10);
+    if(col&&d>=HW_FROM)out.push({id:t.id,title:t.title||'Задание',pc,d,col})});
   return out.sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:a.id<b.id?-1:1)}
-window.hwBonus=hwBonus;
 const hwPctHTML=(score,max,cls='')=>{const pc=hwPct(score,max);if(pc==null)return '';const[v,c]=hwVerdict(pc);
   return `<div class="hwp ${cls}" style="--pc:${c}"><b>${pc}%</b><span><b>${v}</b><small>${esc(+(+score).toFixed(1))} из ${esc(max)} ${plural(Number(max),'балла','баллов','баллов')}</small></span></div>`};
 const markHTML=(g,max,cls='')=>g&&g.score!=null?`<span class="mark ${cls}">${esc(g.score)}${max?`<small>из ${esc(max)}</small>`:''}</span>`:'';
@@ -2094,8 +2088,8 @@ function navHTML(){
   const dueCards=T()?0:myDecks().reduce((s,d)=>{const st=deckStats(d,(S.srs[meId()]||{})[d.id]);return s+st.due+st.newToday},0);
   const items=T()
     ?[['home','Главная',pending().length],['sum','Сводка',sumAlerts()],['cal','Расписание'],['track','Трекер'],['tasks','Задания'],['cards','Карточки'],['nbs','Тетради'],['arena','Арена'],['bio','Биовиз'],['journal','Журнал'],['people','Ученицы']]
-    :[['home','Главная'],['cal','Расписание'],['track','Трекер',tkLate(meId())],['tasks','Задания',myTasks().filter(t=>!inNb(t)&&['todo','late'].includes(status(t,meId()).k)).length],['cards','Карточки',dueCards],['nbs','Тетради',nbBadge()],['arena','Арена'],['bio','Биовиз'],['marks','Журнал',errPile(meId()).length+bvPile(meId()).length]].map(x=>x[0]==='arena'&&DRGUI.on(meId())?['arena','Бои']:x);
-  const cur=S.view==='task'?'tasks':['deck','review','stview','island'].includes(S.view)?'cards':S.view==='fix'?'marks':S.view==='arview'?'arena':S.view==='nb'?'nbs':S.view;
+    :[['home','Главная'],['cal','Расписание'],['track','Трекер',tkLate(meId())],['tasks','Задания',myTasks().filter(t=>!inNb(t)&&['todo','late'].includes(status(t,meId()).k)).length],['cards','Карточки',dueCards],['nbs','Тетради',nbBadge()],['arena','Арена'],['bio','Биовиз'],['marks','Журнал',errPile(meId()).length+bvPile(meId()).length]];
+  const cur=S.view==='task'?'tasks':['deck','review','stview'].includes(S.view)?'cards':S.view==='fix'?'marks':S.view==='arview'?'arena':S.view==='nb'?'nbs':S.view;
   const kb=/Mac|iPhone|iPad/.test(navigator.platform||'')?'⌥':'Alt+';
   return items.map(([v,l,n],i)=>`<button data-act="go" data-v="${v}" aria-current="${cur===v}" aria-label="${l}${n?`, ${n}`:''}" title="${l}${i<9?` (${kb}${i+1})`:''}"><span class="ni" aria-hidden="true"><svg viewBox="0 0 24 24">${IC[v]}</svg></span><span class="nl">${l}</span>${n?`<span class="badge">${n}</span>`:''}</button>`).join('');
 }
@@ -2437,7 +2431,7 @@ function cardsHTML(){
   const ds=myDecks();
   const head=`<div class="page-h"><h1>Карточки</h1>${T()?`<button class="btn" data-act="newdeck">Новая колода</button>`:canAssign()?`<button class="btn" data-act="newdeck">Колода ученицам</button>`:''}</div>
   <p class="muted small" style="margin:-8px 0 16px">Интервальное повторение: карточка возвращается тогда, когда вы начинаете её забывать. Чем лучше помните, тем реже.</p>`;
-  const sHero=T()?(S.people.length?`<div class="st-strip">${S.people.map(p=>`<button class="st-chip" data-act="stview" data-uid="${p.id}" title="Открыть чашку подробно"><span class="nm">${esc(p.label)}</span>${streakHTML(p.id,true)}<span class="go" aria-hidden="true">›</span></button>`).join('')}</div>`:''):DRGUI.switchHTML()+streakHTML(meId(),false)+peekStrip();
+  const sHero=T()?(S.people.length?`<div class="st-strip">${S.people.map(p=>`<button class="st-chip" data-act="stview" data-uid="${p.id}" title="Открыть чашку подробно"><span class="nm">${esc(p.label)}</span>${streakHTML(p.id,true)}<span class="go" aria-hidden="true">›</span></button>`).join('')}</div>`:''):streakHTML(meId(),false)+peekStrip();
   const given=canAssign()?S.decks.filter(ownAsg):[];
   const gv=canAssign()?`<div class="cd-h"><h2>Вы дали ученицам</h2><span class="muted small">${given.length}</span></div>${given.length?`<div class="dgrid">${given.map(d=>{const n=(d.cards||[]).length;return `<button class="dk" data-act="deck" data-id="${d.id}" style="--c:${sc(d.subject)}"><span class="dk-h">${subj(d.subject)}<span class="dk-n">${n} ${plural(n,'карточка','карточки','карточек')}</span></span><span class="dk-t">${esc(d.title)}</span><span class="dk-s">Для: ${toNames(d)}</span></button>`}).join('')}</div>`:`<p class="muted small">Колоды, которые вы дадите ученицам кнопкой «Колода ученицам», появятся здесь. Прогресс учениц по ним видит учитель.</p>`}`:'';
   if(!ds.length)return head+sHero+`<div class="empty">${T()?'Колод пока нет. Создайте колоду и вставьте карточки из Anki или списком «вопрос ; ответ».':'Колод пока нет.'}</div>`+gv;
@@ -2492,8 +2486,8 @@ function reviewHTML(){
   const total=r.done+r.queue.length;
   const sti=streakInfo(S.streak[meId()]);
   const tm=!!d&&typeMode(d);
-  const top=`<div class="rv-top"><button class="back" data-act="endreview">← Закончить</button><span class="ttl">${r.mix?(r.sub?'Всё '+SUBJ_PO[r.sub]:'Все колоды'):esc(d.title)}</span>${d?`<button class="rv-tm" data-act="typemode" data-id="${d.id}" aria-pressed="${tm}" title="${r.mix?'Писать ответ с клавиатуры в колоде «'+esc(d.title)+'»':'Писать ответ с клавиатуры'}">⌨<span class="l"> Ввод ответа</span></button>`:''}${DRGUI.on(meId())?DRGUI.reviewBadge(meId()):`<span class="rv-dish" title="Чашка Петри">${dishSVG(meId(),{size:30,pulse:S.pulseAt&&Date.now()-S.pulseAt<700})}<small>${sti.done?'+'+spawnN(sti.todayN)+' кол.':sti.todayN+'/'+GOAL}</small></span>`}<span class="cnt">${r.done} / ${total}</span></div><div class="rv-bar" aria-hidden="true"><i style="width:${total?r.done/total*100:0}%"></i></div>`;
-  if(!r.queue.length){const inf=streakInfo(S.streak[meId()]);return `<div class="rv" style="--c:${col}">${top}<section class="rv-card"><div class="rv-done${r.newDay?' party':''}">${r.newDay?(DRGUI.on(meId())?DRGUI.dayDoneHTML(meId()):`<div class="party-dish">${dishSVG(meId(),{size:150,ring:false})}<span class="plus">+1</span></div><div class="big">${inf.cur} ${plural(inf.cur,'день','дня','дней')}</div><p><b>Серия продлена!</b> В чашке выросла новая колония, а старые получили порцию питания. Каждые 5 карточек сверх ${GOAL} дают ещё одну колонию.</p>`):`<div class="big">${r.done}</div><p>${plural(r.done,'повторение','повторения','повторений')} на сегодня сделано. Карточки вернутся, когда начнут забываться.${inf.done?(inf.cur?` Серия: ${inf.cur} ${plural(inf.cur,'день','дня','дней')} подряд.`:''):` Для серии сегодня ${inf.todayN} из ${GOAL}: повторите ещё ${GOAL-inf.todayN}, можно через «Пройти всю колоду».`}</p>`}<button class="btn" data-act="endreview">${r.mix?'К колодам':'К колоде'}</button></div></section></div>`}
+  const top=`<div class="rv-top"><button class="back" data-act="endreview">← Закончить</button><span class="ttl">${r.mix?(r.sub?'Всё '+SUBJ_PO[r.sub]:'Все колоды'):esc(d.title)}</span>${d?`<button class="rv-tm" data-act="typemode" data-id="${d.id}" aria-pressed="${tm}" title="${r.mix?'Писать ответ с клавиатуры в колоде «'+esc(d.title)+'»':'Писать ответ с клавиатуры'}">⌨<span class="l"> Ввод ответа</span></button>`:''}<span class="rv-dish" title="Чашка Петри">${dishSVG(meId(),{size:30,pulse:S.pulseAt&&Date.now()-S.pulseAt<700})}<small>${sti.done?'+'+spawnN(sti.todayN)+' кол.':sti.todayN+'/'+GOAL}</small></span><span class="cnt">${r.done} / ${total}</span></div><div class="rv-bar" aria-hidden="true"><i style="width:${total?r.done/total*100:0}%"></i></div>`;
+  if(!r.queue.length){const inf=streakInfo(S.streak[meId()]);return `<div class="rv" style="--c:${col}">${top}<section class="rv-card"><div class="rv-done${r.newDay?' party':''}">${r.newDay?`<div class="party-dish">${dishSVG(meId(),{size:150,ring:false})}<span class="plus">+1</span></div><div class="big">${inf.cur} ${plural(inf.cur,'день','дня','дней')}</div><p><b>Серия продлена!</b> В чашке выросла новая колония, а старые получили порцию питания. Каждые 5 карточек сверх ${GOAL} дают ещё одну колонию.</p>`:`<div class="big">${r.done}</div><p>${plural(r.done,'повторение','повторения','повторений')} на сегодня сделано. Карточки вернутся, когда начнут забываться.${inf.done?(inf.cur?` Серия: ${inf.cur} ${plural(inf.cur,'день','дня','дней')} подряд.`:''):` Для серии сегодня ${inf.todayN} из ${GOAL}: повторите ещё ${GOAL-inf.todayN}, можно через «Пройти всю колоду».`}</p>`}<button class="btn" data-act="endreview">${r.mix?'К колодам':'К колоде'}</button></div></section></div>`}
   const c=(d.cards||[]).find(x=>x.i===ci);
   if(!c){r.queue.shift();return reviewHTML()}
   const st=((S.srs[meId()]||{})[d.id]||{s:{}}).s[c.i];
@@ -2736,7 +2730,6 @@ function speciesHTML(n){
   return `<div class="lvwrap"><div class="lv-t"><span>Коллекция бактерий</span><span class="muted">${got} из ${SPECIES.length}</span></div><div class="lvs">${SPECIES.map(node).join('')}</div>${info}</div>`;
 }
 function streakHTML(uid,compact){
-  if(DRGUI.on(uid))return DRGUI.hero(uid,compact);
   const info=streakInfo(S.streak[uid]),c=culture(uid),n=info.cur,lbl=uid===meId()?(S.myLabel||''):name(uid);
   if(compact){
     if(c.broken)return `<div class="streak-mini dead">${dishSVG(uid,{size:64,mode:'dead'}).replace('class="dish dead','class="dish dead still')}<div><b>0</b> <span>дней</span><br><small class="muted">чашка погибла</small></div></div>`;
@@ -3208,7 +3201,7 @@ function mainHTML(){
     <p class="muted">Напиши, как тебя зовут, чтобы учитель понимал, чья работа.</p>
     <label>Имя<input id="joinname" maxlength="40" value="${esc(val('joinname'))}" autocomplete="given-name"></label>
     <button class="btn" data-act="join">Войти в класс</button></section>`;
-  const html=({home:homeHTML,cal:calHTML,tasks:tasksHTML,task:taskHTML,cards:cardsHTML,deck:deckHTML,review:reviewHTML,stview:stViewHTML,journal:journalHTML,marks:marksHTML,fix:fixHTML,people:peopleHTML,arena:arenaHTML,arview:arviewHTML,island:DRGUI.islandView,sum:sumHTML,bio:bioHTML,nbs:nbsHTML,nb:nbHTML,track:trackHTML}[S.view]||homeHTML)();
+  const html=({home:homeHTML,cal:calHTML,tasks:tasksHTML,task:taskHTML,cards:cardsHTML,deck:deckHTML,review:reviewHTML,stview:stViewHTML,journal:journalHTML,marks:marksHTML,fix:fixHTML,people:peopleHTML,arena:arenaHTML,arview:arviewHTML,sum:sumHTML,bio:bioHTML,nbs:nbsHTML,nb:nbHTML,track:trackHTML}[S.view]||homeHTML)();
   const c=PHC[S.view];
   return c&&IC[S.view]?html.replace('<div class="page-h"><h1>',`<div class="page-h"><h1><span class="phi" style="--c:${c}" aria-hidden="true"><svg viewBox="0 0 24 24">${IC[S.view]}</svg></span>`):html;
 }
@@ -3245,10 +3238,6 @@ function patchMain(M,html){
 function draw(soft){
   const a=document.activeElement,aid=a&&a.id;let ss,se;try{ss=a.selectionStart;se=a.selectionEnd}catch{}
   const sy=window.scrollY;
-  /* При кормлении панель заменяется. Сохраняем её прокрутку только внутри того же раздела/здания. */
-  const paneKey=()=>[S.view,S.drgUid||'',S.drgPanel||'',S.drgSel||''].join('|');
-  const pane=document.querySelector('#main>.drg-pan'),pk=paneKey();
-  const paneY=pane&&pane.dataset.scrollKey===pk?pane.scrollTop:0;
   $('#who').textContent=S.dual?'':T()?'Учитель':(S.mode==='student'&&S.joined?S.myLabel:'');
   const rs=$('#rolesw');rs.hidden=!S.dual;if(S.dual)rs.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.role===S.mode)));
   $('#srbtn').hidden=!(T()||(S.mode==='student'&&S.joined));
@@ -3263,8 +3252,6 @@ function draw(soft){
   if(S.view!==lastView){lastView=S.view;M.classList.remove('vin');void M.offsetWidth;M.classList.add('vin');setTimeout(()=>M.classList.remove('vin'),320)}
   patchMain(M,html);
   dRestore(M);
-  const nextPane=M.querySelector(':scope>.drg-pan');
-  if(nextPane){nextPane.dataset.scrollKey=pk;nextPane.scrollTop=paneY}
   if(aid){const e=document.getElementById(aid);if(e&&e!==document.activeElement&&!$('#dlg').open){e.focus({preventScroll:true});try{if(ss!=null)e.setSelectionRange(ss,se)}catch{}}}
   if(window.scrollY!==sy)window.scrollTo(0,sy);
   if(S.view==='people'&&S.user)fillProfiles();
@@ -3309,7 +3296,7 @@ function watch(uid){
   const db=S.db,map=q=>Object.fromEntries(q.docs.map(d=>[d.id,d.data()]));
   db.collection('subs/'+uid+'/items').onSnapshot(q=>{S.subs[uid]=map(q);render(true)},err);
   db.collection('srs/'+uid+'/meta').onSnapshot(q=>{const m=map(q),srv=m.streak||{days:{}};
-    if(uid===meId()){mergeStreak(srv);markReady('streak',q)}else S.streak[uid]=srv;DRGUI.onSnap(uid,m.dragons);syncPeek();syncArena();render(true)},err);
+    if(uid===meId()){mergeStreak(srv);markReady('streak',q)}else S.streak[uid]=srv;syncPeek();syncArena();render(true)},err);
   if(T())db.collection('petri/'+uid+'/from').onSnapshot(q=>{S.peek[uid]=map(q);syncPeek();render(true)},err);
   db.collection('subs/'+uid+'/fix').onSnapshot(q=>{S.fix[uid]=map(q);render(true)},err);
   db.collection('subs/'+uid+'/bv').onSnapshot(q=>{S.bverr[uid]=map(q);if(!T()&&uid===meId()){S.bvErrLoaded=true;bvErrChanged();bvBackfill()}render(true)},err);
@@ -3823,9 +3810,7 @@ function arenaHTML(){
     <div class="row"><button class="btn sm" data-act="arsave">Сохранить</button><button class="btn ${c.open?'':'ghost '}sm" data-act="aropen" aria-pressed="${!!c.open}">${c.open?'✓ Ученицы видят коллекции друг друга':'Коллекции соперниц скрыты'}</button></div></section>
     ${tableHTML()}<section class="sheet"><h2>Участницы</h2>${rivalsHTML(byPow,false)}</section>${RULES}`}
   const me=meId(),rivals=ids.filter(id=>id!==me).sort((a,b)=>armyPower(deckNow(b))-armyPower(deckNow(a))||arName(a).localeCompare(arName(b)));
-  /* в режиме драконов страница «Бои»: сначала оба вида боёв, турнир бактерий ниже целиком */
-  const hub=DRGUI.on(me)?DRGUI.battleHub(me,{n:Object.keys(armyNow(me)).length,total:ALLSP().length}):'';
-  return (hub?`<div class="page-h"><h1>Бои</h1></div>`+hub+`<h2 class="drg-hubh" id="ar-tour">🦠 Турнир бактерий</h2>`:head)+tourHero()+`<section class="sheet"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 style="margin:0">Моя армия</h2>${rsumHTML(me)}</div>${slotsHTML(me,true)}</section>
+  return head+tourHero()+`<section class="sheet"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 style="margin:0">Моя армия</h2>${rsumHTML(me)}</div>${slotsHTML(me,true)}</section>
   ${tableHTML()}
   <section class="sheet"><h2>Соперницы</h2>${c.open?rivalsHTML(rivals,true):'<p class="muted" style="margin:0">Учитель пока не открыл коллекции соперниц.</p>'}</section>
   <section class="sheet"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 style="margin:0">Моя коллекция</h2><span class="muted small">${Object.keys(armyNow(me)).length} из ${ALLSP().length}</span></div><p class="muted small" style="margin:4px 0 12px">Нажми на бактерию, чтобы узнать её способность и поставить в армию.</p>${collHTML(me)}</section>${RULES}`}
@@ -4589,7 +4574,6 @@ function rate(g){
 }
 const focusTyped=()=>{const r=S.rev;if(r&&typeMode(S.decks.find(x=>x.id===r.deckId)))setTimeout(()=>{const i=$('#rvin');if(i&&document.activeElement!==i)i.focus({preventScroll:true})},80)};
 const actions={
-  ...window.DRG_ACTIONS,
   bvopen:el=>{BVS.want=el.dataset.m;S.view='bio';window.scrollTo(0,0);if(BVS.st===2)bvWant()},
   ai:()=>{aiStart()},aistop:()=>{aiStop()},
   arview:el=>{S.arUid=el.dataset.uid;S.view='arview';window.scrollTo(0,0)},

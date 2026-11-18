@@ -8,6 +8,7 @@ const observer=new IntersectionObserver(entries=>{
 const ns='http://www.w3.org/2000/svg';
 const rootUrl=new URL('./art/dragons/',import.meta.url);
 let instance=0;
+export const dragonAsset=path=>new URL(path+'?v=elemental-1',rootUrl).href;
 // The SVG watercolor contains thousands of curves. Paint it once at screen density;
 // native SVG triangles then articulate this shared surface on each animation frame.
 const paintCache=new Map();
@@ -22,7 +23,7 @@ async function screenPaint(id,rig,pixels){
  if(!paintCache.has(key)){
   discardUnusedPaint();const item={url:null};
   const promise=(async()=>{
-    const source=new Image();source.src=new URL(id+'.svg',rootUrl).href;await source.decode();
+    const source=new Image();source.src=dragonAsset(id+'.svg');await source.decode();
     const buffer=document.createElement('canvas');buffer.width=pixels;buffer.height=Math.ceil(pixels*h/w);
     buffer.getContext('2d').drawImage(source,0,0,buffer.width,buffer.height);
     const blob=await new Promise(resolve=>buffer.toBlob(resolve,'image/png'));
@@ -40,7 +41,7 @@ function svgEl(tag,attributes={}){
 }
 function asset(id){
  if(!assets.has(id)){
-  const task=fetch(new URL('rigs/'+id+'.json',rootUrl)).then(async r=>{
+  const task=fetch(dragonAsset('rigs/'+id+'.json')).then(async r=>{
    if(!r.ok)throw Error('Скелет '+id);return prepareRig(await r.json());
   }).catch(err=>{assets.delete(id);throw err;});
   assets.set(id,task);
@@ -78,7 +79,7 @@ function actorSvg(id,rig,book,paint){
  }
  return {svg,groups,overlay};
 }
-export const actorMarkup=(id,label='')=>'<span class="actor" data-actor="'+id+'" role="img" aria-label="'+label+'"><img class="rest-pose" loading="lazy" alt="" draggable="false" src="art/dragons/'+id+'.svg"></span>';
+export const actorMarkup=(id,label='')=>'<span class="actor" data-actor="'+id+'" role="img" aria-label="'+label+'"><img class="rest-pose" loading="lazy" alt="" draggable="false" src="'+dragonAsset(id+'.svg')+'"></span>';
 export function mountActors(root){
  observer.disconnect();
  for(const el of root.querySelectorAll('[data-actor]'))observer.observe(el);

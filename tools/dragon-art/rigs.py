@@ -15,6 +15,7 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import dijkstra
 from scipy.spatial import Delaunay
 from paint_layers import painted_svg
+from elements import graded_portrait, markings, pure_portrait
 
 ROOT = Path(__file__).resolve().parent
 ART = ROOT.parents[1] / "phagi/island/art"
@@ -25,7 +26,7 @@ HERO = {"s1": "water", "s3": "earth", "s26": "metal"}
 class Silhouette:
     """Fit long chains inside the painted silhouette, including thin curled tails."""
     def __init__(self, src, size):
-        image=Image.open(src).convert("RGBA").getchannel("A")
+        image=src.getchannel("A")
         image=image.crop(image.point(lambda v:255 if v>80 else 0).getbbox())
         w,h=size
         self.scale=max(w,h)/145
@@ -157,23 +158,35 @@ def skin_mesh(bones, size):
     return pts,triangles,weights
 
 def build(tokens):
-    sid=tokens[0];src=ART/("baby.webp" if sid=="baby" else HERO.get(sid,sid)+"-portrait.webp")
+    sid=tokens[0];pure=sid!="baby" and len(sid)==2
+    if pure:src=pure_portrait(int(sid[1]))
+    elif sid=="baby":src=Image.open(ROOT/"sources"/"elemental-hatchling.png").convert("RGBA")
+    else:
+        name=HERO.get(sid,sid)+"-portrait.webp"
+        src=Image.open(ART/name).convert("RGBA")
+        src=graded_portrait(src,tokens)
     thumbs=OUT/"thumbs";thumbs.mkdir(exist_ok=True)
     rig_only="--rig-only" in sys.argv
+    elements="3" if sid=="baby" else sid[1:]
+    def tag(svg):
+        return svg.replace("<svg ",f'<svg data-elements="{elements}" ',1)
     if not rig_only:
-        _,thumbnail=painted_svg(src,thumb=True)
-        (thumbs/(sid+".svg")).write_text(thumbnail)
+        size,thumbnail=painted_svg(src,thumb=True)
+        if not pure and sid!="baby":thumbnail=thumbnail.replace("</svg>",markings(src,tokens,size)+"</svg>")
+        (thumbs/(sid+".svg")).write_text(tag(thumbnail))
     if "--thumbs" in sys.argv:return sid
     if rig_only:
         size=json.loads((OUT/"rigs"/(sid+".json")).read_text())["size"]
-    else:size,svg=painted_svg(src,hero=sid in HERO)
+    else:
+        size,svg=painted_svg(src,hero=pure or sid=="baby" or sid in HERO)
+        if not pure and sid!="baby":svg=svg.replace("</svg>",markings(src,tokens,size)+"</svg>")
     bones=make_skeleton(tokens,size,Silhouette(src,size));pts,tris,weights=skin_mesh(bones,size)
     meta=dict(id=sid,kind=tokens[1],size=size,bones=bones,points=np.round(pts,2).tolist(),weights=weights,triangles=tris.tolist())
     rig_dir=OUT/"rigs";rig_dir.mkdir(exist_ok=True)
     rig_file=rig_dir/(sid+".json");tmp=rig_file.with_suffix(".part")
     tmp.write_text(json.dumps(meta,separators=(",",":")));tmp.replace(rig_file)
     if rig_only:return sid
-    dest=OUT/(sid+".svg");temp=dest.with_suffix(".part");temp.write_text(svg);temp.replace(dest)
+    dest=OUT/(sid+".svg");temp=dest.with_suffix(".part");temp.write_text(tag(svg));temp.replace(dest)
     return sid
 
 if __name__=="__main__":

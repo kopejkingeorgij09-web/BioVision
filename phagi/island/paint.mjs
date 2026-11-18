@@ -1,14 +1,14 @@
 import {byId,colors} from './catalog.mjs';
 import {replay} from './battle.mjs';
 import {boardSize,position,shorePositions,legacyRaidSize} from './world.mjs';
-import {actorMarkup,animateActor} from './actors.mjs';
+import {actorMarkup,animateActor,dragonAsset} from './actors.mjs';
 import {cameraControls} from './camera.mjs';
 import {buildings,capacity} from './game.mjs';
 import {project,screenStyle,boardSvg,rangeRadii} from './board.mjs';
 import {defenses,defenseStats} from './defenses.mjs';
 export const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const esc=escape;
-export function art(s,cls='thumb'){return '<img loading="lazy" class="'+cls+'" alt="'+esc(s.name)+'" src="art/dragons/thumbs/'+s.id+'.svg">';}
+export function art(s,cls='thumb'){return '<img loading="lazy" class="'+cls+'" alt="'+esc(s.name)+'" src="'+dragonAsset('thumbs/'+s.id+'.svg')+'">';}
 function piece(b,chosen,battle,size=boardSize){
  const pos='x' in b?b:position(b),kind=b.kind;
  if(kind==='guard')return battleAnimal(b.species,b.id,pos.x,pos.y,size);

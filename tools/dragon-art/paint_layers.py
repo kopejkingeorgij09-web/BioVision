@@ -29,17 +29,21 @@ def draw_mask(mask):
     return "".join(commands).replace(" -","-")
 
 def painted_svg(src,hero=False,thumb=False):
-    im=Image.open(src).convert("RGBA")
+    im=src
     im=im.crop(im.getchannel("A").point(lambda v:255 if v>80 else 0).getbbox())
-    im.thumbnail((110,96) if thumb else (340,300) if hero else (252,228),Image.Resampling.LANCZOS)
+    im.thumbnail((120,110) if thumb else (464,432) if hero else (360,330),Image.Resampling.LANCZOS)
     w,h=im.size;alpha=np.array(im)[:,:,3]>85;rgb=np.array(im)[:,:,:3].copy()
     rgb[~alpha]=np.median(rgb[alpha],axis=0);rgb=cv2.bilateralFilter(rgb,5,13,2.5)
-    quant=Image.fromarray(rgb).quantize(32 if thumb else 78 if hero else 56,dither=Image.Dither.NONE)
+    quant=Image.fromarray(rgb).quantize(40 if thumb else 118 if hero else 86,dither=Image.Dither.NONE)
     idx=np.asarray(quant);palette=np.array(quant.getpalette(),dtype=float).reshape(-1,3)
     counts=np.bincount(idx[alpha].flatten(),minlength=len(palette));available=list(np.unique(idx[alpha]))
     first=max(available,key=lambda i:counts[i]);order=[first];available.remove(first)
+    # Incremental nearest-color distances preserve the original greedy order.
+    distance=np.full(len(palette),np.inf)
     while available:
-        i=max(available,key=lambda j:np.min(np.sum((palette[order]-palette[j])**2,axis=1))*np.sqrt(counts[j]))
+        delta=palette-palette[order[-1]]
+        distance=np.minimum(distance,(delta*delta).sum(axis=1))
+        i=max(available,key=lambda j:distance[j]*np.sqrt(counts[j]))
         order.append(i);available.remove(i)
     pixels=rgb.astype(np.float32);best=np.full((h,w),np.inf);layers=[];final=np.zeros((h,w),"uint8")
     for i in order:

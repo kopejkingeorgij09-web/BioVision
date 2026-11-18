@@ -5,13 +5,13 @@ export {position};
 export const battleSeconds=90, tickMs=250;
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 export function battleMap(island) {
-  return island.buildings.map(b=>({id:b.id,kind:b.kind,level:b.level,...position(b),stock:b.stock||0})).concat(
-    island.dragons.filter(d=>d.guard).map((d,i)=>({id:d.id,kind:'guard',species:d.species,...stats(d),...position(island.buildings.find(b=>b.kind==='garrison')),x:position(island.buildings.find(b=>b.kind==='garrison')).x+i*3})));
+  return island.buildings.map(b=>({id:b.id,kind:b.kind,level:b.level,...position(b),stock:b.stock||0,...(b.landmark?{landmark:b.landmark}:{}),...(b.durability?{durability:b.durability,force:b.force}:{})})).concat(
+    island.dragons.filter(d=>d.guard&&island.buildings.some(b=>b.kind==='garrison')).map((d,i)=>({id:d.id,kind:'guard',species:d.species,...stats(d),...position(island.buildings.find(b=>b.kind==='garrison')),x:position(island.buildings.find(b=>b.kind==='garrison')).x+i*3})));
 }
-const health=t=>t.kind==='guard'?t.hp:(defenseStats(t.kind,t.level)?.hp??(({gold:88,food:88}[t.kind]||66)*(1+.25*(t.level-1))));
+export const targetHealth=t=>t.kind==='guard'?t.hp:Math.max(1,Math.round((t.durability||1)*(defenseStats(t.kind,t.level)?.hp??(({gold:88,food:88}[t.kind]||66)*(1+.25*(t.level-1))))));
 function initial(raid) {
-  return {shores:shorePositions(raid.boardSize??legacyRaidSize),tick:0,end:'',flashes:[],targets:raid.targets.map(t=>({...t,hp:health(t),max:health(t),freeze:0})),
-    units:raid.team.map(d=>({...d,...stats(d),max:stats(d).hp,landed:false,hp:stats(d).hp,target:null,next:0,skillAt:0,ward:0}))};
+  return {shores:shorePositions(raid.boardSize??legacyRaidSize),tick:0,end:'',flashes:[],targets:raid.targets.map(t=>({...t,hp:targetHealth(t),max:targetHealth(t),freeze:0})),
+    units:raid.team.map(d=>{const combat=d.combat||stats(d,!raid.rules);return {...d,...combat,max:combat.hp,landed:false,hp:combat.hp,target:null,next:0,skillAt:0,ward:0};})};
 }
 function choose(u,targets) {
   const live=targets.filter(t=>t.hp>0);
@@ -27,8 +27,8 @@ function strike(s,u,t,power,skill=false) {
   if(t.kind!=='ward'&&t.kind!=='guard')for(const ward of s.targets.filter(o=>o.kind==='ward'&&o.hp>0&&o.freeze<=s.tick)){
     const v=defenseStats('ward',ward.level);if(distance(t,ward)<=v.range)shield=Math.max(shield,v.shield);
   }
-  const damage=Math.max(1,Math.round(power*advantage*(sp.role===4&&t.kind!=='guard'?1.25:1)*(1-shield/100)));
-  t.hp=Math.max(0,t.hp-damage);s.flashes.push({from:u.id,to:t.id,tick:s.tick,type,skill});
+  const damage=Math.min(t.hp,Math.max(1,Math.round(power*advantage*(sp.role===4&&t.kind!=='guard'?1.25:1)*(1-shield/100))));
+  t.hp=Math.max(0,t.hp-damage);s.flashes.push({from:u.id,to:t.id,tick:s.tick,type,skill,damage});
 }
 function command(s,c) {
   const u=s.units.find(d=>d.id===c.unit);if(!u||u.hp<=0)return false;
@@ -64,8 +64,8 @@ function step(s) {
     const v=defenseStats(t.kind,t.level),d=distance(target,t),range=v?.range??t.range;
     if(t.kind==='guard'&&d>range+.001){const stride=Math.min(t.speed*1.5,d-range);t.x+=(target.x-t.x)*stride/d;t.y+=(target.y-t.y)*stride/d;continue;}
     if(d>range+.001)continue;
-    const hit=(from,to,damage)=>{to.hp=Math.max(0,to.hp-Math.ceil(damage*(to.ward>s.tick?.5:1)));s.flashes.push({from:from.id,to:to.id,tick:s.tick,type:t.kind==='storm'?5:6});};
-    const power=v?.damage??t.power;hit(t,target,power);
+    const hit=(from,to,damage)=>{const loss=Math.min(to.hp,Math.ceil(damage*(to.ward>s.tick?.5:1)));to.hp-=loss;s.flashes.push({from:from.id,to:to.id,tick:s.tick,damage:loss,type:t.kind==='storm'?5:6});};
+    const power=(v?.damage??t.power)*(t.force||1);hit(t,target,power);
     if(t.kind==='storm'){const struck=new Set([target.id]);let last=target;
       while(struck.size<v.targets){const next=live.filter(u=>!struck.has(u.id)&&u.hp>0&&distance(u,last)<=20).sort((a,b)=>distance(a,last)-distance(b,last))[0];
         if(!next)break;hit(last,next,power*.7**struck.size);struck.add(next.id);last=next;}
@@ -74,13 +74,14 @@ function step(s) {
   if(s.targets.every(t=>t.hp<=0))s.end='Все цели разрушены';
   if(s.units.every(u=>u.landed&&u.hp<=0))s.end='Отряд отступил';
 }
-export function replay(raid,now,additional=null) {
+export function replay(raid,now,additional=null,observe=null) {
   const s=initial(raid), max=Math.min(battleSeconds*4,Math.max(0,Math.floor((now-raid.start)/tickMs)+(additional?1:0)));
   const commands=raid.commands;let i=0;
   for(;s.tick<=max&&!s.end;s.tick++){
     while(i<commands.length&&commands[i].tick===s.tick)command(s,commands[i++]);
     if(additional&&s.tick===max){s.accepted=command(s,additional);}
     step(s);if(s.tick===battleSeconds*4&&!s.end)s.end='Время истекло';
+    s.flashes=s.flashes.filter(f=>s.tick-f.tick<3);if(observe)observe(s,s.tick===max||!!s.end);
   }
   s.tick--;s.flashes=s.flashes.filter(f=>s.tick-f.tick<3);return s;
 }

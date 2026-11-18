@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {newIsland,apply,upgrade,total,buildings,refresh,npcWorld} from '../phagi/island/game.mjs';
 import {battleMap,replay,position} from '../phagi/island/battle.mjs';
+import {xpFor} from '../phagi/island/progression.mjs';
 import {defenses,defenseStats} from '../phagi/island/defenses.mjs';
 import {project,cellName,boardSize,boardSvg} from '../phagi/island/board.mjs';
 const terrain=fs.readFileSync(new URL('../phagi/island/art/settlement/plateau.svg',import.meta.url),'utf8');
@@ -30,7 +31,7 @@ function simulate(kind,level,ticks,team=1,extra=[]){
  return replay(raid,ticks*250);
 }
 for(const [kind,props] of Object.entries(defenses)){
- const s=newIsland(0);s.buildings.find(b=>b.kind==='gold').stock=1000;
+ const s=newIsland(0);s.xp=xpFor(7);s.buildings.find(b=>b.kind==='gold').stock=1000;
  apply(s,{action:'build',kind,col:1,row:0},ctx);const b=s.buildings.at(-1),v=defenseStats(kind,1);assert.equal(total(s,'gold'),1000-props.gold);
  apply(s,{action:'upgrade',building:b.id},ctx);assert.equal(total(s,'gold'),1000-props.gold-upgrade(b).price);refresh(s,b.finish-1);assert.equal(b.level,1);refresh(s,b.finish);assert.equal(b.level,2);assert.ok(defenseStats(kind,2).range>v.range);
 }

@@ -28,8 +28,8 @@ async function run(engine,phone){
   const windowBox=await box(p.locator('.world-window')),px=windowBox.x+windowBox.width*.52,py=windowBox.y+windowBox.height*.55;
   await p.mouse.move(px,py);await p.mouse.down();await p.mouse.move(px-64,py+16,{steps:8});await p.mouse.up();
   assert.ok(Math.abs((await box(scene)).x-priorView.x)>15,'drag pans the world');assert.equal(await p.locator('.side').count(),0);
-  await p.locator('[data-camera=fit]').click();const fitted=(await box(scene)).width;assert.ok(initial>=1.9*fitted);
-  await p.locator('[data-camera=in]').click();assert.ok((await box(scene)).width>fitted);
+  await p.locator('[data-camera=fit]').click();await until(p,w=>document.querySelector('.map-world').getBoundingClientRect().width<=w/1.9,initial);const fitted=(await box(scene)).width;
+  await p.locator('[data-camera=in]').click();await until(p,w=>document.querySelector('.map-world').getBoundingClientRect().width>w,fitted);
   await p.locator('[data-do="go/build"]').click();await p.locator('[data-do="selectB/'+home+'"]').click();
   await p.locator('[data-do="move/'+home+'"]').click();await p.locator('[data-camera=fit]').click();
   const corner=p.locator('[data-cell="99"] polygon');if(phone)await corner.tap();else await corner.click();
@@ -37,14 +37,14 @@ async function run(engine,phone){
   const now=await box(first),house=await box(owner);assert.ok(Math.abs(now.x-house.x)<house.width*1.7);
   const saved=await p.evaluate(()=>JSON.parse(sessionStorage.getItem('ph_dragon_art_tour_v1')));
   const moved=saved.buildings.find(b=>b.id===home);assert.deepEqual([moved.col,moved.row],[9,9]);assert.equal(saved.dragons[0].home,home);
-  await p.locator('[data-do="go/book"]').click();await p.locator('[data-do="go/species/s26"]').click();await p.waitForSelector('.plate svg.rigged');
+  await p.locator('[data-do="go/book"]').click();await p.selectOption('#f2','');await p.locator('[data-do="go/species/s26"]').click();await p.waitForSelector('.plate svg.rigged');
   assert.deepEqual(await p.locator('.pills .affinity').allTextContents(),['≋Ветер','⬡Металл']);
   await p.locator('[data-do="pose/attack"]').click();await p.waitForTimeout(250);await screenshot(tag+'-book');
   await p.locator('[data-do=skeleton]').click();await p.waitForSelector('.armature:visible');
   const bones=p.locator('.armature path'),before=await bones.nth(2).getAttribute('d');
   await p.waitForTimeout(300);assert.notEqual(await bones.nth(2).getAttribute('d'),before);
   await screenshot(tag+'-skeleton');
-  await p.locator('[data-do="go/raids"]').click();await p.locator('#enemy').waitFor();
+  await p.locator('[data-do="go/raids"]').click();await p.locator('#chapter').waitFor();
   for(const el of await p.locator('[data-do^="team/"]').all())await el.click();
   await p.locator('[data-do=raid]').click();await p.locator('[data-shore="1"]').waitFor();
   const start=(ms()-zero)/1000;
@@ -56,7 +56,7 @@ async function run(engine,phone){
    await p.locator('[data-shore="'+i+'"]').click();
   }
   await until(p,()=>document.querySelectorAll('.fighter:not([hidden]) svg').length===3);
-  await p.locator('[data-mark=gold]').click();await p.waitForTimeout(400);
+  await p.locator('[data-mark^=gold]').first().click();await p.waitForTimeout(400);
   const fps=await p.evaluate(()=>new Promise(resolve=>{
     const frames=[];const until=performance.now()+5000;
     function frame(t){frames.push(t);if(t<until)return requestAnimationFrame(frame);

@@ -103,7 +103,12 @@ const records = `0|Углеклюв
 0159|Певчий монолит
 1389|Ходячая зарница
 0257|Пожиратель эха
-3468|Ловец северного света`;
+3468|Ловец северного света
+05|Грозовой горн
+39|Гелиодор
+58|Сумеречный разряд
+78|Пустотный змей
+89|Крыло затмения`;
 export const species = records.split('\n').map((line,index) => {
   const [key,name] = line.split('|');
   const types = Array.from(key,Number);
@@ -114,15 +119,23 @@ export const species = records.split('\n').map((line,index) => {
 export const byId = Object.fromEntries(species.map(s=>[s.id,s]));
 export const starPrices = [10,20,35,55,80];
 export const foodPrice = level=>Math.ceil(30*Math.pow(level,1.42));
-export function stats(d) {
-  const s = byId[d.species], scale = 1 + .09 * (d.level + 2*d.stars - 1);
-  return {hp:Math.round(s.hp*scale), power:Math.round(s.power*scale), range:s.range, speed:s.speed};
+export function stats(d,legacy=false) {
+  const s=byId[d.species];
+  const scale=legacy?1+.09*(d.level+2*d.stars-1):(1+.09*(d.level-1))*(1+.18*(s.rarity-1))*(1+.14*(d.stars||0));
+  return {hp:Math.round(s.hp*scale),power:Math.round(s.power*scale),range:s.range,speed:s.speed};
+}
+export function strength(d){
+ const a=stats(d);return Math.round(a.hp+a.power*5+a.range*1.5+a.speed*2);
 }
 export function distribution(a,b) {
   const p=byId[a.species], q=byId[b.species], hi=Math.max(p.rarity,q.rarity), lo=Math.min(p.rarity,q.rarity);
   const types=new Set([...p.types,...q.types]);
+  if(hi===1){
+    const child='s'+[...types].sort((x,y)=>x-y).join('');
+    return [{id:child,p:1}];
+  }
   const pool=species.filter(s=>s.types.every(e=>types.has(e)));
-  const bracket={'11':[30,45],'22':[20,35],'33':[10,25],'12':[1,3],'23':[.5,2]}[''+lo+hi];
+  const bracket={'22':[20,35],'33':[10,25],'12':[1,3],'23':[.5,2]}[''+lo+hi];
   const t=(Math.max(1,Math.min(30,(a.level+b.level)/2))-1)/29;
   const promoted=bracket&&pool.some(s=>s.rarity===hi+1)?(bracket[0]+(bracket[1]-bracket[0])*t)/100:0;
   const weights=new Map([[hi,(1-promoted)*(lo===hi?1:.7)]]);

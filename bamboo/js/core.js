@@ -70,7 +70,17 @@ addEventListener('pagehide',persistLocal);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)persistLocal();});
 B.lsSize = () => JSON.stringify(docs).length;
 B.sync = {mode: 'local', text: 'Только на этом устройстве'};
-function setSync(mode, text){ B.sync = {mode, text}; B.emit('sync'); }
+let documentSync = B.sync;
+function refreshSync(){
+  const count = Object.keys(shadQueue).length;
+  B.sync = documentSync.mode === 'cloud' && count
+    ? {mode: 'pending', text: 'Ожидают отправки изменения ШАД: ' + count}
+    : documentSync.mode === 'cloud' && Object.keys(dirty).length
+      ? {mode: 'pending', text: 'Отправляю изменения в облако…'}
+      : documentSync;
+  B.emit('sync');
+}
+function setSync(mode, text){ documentSync = {mode, text}; refreshSync(); }
 
 const subs = {};
 B.on = (ev, fn) => { (subs[ev] = subs[ev] || []).push(fn); };
@@ -116,6 +126,7 @@ B.put = (id, data, quiet) => {
   else { if (data._seed) delete data._seed; docs[id] = data; }
   dirty[id] = (dirty[id] || 0) + 1;
   lsSave(); schedule(id);
+  if (db && B.sync.mode === 'cloud') refreshSync();
   if (quiet) B.ver++; else changed();
 };
 
@@ -205,6 +216,7 @@ const LS_SHAD_QUEUE = 'bamboo-shad-pending';
 let shadQueue = {};
 const shadSending = new Set(), shadTimers = {};
 try { shadQueue = JSON.parse(localStorage.getItem(LS_SHAD_QUEUE) || '{}') || {}; } catch (_) {}
+B.shadPending = n => !!shadQueue[n];
 function cacheShad(){
   try {
     localStorage.setItem(LS_SHADMARKS, JSON.stringify(B.shad.marks));
@@ -213,7 +225,7 @@ function cacheShad(){
 }
 function shadWrite(n,v){
   if (db || localStorage.getItem('bv_code')) shadQueue[n]=v;
-  cacheShad();
+  cacheShad(); refreshSync();
   return flushShad(n);
 }
 async function flushShad(n){
@@ -228,6 +240,7 @@ async function flushShad(n){
     else await ref.set(v);
     saved = true;
     if (shadQueue[n] === v) delete shadQueue[n];
+    refreshSync(); changed();
     cacheShad();
   } catch (_) {
     shadTimers[n] = setTimeout(() => flushShad(n),15000);
@@ -414,9 +427,12 @@ function refreshCloud(){
 addEventListener('online', refreshCloud);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshCloud(); });
 
-B.exportAll = () => ({app: 'bamboo', at: new Date().toISOString(), docs});
+B.exportAll = () => ({app: 'bamboo', at: new Date().toISOString(), docs, version: 2, shadMarks: B.shad.marks});
 B.importAll = obj => {
   if (!obj || obj.app !== 'bamboo' || !obj.docs) throw new Error('Это не резервная копия «Зова леса»');
+  const marks = Object.entries(obj.shadMarks || {});
+  if (marks.some(([n,v]) => !/^[1-9]\d*$/.test(n) || !v || !Number.isInteger(v.s) || v.s < 0 || v.s > 4)) throw new Error('Некорректные отметки ШАД');
+  for (const [n,v] of marks) B.shadRestore(+n,v);
   for (const id in obj.docs) B.put(id, obj.docs[id], true);
   changed();
 };
@@ -430,6 +446,7 @@ B.projName = id => { const p = B.proj(id); if (!p) return ''; const par = p.pare
 B.tasks = () => B.list('t_').filter(t => !t.deleted);   // удалённые из планов прошлых дней остаются скрытыми, чтобы итоги дней не менялись
 B.task = id => docs['t_' + id];
 B.saveTask = (t, quiet) => {
+  if (t.repPristine && B.task(t.id)){ t = {...t}; delete t.repPristine; }
   B.put('t_' + t.id, t, quiet);
   if (quiet) B.androidReminders?.queue();
 };

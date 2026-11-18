@@ -92,6 +92,7 @@ function sheetHTML(n){
   return `<div class="row"><span class="cchip c-${p.c}">${esc(course.full || course.name || p.c)}</span><span class="mono muted">${esc(p.code || '')} · веб ${n}/${B.shad.plan.length}</span></div>
     <h2>${esc(p.t)}</h2>
     <p class="muted">Веб: ${p.wp ? B.fmtW(p.w.date) : 'неделя ' + weekOf(p.wk) + ', день не выбран'}${p.w.from ? ' · ' + p.w.from + '–' + p.w.to : ''}${late === 'веб' ? ' · <b class="neg">отстаю</b>' : ''}<br>ДЗ: ${p.h ? (p.hp ? 'до ' + B.fmtW(p.h.date) : 'неделя ' + weekOf(p.hk) + ', день не выбран') : '—'}${late === 'ДЗ' ? ' · <b class="neg">отстаю</b>' : ''}</p>
+    ${B.shadPending(n) ? '<p class="hint" data-shad-pending>Ожидает отправки</p>' : ''}
     ${dayPick(p, 'web')}${p.h && p.h.date ? dayPick(p, 'hw') : ''}
     <div class="sp-opts">${B.SHAD_STAGES.map((l, i) => `<button class="sp-opt ${s === i ? 'on' : ''}" data-act="shadPick" data-n="${n}" data-s="${i}"><i>${i === 4 ? '✓' : i}</i><span><b>${l}</b><small>${DESC[i]}</small></span></button>`).join('')}</div>
     ${note ? `<p class="hint">Заметка: ${esc(note)}</p>` : ''}
@@ -125,7 +126,12 @@ B.acts.shPlace = el => {
   else if (k === 'web'){ const patch = {w: {date: d}}; if (p.wp && p.hp) patch.h = {date: B.add(p.h.date, B.diff(p.w.date, d))}; B.setShadOver(n, patch); }
   else B.setShadOver(n, {h: {date: d}});
   B.sheet(sheetHTML(n));
+  B.toast((k === 'web' ? 'Веб' : 'ДЗ') + (d ? ' → ' + B.fmtW(d) : ' возвращено в неделю'));
 };
+B.on('sync', () => {
+  const hint = B.$('[data-shad-pending]'), pick = B.$('#sheet [data-act="shPlace"]');
+  if (hint && pick && !B.shadPending(+pick.dataset.n)) hint.remove();
+});
 let editOpen = false;
 B.acts.shadOpen = el => { editOpen = false; B.sheet(sheetHTML(+el.dataset.n)); };
 B.inputs.shEd = (el, e) => {

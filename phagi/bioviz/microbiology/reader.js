@@ -35,6 +35,7 @@ if(root.dataset.mounted)return;
 root.dataset.mounted='true';
 const B=window.MICROBOOK,refs=window.MICROSOURCES,photos=window.MICROPHOTOS;
 const all=[...B.primer,...B.chapters.flatMap(c=>c.sections)],byId=new Map(all.map(s=>[s.id,s]));
+const edition=!opt.embedded && new URLSearchParams(location.search).get('from')==='phagi';
 const storage='phagi.microbiology.v1',settingsKey='phagi.microbiology.reader.v2';
 let saved={done:[],last:null},settings={size:18,theme:null};
 try{const s=JSON.parse(localStorage.getItem(storage));if(s&&typeof s==='object')saved={done:Array.isArray(s.done)?s.done.filter(x=>byId.has(x)):[],last:byId.has(s.last)?s.last:null};const t=JSON.parse(localStorage.getItem(settingsKey));if(t)settings={size:[17,18,20,22].includes(t.size)?t.size:18,theme:['light','dark'].includes(t.theme)?t.theme:null};}catch{}
@@ -51,6 +52,7 @@ const main=root.querySelector('.mb-main'),side=root.querySelector('.mb-side'),di
 root.style.setProperty('--mb-reading-size',settings.size+'px');root.querySelector('[data-size]').value=String(settings.size);
 const learned=c=>c.sections.filter(s=>!s.future);
 function nav(){
+if(edition && document.documentElement.classList.contains('reading-desk'))return;
 const total=B.chapters.flatMap(learned),done=total.filter(s=>saved.done.includes(s.id)).length;
 side.innerHTML=`<div class="mb-side-label">ТВОЙ УЧЕБНИК</div><label class="mb-search"><span class="mb-visually-hidden">Поиск по учебнику</span><input type="search" aria-label="Поиск по учебнику" placeholder="Найти механизм или термин…" autocomplete="off"></label><div class="mb-search-results" aria-live="polite"></div><div class="mb-progress"><div><span>Повторение микробиологии</span><b>${done}/${total.length}</b></div><progress max="${total.length}" value="${done}" aria-label="Отмеченные разделы"></progress><small>Отметки сохраняются в этом браузере</small></div>${button('home','Обзор курса','mb-overview')}${B.chapters.map(c=>`<details${belongs(route)?.id===c.id||route==='chapter:'+c.id?' open':''}><summary><span class="mb-nav-number">0${c.number}</span><span>${esc(c.title)}</span></summary><div class="mb-section-links">${button('chapter:'+c.id,'Карта главы')}${c.sections.map((s,i)=>`<button data-open="${s.id}"${route===s.id?' aria-current="page"':''}><span>${String(i+1).padStart(2,'0')}</span>${esc(s.title)}${s.future?'<small>К следующему занятию</small>':''}${saved.done.includes(s.id)?'<i aria-label="прочитано">✓</i>':''}</button>`).join('')}</div></details>`).join('')}<div class="mb-side-footer">${button('primer','Опорные знания')}${button('glossary','Словарь')}${button('sources','Источники и права')}</div>`;
 }
@@ -83,6 +85,15 @@ document.dispatchEvent(new Event('micro-route'));
 if(focus){main.focus({preventScroll:true});if(opt.embedded)root.scrollIntoView({block:'start',behavior:'instant'});else window.scrollTo(0,0);}
 }
 function showPhoto(id){const p=photos.find(x=>x.id===id);if(!p)return;lastFocus=root.getRootNode().activeElement||document.activeElement;dialog.querySelector('.mb-photo-title').textContent=p.organism+' · '+p.title;dialog.querySelector('.mb-dialog-image').innerHTML='<img src="'+photoURL(p)+'" alt="'+esc(p.organism+'; '+p.method)+'">';dialog.querySelector('[data-photo-zoom]').value='100';dialog.querySelector('.mb-photo-description').innerHTML='<p>'+esc(p.observation)+'</p><p><b>Метод:</b> '+esc(p.method)+'<br><b>Масштаб:</b> '+esc(p.scale)+'<br><b>Автор:</b> '+esc(p.author)+'<br><b>Права:</b> '+(p.licenseURL?'<a href="'+p.licenseURL+'" target="_blank" rel="noopener">'+esc(p.license)+'</a>':esc(p.license))+'</p><a href="'+esc(p.source)+'" target="_blank" rel="noopener">Первоисточник и исходное разрешение ↗</a>';dialog.showModal();}
+async function saveOffline(target){
+target.disabled=true;target.textContent='Сохраняю…';try{
+if(!('caches'in window)||!('serviceWorker'in navigator))throw Error('offline unavailable');
+await navigator.serviceWorker.register(new URL('../../sw.js',assets));await navigator.serviceWorker.ready;
+const cache=await caches.open('microbook-v2'),v='20261112';
+const urls=['','index.html','content.js?v='+v,'enrichment.js?v='+v,'sources.js?v='+v,'olympiad.js?v='+v,'models.js?v='+v,'diagrams.js?v='+v,'reader.js?v=20261118-edition','../book-entry.js?v=1','../book-index.js?v=1','../book-navigation.js?v=1','../reading-desk.css?v=3','../reading-desk.js?v=3','../type/type.css?v=1','../type/pt-serif-cyrillic.woff2','../type/pt-serif-latin.woff2','?from=phagi','embed.js?v='+v,'style.css?v='+v].map(s=>new URL(s,assets).href).concat(photos.map(photoURL));
+await cache.addAll(urls);target.textContent='✓ Учебник сохранён';target.title='Теория, схемы и все микрофотографии сохранены; видео загружается отдельно';
+}catch{target.textContent='Не удалось сохранить — повторить';target.title='Проверь соединение и свободное место';}target.disabled=false;
+}
 root.addEventListener('click',async e=>{const target=e.target.closest('button');if(!target)return;
 if(target.dataset.open){open(target.dataset.open);return;}if(target.dataset.photo){showPhoto(target.dataset.photo);return;}
 const action=target.dataset.action;
@@ -91,15 +102,7 @@ if(action==='theme'){root.dataset.theme=root.dataset.theme==='dark'?'light':'dar
 if(action==='classroom'){const on=root.dataset.classroom!=='true';root.dataset.classroom=String(on);target.setAttribute('aria-pressed',String(on));}
 if(action==='motion'){const figure=target.closest('.mb-diagram'),off=figure.dataset.paused!=='true';figure.dataset.paused=String(off);target.setAttribute('aria-pressed',String(off));target.textContent=off?'Продолжить движение':'Приостановить движение';}
 if(action==='close-photo')dialog.close();
-if(action==='offline'){
-target.disabled=true;target.textContent='Сохраняю…';try{
-if(!('caches'in window)||!('serviceWorker'in navigator))throw Error('offline unavailable');
-await navigator.serviceWorker.register(new URL('../../sw.js',assets));await navigator.serviceWorker.ready;
-const cache=await caches.open('microbook-v2'),v='20261112';
-const urls=['','index.html','content.js?v='+v,'enrichment.js?v='+v,'sources.js?v='+v,'olympiad.js?v='+v,'models.js?v='+v,'diagrams.js?v='+v,'reader.js?v=20261118-desk2','../reading-desk.css?v=2','../reading-desk.js?v=1','?from=phagi','embed.js?v='+v,'style.css?v='+v].map(s=>new URL(s,assets).href).concat(photos.map(photoURL));
-await cache.addAll(urls);target.textContent='✓ Учебник сохранён';target.title='Теория, схемы и все микрофотографии сохранены; видео загружается отдельно';
-}catch{target.textContent='Не удалось сохранить — повторить';target.title='Проверь соединение и свободное место';}target.disabled=false;
-}
+if(action==='offline')await saveOffline(target);
 if(action==='done'){saved.done=saved.done.includes(route)?saved.done.filter(x=>x!==route):[...saved.done,route];write();target.setAttribute('aria-pressed',String(saved.done.includes(route)));target.textContent=saved.done.includes(route)?'✓ Отмечено прочитанным':'Отметить прочитанным';nav();}
 if(action==='copy-link'){const u=new URL('index.html',assets);if(document.documentElement.classList.contains('reading-desk'))u.search='?from=phagi';u.hash=route;const toast=root.querySelector('.mb-toast');try{await navigator.clipboard.writeText(u.href);toast.textContent='Ссылка скопирована';}catch{toast.textContent='Ссылка: '+u.href;}}
 });
@@ -108,11 +111,11 @@ root.addEventListener('input',e=>{if(e.target.matches('[data-photo-zoom]'))dialo
 if(e.target.type==='search'){const q=e.target.value.trim().toLocaleLowerCase('ru'),dest=side.querySelector('.mb-search-results');if(q.length<2){dest.innerHTML='';return;}const found=all.filter(s=>(s.title+' '+s.body.replace(/<[^>]*>/g,' ')).toLocaleLowerCase('ru').includes(q));dest.innerHTML=found.length?'<small>Найдено: '+found.length+'</small>'+found.slice(0,25).map(s=>button(s.id,esc(s.title))).join(''):'<p class="mb-subtle">Совпадений нет.</p>';}
 });
 root.addEventListener('change',e=>{if(e.target.matches('[data-size]')){settings.size=Number(e.target.value);root.style.setProperty('--mb-reading-size',settings.size+'px');write();}});
-const onScroll=()=>{if(!byId.has(route))return;const r=main.getBoundingClientRect(),available=Math.max(1,r.height-window.innerHeight);root.querySelector('.mb-scroll-progress i').style.width=Math.min(100,Math.max(0,-r.top/available*100))+'%';};window.addEventListener('scroll',onScroll,{passive:true});
+const onScroll=()=>{if(!byId.has(route)||(edition&&document.documentElement.classList.contains('reading-desk')))return;const r=main.getBoundingClientRect(),available=Math.max(1,r.height-window.innerHeight);root.querySelector('.mb-scroll-progress i').style.width=Math.min(100,Math.max(0,-r.top/available*100))+'%';};window.addEventListener('scroll',onScroll,{passive:true});
 root.dataset.theme=opt.theme||settings.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
-if(!opt.embedded)window.addEventListener('hashchange',()=>{let id='home';try{id=decodeURIComponent(location.hash.slice(1));}catch{}open(id,{hash:false});});
-let initial='home';if(!opt.embedded&&location.hash)try{initial=decodeURIComponent(location.hash.slice(1));}catch{}
-open(initial,{focus:false,hash:false});return {open,setTheme(t){root.dataset.theme=t==='dark'?'dark':'light';}};
+if(!opt.embedded)window.addEventListener('hashchange',()=>{if(edition&&document.documentElement.classList.contains('reading-desk'))return;let id='home';try{id=decodeURIComponent(location.hash.slice(1));}catch{}open(id,{hash:false});});
+let initial=edition?(B.chapters[0]?.sections[0]?.id || 'home'):'home';if(!opt.embedded&&location.hash)try{initial=decodeURIComponent(location.hash.slice(1));}catch{}
+open(initial,{focus:false,hash:false});return {open,saveOffline,setTheme(t){root.dataset.theme=t==='dark'?'dark':'light';}};
 }
 window.MicroReader={mount,assets};
 if(document.getElementById('microbook')&&!window.BVHOST)window.MicroBookPage=mount(document.getElementById('microbook'));

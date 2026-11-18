@@ -132,8 +132,15 @@
     }
   },{rootMargin:'350px 0px'});
   root.querySelectorAll('[data-widget]').forEach(n=>widgets.observe(n));
+  const posters=new IntersectionObserver(entries=>{
+    for(const entry of entries)if(entry.isIntersecting){
+      const video=entry.target;video.poster=new URL(video.dataset.poster,base).href;posters.unobserve(video);
+    }
+  },{rootMargin:'300px 0px'});
+  root.querySelectorAll('video[data-poster]').forEach(video=>posters.observe(video));
   const sequence = root.querySelector('.sequence-player');
-  const player = sequence ? mountSequence(sequence, root) : null;
+  const platformBook = !embedded && new URLSearchParams(location.search).get('from') === 'phagi';
+  let player = sequence && !platformBook ? mountSequence(sequence) : null;
   if(embedded) {
     root.addEventListener('click', event => {
       const link = event.target.closest('a[href^="#"]');
@@ -150,12 +157,12 @@
   const observer=new IntersectionObserver(entries=>{const active=entries.filter(e=>e.isIntersecting).sort((a,b)=>a.boundingClientRect.top-b.boundingClientRect.top)[0];if(active)links.forEach(a=>a.classList.toggle('active',a.hash==='#'+active.target.id));},{rootMargin:'-8% 0px -65% 0px',threshold:0});
   root.querySelectorAll('.unit').forEach(s=>observer.observe(s));
   const dialog=root.querySelector('#zoom-dialog');root.querySelectorAll('.zoom').forEach(a=>a.addEventListener('click',e=>{if(!dialog.showModal)return;e.preventDefault();const img=dialog.querySelector('img');img.src=a.href;img.alt=a.querySelector('img').alt;dialog.showModal();}));dialog.querySelector('button').onclick=()=>dialog.close();
-  return {pause() {
+  return {showSequence() { if (sequence && !player) player=mountSequence(sequence); }, pause() {
     player?.pause();
     root.querySelectorAll('video').forEach(video => video.pause());
     if(dialog.open) dialog.close();
   }};
   }
   window.ReplicationReader={mount:mountBook};
-  if(document.querySelector('#book .unit')) mountBook(document);
+  if(document.querySelector('#book .unit')) window.ReplicationBook=mountBook(document);
 })();

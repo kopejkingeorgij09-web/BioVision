@@ -5,17 +5,17 @@ import {species,byId,distribution,draw,percentages,stats,starPrices,foodPrice} f
 import {newIsland,npcWorld,apply,total,available,earned,objectives,capacity,refresh} from '../phagi/island/game.mjs';
 import {replay} from '../phagi/island/battle.mjs';
 const adult=(s,level=1)=>({species:s.id,level,stars:0});
-assert.deepEqual([1,2,3,4].map(n=>species.filter(s=>s.rarity===n).length),[10,40,35,15]);
-assert.equal(new Set(species.map(s=>s.id)).size,100);
+assert.deepEqual([1,2,3,4].map(n=>species.filter(s=>s.rarity===n).length),[10,45,35,15]);
+assert.equal(new Set(species.map(s=>s.id)).size,105);
 for(const s of species){assert.equal(new Set(s.types).size,s.rarity);for(const type of s.types)assert.ok(type>=0&&type<10);}
 for(const rarity of [1,2,3,4])assert.equal(new Set(species.filter(s=>s.rarity===rarity).flatMap(s=>s.types)).size,10);
 const paths=new Map([['s1','старт'],['s3','старт']]);
 for(const s of species.filter(s=>s.rarity===1&&!paths.has(s.id)))paths.set(s.id,'экспедиция за золото с фермы и шахты');
 for(let n=0;n!==paths.size;){n=paths.size;const known=[...paths.keys()].map(id=>adult(byId[id]));
  for(const a of known)for(const b of known)for(const r of distribution(a,b))if(r.p>0&&!paths.has(r.id))paths.set(r.id,[a.species,b.species].join(' × '));}
-assert.equal(paths.size,100);if(process.argv.includes('--paths'))for(const [id,path] of paths)console.log(id,byId[id].name,path);
+assert.equal(paths.size,105);if(process.argv.includes('--paths'))for(const [id,path] of paths)console.log(id,byId[id].name,path);
 let pairs=0;
-for(let i=0;i<100;i++)for(const s of species.slice(i)){
+for(let i=0;i<species.length;i++)for(const s of species.slice(i)){
  for(const [la,lb] of [[1,1],[1,30],[15,17],[30,30]]){
   const a=adult(species[i],la),b=adult(s,lb),rows=distribution(a,b);assert.deepEqual(rows,distribution(b,a));
   assert.ok(Math.abs(rows.reduce((sum,r)=>sum+r.p,0)-1)<1e-10);
@@ -26,7 +26,19 @@ for(let i=0;i<100;i++)for(const s of species.slice(i)){
 for(const [level,expected] of [[1,.01],[30,.03]])assert.equal(distribution(adult(byId.s01,level),adult(byId.s3,level)).find(r=>r.id==='s013').p,expected);
 assert.equal(distribution(adult(byId.s0),adult(byId.s0))[0].p,1);
 assert.deepEqual([0,19,20,21,22,23,24,40].map(earned),[0,0,10,10,11,11,12,20]);
-assert.deepEqual(stats({species:'s3',level:10,stars:1}),stats({species:'s3',level:12,stars:0}));
+assert.deepEqual(stats({species:'s3',level:10,stars:1},true),stats({species:'s3',level:12,stars:0},true));
+assert.ok(stats({species:'s3',level:10,stars:1}).power>stats({species:'s3',level:10,stars:0}).power);
+const common=species.filter(s=>s.rarity===1);
+let guaranteed=0;
+for(let i=0;i<common.length;i++)for(const other of common.slice(i+1)){
+ const first=common[i],expected='s'+[...first.types,...other.types].sort((a,b)=>a-b).join('');
+ const [r]=distribution(adult(first),adult(other));assert.deepEqual(r,{id:expected,p:1});assert.equal(byId[expected].rarity,2);
+ for(const level of [1,15,30])assert.deepEqual(distribution(adult(other,30),adult(first,level)),[r]);
+ const nursery=newIsland(0);nursery.dragons[0].species=first.id;nursery.dragons[1].species=other.id;
+ apply(nursery,{action:'breed',dragon:nursery.dragons[0].id,other:nursery.dragons[1].id,building:'nest'},{now:0,random:()=>.9999});
+ assert.equal(nursery.eggs[0].species,expected);guaranteed++;
+}
+assert.equal(guaranteed,45);
 const state=newIsland(0);let t=0,credit=500;
 const act=(action,values={})=>apply(state,{action,...values},{now:t,credit,random:()=>.25});
 const [left,right]=state.dragons;assert.notEqual(left.home,right.home);
@@ -36,7 +48,8 @@ act('symbol',{objective:'feed',type:3});assert.throws(()=>act('symbol',{objectiv
 act('star',{dragon:left.id,pay:[0,0,0,10,0,0,0,0,0,0]});assert.equal(state.symbols[3],0);
 assert.deepEqual(starPrices,[10,20,35,55,80]);left.species='s13';state.symbols[1]=8;state.symbols[3]=12;
 act('star',{dragon:left.id,pay:[0,8,0,12,0,0,0,0,0,0]});assert.equal(left.stars,2);
-act('guard',{dragon:left.id});assert.throws(()=>act('breed',{dragon:left.id,other:right.id,building:'nest'}));act('guard',{dragon:left.id});
+assert.throws(()=>act('guard',{dragon:left.id}),/гарнизон/);
+act('build',{kind:'garrison',col:0,row:0});act('guard',{dragon:left.id});assert.throws(()=>act('breed',{dragon:left.id,other:right.id,building:'nest'}));act('guard',{dragon:left.id});
 act('breed',{dragon:left.id,other:right.id,building:'nest'});const egg=state.eggs[0],fixed=egg.species;assert.ok(!available(state,left,t));assert.throws(()=>act('incubate',{egg:egg.id,building:'incubator'}));
 t=egg.end-1;act('speed',{egg:egg.id,max:1});assert.equal(state.spent,1);act('speed',{egg:egg.id,max:0});assert.equal(state.spent,1);assert.equal(fixed,egg.species);
 act('incubate',{egg:egg.id,building:'incubator'});act('breed',{dragon:left.id,other:right.id,building:'nest'});const egg2=state.eggs[1];t=egg2.end;assert.throws(()=>act('incubate',{egg:egg2.id,building:'incubator'}));
@@ -50,7 +63,7 @@ for(const s of species){
  const rig=JSON.parse(fs.readFileSync(new URL('../phagi/island/art/dragons/rigs/'+s.id+'.json',import.meta.url)));
  assert.equal(rig.id,s.id);
 }
-assert.equal(new Set(species.map(s=>s.art)).size,100);
+assert.equal(new Set(species.map(s=>s.art)).size,105);
 for(const targets of [[],['gold'],['food'],['food','gold']]){
  const attack=newIsland(0,'А'),defend=newIsland(0,'Б');defend.shield=0;
  for(const s of [attack,defend])for(const b of s.buildings.filter(b=>['gold','food'].includes(b.kind))){b.level=b.kind==='gold'?10:5;b.stock=s===attack?0:capacity(b);}
@@ -65,4 +78,4 @@ for(const targets of [[],['gold'],['food'],['food','gold']]){
  for(const [i,k] of ['gold','food'].entries()){assert.equal(report.loot[k],targets.includes(k)?inputs[i]*.8:0,JSON.stringify({targets,report,t:ctx.now}));assert.equal(inputs[i]-total(defend,k),total(attack,k));}
  assert.equal(defend.reports[0].id,report.id);
 }
-console.log('100 reachable · '+pairs+' pairs × 4 level combinations · exact draw/preview, eggs, housing, symbols, assets and four raid outcomes passed');
+console.log('105 reachable · '+pairs+' pairs × 4 level combinations · exact draw/preview, eggs, housing, symbols, assets and four raid outcomes passed');

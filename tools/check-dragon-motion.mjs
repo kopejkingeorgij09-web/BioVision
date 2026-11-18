@@ -43,7 +43,7 @@ assert.ok(longestFootDrift<.012,'idle foot drift');
 const original=newIsland(0);
 original.v=1;original.buildings=original.buildings.filter(b=>b.id!=='water-home');original.dragons[1].home='home';
 const layout=structuredClone(original.buildings);
-refresh(original,30);assert.equal(original.v,2);assert.equal(original.dragons[1].home,'water-home');assert.deepEqual(original.buildings.slice(0,layout.length),layout);
+refresh(original,30);assert.equal(original.v,3);assert.equal(original.dragons[1].home,'water-home');assert.deepEqual(original.buildings.slice(0,layout.length),layout);
 const once=structuredClone(original);refresh(original,31);assert.deepEqual(original,once);
 const ctx={now:100,credit:0};
 apply(original,{action:'move',building:'water-home',col:9,row:9},ctx);assert.equal(original.dragons[1].home,'water-home');

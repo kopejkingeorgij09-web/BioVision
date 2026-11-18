@@ -1,3 +1,4 @@
+import {welcomeGems,nextInvasion} from './progression.mjs';
 import {newIsland,apply,npcWorld,refresh} from './game.mjs';
 export const tour=new URLSearchParams(location.search).has('tour');
 const code=()=>localStorage.getItem('ph_code')||'';
@@ -8,11 +9,21 @@ export async function request(cmd,op=null){
     let s=JSON.parse(sessionStorage.getItem(demoKey)||'null'),now=Date.now();
     if(!s){s=newIsland(now,'Мастерская');s.dragons.push({...s.dragons[0],id:crypto.randomUUID(),species:'s26'});s.seen.push('s26');}
     refresh(s,now);let result;
-    if(cmd.action!=='read'&&cmd.action!=='map'){
+    const archiveKey=demoKey+'/history';
+    if(cmd.action==='history'){
+      const history=JSON.parse(sessionStorage.getItem(archiveKey)||'[]');
+      result=history.map(x=>x.report).filter(x=>cmd.before==null||x.time<cmd.before||x.time===cmd.before&&x.id<cmd.key).slice(0,21);
+    }else if(cmd.action==='recording'){
+      result=JSON.parse(sessionStorage.getItem(archiveKey)||'[]').find(x=>x.report.id===cmd.id);
+      if(!result)throw Error('Запись не найдена');
+    }else if(cmd.action!=='read'&&cmd.action!=='map'){
       const target=cmd.target||s.raid?.target||'npc:reef';
-      result=apply(s,cmd,{now,uid:'demo',target,defender:npcWorld(target.slice(4),now)});
+      result=apply(s,cmd,{now,credit:welcomeGems,uid:'demo',target,defender:npcWorld(target.slice(4),now),archive:(uid,report,recording)=>{
+        const recent=JSON.parse(sessionStorage.getItem(archiveKey)||'[]');
+        recent.unshift({report,recording});sessionStorage.setItem(archiveKey,JSON.stringify(recent.slice(0,12)));
+      }});
     }
-    sessionStorage.setItem(demoKey,JSON.stringify(s));return {state:s,now,wallet:{balance:0,credit:0,days:{}},islands:[],result};
+    sessionStorage.setItem(demoKey,JSON.stringify(s));return {state:s,now,nextInvasion:nextInvasion(now),wallet:{balance:welcomeGems-s.spent,credit:welcomeGems,welcome:welcomeGems,days:{}},islands:[],result};
   }
   if(!code())throw Error('Откройте «Фаги» и войдите по ученическому коду.');
   let r;try{r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmd,op,code:code(),studentMode:true}),signal:AbortSignal.timeout(18000)});}

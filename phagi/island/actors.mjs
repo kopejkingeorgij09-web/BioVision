@@ -80,9 +80,11 @@ function actorSvg(id,rig,book,paint){
  return {svg,groups,overlay};
 }
 export const actorMarkup=(id,label='')=>'<span class="actor" data-actor="'+id+'" role="img" aria-label="'+label+'"><img class="rest-pose" loading="lazy" alt="" draggable="false" src="'+dragonAsset(id+'.svg')+'"></span>';
+const observed=new Set();
 export function mountActors(root){
- observer.disconnect();
- for(const el of root.querySelectorAll('[data-actor]'))observer.observe(el);
+ const next=new Set(root.querySelectorAll('[data-actor]'));
+ for(const el of observed)if(!next.has(el)){observer.unobserve(el);visible.delete(el);observed.delete(el);}
+ for(const el of next)if(!observed.has(el)){observed.add(el);observer.observe(el);}
 }
 const preparing=new WeakSet();
 function hydrate(el){

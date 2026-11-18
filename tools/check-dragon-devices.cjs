@@ -38,7 +38,7 @@ async function run(){
  assert.ok(!before.overflow&&!narrow.overflow);assert.equal(before.cells,100);assert.equal(narrow.cells,100);
  const tower=pc.locator('[data-building="tower"]');const prior=await tower.getAttribute('style');
  await pick(phone,'tower');await phone.locator('[data-do="move/tower"]').click();await phone.locator('.terrain [data-cell]').first().waitFor();await phone.locator('[data-camera=fit]').click();
- const cells=phone.locator('[data-cell][aria-disabled=false]');const dest=await cells.nth(1).getAttribute('data-cell');
+ const cells=phone.locator('[data-cell][aria-disabled=false]');const dest=await cells.first().getAttribute('data-cell');
  const select=phone.locator('[data-cell="'+dest+'"] polygon');await select.tap();await phone.locator('[data-do="confirmPlot"]').click();
  await phone.locator('.map:not(.editing)').waitFor();await pc.reload({waitUntil:'domcontentloaded'});await tower.waitFor();
  assert.notEqual(await tower.getAttribute('style'),prior);assert.equal(await tower.getAttribute('style'),await phone.locator('[data-building="tower"]').getAttribute('style'));await checkedBounds(phone);
@@ -47,10 +47,14 @@ async function run(){
  await phone.reload({waitUntil:'domcontentloaded'});await phone.locator('.piece.storm').waitFor();await checkedBounds(phone);
  const name=await phone.locator('.piece.storm').getAttribute('data-building');
  await pick(phone,name);assert.match(await phone.locator('.side').innerText(),/Разряд перепрыгивает/);
- await phone.locator('[data-do="clear"]').click();await phone.locator('[data-do="go/book"]').click();assert.equal(await phone.locator('.spec').count(),100);
+ await phone.locator('[data-do="clear"]').click();await phone.locator('[data-do="go/book"]').click();
+ assert.equal(await phone.locator('#f2').inputValue(),'own');
+ const scores=await phone.locator('.spec strong').allTextContents();
+ assert.ok(scores.length>=2);const powers=scores.map(v=>Number(v.match(/\d+/)[0]));assert.deepEqual(powers,powers.slice().sort((a,b)=>b-a));
+ await phone.selectOption('#f2','');assert.equal(await phone.locator('.spec').count(),105);
  await phone.selectOption('#f1','4');assert.equal(await phone.locator('.spec').count(),15);await phone.locator('.spec').first().click();await phone.locator('.plate .actor svg').waitFor();
  await phone.waitForFunction(()=>document.querySelectorAll('.plate .actor svg use').length>25);assert.deepEqual(errors,[]);
- console.log(JSON.stringify({platform:base.href,desktop:desktop.version(),webkit:mobile.version(),desktopView:before,phoneView:narrow,roster:'100 / 15 legendary',crossDevice:'phone moved tower; desktop built storm; phone found it after reload'}));
+ console.log(JSON.stringify({platform:base.href,desktop:desktop.version(),webkit:mobile.version(),desktopView:before,phoneView:narrow,roster:'105 / 15 legendary',crossDevice:'phone moved tower; desktop built storm; phone found it after reload'}));
  }finally{await Promise.all([desktop.close(),mobile.close()]);}
 }
 run().catch(e=>{console.error(e);process.exitCode=1;});

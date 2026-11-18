@@ -1,8 +1,10 @@
+import {structureArt,structureName} from './ui.mjs';
+import {islandLevel,xpFor} from './progression.mjs';
 import {byId,colors} from './catalog.mjs';
 import {replay} from './battle.mjs';
 import {boardSize,position,shorePositions,legacyRaidSize} from './world.mjs';
 import {actorMarkup,animateActor,dragonAsset} from './actors.mjs';
-import {cameraControls} from './camera.mjs';
+import {cameraControls,cameraMoving as cameraIsMoving} from './camera.mjs';
 import {buildings,capacity} from './game.mjs';
 import {project,screenStyle,boardSvg,rangeRadii} from './board.mjs';
 import {defenses,defenseStats} from './defenses.mjs';
@@ -13,7 +15,7 @@ function piece(b,chosen,battle,size=boardSize){
  const pos='x' in b?b:position(b),kind=b.kind;
  if(kind==='guard')return battleAnimal(b.species,b.id,pos.x,pos.y,size);
  const hp=battle?100:capacity(b)?Math.min(100,100*(b.stock||0)/capacity(b)):0;
- return '<button class="piece '+kind+(chosen===b.id?' chosen':'')+'" style="'+screenStyle(pos.x,pos.y,size)+';z-index:'+Math.round(2+(pos.x+pos.y)/22)+'" data-'+(battle?'mark':'building')+'="'+esc(b.id)+'" aria-label="'+buildings[kind]+'"><img draggable="false" src="art/settlement/'+kind+'.webp" alt="">'+(battle||['gold','food'].includes(kind)?'<span class="meter"><i style="width:'+hp+'%"></i></span>':'')+(b.finish?'<span class="tag">⌛</span>':'')+'</button>';
+ return '<button class="piece '+kind+(chosen===b.id?' chosen':'')+'" style="'+screenStyle(pos.x,pos.y,size)+';z-index:'+Math.round(2+(pos.x+pos.y)/22)+'" data-'+(battle?'mark':'building')+'="'+esc(b.id)+'" aria-label="'+structureName(b,buildings)+'"><img draggable="false" src="'+structureArt(b)+'" alt="">'+(battle||['gold','food'].includes(kind)?'<span class="meter"><i style="width:'+hp+'%"></i></span>':'')+(b.finish?'<span class="tag">⌛</span>':'')+'</button>';
 }
 function battleAnimal(sid,id,x,y,size){return '<button class="animal fighter" style="'+screenStyle(x,y,size)+'" data-unit="'+esc(id)+'" aria-label="'+esc(byId[sid].name)+'">'+actorMarkup(sid,esc(byId[sid].name))+'<span class="meter"><i></i></span></button>';}
 const perches=[[8,-6],[-6,8],[8,7],[-7,-5]];
@@ -57,10 +59,10 @@ export function islandMap(s,chosen,edit=null){
  const here=preview||selected;
  const ring=here?rangeFor(here.kind,here.level,position(here)):null;
  const objects=s.buildings.map(b=>piece(b,chosen,false)).join('');
- const dragons=edit?'':residents(s);
- const eggs=s.eggs.map(e=>{const b=s.buildings.find(b=>b.id===e.building),p=position(b);return '<img class="nest-egg" alt="Яйцо" style="'+screenStyle(p.x,p.y)+'" src="art/egg.webp">';}).join('');
+ const dragons=residents(s);
+ const eggs=s.eggs.map(e=>{const b=s.buildings.find(b=>b.id===e.building),p=position(b);return '<img class="nest-egg" data-egg="'+esc(e.id)+'" alt="Яйцо" style="'+screenStyle(p.x,p.y)+'" src="art/egg.webp">';}).join('');
  const ghost=preview?'<img class="plot-preview" alt="Предпросмотр постройки" src="art/settlement/'+preview.kind+'.webp" style="'+screenStyle(position(preview).x,position(preview).y)+'">':'';
- return '<section class="map settlement'+(edit?' editing':'')+'" aria-label="Карта острова"><div class="world-window" tabindex="0" aria-label="Карта. Стрелки перемещают обзор, плюс и минус меняют масштаб"><div class="map-world">'+boardSvg(s,edit,ring)+objects+dragons+eggs+ghost+'</div></div><div class="hero"><h1 class="hero-title">Янтарный берег</h1><small class="map-info">'+(edit?'Расстановка':'10 × 10 клеток · '+s.dragons.length+' '+(s.dragons.length===1?'дракон':'в коллекции'))+'</small></div>'+cameraControls+'</section>';
+ return '<section class="map settlement'+(edit?' editing':'')+'" aria-label="Карта острова"><div class="world-window" tabindex="0" aria-label="Карта. Стрелки перемещают обзор, плюс и минус меняют масштаб"><div class="map-world">'+boardSvg(s,edit,ring)+objects+dragons+eggs+ghost+'</div></div><div class="hero"><h1 class="hero-title">Янтарный берег</h1><small class="map-info">'+(edit?'Расстановка':'Уровень острова '+islandLevel(s.xp)+' · '+s.xp+'/'+xpFor(islandLevel(s.xp)+1)+' опыта · 10 × 10 клеток')+'</small></div>'+cameraControls+'</section>';
 }
 export function battleView(r){
  const n=r.boardSize??legacyRaidSize;
@@ -68,37 +70,49 @@ export function battleView(r){
  const landings=shorePositions(n).map(([x,y],i)=>'<button class="landing" data-shore="'+i+'" aria-label="Высадка '+(i+1)+'" style="'+screenStyle(x,y,n)+'">⚑ '+(i+1)+'</button>').join('');
  return '<section class="map battle" aria-label="Поле боя"><div class="world-window" tabindex="0" aria-label="Карта боя"><div class="map-world">'+boardSvg(null,null,null,n)+objects+landings+'<canvas class="fx" width="1000" height="960"></canvas></div></div><div class="hero"><small class="map-info">Набег · <b id="clock"></b></small><h1 class="hero-title">'+esc(r.name)+'</h1></div>'+cameraControls+'</section>';
 }
-let previousBattle, currentBattle, battleKey;
+let previousBattle,currentBattle,battleKey,field,targetsById,lastEffectsTick;
+function fieldNodes(world){
+ if(field!==world){
+  field=world;targetsById=new Map();
+  for(const el of world.querySelectorAll('[data-unit],[data-mark]')){
+   targetsById.set(el.dataset.unit||el.dataset.mark,{el,meter:el.querySelector('.meter i'),actor:el.querySelector('.actor')});
+  }
+  lastEffectsTick=null;
+ }
+ return targetsById;
+}
 export function paintBattle(r,now,selected){
  const n=r.boardSize??legacyRaidSize;
  const key=r.id+'-'+r.commands.length+'-'+Math.floor((now-r.start)/250);
  if(key!==battleKey){previousBattle=battleKey?.startsWith(r.id)?currentBattle:null;currentBattle=replay(r,now);battleKey=key;}
  const sim=currentBattle, fraction=Math.min(1,Math.max(0,((now-r.start)%250)/250)),nodes=new Map([...sim.targets,...sim.units].map(o=>[o.id,o]));
- const clock=document.querySelector('#clock');if(!clock)return;clock.textContent=Math.max(0,90-Math.floor((now-r.start)/1000))+' с';
+ const clock=document.querySelector('#clock');if(!clock)return;const displayTime=Math.max(0,90-Math.floor((now-r.start)/1000))+' с';if(clock.textContent!==displayTime)clock.textContent=displayTime;
+ const elements=fieldNodes(clock.closest('.map').querySelector('.map-world'));
  const sel=sim.units.find(u=>u.id===selected);
  document.querySelectorAll('[data-shore]').forEach(el=>el.hidden=sel?.landed||!!sim.end);
  for(const o of nodes.values()){
-  const unit=sim.units.includes(o), el=document.querySelector('.map [data-'+(unit||o.kind==='guard'?'unit':'mark')+'="'+CSS.escape(o.id)+'"]');if(!el)continue;
-  el.hidden=unit&&!o.landed;if(el.hidden)continue;
-  const prior=unit?previousBattle?.units.find(d=>d.id===o.id):null;
-  const x=prior?.landed?prior.x+(o.x-prior.x)*fraction:o.x,y=prior?.landed?prior.y+(o.y-prior.y)*fraction:o.y;
-  const p=project(x,y,n);el.style.left=p.x/10+'%';el.style.top=p.y/9.6+'%';el.classList.toggle('chosen',o.id===selected||o.id===sel?.target);
-  el.classList.toggle('dead',o.hp<=0);el.classList.toggle('damaged',o.hp>0&&o.hp<o.max*.55);const meter=el.querySelector('.meter i');if(meter)meter.style.width=Math.max(0,100*o.hp/o.max)+'%';
-  if(o.species){const hitting=sim.flashes.some(f=>f.from===o.id),hit=sim.flashes.some(f=>f.to===o.id);const prev=previousBattle?.units.find(u=>u.id===o.id)||previousBattle?.targets.find(t=>t.id===o.id);
+  const part=elements.get(o.id);if(!part)continue;
+  const {el,meter,actor}=part,unit=sim.units.includes(o),hidden=unit&&!o.landed;
+  if(el.hidden!==hidden)el.hidden=hidden;if(hidden)continue;
+  if(o.species){
+   const prior=unit?previousBattle?.units.find(d=>d.id===o.id):previousBattle?.targets.find(d=>d.id===o.id);
+   const interpolate=prior&&(!unit||prior.landed);
+   const p=project(interpolate?prior.x+(o.x-prior.x)*fraction:o.x,interpolate?prior.y+(o.y-prior.y)*fraction:o.y,n);
+   if(el.style.left!=='0px'){el.style.left='0px';el.style.top='0px';}
+   el.style.translate=p.x.toFixed(2)+'px '+p.y.toFixed(2)+'px';
+  }
+  el.classList.toggle('chosen',o.id===selected||o.id===sel?.target);
+  el.classList.toggle('dead',o.hp<=0);el.classList.toggle('damaged',o.hp>0&&o.hp<o.max*.55);
+  const hp=Math.max(0,100*o.hp/o.max)+'%';if(meter&&meter.style.width!==hp)meter.style.width=hp;
+  if(actor){const hitting=sim.flashes.some(f=>f.from===o.id),hit=sim.flashes.some(f=>f.to===o.id);const prev=previousBattle?.units.find(u=>u.id===o.id)||previousBattle?.targets.find(t=>t.id===o.id);
     const moving=prev&&Math.hypot(o.x-prev.x,o.y-prev.y)>.01;
-    animateActor(el.querySelector('.actor'),sim.end?'finish':hit?'hit':hitting?'attack':moving?'walk':'idle',performance.now());}
+    if(!cameraIsMoving())animateActor(actor,sim.end?'finish':hit?'hit':hitting?'attack':moving?'walk':'idle',performance.now());}
  }
- const cv=document.querySelector('.fx'),c=cv.getContext('2d');c.clearRect(0,0,cv.width,cv.height);
- const px=o=>project(o.x,o.y,n).x,py=o=>project(o.x,o.y,n).y-14;
- for(const t of sim.targets.filter(t=>t.hp>0&&Object.hasOwn(defenses,t.kind))){const v=defenseStats(t.kind,t.level),[rx,ry]=rangeRadii(v.range,n);c.beginPath();c.ellipse(px(t),py(t)+14,rx,ry,0,0,7);c.strokeStyle=defenses[t.kind].color+'ac';c.lineWidth=2;c.setLineDash([7,10]);c.stroke();}c.setLineDash([]);
- for(const f of sim.flashes){const a=nodes.get(f.from),b=nodes.get(f.to);if(!a||!b)continue;
-   const x=px(a),y=py(a),tx=px(b),ty=py(b);c.strokeStyle=colors[f.type];c.fillStyle=colors[f.type];c.lineWidth=f.skill?7:4;c.beginPath();c.moveTo(x,y);
-   elementTrail(c,f.type,x,y,tx,ty,sim.tick-f.tick);
- }
+ if(lastEffectsTick!==key){lastEffectsTick=key;drawEffects(sim,n,nodes,field.querySelector('.fx'));}
  const targetInfo=document.querySelector('#target-info'),mark=nodes.get(sel?.target);
- if(targetInfo){const value=sel?.landed&&mark?'Цель · '+(buildings[mark.kind]||byId[mark.species]?.name||'Защитник')+' · '+Math.ceil(mark.hp)+' / '+Math.ceil(mark.max):'Ожидает высадки';
+ if(targetInfo){const value=sel?.landed&&mark?'Цель · '+(structureName(mark,buildings)||byId[mark.species]?.name||'Защитник')+' · '+Math.ceil(mark.hp)+' / '+Math.ceil(mark.max):'Ожидает высадки';
  if(targetInfo.textContent!==value)targetInfo.textContent=value;}
- const cd=document.querySelector('#ability');if(cd){const seconds=Math.ceil(((sel?.skillAt||0)-sim.tick)/4);cd.disabled=!sel?.landed||sel.hp<=0||seconds>0||!!sim.end;cd.textContent=seconds>0?'Откат · '+seconds+' с':'Применить способность';}
+ const cd=document.querySelector('#ability');if(cd){const seconds=Math.ceil(((sel?.skillAt||0)-sim.tick)/4);cd.disabled=!sel?.landed||sel.hp<=0||seconds>0||!!sim.end;const title=seconds>0?'Откат · '+seconds+' с':'Применить способность';if(cd.textContent!==title)cd.textContent=title;}
  return sim;
 }
 export function idle(time){for(const el of document.querySelectorAll('.resident .actor,.plate .actor'))animateActor(el,el.dataset.pose||'idle',time);}
@@ -115,4 +129,14 @@ function elementTrail(c,type,x,y,tx,ty,age){
  if(type===7||type===8){for(const t of [.3,.55,.8,1]){const [a,b]=p(t);c.moveTo(a+7,b);c.arc(a,b,7,0,type===7?Math.PI*2:Math.PI*1.4);}}
  if(type===9){c.lineWidth=6;c.moveTo(x,y);c.lineTo(tx,ty);}
  c.stroke();c.beginPath();c.arc(tx,ty,5+age*2,0,Math.PI*2);c.fill();
+}
+
+function drawEffects(sim,n,nodes,cv){
+ const c=cv.getContext('2d');c.clearRect(0,0,cv.width,cv.height);
+ const px=o=>project(o.x,o.y,n).x,py=o=>project(o.x,o.y,n).y-14;
+ for(const t of sim.targets.filter(t=>t.hp>0&&Object.hasOwn(defenses,t.kind))){const v=defenseStats(t.kind,t.level),[rx,ry]=rangeRadii(v.range,n);c.beginPath();c.ellipse(px(t),py(t)+14,rx,ry,0,0,7);c.strokeStyle=defenses[t.kind].color+'ac';c.lineWidth=2;c.setLineDash([7,10]);c.stroke();}c.setLineDash([]);
+ for(const f of sim.flashes){const a=nodes.get(f.from),b=nodes.get(f.to);if(!a||!b)continue;
+   const x=px(a),y=py(a),tx=px(b),ty=py(b);c.strokeStyle=colors[f.type];c.fillStyle=colors[f.type];c.lineWidth=f.skill?7:4;c.beginPath();c.moveTo(x,y);
+   elementTrail(c,f.type,x,y,tx,ty,sim.tick-f.tick);
+ }
 }

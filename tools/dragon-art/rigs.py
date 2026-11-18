@@ -157,6 +157,34 @@ def skin_mesh(bones, size):
         weights.append([[int(i),round(float(a),5)] for i,a in zip(ids,v)])
     return pts,triangles,weights
 
+def build_vector(sid, joints):
+    """Skin authored SVGs in their original 320 × 240 drawing coordinates."""
+    svg = (OUT / (sid + ".svg")).read_bytes()
+    if "--rig-only" not in sys.argv:
+        (OUT / "thumbs" / (sid + ".svg")).write_bytes(svg)
+    if "--thumbs" in sys.argv:
+        return sid
+    bones = []
+    def chain(names, parent, points):
+        for name, start, end in zip(names, points, points[1:]):
+            bones.append([name, parent, start, end])
+            parent = len(bones) - 1
+    chain(["pelvis", "spine", "neck", "head"], -1, joints["trunk"])
+    chain(["jaw"], 3, joints["jaw"])
+    chain(["tail" + str(n) for n in range(len(joints["tail"]) - 1)], 0, joints["tail"])
+    if "wing" in joints:
+        chain(["wingArm", "wingElbow", "wingTip"], 1, joints["wing"])
+    if "fin" in joints:
+        chain(["fin"], 1, joints["fin"])
+    for leg in ["hind", "fore", "farHind", "farFore"]:
+        if leg in joints:
+            chain([leg + part for part in ["Upper", "Lower", "Foot"]], 0 if "hind" in leg.lower() else 1, joints[leg])
+    size = [320, 240]
+    pts, tris, weights = skin_mesh(bones, size)
+    meta = dict(id=sid, kind=joints["kind"], size=size, bones=bones, points=np.round(pts,2).tolist(), weights=weights, triangles=tris.tolist())
+    (OUT / "rigs" / (sid + ".json")).write_text(json.dumps(meta, separators=(",", ":")))
+    return sid
+
 def build(tokens):
     sid=tokens[0];pure=sid!="baby" and len(sid)==2
     if pure:src=pure_portrait(int(sid[1]))
@@ -193,5 +221,8 @@ if __name__=="__main__":
     rows=[s.split() for s in (ROOT/"landmarks.txt").read_text().splitlines() if s and not s.startswith("#")]
     subset=[key for key in sys.argv[1:] if not key.startswith("--")]
     if subset:rows=[r for r in rows if r[0] in subset]
+    for sid, joints in json.loads((ROOT / "hybrid-joints.json").read_text()).items():
+        if not subset or sid in subset:
+            print(build_vector(sid, joints), flush=True)
     with ProcessPoolExecutor(max_workers=min(6,os.cpu_count() or 1)) as pool:
         for sid in pool.map(build,rows):print(sid,flush=True)

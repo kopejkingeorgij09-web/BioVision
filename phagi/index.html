@@ -3222,6 +3222,10 @@ let lastMain='',lastNav='',held=false,rqSoft=true,lastView='';
    so the text box is not rebuilt under the fingers (that broke the phone keyboard and jumped the caret) */
 function render(soft){rqSoft=rqSoft&&!!soft;if(rq)return;rq=true;requestAnimationFrame(()=>{rq=false;const sf=rqSoft;rqSoft=true;draw(sf)})}
 const typingInMain=()=>{const a=document.activeElement;return typing(a)&&$('#main').contains(a)};
+// Keep the tapped button in place until WebKit delivers its click after editing.
+document.addEventListener('pointerdown',e=>{
+  if(typingInMain() && e.target.closest('#main button[data-act]'))e.preventDefault();
+});
 document.addEventListener('focusout',()=>setTimeout(()=>{if(held&&!typingInMain()){held=false;render()}},0));
 /* only the top-level blocks whose html changed are replaced; the rest of the page (dishes, pictures, open blocks) stays put */
 function nodeKey(n){return n.nodeType===1?(n.dataset&&n.dataset.sig?'sig:'+n.dataset.sig:n.outerHTML):n.textContent}
@@ -4585,7 +4589,7 @@ const actions={
   openanswer:el=>openAnswer(el.dataset.id,el.dataset.uid),
   nextanswer:nextAnswer,
   preparelesson:()=>prepareLesson(null,S.calDay||today()),
-  quizmap:el=>{const grid=el.closest('.quiz-nav').querySelector('.quiz-map');grid.hidden=!grid.hidden;el.setAttribute('aria-expanded',String(!grid.hidden));},
+  quizmap:el=>{S.quizMap=S.quizMap===S.taskId?null:S.taskId;refreshQuizNav(S.tasks.find(t=>t.id===S.taskId));},
   quizjump:el=>jumpQuiz(Number(el.dataset.i)),
   quizflag:el=>{const id=S.taskId,i=Number(el.dataset.i),flags=new Set(quizMemo(id).flags||[]);if(flags.has(i))flags.delete(i);else flags.add(i);quizMemo(id,{flags:[...flags]});},
   quizresume:el=>{const t=myTasks().find(t=>t.id===el.dataset.id);if(!t)return;const i=quizProgress(t).indexOf(false);S.quizStart=Math.max(0,i);S.view='task';S.taskId=t.id;window.scrollTo(0,0);},

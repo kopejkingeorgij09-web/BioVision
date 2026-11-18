@@ -54,30 +54,29 @@ function quizMemo(id,change){
   return state;
 }
 function quizNav(t){
-  const done=quizProgress(t), first=done.indexOf(false), flags=quizMemo(t.id).flags||[];
+  const done=quizProgress(t), first=done.indexOf(false), flags=quizMemo(t.id).flags||[], expanded=S.quizMap===t.id;
   return `<div class="quiz-nav" data-quiz-nav="${esc(t.id)}"><div class="quiz-tools">
-    <button class="btn sm ghost" data-act="quizmap" aria-expanded="false">Вопросы <b>${done.filter(Boolean).length}/${done.length}</b></button>
+    <button class="btn sm ghost" data-act="quizmap" aria-expanded="${expanded}">Вопросы <b>${done.filter(Boolean).length}/${done.length}</b></button>
     ${first>=0?`<button class="back" data-act="quizjump" data-i="${first}">К пропуску №${first+1}</button>`:''}</div>
-    <div class="quiz-map" hidden aria-label="Номера вопросов">${done.map((ok,i)=>`<button type="button" class="${ok?'answered':''}" data-act="quizjump" data-i="${i}" aria-label="Вопрос ${i+1}, ${ok?'есть ответ':'без ответа'}${flags.includes(i)?', отмечен':''}">${i+1}${flags.includes(i)?' ⚑':''}</button>`).join('')}</div></div>`;
+    <div class="quiz-map" ${expanded?'':'hidden'} aria-label="Номера вопросов">${done.map((ok,i)=>`<button type="button" class="${ok?'answered':''}" data-act="quizjump" data-i="${i}" aria-label="Вопрос ${i+1}, ${ok?'есть ответ':'без ответа'}${flags.includes(i)?', отмечен':''}">${i+1}${flags.includes(i)?' ⚑':''}</button>`).join('')}</div></div>`;
 }
 function jumpQuiz(i){
   const q=document.getElementById('quiz-question-'+i);
   if(!q)return;
   const grid=document.querySelector('.quiz-map');
+  S.quizMap=null;
   if(grid){grid.hidden=true;grid.previousElementSibling.querySelector('button').setAttribute('aria-expanded','false');}
   q.focus({preventScroll:true});q.scrollIntoView({block:'start'});quizMemo(S.taskId,{position:i});
 }
 function refreshQuizNav(t){
   const nav=document.querySelector('[data-quiz-nav]');
   if(!nav || nav.dataset.quizNav!==t.id)return;
-  const wasOpen=!nav.querySelector('.quiz-map').hidden;
   nav.outerHTML=quizNav(t);
-  if(wasOpen){const grid=document.querySelector('.quiz-map');grid.hidden=false;grid.previousElementSibling.querySelector('button').setAttribute('aria-expanded','true');}
 }
 let quizRestore=null,quizScrollTimer;
 function mountQuizNav(){
   const nav=document.querySelector('[data-quiz-nav]');
-  if(!nav){quizRestore=null;return;}
+  if(!nav){quizRestore=null;S.quizMap=null;return;}
   const id=nav.dataset.quizNav;
   if(quizRestore===id)return;
   quizRestore=id;

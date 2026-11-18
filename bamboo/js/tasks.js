@@ -10,6 +10,7 @@ const LS = 'bamboo-planner';
 let S = {view: 'week', cal: 'all'};
 try { S = Object.assign(S, JSON.parse(localStorage.getItem(LS) || '{}')); } catch (e) {}
 const saveS = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} };
+let poolOpen = false;
 let anchor = null;          // понедельник показанной недели или первое число месяца
 let adding = null;          // в какой день открыто поле ввода ('' — «Когда-нибудь»)
 
@@ -45,13 +46,14 @@ B.setDone = (t, v) => {
     let remind = null;
     if (t.remind && t.remind.at){ const d = new Date(t.remind.at); d.setDate(d.getDate() + shift); remind = {at: localISO(d)}; }
     B.saveTask(B.newTask({id, title: t.title, proj: t.proj, pri: t.pri, due, time: t.time, color: t.color, rep: t.rep, notes: t.notes,
-      subs: (t.subs || []).map(s => ({id: B.uid(), t: s.t, done: false})), remind, ord: t.ord, repFrom: t.id}), true);
+      subs: (t.subs || []).map(s => ({id: B.uid(), t: s.t, done: false})), remind, ord: t.ord, repPristine: true, repFrom: t.id}), true);
     B.saveTask(Object.assign({}, nt, {repNext: id}));
     return B.task(t.id);
   }
   if (!v && t.repNext){
     const n = B.task(t.repNext);
-    if (n && !n.done && !(n.subs || []).some(s => s.done)) B.put('t_' + n.id, null, true);
+    if (n && !n.repPristine) return nt;
+    if (n && !n.done) B.put('t_' + n.id, null, true);
     const x = Object.assign({}, B.task(t.id)); delete x.repNext; B.saveTask(x);
     return x;
   }
@@ -105,7 +107,7 @@ function row(t, o = {}){
 const shadMeter = s => `<span class="pl-st" title="${B.SHAD_STAGES[s]}" aria-label="${B.SHAD_STAGES[s]}">${[1, 2, 3, 4].map(i => `<i class="${s >= i ? 'on' : ''}"></i>`).join('')}</span>`;
 const shadRow = it => { const s = B.shadStage(it.p.n), ok = s >= it.need;
   return `<div class="pl-shad c-${it.p.c} ${ok ? 'ok' : ''} ${it.old ? 'old' : ''}" data-shn="${it.p.n}" data-kind="${it.kind}">
-    <button class="pl-open" data-act="shadOpen" data-n="${it.p.n}" title="${esc(it.p.t)}">${it.old ? '<span class="pl-old">хвост</span>' : ''}${it.from ? `<span class="pl-time">${it.from}</span>` : ''}<b>${it.kind === 'web' ? '' : 'ДЗ · '}${esc(it.p.code || '')}</b> ${esc(it.p.t)}</button>${shadMeter(s)}
+    <button class="pl-open" data-act="shadOpen" data-n="${it.p.n}" title="${esc(it.p.t)}">${it.old ? '<span class="pl-old">хвост</span>' : ''}${it.from ? `<span class="pl-time">${it.from}</span>` : ''}<b>${it.kind === 'web' ? '' : 'ДЗ · '}${esc(it.p.code || '')}</b> ${esc(it.p.t)}</button>${B.shadPending(it.p.n) ? '<small>Отправляется…</small>' : shadMeter(s)}
     <button class="pl-chk" data-act="shadChk" data-n="${it.p.n}" data-need="${it.need}" aria-label="${ok ? 'Вернуть' : 'Готово'}" title="${it.kind === 'web' ? 'Веб посмотрен' : 'ДЗ решено'}">${icon('check')}</button>
   </div>`; };
 B.acts.shadChk = async el => {
@@ -163,7 +165,8 @@ function weekView(){
   const gh = ghosts(days[0], days[6]);
   const withShad = (S.cal === 'all' || S.cal === 'shad') && B.shad.plan.length, cols = withShad ? 2 : 3;
   const sd = someday(), rows = innerWidth < 760 ? sd.length + 2 : Math.max(4, Math.ceil((sd.length + 1) / cols) + 1);
-  return `<div class="pl-week">
+  const mobilePool = withShad && innerWidth < 760;
+  return `${mobilePool ? shadBox(ws,true) : ''}<div class="pl-week">
       ${days.slice(0, 5).map(d => dayCol(d, 9, gh)).join('')}
       <div class="pl-wkend">${dayCol(days[5], 4, gh)}${dayCol(days[6], 4, gh)}</div>
     </div>
@@ -172,18 +175,18 @@ function weekView(){
         <h2>Когда-нибудь</h2>
         <div class="pl-somebox" style="--rows:${rows};--cols:${cols}">${dayList('', sd, innerWidth < 760 ? rows : rows * cols, null)}</div>
       </section>
-      ${withShad ? shadBox(days[0]) : ''}
+      ${withShad && !mobilePool ? shadBox(days[0]) : ''}
     </div>`;
 }
 /* «ШАД на неделю»: карточки без дня; перетащи на день, чтобы поставить, или обратно сюда, чтобы снять день */
-function shadBox(ws){
+function shadBox(ws, mobile = false){
   const list = B.shadWeek(ws), all = B.shadWeekAll(ws);
   const left = B.shadHoursLeft(all), open = list.filter(it => B.shadStage(it.p.n) < it.need).length;
   const h = x => (Math.round(x * 2) / 2).toString().replace('.', ',');
   const sub = !all.length ? 'на этой неделе вебов нет' : left ? `осталось ≈${h(left)} ч${open ? ` · без дня ${open}` : ' · всё расставлено'}` : 'неделя закрыта';
   return `<section class="pl-shbox">
-    <h2>ШАД на неделю <span>${sub}</span></h2>
-    <div class="pl-list" data-d="" data-shbox="1">
+    ${mobile ? `<button class="pool-toggle" data-act="poolToggle" aria-expanded="${poolOpen}">ШАД на неделю <span>${all.filter(x=>x.kind==='web').length} веб. · ${all.filter(x=>x.kind==='hw').length} ДЗ</span> ${icon(poolOpen?'up':'down')}</button>` : `<h2>ШАД на неделю <span>${sub}</span></h2>`}
+    <div class="pl-list" data-d="" data-shbox="1" ${mobile && !poolOpen ? 'hidden' : ''}>
       ${list.map(shadRow).join('')}
       ${list.length ? '' : `<div class="pl-shempty">${all.length ? 'Всё стоит по дням. Перетащи карточку сюда, чтобы снять день.' : 'Свободная неделя.'}</div>`}
     </div>
@@ -307,12 +310,16 @@ B.acts.plFull = () => { B.plWide = !B.plWide; try { localStorage.setItem(LS_FULL
 const FS = [0.85, 0.92, 1, 1.1, 1.22, 1.36, 1.5], LS_FS = 'bamboo-planner-fs';
 let fsI = 2; try { const v = +localStorage.getItem(LS_FS); if (FS.includes(v)) fsI = FS.indexOf(v); } catch (e) {}
 B.acts.plFs = el => { fsI = B.clamp(fsI + +el.dataset.k, 0, FS.length - 1); try { localStorage.setItem(LS_FS, FS[fsI]); } catch (e) {} B.render(true); B.toast(`Текст ${Math.round(FS[fsI] * 100)}%`, 900); };
-B.acts.plAddDay = el => { anchor = B.weekStart(el.dataset.d); S.view = 'week'; saveS(); adding = el.dataset.d; B.render(true); };
-B.acts.plGoWeek = el => { anchor = B.weekStart(el.dataset.d); S.view = 'week'; saveS(); B.render(true); };
-B.acts.plView = el => { S.view = el.dataset.v; saveS();
-  if (S.view === 'calendar' && location.hash !== '#/tasks/calendar'){ location.hash = '#/tasks/calendar'; return; }
-  if (S.view !== 'calendar' && /^#\/tasks\/(?:calendar|month|week|plan)$/.test(location.hash)){ location.hash = '#/tasks'; return; }
-  const t = B.today(); if (S.view === 'shad'){ B.render(true); return; } anchor = S.view === 'month' ? (anchor || t).slice(0, 8) + '01' : (anchor && anchor.slice(0, 7) !== t.slice(0, 7) ? B.weekStart(anchor) : null); B.render(true); };
+function navigateView(view){
+  S.view = view; saveS();
+  const hash = '#/tasks/' + view;
+  if (location.hash === hash) B.render(true); else location.hash = hash;
+}
+B.acts.plAddDay = el => { anchor = B.weekStart(el.dataset.d); adding = el.dataset.d; navigateView('week'); };
+B.acts.plGoWeek = el => { anchor = B.weekStart(el.dataset.d); navigateView('week'); };
+B.acts.plView = el => navigateView(el.dataset.v);
+B.acts.poolToggle = () => { poolOpen = !poolOpen; B.render(true); };
+B.acts.openWeekPool = () => { poolOpen = true; anchor = null; S.cal = 'all'; navigateView('week'); };
 B.acts.plToday = () => { anchor = null; B.render(true); };
 B.acts.plShift = el => {
   const k = +el.dataset.k, t = B.today();

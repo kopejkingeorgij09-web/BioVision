@@ -54,35 +54,43 @@ B.planPicker = date => B.dayList(date, {ph: 'Дело на завтра', empty:
 
 function dayCard(c, d){
   const late = B.tasks().filter(x => !x.done && x.due && x.due < c.today).length;
+  const today = c.today, cal = B.calData;
+  const now = B.ymd(new Date()) + 'T' + B.hm(Date.now());
+  const next = cal?.events().flatMap(e => cal.occurrences(e,today,today))
+    .filter(e => e.end > now && e.start.includes('T')).sort((a,b)=>a.start.localeCompare(b.start))[0];
+  const study = B.shadOn(today);
   return `<section class="card plan">
     <div class="row between"><h2>${icon('list')}Дела на сегодня</h2>${late ? `<span class="tag late">${late} просрочено</span>` : ''}</div>
-    ${B.dayList(c.today)}
+    ${next ? `<a class="agenda-next" href="#/tasks/calendar"><small>${next.start <= now ? 'Сейчас' : 'Ближайшее занятие'}</small><b>${esc(next.start.slice(11,16))} · ${esc(next.title)}</b></a>` : ''}
+    ${study.map(it=>B.shadRow(it,today)).join('')}
+    ${B.dayList(c.today,{empty: next || study.length ? 'Других дел пока нет.' : ''})}
   </section>`;
 }
 
-const SHORT = ['Не начат', 'Смотрю', 'Веб ✓', 'ДЗ ✓', 'Закрыт'];
+
 B.shadRow = (it, date) => {
   const p = it.p, s = B.shadStage(p.n), course = B.shad.courses[p.c] || {};
   const ok = s >= it.need, late = !ok && date < B.today();
   return `<div class="shad-row ${ok ? 'ok' : ''} ${late ? 'late' : ''}">
     <div class="shad-top"><span class="cchip c-${p.c}">${esc(course.name || p.c)}</span><span class="mono">${it.kind === 'web' ? '' : 'ДЗ · '}${esc(p.code)}</span>${it.from ? `<span class="mono muted">${it.from}–${it.to}</span>` : `<span class="muted">${(it.kind === 'web' ? p.wp : p.hp) ? (it.kind === 'hw' ? 'до ' : '') + B.fmtS(it.kind === 'web' ? p.w.date : p.h.date) : 'неделя ' + B.fmtS(it.kind === 'web' ? p.wk : p.hk)}</span>`}</div>
-    <div class="shad-title">${esc(p.t)}</div>
-    <div class="seg" role="group" aria-label="Стадия">${B.SHAD_STAGES.map((l, i) => `<button class="${s === i ? 'on' : ''} ${i <= s ? 'fill' : ''}" data-act="shadSet" data-n="${p.n}" data-s="${i}" title="${l}">${SHORT[i]}</button>`).join('')}</div>
+    <button class="study-title" data-act="shadOpen" data-n="${p.n}">${esc(p.t)}</button>
+    <div class="row between"><small>${B.SHAD_STAGES[s]}</small>
+    ${s === 2 ? `<a class="btn sm" href="../phagi/?shadHw=${p.n}">Открыть ДЗ на Фагах</a>` : s < 4 ? `<button class="btn sm" data-act="shadSet" data-n="${p.n}" data-s="${s+1}">${['Начать веб','Отметить просмотр','','Закрыть тему'][s]}</button>` : ''}</div>
   </div>`;
 };
 B.acts.shadSet = el => {
-  const n = +el.dataset.n, s = +el.dataset.s, cur = B.shadStage(n);
-  B.setShadStage(n, cur === s ? Math.max(0, s - 1) : s);
+  const n = +el.dataset.n, stage = +el.dataset.s;
+  if (stage === B.shadStage(n) + 1) B.setShadStage(n, stage);
 };
 function shadCard(c){
-  const items = B.shadOn(c.today), late = B.shadLate().filter(x => !items.some(y => y.p.n === x.p.n)).slice(0, 3);
+  const items = B.shadOn(c.today), late = B.shadLate().filter(x => !items.some(y => y.p.n === x.p.n));
   const free = B.shadWeek(B.weekStart(c.today)).filter(it => !it.old && B.shadStage(it.p.n) < it.need).length;
-  if (!items.length && !late.length && !free) return '';
+  if (!late.length && !free) return '';
   return `<section class="card">
     <div class="row between"><h2>${icon('chart')}ШАД</h2><a class="muted" href="../shad/">трекер →</a></div>
-    ${items.map(it => B.shadRow(it, c.today)).join('')}
-    ${free ? `<a class="muted shad-free" href="#/tasks/week">На этой неделе без дня: ${free}. Расставь в планере →</a>` : ''}
-    ${late.length ? `<div class="sub-h">Хвосты</div>${late.map(it => B.shadRow(it, '0')).join('')}` : ''}
+
+    ${free ? `<button class="shad-free btn" data-act="openWeekPool">На этой неделе без дня: ${free}. Расставь в планере →</button>` : ''}
+    ${late.length ? `<details><summary>Хвосты ШАД · ${late.length}</summary>${late.map(it => B.shadRow(it, '0')).join('')}</details>` : ''}
   </section>`;
 }
 
@@ -207,7 +215,7 @@ function habitsCard(c){
 function reviewCard(c, d){
   const has = B.reviewDone(c.today), h = new Date().getHours(), hot = h >= 19 || h < 4;
   return `<a class="card review-line ${has ? 'done' : hot ? 'hot' : ''}" href="#/journal">
-    ${icon(has ? 'check' : 'pen')}<span class="grow"><b>${has ? 'Разбор дня написан' : 'Вечерний разбор'}</b><small>${has ? (d.review.mood ? 'настроение ' + '●'.repeat(d.review.mood) : 'открыть дневник') : 'пять минут: что сделал, что не вышло, что на завтра'}</small></span>${icon('right')}
+    ${icon(has ? 'check' : 'pen')}<span class="grow"><b>${has ? 'Разбор дня написан' : 'Вечерний разбор'}</b><small>${has ? (d.review?.mood ? 'настроение ' + '●'.repeat(d.review.mood) : 'открыть дневник') : 'пять минут: что сделал, что не вышло, что на завтра'}</small></span>${icon('right')}
   </a>`;
 }
 
@@ -235,7 +243,7 @@ B.views.today = {
       <div class="cols">
         <div class="col">
           ${dayCard(c, d)}
-          ${reviewCard(c, d)}
+          ${new Date().getHours() >= 19 || new Date().getHours() < 4 ? reviewCard(c,d) : ''}
           ${B.alberts?.card() || ''}
         </div>
         <div class="col">

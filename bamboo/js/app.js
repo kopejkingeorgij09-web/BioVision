@@ -152,7 +152,7 @@ B.views.settings = {
         <div class="col">
           <section class="card">
             <h2>${icon('copy')}Резервная копия</h2>
-            <p class="muted">Файл со всеми задачами, привычками, книгами, тренировками и дневником.</p>
+            <p class="muted">Задачи, привычки, книги, тренировки, дневник, стадии и назначенные даты ШАД.</p>
             <div class="row"><button class="btn" data-act="export">Скачать копию</button><label class="btn ghost">Загрузить из файла<input type="file" accept="application/json,.json" data-in="import" hidden></label></div>
           </section>
           <section class="card">
@@ -199,7 +199,7 @@ B.inputs.import = async (el, e) => {
   if (e.type !== 'change' || !el.files[0]) return;
   try {
     const obj = JSON.parse(await el.files[0].text());
-    if (!(await B.confirm(`Загрузить ${Object.keys(obj.docs || {}).length} записей из файла? Совпадающие записи заменятся.`, 'Загрузить'))) return;
+    if (!(await B.confirm(`Загрузить ${Object.keys(obj.docs || {}).length} записей и ${Object.keys(obj.shadMarks || {}).length} отметок ШАД из файла? Совпадающие записи заменятся.`, 'Загрузить'))) return;
     B.importAll(obj); B.toast('Копия загружена');
   } catch (err) { B.toast(esc(err.message)); }
 };

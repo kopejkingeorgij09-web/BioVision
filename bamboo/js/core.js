@@ -328,7 +328,7 @@ B.phagiTask = (id,day) => B.phagiLink({task:id, role:'student', ...(day?{backDay
 B.teaching = null;
 let loadingTeaching = false;
 async function refreshTeaching(){
-  if (!B.cloud || loadingTeaching || document.hidden) return;
+  if (!B.cloud || loadingTeaching || (document.hidden && B.teaching && !B.teaching.failed)) return;
   loadingTeaching = true;
   try {
     const week = await BVAUTH.teachingWeek(B.today());
@@ -336,6 +336,7 @@ async function refreshTeaching(){
   } catch { if (!B.teaching){ B.teaching = {failed:true}; changed(); } }
   finally { loadingTeaching = false; }
 }
+B.refreshTeaching = refreshTeaching;
 window.addEventListener('pageshow', refreshTeaching);
 window.addEventListener('focus', refreshTeaching);
 document.addEventListener('visibilitychange', refreshTeaching);

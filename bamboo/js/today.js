@@ -3,6 +3,7 @@
 (function(){
 const {esc, icon} = B;
 B.views = B.views || {};
+B.acts.reloadTeaching = () => B.refreshTeaching();
 
 function greet(){
   const h = new Date().getHours();
@@ -106,7 +107,7 @@ function phagiCard(c){
   const reviews = week?.reviews || [];
   return `<section class="card ph-card">
     <div class="row between"><h2>${icon('book')}Фаги</h2><a class="muted" href="${B.PHAGI}" target="_blank" rel="noopener">открыть →</a></div>
-    ${week?.failed ? '<p class="muted">Не удалось загрузить занятия и ответы.</p>' : ''}
+    ${week?.failed ? '<p class="muted">Не удалось загрузить занятия и ответы. <button class="btn sm" data-act="reloadTeaching">Повторить</button></p>' : ''}
     ${upcoming.length ? '<div class="sub-h">Мои уроки на неделе</div>' + upcoming.map(lesson).join('') : ''}
     ${recent.length ? '<details><summary>Вчерашние уроки</summary>' + recent.map(lesson).join('') + '</details>' : ''}
     ${reviews.length ? '<div class="sub-h">Проверить работы · '+reviews.length+'</div>' + reviews.map(r=>`<a class="ph-dl" href="${esc(B.phagiLink({task:r.id,review:r.uid,role:'teacher'}))}"><b>${esc(r.name)}</b><span>${esc(r.title)}</span></a>`).join('') : ''}

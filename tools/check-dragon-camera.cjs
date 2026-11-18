@@ -38,7 +38,16 @@ async function run(engine,phone){
   const after=await page.locator('.map-world').boundingBox();
   const identity=await page.evaluate(()=>({world:savedWorld===document.querySelector('.map-world'),ground:savedTexture===document.querySelector('.ground-art'),resident:savedResident===document.querySelector('.resident .actor')}));
   console.log(JSON.stringify({engine:phone?'mobile WebKit':'desktop Chrome',pan:perf,layoutCount,pointerSamples:steps,identity,positionDrift:Math.hypot(before.x-after.x,before.y-after.y)}));
-  if(!baseline){assert.ok(identity.world&&identity.ground&&identity.resident);assert.ok(Math.hypot(before.x-after.x,before.y-after.y)<1);if(metrics)assert.ok(layoutCount<20);}
+  if(!baseline){assert.ok(identity.world&&identity.ground&&identity.resident);assert.ok(Math.hypot(before.x-after.x,before.y-after.y)<1);if(metrics)assert.ok(layoutCount<20);
+   await page.locator('.dock [data-do="go/book"]').click();await page.selectOption('#f1','2');
+   await page.locator('.dock [data-do="go/island"]').click();await page.locator('.map-world .resident').first().waitFor();
+   assert.ok(await page.evaluate(()=>window.savedWorld===document.querySelector('.map-world')));
+   await page.reload();await page.locator('.map-world .resident').first().waitFor();
+   const restored=await page.locator('.map-world').boundingBox();
+   assert.ok(Math.hypot(restored.x-before.x,restored.y-before.y)<1,'camera position after a menu change and reload');
+   const cell=await page.evaluate(()=>JSON.parse(sessionStorage.getItem('ph_dragon_art_tour_v1')).buildings.find(b=>b.id==='home'));
+   assert.deepEqual([cell.col,cell.row],[9,9]);
+  }
  }finally{await browser.close();}
 }
 (async()=>{await run(chromium,false);await run(webkit,true);})().catch(e=>{console.error(e);process.exitCode=1;});

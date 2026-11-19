@@ -4,6 +4,7 @@ const assert=require('node:assert/strict');
 const {chromium,webkit}=(()=>{try{return require('playwright')}catch{return require('playwright-core')}})();
 const {fixtures,profiles,studyBackend}=require('./oplot-game.cjs');
 const layout=require('../oplot-layout.js');
+const limits=require('../oplot-limits.js');
 const site=new URL(process.argv[2]||'http://127.0.0.1:18748/phagi/');
 site.searchParams.set('oplot','1');
 
@@ -12,7 +13,7 @@ function settlement(now){
   const add=(type,x,y,level=3,id=type)=>buildings.push({id,type,x:x+shift,y:y+shift,level,since:now-12000});
   add('keep',6,6,5);add('mine',2,2,2);add('farm',3,12);add('den',6,1);
   add('goldstore',13,6,4);add('foodstore',7,13,3);add('cannon',14,12);
-  add('archer',2,7);add('academy',13,1,4);add('spire',11,15);
+  add('archer',2,7);add('home',13,1,4);add('spire',11,15);
   for(let n=5;n<15;n++)add('wall',Math.min(10,n),18+Math.max(0,n-10),1+n%4,'wall-'+n);
   add('wall',1,20,2,'isolated');
   return {version:1,layoutVersion:2,xp:140,gold:326,berries:158,buildings,
@@ -311,36 +312,39 @@ async function check(browser,mobile){
     const legacyIndustry={...original,gold:4498,berries:1890,buildings:industries.map(([id,type,level,age],i)=>
       ({id,type,level,x:2+i%5,y:2+Math.floor(i/5),since:clockNow-(age||0)}))};
     delete legacyIndustry.layoutVersion;
-    server.docs.set(path,{rev:head().rev+1,op:'legacy-economic-limits',state:legacyIndustry});
+    // This server fixture is the canonical settlement returned by ph_oplot_load.
+    // A draft saved on the phone before that settlement still names retired buildings.
+    const oldLayout=layout.migrate(structuredClone(legacyIndustry));
+    await world.evaluate((_,{id,island})=>{
+      const obsolete=OplotEditor.create(island.buildings,islandGrid(island));
+      obsolete.take('mine-small');localStorage.setItem('phagi.oplot.v1.user.'+id+'.layout-draft-v2',JSON.stringify(obsolete.serialize()));
+    },{id:p.id,island:oldLayout});
+    const canonical=layout.migrate(limits.reconcile(legacyIndustry,clockNow));
+    const survivors=['castle','mine-ready','farm-b','treasury-z','barn-large','home'];
+    assert.deepEqual(canonical.buildings.map(b=>b.id),survivors);
+    assert.deepEqual([canonical.gold,canonical.berries],[6426,1902]);
+    server.docs.set(path,{rev:head().rev+1,op:'profile-building-settlement',state:canonical});
     await open();await start();
-    const beforeIndustry=structuredClone(head().state);
-    assert.equal(beforeIndustry.layoutVersion,2,'An old single-tile save is migrated before editing');
-    const cleanup=button('layoutindustry'),storageCaps=state=>world.evaluate((_,s)=>[stockLimit(s,'gold'),stockLimit(s,'berries')],state);
-    assert.deepEqual(await storageCaps(beforeIndustry),[4500,1900]);
-    assert.match(await cleanup.innerText(),/6$/);
-    assert.match(await game.locator('#layout-industry-note').innerText(),/вместимость складов сохранятся/);
-    const small=beforeIndustry.buildings.find(b=>b.id==='mine-small');
-    await tile(small.x+1-shift,small.y+1-shift);await press('layoutstash');
-    const previousDraft=await draft();assert.match(await cleanup.innerText(),/5$/);
-    await press('layoutindustry');assert.ok(!await cleanup.isVisible());
-    assert.deepEqual(head().state,beforeIndustry);
-    await press('layoutundo');assert.deepEqual(await draft(),previousDraft,'One undo restores the whole cleanup, keeping earlier moves');
-    await press('layoutundo');assert.equal(await draft(),null);assert.match(await cleanup.innerText(),/6$/);
-    await press('layoutindustry');await press('layoutapply');
-    await until(()=>head().state.buildings.filter(b=>b.stowed).length===6,'Industrial reserves should persist to the profile');
-    const savedIndustry=head().state,survivors=new Set(['castle','mine-ready','farm-a','treasury-a','barn-large','home']);
-    for(const [i,b] of savedIndustry.buildings.entries()){
-      const old=beforeIndustry.buildings[i];
-      if(survivors.has(b.id))assert.deepEqual(b,old);
-      else assert.deepEqual(b,{...old,stowed:true,x:null,y:null,
-        ...({'mine-dry':{pausedStock:12},'mine-small':{pausedStock:180},'farm-b':{pausedStock:12}}[b.id]||{})});
-    }
-    assert.deepEqual(await storageCaps(savedIndustry),[4500,1900]);
-    for(const field of ['gold','berries','xp','dragons'])assert.deepEqual(savedIndustry[field],beforeIndustry[field]);
-    await open();await start();assert.ok(!await cleanup.isVisible());
-    assert.deepEqual(await storageCaps(head().state),[4500,1900],'Reserve warehouses keep their capacity after reload');
-    assert.deepEqual(await world.evaluate((_,{state,now})=>state.buildings.filter(b=>b.stowed&&['mine','farm'].includes(b.type)).map(b=>stored(b,now)),
-      {state:head().state,now:clockNow+3600000}),[12,180,12],'Reserved producers retain their harvest without accumulating more');
+    assert.ok(await button('layoutundo').isDisabled(),'Discard the obsolete draft as its inventory changed');
+    await press('layoutclear');
+    const shelf=await button('layoutreserve').evaluateAll(items=>items.map(b=>b.dataset.id));
+    assert.deepEqual([...shelf].sort(),[...survivors].sort(),'Only surviving buildings can return to the island');
+    await press('layoutundo');await press('layoutcancel');
+    await game.locator('header [data-do=wallet]').click();
+    for(const type of ['gold','berries'])assert.match(await button('purchase',type).innerText(),/места/);
+    assert.equal(server.accounts.get(p.id).receipts.size,0);
+    await press('close');
+    // Feeding two levels creates space in the berry store while the gold wallet is still overflowing.
+    await game.locator('.tabs [data-do=tab][data-id=collection]').click();await modal.locator('[data-do=pet][data-id=ice]').click();
+    const feedIce=modal.locator('[data-do=feed][data-id=ice]');await feedIce.click();await feedIce.click();await modal.locator('.close').click();
+    await until(()=>head().state.berries===1502,'Both feedings must persist at the exact displayed cost');
+    assert.equal(head().state.gold,6426);assert.deepEqual(head().state.dragons.map(d=>d.id),['fire','ice']);
+    server.loseBuyReply=false;await game.locator('header [data-do=wallet]').click();await press('purchase','berries');
+    await until(()=>head().state.berries===1577&&!head().state.pending,'A real 75-berry delivery can complete while gold is over capacity');
+    assert.equal(server.accounts.get(p.id).receipts.size,1);
+    await open();assert.equal(head().state.gold,6426);assert.equal(head().state.berries,1577);
+    assert.deepEqual(head().state.buildings.map(b=>b.id),survivors);
+    assert.deepEqual(head().state.limitReceipt,canonical.limitReceipt,'Neither editing nor spending repeats the settlement');
     assert.deepEqual(errors,[]);
     console.log('PASS editor, group wall moves, collision previews, cloud sync, remote expansion, undo and production',mobile?'390px touch':'1366px drag');
   }finally{await context.close();}

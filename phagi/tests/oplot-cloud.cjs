@@ -1,5 +1,6 @@
 // Two independent browser stores share only the mock Phagi server and its CAS/receipt contracts.
 const assert = require('node:assert/strict');
+const limits=require('../oplot-limits.js');
 const {fixtures,studyBackend,profiles}=require('./oplot-game.cjs');
 const {chromium,webkit}=(()=>{try{return require('playwright');}catch{return require('playwright-core');}})();
 const url=new URL(process.argv[2]||'http://127.0.0.1:18748/phagi/');url.searchParams.set('oplot','1');
@@ -170,8 +171,88 @@ async function run(browser){
   await returning.feed('d0');
   await until(()=>migrationServer.docs.get(otherPath).state.dragons[0].level===away.state.dragons[0].level+1,
     'A restored page must save subsequent actions to the cloud');
+  const settlementAt=Date.UTC(2026,10,19,17),makeMine=(id,x,level)=>({id,type:'mine',x,y:2,level,since:settlementAt-10000});
+  const over={...initial,xp:0,gold:447,buildings:[initial.buildings[0],makeMine('low',1,2),makeMine('best',5,3)]};
+  const canonical=limits.reconcile(over,settlementAt);
+  async function firstImport(loseReply){
+   const db=fixtures(),client=await device(secondary,over,db);let attempts=0;
+   await client.ctx.route('**/rpc/ph_oplot_store',async route=>{
+    const a=route.request().postDataJSON();
+    if(db.docs.has(otherPath))return route.fallback();
+    const state=a.p_data.state;attempts++;
+    assert.deepEqual(state,over,'An existing island is offered to the server with its original assets and clock');
+    const cur={rev:1,op:'authoritative-conversion',state:canonical};db.docs.set(otherPath,cur);
+    if(loseReply)return route.abort();
+    return route.fulfill({json:{ok:false,cur,limitAdjusted:true}});
+   });
+   await client.open();
+   if(loseReply){
+    await client.status.filter({hasText:'ждёт серверного расчёта'}).waitFor();
+    await client.f.locator('#world').evaluate(()=>window.dispatchEvent(new Event('online')));
+   }
+   await client.ready();
+   assert.equal(attempts,1);assert.deepEqual(db.docs.get(otherPath).state,canonical);
+   assert.equal(Number((await client.f.locator('#gold').innerText()).replace(/\s/g,'')),canonical.gold);
+   await client.feed('d0');await until(()=>db.docs.get(otherPath).state.dragons[0].level===2,'Converted island is playable');
+   const current=db.docs.get(otherPath);
+   assert.deepEqual(current.state.limitReceipt,canonical.limitReceipt);assert.equal(current.state.gold,canonical.gold);
+   // An old tab's outbound write predates the irreversible server conversion.
+   const stale={base:{rev:1,op:'old-head'},dirty:true,out:{rev:2,op:'old-in-flight',state:over},state:{...over,gold:over.gold+1}};
+   const older=await device(secondary,null,db,stale);
+   await older.open();await older.ready();
+   assert.deepEqual(db.docs.get(otherPath),current);
+   const archives=await older.f.locator('#world').evaluate((_,id)=>Object.keys(localStorage).filter(k=>k.startsWith('phagi.oplot.v1.user.'+id+'.sync2.copy.')).map(k=>JSON.parse(localStorage.getItem(k)).state),secondary.id);
+   assert.ok(archives.some(s=>s.buildings.some(b=>b.id==='low')),'The superseded offline copy is backed up on its owner’s device');
+   await older.f.locator('#world').evaluate(()=>window.dispatchEvent(new Event('online')));await older.ready();
+   assert.deepEqual(db.docs.get(otherPath),current);
+   await older.f.locator('[data-do="settings"]').first().click();await older.f.locator('[data-do="confirmreset"]').click();await older.f.locator('[data-do="reset"]').click();
+   await until(()=>db.docs.get(otherPath).state.buildings.length===1,'A deliberate reset starts with one castle');
+   assert.deepEqual(db.docs.get(otherPath).state.limitReceipt,canonical.limitReceipt);
+   assert.equal(db.docs.get(otherPath).state.gold,initial.gold,'Reset preserves the receipt without paying the refund again');
+   await older.open();await older.ready();assert.equal(db.docs.get(otherPath).state.gold,initial.gold);
+  }
+  await firstImport(false);await firstImport(true);
+  // During a staggered rollout, an unpatched endpoint can still return the
+  // old document. Retain it intact and hold input until the real receipt lands.
+  const waitingDB=fixtures(),oldDoc={rev:1,op:'unpatched-server',state:over};
+  waitingDB.docs.set(otherPath,oldDoc);
+  const pendingLimits=await device(secondary,null,waitingDB,{base:{rev:1,op:oldDoc.op},state:over,dirty:false,out:null});
+  await pendingLimits.open();await pendingLimits.status.filter({hasText:'ждёт серверного расчёта'}).waitFor();
+  assert.deepEqual(waitingDB.docs.get(otherPath),oldDoc);assert.ok(await pendingLimits.f.locator('#island-cloud-dialog').isVisible());
+  const repaired={rev:2,op:'database-rollout',state:canonical};waitingDB.docs.set(otherPath,repaired);
+  await pendingLimits.f.locator('#world').evaluate(()=>window.dispatchEvent(new Event('online')));
+  await pendingLimits.ready();assert.deepEqual(waitingDB.docs.get(otherPath),repaired);
+  const emptyOldDB=fixtures(),earlyImport=await device(secondary,over,emptyOldDB);
+  await earlyImport.open();await earlyImport.status.filter({hasText:'ждёт серверного расчёта'}).waitFor();
+  assert.deepEqual(emptyOldDB.docs.get(otherPath).state,over,'An unpatched accepting endpoint cannot create an unconfirmed local payment');
+  emptyOldDB.docs.set(otherPath,repaired);await earlyImport.f.locator('#world').evaluate(()=>window.dispatchEvent(new Event('online')));
+  await earlyImport.ready();assert.deepEqual(emptyOldDB.docs.get(otherPath),repaired);
+  const guestContext=await browser.newContext({serviceWorkers:'block'});contexts.push(guestContext);
+  const guestKey='phagi.oplot.v1.local.standalone';
+  const originalGuest=structuredClone(over);delete originalGuest.layoutVersion;delete originalGuest.xp;
+  originalGuest.buildings[0].x=originalGuest.buildings[0].y=4;
+  await guestContext.addInitScript(({key,state})=>{if(!localStorage.getItem(key))localStorage.setItem(key,JSON.stringify(state))},{key:guestKey,state:originalGuest});
+  const guest=await guestContext.newPage();await guest.clock.setFixedTime(settlementAt);
+  await guest.goto(new URL('oplot.html',url).href,{waitUntil:'domcontentloaded'});
+  const guestState=()=>guest.evaluate(key=>JSON.parse(localStorage.getItem(key)),guestKey);
+  const guestSave=await guestState();
+  assert.equal(guestSave.xp,36);assert.equal(guestSave.limitReceipt.profileLevel,2);
+  assert.deepEqual(guestSave.buildings.map(b=>[b.id,b.x,b.y]),[['b0',15,13],['best',19,7]],
+    'A pre-XP ten-tile island retains its original coordinate system and full earned XP');
+  assert.equal(guestSave.gold,505);assert.equal(guestSave.limitReceipt.refundGold,42);assert.equal(guestSave.limitReceipt.productionGold,16);
+  await guest.clock.setFixedTime(settlementAt+86400000);await guest.reload({waitUntil:'domcontentloaded'});
+  assert.deepEqual(await guestState(),guestSave);
+  await guest.evaluate(({key,state})=>localStorage.setItem(key,JSON.stringify(state)),{key:guestKey,state:originalGuest});
+  await guest.reload({waitUntil:'domcontentloaded'});assert.equal(await guest.locator('#gold').innerText(),'505');
+  assert.deepEqual(await guest.evaluate(key=>JSON.parse(localStorage.getItem(key+'.settled-v1')),guestKey),guestSave);
+  const vintageServer=fixtures(),settledV1=limits.reconcile(originalGuest,settlementAt);
+  assert.equal(settledV1.limitLegacyGrid,true);
+  vintageServer.docs.set(otherPath,{rev:3,op:'sql-settled-vintage',state:settledV1});
+  const vintagePhone=await device(secondary,null,vintageServer);await vintagePhone.open();await vintagePhone.ready();
+  assert.deepEqual(vintageServer.docs.get(otherPath).state,guestSave,'An independent device packs a server-settled pre-XP island identically to the guest');
+  assert.equal(vintageServer.docs.get(otherPath).state.limitLegacyGrid,undefined);
   assert.deepEqual(errors,[]);
-  console.log('PASS independent devices: first-load gate, migration, cross-device progression, offline conflicting edits and backup, rectangular island edges on a fresh device, lost CAS ack, single delivery after lost debit response, isolated profiles.');
+  console.log('PASS cross-device progress, offline conflict backups, receipts, lost CAS and debit replies, database rollout, single-payment refunds, reset, guest legacy coordinates and stale tabs');
  }finally{await Promise.all(contexts.map(c=>c.close()));}
 }
 (async()=>{const browser=process.env.PHAGI_WEBKIT?await webkit.launch():await chromium.launch(process.env.PHAGI_CHROME?{executablePath:process.env.PHAGI_CHROME}:{});try{await run(browser);}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

@@ -38,54 +38,86 @@ async function check(browser,width) {
   assert.ok(b,'Placed '+type);return b;
  }
  async function seed(save){
-  await close();await page.evaluate(({key,save})=>localStorage.setItem(key,JSON.stringify(save)),{key,save});await page.reload();
+  await close();await page.evaluate(({key,save})=>{localStorage.removeItem(key+'.settled-v1');localStorage.setItem(key,JSON.stringify(save))},{key,save});await page.reload();
  }
  async function openBuilding(id){await tab('build');await act(dialog,'structure',id)}
  async function checkIndustry(start){
   const when=Math.floor(Date.now()/1000)*1000;
   await page.clock.setFixedTime(when);
-  const keep=start.buildings[0];
-  const mine={id:'first-mine',type:'mine',level:1,x:2,y:2,since:when-50625};
-  const extraMine={...mine,id:'extra-mine',x:8,y:2,since:when-50000};
-  const reserve={...mine,id:'reserve-mine',x:null,y:null,stowed:true,pausedStock:61};
+  const keep=start.buildings[0],mine={id:'first-mine',type:'mine',level:1,x:2,y:2,since:when-50625};
+  const extraMine={...mine,id:'active-mine',level:2,x:8,since:when-50000};
+  const reserve={...extraMine,id:'reserve-mine',x:null,y:null,stowed:true,pausedStock:61};
   const treasury={id:'treasury',type:'goldstore',level:1,x:2,y:8,since:when};
   const spareStore={...treasury,id:'spare-treasury',x:null,y:null,stowed:true};
+  const farm={...mine,id:'first-farm',type:'farm',x:13,y:5,since:when-5000};
+  const spareFarm={...farm,id:'spare-farm',x:null,y:null,stowed:true,pausedStock:79};
+  const homes=[2,8,20].map((x,i)=>({...mine,id:'home-'+i,type:'home',x,y:12,since:when-20000}));
+  const residents=Array.from({length:10},(_,i)=>({...start.dragons[i%3],id:'dragon-'+i}));
   const card=type=>dialog.locator('article').filter({has:page.locator('[data-do="construct"][data-id="'+type+'"]')});
   const purchase=type=>card(type).locator('[data-do="construct"]');
-  const legacy={...start,gold:812,buildings:[{...keep,level:2},mine,extraMine,reserve,treasury,spareStore]};
+  const legacy={...start,gold:812,berries:300,marks:{collect:1},dragons:residents,
+   buildings:[{...keep,level:8},mine,extraMine,reserve,treasury,spareStore,farm,spareFarm,...homes]};
   await seed(legacy);await tab('build');
-  for(const [type,count] of [['mine',3],['goldstore',2]]){
-   assert.ok(await purchase(type).isDisabled());assert.match(await card(type).innerText(),new RegExp('Построено '+count+' · текущий лимит 1'));
+  const normalized=await read();
+  assert.deepEqual(normalized.buildings.map(b=>b.id),[keep.id,extraMine.id,treasury.id,farm.id,homes[0].id,homes[1].id],
+   'Higher levels win, deployed wins ties, then the earlier source slot wins');
+  // First mine cost nothing; reserve mine cost 325 + 42 in upgrades. Lost harvest includes paused stock.
+  assert.equal(normalized.gold,812+40+325+42+61+270+180+80+3);
+  assert.equal(normalized.berries,379);
+  assert.ok(await page.locator('#profile-settlement').isVisible());
+  assert.match(await page.locator('#settled-amounts').textContent(),/79/);
+  assert.deepEqual(normalized.dragons,residents,'Building limits never evict resident dragons');
+  const quotas={mine:[1,4],farm:[1,4],goldstore:[1,6],foodstore:[1,6],home:[2,2],den:[1,null],
+   archer:[2,2],cannon:[2,2],spire:[0,2],academy:[0,7],firetrap:[3,2],icetrap:[3,2],wall:[128,2]};
+  for(const [type,[limit,next]] of Object.entries(quotas)){
+   const text=await card(type).innerText();
+   assert.match(text,new RegExp('Построено [0-9]+ из '+limit+'(?![0-9])'),type+' shows its current profile quota');
+   if(next)assert.match(text,new RegExp('на '+next+'-м уровне профиля'),type+' shows the next unlock');
+   else assert.doesNotMatch(text,/Следующее место/);
   }
-  assert.match(await card('mine').innerText(),/48 → 96 золота\/мин/);
+  for(const type of ['mine','farm','goldstore','home','academy','spire'])assert.ok(await purchase(type).isDisabled(),type);
+  assert.match(await purchase('spire').innerText(),/ур. 2/);assert.match(await purchase('academy').innerText(),/ур. 7/);
+  assert.match(await card('mine').innerText(),/96 → 144 золота\/мин/);
   assert.match(await card('goldstore').innerText(),/450 → 1\s?800 золота/);
-  await openBuilding(mine.id);assert.match(await dialog.innerText(),/48 золота в минуту/);
+  await close();await act(page,'collectall');await act(page,'quest');
+  const blocked=await read();
+  assert.deepEqual([blocked.gold,blocked.berries,blocked.quest],[normalized.gold,379,0],'No room for ordinary harvest or quest reward: existing compensation is kept');
+  await tab('collection');await act(dialog,'nursery');
+  assert.match(await dialog.innerText(),/Свободных мест — 0/);
+  assert.ok(await dialog.locator('[data-do="adopt"]').first().isDisabled());
+  await tab('collection');await act(dialog,'pet','dragon-0');await act(dialog,'feed','dragon-0');
+  assert.equal((await read()).berries,353,'Feeding one dragon costs exactly 26 while the barn is overfull');
+  await close();await place('archer',24,12);
+  assert.equal((await read()).gold,normalized.gold-70,'Building spends exactly its price while gold is over capacity');
+  await page.reload();const afterReload=await read();
+  assert.equal(afterReload.gold,normalized.gold-70);assert.equal(afterReload.berries,353);
+  assert.equal(afterReload.dragons.length,10,'Reloading an overcrowded home keeps every dragon');
+
+  const basic={...start,gold:812,buildings:[keep,mine,treasury]};
+  await seed(basic);await openBuilding(mine.id);assert.match(await dialog.innerText(),/48 золота в минуту/);
   assert.match(await dialog.innerText(),/96 в минуту и до 180/);
-  await act(dialog,'upgrade',mine.id);
-  const improved=await read(),newMine=improved.buildings.find(b=>b.id===mine.id);
-  assert.equal(improved.gold,812-42);assert.equal(improved.berries,legacy.berries);
-  assert.deepEqual(improved.buildings.filter(b=>b.id!==mine.id),legacy.buildings.filter(b=>b.id!==mine.id));
+  await act(dialog,'upgrade',mine.id);const improved=await read(),newMine=improved.buildings.find(b=>b.id===mine.id);
+  assert.equal(improved.gold,812-42);assert.deepEqual(improved.buildings.filter(b=>b.id!==mine.id),[keep,treasury]);
   const stock=await page.evaluate(({b,t})=>productionStock(b,t),{b:newMine,t:when});
-  assert.ok(stock>=40.5&&stock<40.502,'An upgrade retains both ready stock and work on the next unit');
-  assert.equal(await page.evaluate(({b,t})=>stored(b,t+60000),{b:newMine,t:when}),136,'L2 actually produces 96 gold in a minute');
-  await close();await act(page,'collectall');await page.reload();
-  const collected=await read();assert.equal(collected.gold,850,'Both grandfathered mines delivered gold');
-  assert.deepEqual(collected.buildings.find(b=>b.id===reserve.id),reserve);
-  // A one-cell save goes through the real conversion before its next collection is saved.
+  assert.ok(stock>=40.5&&stock<40.502,'Upgrading retains both ready stock and partial production');
+  assert.equal(await page.evaluate(({b,t})=>stored(b,t+60000),{b:newMine,t:when}),136);
   const vintage={...start,layoutVersion:1,gold:200,buildings:[{...keep,x:4,y:4},mine,{...extraMine,x:8,y:0}]};
   await seed(vintage);await tab('build');assert.ok(await purchase('mine').isDisabled());
   await close();await act(page,'collectall');await page.reload();
-  const converted=await read();assert.equal(converted.layoutVersion,2);assert.equal(converted.gold,280);
-  assert.deepEqual(converted.buildings.map(b=>b.id),vintage.buildings.map(b=>b.id));
-  const grown={...start,gold:800,buildings:[{...keep,level:4},mine,treasury]};
-  await seed(grown);await tab('build');assert.match(await card('mine').innerText(),/Построено 1 из 2/);
+  const converted=await read();assert.equal(converted.layoutVersion,2);assert.equal(converted.gold,320);
+  assert.deepEqual(converted.buildings.map(b=>b.id),[keep.id,extraMine.id],'One-cell saves convert and refund the first mine exactly once');
+
+  const grown={...start,xp:35*3**2,gold:800,buildings:[keep,mine,treasury]};
+  await seed(grown);await tab('build');assert.match(await card('mine').innerText(),/из 2/);
   assert.match(await purchase('mine').innerText(),/195 зол/);assert.ok(await purchase('goldstore').isDisabled());
+  assert.ok(await purchase('spire').isEnabled(),'A level-one keep on a level-four profile can purchase a spire');
   await place('mine',13,6);const second=await read();assert.equal(second.gold,605);
   await tab('build');assert.ok(await purchase('mine').isDisabled());
-  await seed({...second,buildings:second.buildings.map(b=>b.type==='keep'?{...b,level:7}:b)});
-  await tab('build');assert.match(await purchase('mine').innerText(),/325 зол/);
-  assert.match(await purchase('goldstore').innerText(),/270 зол/);
+  await seed({...second,xp:35*5**2});await tab('build');
+  assert.match(await purchase('goldstore').innerText(),/270 зол/);assert.ok(await purchase('mine').isDisabled());
   await place('goldstore',9,15);await tab('build');assert.ok(await purchase('goldstore').isDisabled());
+  await seed({...await read(),xp:35*6**2});await tab('build');
+  assert.match(await purchase('mine').innerText(),/325 зол/);assert.ok(await purchase('academy').isEnabled());
  }
  async function checkWallBuilder(start){
   const panel=page.locator('#wall-builder'),confirm=panel.locator('[data-do="confirmwalls"]');

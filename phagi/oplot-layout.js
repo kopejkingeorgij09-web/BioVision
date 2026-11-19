@@ -264,7 +264,7 @@
    const grid=gridAtLevel(1+Math.floor(Math.sqrt(Math.max(0,xp)/35))),old=state.buildings;
    // Keep the original deterministic v1 packing for already queued cloud saves.
    grid.width+=oldBorder;grid.height+=oldBorder;
-   const oldGrid=gridAtLevel(1+Math.floor(Math.sqrt(Math.max(0,state.xp||0)/35)),1);
+   const oldGrid=gridAtLevel(state.limitLegacyGrid===true?1:1+Math.floor(Math.sqrt(Math.max(0,state.xp||0)/35)),1);
    let placed=pack(old,grid,oldGrid,0);
    const maximum=placed.size===old.length?old.length:old.length-minimumStowed(old,grid);
    // Sparse islands stay close to their original sites. On a crowded island
@@ -287,14 +287,16 @@
    // Reopening or retrying the same save therefore never mints another harvest.
    const lastRaid=Date.parse(state.lastRaid?.at||state.lastRaid?.day||'')||0;
    const at=Math.max(Date.UTC(2026,10,19,13),lastRaid,...old.map(b=>b.since||0));
-   return {...state,xp,layoutVersion:2,buildings:old.map(b=>{
+   const migrated={...state,xp,layoutVersion:2,buildings:old.map(b=>{
      if(placed.has(b.id))return placed.get(b.id);
      const stored={...b,x:null,y:null,stowed:true};
      if(Object.hasOwn(production,b.type))stored.pausedStock=Math.min(b.level*90,Math.floor((at-b.since)*production[b.type]*b.level/5000));
      return stored;
    })};
+   delete migrated.limitLegacyGrid;
+   return migrated;
  }
- const api=Object.freeze({size,center,cells,at,fits,valid,gridAtLevel,migrate});
+ const api=Object.freeze({size,center,cells,at,fits,valid,gridAtLevel,migrate,legacyXP});
  if(typeof module==='object'&&module.exports)module.exports=api;
  if(root)root.OplotLayout=api;
 })(typeof window==='object'?window:null);

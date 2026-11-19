@@ -68,7 +68,6 @@ window.OplotEditor=(()=>{
        return true;
      },
      take(id){reserve(buildings.filter(b=>b.id===id&&!b.stowed))},
-     takeMany(ids){reserve(buildings.filter(b=>ids.has(b.id)&&!b.stowed))},
      clear(){reserve(buildings.filter(b=>!b.stowed))},
      undo(){if(history.length)restore(history.pop())}
    };

@@ -45,7 +45,6 @@ body.island-wide .wide-resources{display:flex;gap:10px;align-items:center;margin
 .keep-evolution canvas{width:100%;height:clamp(95px,20vh,180px);display:block}.keep-evolution figcaption{padding:4px 6px 8px;font-weight:650;font-size:13px;color:#44583f}
 .store-meter{width:100%;accent-color:#a77735;height:10px}.store-meter.foodstore{accent-color:#9d4a62}
 #layout-editor[hidden]{display:none}#layout-editor{border:1px solid #a89565;border-radius:10px;margin:5px 0 0;padding:10px 13px;background:#f7efd8;color:#344436}
-#layout-industry{display:flex;align-items:center;flex-wrap:wrap;gap:0 8px;margin-top:4px;border-top:1px solid #c9bc9a}#layout-industry button{min-height:44px}#layout-industry small{font-size:12px}
 .layout-title,.layout-actions,.layout-stock{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.layout-title{justify-content:space-between}.layout-title h3{font:600 19px var(--display)}
 .layout-actions{margin-top:7px}.layout-actions button{min-height:37px}#layout-selection{margin-top:4px;font-size:13px}.layout-stock{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin}
 .layout-stock button{flex:none;display:flex;align-items:center;gap:5px;margin:6px 0 2px;padding:3px 8px;background:#fff9e8;border:1px solid #b6a478;color:#374d3f;text-align:left}.layout-stock button[aria-pressed=true]{background:#dbeace;border-color:#477b53;box-shadow:inset 0 0 0 1px #477b53}.layout-stock canvas{width:39px;height:37px}.layout-stock b,.layout-stock small{display:block;font-size:11px}.layout-stock small{color:#615d48}.layout-stock:empty{display:none}
@@ -68,7 +67,7 @@ body.island-wide .mapfoot #mapaction{display:flex;align-items:center;gap:5px}
 #xp-progress-bar{display:block;width:100%;height:7px;margin:9px 0 10px;border:0;overflow:hidden;border-radius:5px;appearance:none;background:#ded4b4;color:#517552}
 #xp-progress-bar::-webkit-progress-bar{background:#ded4b4}#xp-progress-bar::-webkit-progress-value{background:#517552}#xp-progress-bar::-moz-progress-bar{background:#517552}
 #xp-guide{border-top:1px solid var(--line);padding-top:3px}
-#xp-guide summary{cursor:pointer;color:var(--pine);font-weight:700;font-size:14px;padding:6px 0}
+#profile-settlement summary,#xp-guide summary{cursor:pointer;color:var(--pine);font-weight:700;font-size:14px;padding:6px 0}
 #xp-guide summary:focus-visible{outline:2px solid var(--pine);outline-offset:2px}
 #xp-examples{display:block;margin-top:3px;color:#575c43;font-size:12px;font-weight:500}
 #xp-guide[open] #xp-examples{display:none}
@@ -239,14 +238,12 @@ body.island-wide .mapfoot #mapaction{display:flex;align-items:center;gap:5px}
   <button class="cmd alt" type="button" data-do="layoutwalls">Перенос стены</button>
   <button class="cmd" type="button" data-do="layoutapply">Сохранить</button><button class="cmd alt" type="button" data-do="layoutstash">В запас</button><button class="cmd alt" type="button" data-do="layoutundo">Шаг назад</button><button class="cmd alt" type="button" data-do="layoutclear">Снять всё</button><button class="linkbtn" type="button" data-do="layoutcancel">Отменить изменения</button>
  </div>
- <div id="layout-industry" hidden>
-  <button class="linkbtn" type="button" data-do="layoutindustry" aria-describedby="layout-industry-note"></button>
-  <small class="desc" id="layout-industry-note">Запасы и вместимость складов сохранятся. Шахты и фермы в запасе приостановят добычу.</small>
- </div></section></section><div class="island-sidebar">
+</section></section><div class="island-sidebar">
 <section class="panel" id="island-progress" aria-labelledby="xp-title">
  <span class="kicker" id="xp-title">Опыт профиля</span>
  <h2 id="xp-expansion"></h2><p id="xp-target"></p>
  <progress id="xp-progress-bar" aria-label="Опыт до следующего уровня"></progress>
+ <details id="profile-settlement" hidden><summary>Возврат за лишние постройки</summary><p id="settled-amounts"></p><p id="settled-types" class="desc"></p></details>
  <details id="xp-guide"><summary>За что дают опыт<span id="xp-examples"></span></summary><dl id="xp-rewards"></dl></details>
 </section>
 <section class="panel" id="scout-post" hidden aria-labelledby="scout-title">
@@ -255,7 +252,7 @@ body.island-wide .mapfoot #mapaction{display:flex;align-items:center;gap:5px}
 </section>
 <aside class="aside" id="aside"></aside></div></div><div class="attribution"><span id="caption"></span><button class="linkbtn" data-do="exit">Вернуться в Фаги</button></div></main>
 <dialog id="dialog" aria-labelledby="dt"><div class="dlghead"><h2 id="dt"></h2><button class="close" data-do="close" aria-label="Закрыть">×</button></div><div class="dlgbody"><div id="dbody"></div><div class="dlgnotice" role="status" id="dnotice"></div></div></dialog><div class="toast" role="status" id="toast"></div>
-<script src="oplot-layout.js?v=2"></script><script src="oplot-editor.js?v=3"></script><script src="oplot-art/village.js?v=2"></script><script src="oplot-art/stores.js?v=2"></script><script src="oplot-art/defenses.js?v=1"></script>
+<script src="oplot-layout.js?v=3"></script><script src="oplot-limits.js?v=1"></script><script src="oplot-editor.js?v=4"></script><script src="oplot-art/village.js?v=2"></script><script src="oplot-art/stores.js?v=2"></script><script src="oplot-art/defenses.js?v=1"></script>
 <script>
 'use strict';
 const GAME_ELEMENTS = window.GAME_ELEMENTS = ['Огонь','Вода','Природа','Молния','Земля','Свет'];
@@ -368,20 +365,20 @@ const elementPrey = [[2],[0],[4],[1],[3,5],[3]];
 window.strongAgainst = (attacking,defending) => elementPrey[attacking]?.includes(defending) || false;
 
 const STRUCT = {
- keep:['Цитадель','Хранит первый запас и открывает новые уровни построек.',0,1,0],
- mine:['Золотая шахта','Золото для строительства и улучшений.',65,1,1],
- farm:['Ягодная ферма','Выращивает ягоды для кормления драконов.',60,1,1],
- home:['Жилище драконов','Три места на уровень и немного золота.',80,1,1],
- den:['Логово скрещивания','Хранит яйцо, пока из него не вылупится дракон.',85,1,0],
- goldstore:['Золотое хранилище','Увеличивает запас золота. Каждое улучшение расширяет казну.',90,1,1],
- foodstore:['Ягодный амбар','Хранит ягоды для кормления и скрещивания. Можно увеличить вместимость.',75,1,1],
- academy:['Драконья академия','Зачаровывает особую способность выбранного дракона. Открывается на 7-м уровне профиля острова.',220,1,0],
- archer:['Башня лучников','Поражает захватчиков на дальних подступах.',70,1,1],
- cannon:['Пушка Бастиона','Разбивает группы врагов одним ядром.',95,1,1],
- spire:['Шпиль стихий','Атакует магией и усиливает ближайших драконов.',130,2,1],
- wall:['Магическая стена','Преграждает путь врагам, пока они её не разрушат.',20,1,5],
- firetrap:['Огненная руна','Срабатывает под врагом и поражает целую группу.',40,1,2],
- icetrap:['Ледяная ловушка','Замедляет захватчиков на пути к цитадели.',35,1,2]
+ keep:['Цитадель','Хранит первый запас и открывает новые уровни построек.'],
+ mine:['Золотая шахта','Золото для строительства и улучшений.'],
+ farm:['Ягодная ферма','Выращивает ягоды для кормления драконов.'],
+ home:['Жилище драконов','Три места на уровень и немного золота.'],
+ den:['Логово скрещивания','Хранит яйцо, пока из него не вылупится дракон.'],
+ goldstore:['Золотое хранилище','Увеличивает запас золота. Каждое улучшение расширяет казну.'],
+ foodstore:['Ягодный амбар','Хранит ягоды для кормления и скрещивания. Можно увеличить вместимость.'],
+ academy:['Драконья академия','Зачаровывает особую способность выбранного дракона. Открывается на 7-м уровне профиля острова.'],
+ archer:['Башня лучников','Поражает захватчиков на дальних подступах.'],
+ cannon:['Пушка Бастиона','Разбивает группы врагов одним ядром.'],
+ spire:['Шпиль стихий','Атакует магией и усиливает ближайших драконов.'],
+ wall:['Магическая стена','Преграждает путь врагам, пока они её не разрушат.'],
+ firetrap:['Огненная руна','Срабатывает под врагом и поражает целую группу.'],
+ icetrap:['Ледяная ловушка','Замедляет захватчиков на пути к цитадели.']
 };
 const MODE_NAMES={raid:'Набег на крепость',defense:'Оборона острова',boss:'Дракон-хранитель',arena:'Стихийная арена'};
 const MODE_TEXT={raid:'Высади до четырёх драконов на краю вражеского острова и разрушь цитадель.',defense:'Расстановка твоих стен, ловушек и башен определяет, выдержит ли остров волну.',boss:'Следи за красными кругами и уводи отряд из-под удара хранителя.',arena:'Выбери цель, используй преимущество стихии и поймай момент идеального удара.'};
@@ -411,9 +408,13 @@ const PROFILE_XP={
  build:18, upgradePerLevel:12, feedBase:8, hatch:35, chapter:35,
  enchantPerRank:20, victory:15, perStar:5, perStage:3
 };
-function islandLevel(state){return 1+Math.floor(Math.sqrt(Math.max(0,state.xp||0)/LEVEL_XP_BASE))}
+function islandLevel(state){return OplotLimits.profileLevel(state)}
 function xpAtLevel(level){return LEVEL_XP_BASE*(level-1)**2}
-function islandGrid(state,level=islandLevel(state)){return OplotLayout.gridAtLevel(level,state.layoutVersion??1,state.buildings)}
+function islandGrid(state,level){
+ const version=state.layoutVersion??1;
+ if(version===1&&(state.xp==null||state.limitLegacyGrid===true))level=1;
+ return OplotLayout.gridAtLevel(level??islandLevel(state),version,state.buildings);
+}
 function islandSize(state){const g=islandGrid(state);return Math.max(g.width,g.height)}
 function containsCell(grid,x,y){
  return Number.isInteger(x)&&Number.isInteger(y)&&x>=0&&y>=0&&x<grid.width&&y<grid.height;
@@ -472,8 +473,8 @@ function nightTowerReach(type,level=1,layoutVersion=1){
 }
 /* All island art is painted locally. Board geometry is shared by the renderer and pointer input. */
 window.Art = (() => {
-  const dragonScale=1.12;
   'use strict';
+  const dragonScale=1.12;
   const TAU = Math.PI * 2;
   const palettes = [
     ['#d75c3b','#ffac51','#ffe6a1','#873c51','#f48739'], ['#398ab1','#75d7e7','#eaf8cc','#36538f','#73e4dc'],
@@ -2890,7 +2891,8 @@ function validIslandState(s){
  const dictionary=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
  const unique=(items,fn)=>new Set(items.map(fn)).size===items.length;
  if(!dictionary(s)||(s.xp!==undefined&&!integer(s.xp))||
-   (s.layoutVersion!==undefined&&s.layoutVersion!==1&&s.layoutVersion!==2)||(s.layoutVersion===2&&!integer(s.xp)))return false;
+   (s.layoutVersion!==undefined&&s.layoutVersion!==1&&s.layoutVersion!==2)||(s.layoutVersion===2&&!integer(s.xp))||
+   (s.limitReceipt!=null&&!OplotLimits.validReceipt(s.limitReceipt)))return false;
  return s.version===1&&['gold','berries','waves','arenas','bosses'].every(k=>integer(s[k]))
   &&(s.incubationCredits===undefined||integer(s.incubationCredits))&&(s.lastRaid==null||dictionary(s.lastRaid)&&/^\d{4}-\d{2}-\d{2}$/.test(s.lastRaid.day))
   &&integer(s.quest,0,QUESTS.length)&&dictionary(s.settings)&&typeof s.settings.sound==='boolean'
@@ -2918,14 +2920,20 @@ function createIslandSync(host,key,game){
  const valid=validIslandState;
  const copyId=()=>crypto.randomUUID();
  let saved='', record=null, localIssue=false, conflict=null, remote=null, loaded=false, busy=false, timer, retryAt=0, warned=false;
- let hadLocal=false,ended=false,running=null;
+ let hadLocal=false,ended=false,running=null,previousLocal=null;
  try{
   saved=localStorage.getItem(journalKey)||'';
   if(saved){const value=JSON.parse(saved);if(valid(value.state)&&typeof value.dirty==='boolean')record=value;}
-  hadLocal=!!record||valid(JSON.parse(localStorage.getItem(key)));
+  previousLocal=JSON.parse(localStorage.getItem(key));hadLocal=!!record||valid(previousLocal);
  }catch{localIssue=true;}
- if(!record)record={base:null,state:clone(game.get()),dirty:true,out:null,legacyIntent:game.get().pending||null};
+ if(!record){
+  const first=valid(previousLocal)&&OplotLimits.needsSettlement(previousLocal)?{rev:1,op:copyId(),state:previousLocal}:null;
+  record={base:null,state:clone(game.get()),dirty:true,out:first,legacyIntent:game.get().pending||null};
+ }
  else{
+  if(record.dirty&&!record.out&&OplotLimits.needsSettlement(record.state)){
+   record.out={rev:(record.base?.rev||0)+1,op:copyId(),state:clone(record.state)};
+  }
   const upgraded=upgradeIsland(record.state);
   if(upgraded!==record.state){
    if(!record.dirty)record.layoutOnly=true;
@@ -2935,6 +2943,7 @@ function createIslandSync(host,key,game){
   // its payload and UUID intact until the server confirms the original write.
   game.set(clone(record.state),false);
  }
+ let awaitingLimits=OplotLimits.needsSettlement(record.state);
  const status=document.createElement('button');status.type='button';status.id='island-cloud-status';status.className='linkbtn';status.setAttribute('aria-live','polite');
  const hostBox=document.querySelector('.header-inner')||document.querySelector('header')||document.body;hostBox.append(status);
  const modal=document.createElement('dialog');modal.id='island-cloud-dialog';modal.style.cssText='color:#243c36;background:#fbefcf;border:2px solid #ac8650;border-radius:16px;padding:20px;width:min(420px,90vw);overflow:auto';document.body.append(modal);
@@ -2948,14 +2957,15 @@ function createIslandSync(host,key,game){
    const value=JSON.stringify(record);localStorage.setItem(journalKey,value);saved=value;localIssue=false;return true;
   }catch{localIssue=true;report('Не удалось сохранить на устройстве');return false;}
  }
- function present(value){record.state=clone(value);game.set(clone(value),true);}
+ function present(value){awaitingLimits=OplotLimits.needsSettlement(value);record.state=clone(value);game.set(clone(value),true);}
  function snapshot(){return {base:record.base,state:clone(record.state)};}
  function updateHead(doc){
   const upgraded=upgradeIsland(doc.state);
   remote=doc;record.base=tag(doc);record.dirty=upgraded!==doc.state;record.layoutOnly=record.dirty;record.out=null;present(upgraded);persist();
  }
  function walletHistory(s){return [s.purchaseCount??s.deliveries?.length??0,s.deliveries?.slice(-1)[0]||null];}
- function canUseLocal(){return (conflict?.state.lastRaid?.day??null)===(record.state.lastRaid?.day??null)&&!conflict?.state.pending&&!record.state.pending&&same(walletHistory(conflict.state),walletHistory(record.state));}
+ function canUseLocal(){return (!conflict.state.limitReceipt||same(conflict.state.limitReceipt,record.state.limitReceipt)&&!OplotLimits.needsSettlement(record.state))&&
+   (conflict.state.lastRaid?.day??null)===(record.state.lastRaid?.day??null)&&!conflict.state.pending&&!record.state.pending&&same(walletHistory(conflict.state),walletHistory(record.state));}
  function backupLink(state,label){
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}));a.download='Драконий Оплот — '+label+'.json';a.textContent=label;a.className='linkbtn';a.style.display='block';modal.append(a);
  }
@@ -2990,14 +3000,25 @@ function createIslandSync(host,key,game){
  function clash(doc){conflict=doc;report('Две версии острова');details();}
  function validate(doc){if(doc!==null&&(!Number.isSafeInteger(doc.rev)||doc.rev<1||typeof doc.op!=='string'||!valid(doc.state))){const e=Error('Облачное сохранение содержит неизвестные данные. Сохранили текущую копию.');e.code='bad_island';throw e;}}
  function schedule(ms=260){clearTimeout(timer);timer=setTimeout(()=>pump(false),ms);}
- function changed(state){record.state=clone(state);record.dirty=true;record.layoutOnly=false;const ok=persist();if(ok){report('Сохраняем остров…');schedule();}return ok;}
+ function changed(state){awaitingLimits=OplotLimits.needsSettlement(state);record.state=clone(state);record.dirty=true;record.layoutOnly=false;const ok=persist();if(ok){report('Сохраняем остров…');schedule();}return ok;}
  function acknowledge(doc){
   remote=doc;record.base=tag(doc);record.out=null;record.dirty=!same(record.state,doc.state);
   if(!record.dirty)record.layoutOnly=false;
   persist();
  }
- function reconcile(doc){
+ function requireSettlement(state){
+  if(OplotLimits.needsSettlement(state)){const e=Error('Остров ждёт серверного расчёта за лишние постройки.');e.code='limits_pending';throw e}
+ }
+ function reconcile(doc,adjusted=false){
   validate(doc);remote=doc;
+  if(doc){
+   requireSettlement(doc.state);
+   const receipt=doc.state.limitReceipt;
+   if(adjusted||receipt&&(!same(receipt,record.state.limitReceipt)||OplotLimits.needsSettlement(record.state))){
+    if(hadLocal&&record.dirty&&!same(record.state,doc.state))archive(snapshot());
+    updateHead(doc);return;
+   }
+  }
   if(record.out&&matches(record.out,doc)){acknowledge(doc);return;}
   if(matches(record.base,doc))return;
   if(!doc&&record.base){throw Error('Облачный остров недоступен');}
@@ -3013,8 +3034,8 @@ function createIslandSync(host,key,game){
    const next=record.out||{rev:(base?.rev||0)+1,op:copyId(),state:clone(record.state)};
    record.out=next;if(!persist())throw Error('Недостаточно места для записи');
    const r=await host.storeIsland(base?.rev??null,base?.op??null,next);
-   if(r?.ok===true)acknowledge(next);
-   else if(r?.ok===false){reconcile(r.cur);if(!conflict&&record.out===next&&!matches(next,r.cur))throw Error('Не удалось подтвердить запись');}
+   if(r?.ok===true){requireSettlement(next.state);acknowledge(next)}
+   else if(r?.ok===false){reconcile(r.cur,r.limitAdjusted===true);if(!conflict&&record.out===next&&!matches(next,r.cur))throw Error('Не удалось подтвердить запись');}
    else throw Error('Неожиданный ответ облака');
   }
  }
@@ -3054,7 +3075,7 @@ function createIslandSync(host,key,game){
    const result=await host.storeIsland(remote.rev,remote.op,next);
    if(result?.ok){if(record.legacyIntent?.op===pending.op)record.legacyIntent=null;updateHead(next);if(receipt)game.receipt(receipt);game.message(denied?'Покупка отклонена':'Покупка получена');return;}
    if(result?.ok!==false)throw Error('Неожиданный ответ облака');
-   reconcile(result.cur);if(conflict)return;
+   reconcile(result.cur,result.limitAdjusted===true);if(conflict||result.limitAdjusted)return;
   }
   schedule(800);
  }
@@ -3071,12 +3092,13 @@ function createIslandSync(host,key,game){
    await recoverLegacy();await settle();
    report(record.dirty?'Сохраняем остров…':record.state.pending?'Проверяем покупку…':'Остров в облаке');
   }catch(e){
-   loaded=loaded||hadLocal;retryAt=Date.now()+6500;
-   report(e?.code==='bad_island'?e.message:localIssue?'Не удалось сохранить на устройстве':record.state.pending?'Покупка ждёт подтверждения':loaded?'Остров на устройстве · нет связи':'Связь прервалась. Остров ещё не загружен.');
+   const waiting=e?.code==='limits_pending'||OplotLimits.needsSettlement(record.state);
+   loaded=!waiting&&(loaded||hadLocal);retryAt=Date.now()+6500;
+   report(waiting?'Остров ждёт серверного расчёта за лишние постройки.':e?.code==='bad_island'?e.message:localIssue?'Не удалось сохранить на устройстве':record.state.pending?'Покупка ждёт подтверждения':loaded?'Остров на устройстве · нет связи':'Связь прервалась. Остров ещё не загружен.');
    if(!loaded)details();
   }finally{busy=false;if(!ended)game.render();if(record.dirty&&!conflict&&!retryAt)schedule();}
  }
- function locked(){return !loaded||!!conflict||!!record.state.pending;}
+ function locked(){return !loaded||awaitingLimits||!!conflict||!!record.state.pending;}
  function allow(e){
   if(!locked()||modal.contains(e.target)||status.contains(e.target)||e.target.closest?.('#night-report,[data-night-open]'))return;
   const action=e.target.closest?.('[data-do]')?.dataset.do;
@@ -3107,7 +3129,7 @@ function createIslandSync(host,key,game){
   if(running)running.then(()=>pump(true));else pump(true);
  });
  function begin(){report('Открываем остров…');pump(true);}
- return {begin,changed,locked,pump,leave,canPay:()=>loaded&&!conflict&&!record.state.pending&&!localIssue};
+ return {begin,changed,locked,pump,leave,canPay:()=>!locked()&&!localIssue};
 }
 
 (() => {
@@ -3118,10 +3140,24 @@ const escape=s=>String(s).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&
 const host=(()=>{try{return parent!==window&&parent.OplotHost?.identity()?parent.OplotHost:null}catch{return null}})();
 const profile=host?.identity()||{id:'standalone',name:'Гость'};
 const key='phagi.oplot.v1.'+(host?'user.':'local.')+profile.id;
+const settledGuestKey=key+'.settled-v1';
+function writeGuest(value){
+ const data=JSON.stringify(value);
+ if(!value.limitReceipt){localStorage.setItem(key,data);return}
+ // Old cached versions know only the original key and may overwrite it.
+ localStorage.setItem(settledGuestKey,data);
+ try{localStorage.setItem(key,data)}catch{}
+}
 function read(){
+ if(!host)try{
+   const saved=JSON.parse(localStorage.getItem(settledGuestKey));
+   if(saved?.limitReceipt&&validIslandState(saved)&&!OplotLimits.needsSettlement(saved))return saved;
+ }catch{}
  try {const raw=JSON.parse(localStorage.getItem(key));if(validIslandState(raw)){
-   const upgraded=upgradeIsland(raw);
-   if(!host&&upgraded!==raw)try{localStorage.setItem(key,JSON.stringify(upgraded))}catch{}
+   // Resolve the original purchase slot and producer clock before packing
+   // the surviving buildings onto their new footprints.
+   const upgraded=upgradeIsland(host?raw:OplotLimits.reconcile(raw,Date.now()));
+   if(!host&&(upgraded!==raw||upgraded.limitReceipt))try{writeGuest(upgraded)}catch{}
    return upgraded;
  }}catch{}
  return initialState();
@@ -3156,7 +3192,6 @@ function renderEditor(){
  editor.setGrid?.(islandGrid(s));
  const shelf=$('#layout-stock');
  $('#layout-main-tools').hidden=!!wallShift;shelf.hidden=!!wallShift;$('#layout-wall-tools').hidden=!wallShift;
- const industry=$('#layout-industry');industry.hidden=true;
  if(wallShift){
    if(wallShift.target)wallShift.preview=editor.wallDestination(wallShift.section,wallShift.target);
    const {source,section,count,target,preview}=wallShift;
@@ -3187,8 +3222,6 @@ function renderEditor(){
  const wallTool=box.querySelector('[data-do="layoutwalls"]');
  wallTool.disabled=editor.buildings.filter(b=>b.type==='wall'&&!b.stowed).length<5;
  wallTool.textContent=wallTool.disabled?'Перенос стены · от 5 секций':'Перенос стены';
- const surplus=surplusIndustry();industry.hidden=!surplus.size;
- if(surplus.size)industry.querySelector('button').textContent='Убрать лишние хозяйства · '+surplus.size;
 
 }
 function startWallShift(count=5,id=null){
@@ -3226,10 +3259,6 @@ $('#layout-wall-count').addEventListener('change',e=>{if(wallShift)startWallShif
 function changeDraft(action){
  if(!editor)return;
  editMessage='';if(action==='clear'){editor.clear();editId=null}
- else if(action==='industry'){
-   const ids=surplusIndustry();if(!ids.size)return;
-   editor.takeMany(ids);editId=null;editMessage='В запас перемещено зданий — '+ids.size+'. Нажми «Сохранить», чтобы обновить остров.';
- }
  else if(action==='take'){editor.take(editId);editId=null}
  else{editor.undo();editId=null}
  editDrag=cursor=null;draftLocal();refreshIsland();
@@ -3287,7 +3316,7 @@ function screenChoices(){
 const title=sp=>GAME_SPECIES[sp].name;
 function toast(msg){const el=dlg.open?$('#dnotice'):$('#toast');el.textContent=msg;clearTimeout(el._timer);el._timer=setTimeout(()=>{el.textContent=''},3700)}
 let islandSync=null;
-function save(){if(islandSync)return islandSync.changed(s);try{localStorage.setItem(key,JSON.stringify(s));return true}catch{toast('Браузер не сохранил остров. Проверь свободное место и доступ к хранилищу.');return false}}
+function save(){if(islandSync)return islandSync.changed(s);try{writeGuest(s);return true}catch{toast('Браузер не сохранил остров. Проверь свободное место и доступ к хранилищу.');return false}}
 function sounds(id) {
  if(!s.settings.sound)return;
  try {
@@ -3402,6 +3431,13 @@ function xpPoints(n){
  const noun={one:'очко',few:'очка',many:'очков',other:'очка'}[xpPlural.select(n)];
  return num(n)+' '+noun+' опыта';
 }
+function refreshSettlement(){
+ const receipt=s.limitReceipt,details=$('#profile-settlement');
+ details.hidden=!receipt;
+ if(!receipt)return;
+ $('#settled-amounts').textContent='За строительство и улучшения возвращено '+num(receipt.refundGold)+' золота. Из построек собрано '+num(receipt.productionGold)+' золота и '+num(receipt.productionBerries)+' ягод.';
+ $('#settled-types').textContent=Object.entries(receipt.removed).map(([type,count])=>STRUCT[type][0]+' × '+count).join(' · ');
+}
 function refreshXpPanel(level,grid){
  const next=islandGrid(s,level+1),start=xpAtLevel(level),goal=xpAtLevel(level+1),remaining=goal-s.xp;
  const grows=next.width!==grid.width||next.height!==grid.height;
@@ -3427,7 +3463,7 @@ function refreshIsland(){
  }else $('#mapnote').textContent=wallPlan()?'':placement?(placement.kind==='add'?'Строительство · выбери пустую клетку':placement.kind==='move'?'Перенос · выбери свободную клетку':'Выбери постройку для переноса'):'';
  $('#mapaction').innerHTML=placement||editor?'':btn('tab','Строить','build','cmd wide-build')+btn('collectall','Собрать всё','','cmd gold');
  const level=islandLevel(s),grid=islandGrid(s);
- refreshXpPanel(level,grid);
+ refreshXpPanel(level,grid);refreshSettlement();
  $('#island-area').textContent='Уровень '+level+' · '+grid.width+' × '+grid.height+' клеток';
  $('#caption').textContent='Профиль острова · ур. '+islandLevel(s)+' ('+s.xp+'/'+xpAtLevel(level+1)+' опыта)　·　Цитадель '+lev()+'　·　Драконов '+s.dragons.length+' / '+capacity(s);
  aside.innerHTML=questHTML()+'<section class="panel"><div class="row between"><h2>Мои драконы</h2>'+btn('tab','Все','collection','linkbtn')+'</div>'+s.dragons.slice(0,3).map(petRow).join('')+'</section><section class="panel earnpanel"><div class="earn">'+icon('gem')+'<div><h3>Учебные алмазы</h3><p class="desc">Карточка приносит 1 алмаз, проверенная домашка — от 5 до 10.</p>'+btn('wallet','Открыть кошелёк','','linkbtn')+'</div></div></section>';paintMini(aside);
@@ -3447,8 +3483,7 @@ function close(){if(dlg.open)dlg.close();panel='';current='';tabsHTML()}
 dlg.addEventListener('cancel',()=>{panel='';current='';tabsHTML()});
 dlg.addEventListener('click',e=>{if(e.target===dlg){const r=dlg.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)close()}});
 function wallCapacity(){
- const {width,height}=islandGrid(s);
- return 2*(width+height)-4+4*(lev()-1);
+ return capFor('wall');
 }
 function wallPlan(){return placement?.kind==='walls'?placement:null}
 function newWallPlan(){return {kind:'walls',corners:[],drag:null,preview:[],valid:false}}
@@ -3525,47 +3560,19 @@ function confirmWalls(){
  placement=newWallPlan();sounds('build');refreshIsland();
  toast('Построено секций — '+fresh.length+' · −'+num(total)+' золота');
 }
-const industryUnlocks={mine:[1,4,7],farm:[1,4,7],goldstore:[1,6],foodstore:[1,6]};
 const ownedCount=type=>s.buildings.filter(b=>b.type===type).length;
-function capFor(type){
- if(industryUnlocks[type])return industryUnlocks[type].filter(level=>level<=lev()).length;
- if(type==='wall')return wallCapacity();
- if(['keep','den','academy'].includes(type))return 1;
- return STRUCT[type][4]*lev()+1;
-}
-function surplusIndustry(){
- const active=new Set(editor.buildings.filter(b=>!b.stowed).map(b=>b.id)),extra=new Set(),now=Date.now();
- for(const type of Object.keys(industryUnlocks)){
-   const limit=capFor(type),items=s.buildings.filter(b=>b.type===type&&active.has(b.id));
-   if(items.length<=limit)continue;
-   items.sort((a,b)=>b.level-a.level||stored(b,now)-stored(a,now)||(a.id<b.id?-1:a.id>b.id?1:0));
-   for(const b of items.slice(limit))extra.add(b.id);
- }
- return extra;
-}
-function upCost(b){
- if(b.type==='keep')return Math.round(175*1.65**(b.level-1));
- const base=STRUCT[b.type][2];
- if(industryUnlocks[b.type]){
-  const step=b.level-1;
-  return Math.round(base*(.65+.24*step+.018*step*step));
- }
- return Math.round((base*.72+12)*b.level);
-}
+const capFor=type=>OplotLimits.cap(type,s);
+const priceOf=type=>OplotLimits.buildGold(type,ownedCount(type));
+const upCost=b=>OplotLimits.upgradeGold(b.type,b.level);
 function upLimit(b){return b.type==='keep'?8:lev()+1}
-function priceOf(type){
- const base=STRUCT[type][2];
- if(!industryUnlocks[type])return base;
- const count=ownedCount(type);
- if(count===0&&(type==='mine'||type==='farm'))return 0;
- return base*(1+2*count);
+function canAdd(type){return type!=='keep'&&ownedCount(type)<capFor(type)}
+function limitDetails(type){
+ const count=ownedCount(type),limit=capFor(type),next=OplotLimits.nextUnlock(type,s);
+ const unlock=next?' Следующее место — на '+next+'-м уровне профиля.':'';
+ return '<p class="desc">Построено '+count+' из '+limit+'.'+unlock+'</p>';
 }
-function canAdd(t){return (t!=='academy'||islandLevel(s)>=7)&&t!=='keep'&&lev()>=STRUCT[t][3]&&ownedCount(t)<capFor(t)}
 function industryDetails(type,building){
- const slots=industryUnlocks[type];if(!slots)return '';
- const count=ownedCount(type),limit=capFor(type);
- const next=slots[Math.max(count,limit)];
- const total=count>limit?'Построено '+count+' · текущий лимит '+limit+'. Ранее построенные здания сохранены.':'Построено '+count+' из '+limit+'.';
+ if(!['mine','farm','goldstore','foodstore'].includes(type))return '';
  const level=building?.level||1,nextLevel=Math.min(9,level+1);
  let output;
  if(type==='mine'||type==='farm'){
@@ -3577,7 +3584,7 @@ function industryDetails(type,building){
   output=level===nextLevel?'Вмещает '+num(storeSpace(type,level))+units+'.':
    'Ур. '+level+' → '+nextLevel+' · вместимость '+num(storeSpace(type,level))+' → '+num(storeSpace(type,nextLevel))+units+'.';
  }
- return '<p class="desc">'+output+'</p><p class="desc">'+total+(next?' Ещё одно место откроется на '+next+'-м уровне Цитадели.':'')+'</p>';
+ return '<p class="desc">'+output+'</p>';
 }
 const feedCost=d=>Math.ceil(18+6*d.level+1.8*d.level*d.level);
 const stageHint=d=>d.level<5?'Следующая эволюция на 5-м уровне.':d.level<10?'Следующая эволюция на 10-м уровне.':'Достигнута взрослая стадия.';
@@ -3703,7 +3710,7 @@ const views={
   return ['Продать дракона?','<div class="portrait">'+portrait(d)+'</div><h3>'+sp.name+'</h3>'+rankBadge(sp)+'<p class="desc">Уровень '+d.level+' · зачарование '+(d.enchant||0)+' / 5</p><p class="desc">Дракон покинет остров, и в жилище освободится одно место. Запись о виде останется в книге.</p><div class="cost">Цена продажи · '+num(saleOffer.price)+' золота</div>'+(blocked?'<p class="desc">'+blocked+'</p>':'')+'<div class="actions">'+btn('pet','Оставить на острове',d.id,'cmd alt')+btn('confirmsale','Продать за '+num(saleOffer.price)+' золота',d.id,'cmd gold',!!blocked)+'</div>'];
  },
  nursery(){
-  const free=capacity(s)-s.dragons.length-(s.egg?1:0);
+  const free=Math.max(0,capacity(s)-s.dragons.length-(s.egg?1:0));
   return ['Питомник','<p class="desc">Шесть исходных стихий. Гибридов можно вывести в логове. Свободных мест — '+free+'.</p><div class="cards">'+Genetics.baseIds.map(i=>'<article class="card">'+portrait({species:i,level:1})+seals(GAME_SPECIES[i])+'<h3>'+title(i)+'</h3>'+btn('adopt','Поселить · 65 золота',i,'cmd alt',s.gold<65||free<1)+'</article>').join('')+'</div>'];
  },
  breed(){
@@ -3743,9 +3750,9 @@ const views={
  build(){
   const level=islandLevel(s),grid=islandGrid(s),next=islandGrid(s,level+1);
   const growth=next.width===grid.width&&next.height===grid.height?'Открыты все '+grid.width*grid.height+' клеток.':'На '+(level+1)+'-м уровне откроется ещё '+(next.width*next.height-grid.width*grid.height)+' клеток.';
-  return ['Мастерская острова','<h3>Остров '+grid.width+' × '+grid.height+'</h3><p class="desc">'+growth+' До нового уровня профиля — '+num(xpAtLevel(level+1)-s.xp)+' опыта.</p><p class="desc">Выбери постройку, затем свободную клетку. Для переноса или улучшения коснись готовой постройки на карте.</p><div class="cards">'+Object.entries(STRUCT).filter(([t])=>t!=='keep').map(([t,[name,desc,price,min]])=>{
+  return ['Мастерская острова','<h3>Остров '+grid.width+' × '+grid.height+'</h3><p class="desc">'+growth+' До нового уровня профиля — '+num(xpAtLevel(level+1)-s.xp)+' опыта.</p><p class="desc">Выбери постройку, затем свободную клетку. Для переноса или улучшения коснись готовой постройки на карте.</p><div class="cards">'+Object.entries(STRUCT).filter(([t])=>t!=='keep').map(([t,[name,desc]])=>{
    const allowed=canAdd(t),has=s.buildings.find(b=>b.type===t&&!b.stowed)||s.buildings.find(b=>b.type===t),side=OplotLayout.size(t);
-   return '<article class="card">'+buildingArt(t)+'<h3>'+name+'</h3><span class="tag">'+side+' × '+side+' клеток</span><p class="desc">'+desc+'</p>'+industryDetails(t,has)+btn('construct',t==='academy'&&islandLevel(s)<7?'Профиль острова · ур. 7':lev()<min?'Цитадель ур. '+min:!allowed?'Лимит построек':t==='wall'?'Разметить · '+priceOf(t)+' зол. за секцию':priceOf(t)?'Построить · '+priceOf(t)+' зол.':'Разместить бесплатно',t,'cmd alt',!allowed||s.gold<priceOf(t))+(has?' '+btn('structure',has.stowed?'В запасе':'На острове',has.id,'linkbtn'):'')+'</article>'}).join('')+'</div>'];
+   return '<article class="card">'+buildingArt(t)+'<h3>'+name+'</h3><span class="tag">'+side+' × '+side+' клеток</span><p class="desc">'+desc+'</p>'+industryDetails(t,has)+limitDetails(t)+btn('construct',!capFor(t)?'Профиль острова · ур. '+OplotLimits.nextUnlock(t,s):!allowed?'Лимит построек':t==='wall'?'Разметить · '+priceOf(t)+' зол. за секцию':priceOf(t)?'Построить · '+priceOf(t)+' зол.':'Разместить бесплатно',t,'cmd alt',!allowed||s.gold<priceOf(t))+(has?' '+btn('structure',has.stowed?'В запасе':'На острове',has.id,'linkbtn'):'')+'</article>'}).join('')+'</div>'];
  },
  structure(){
   const b=B(current);if(!b)return views.build();const data=STRUCT[b.type],n=stored(b),stock=storesOnMap.get(b.id);
@@ -3819,7 +3826,7 @@ function tab(v){
 const acts={
  orientation:mode=>{host?.setOrientation?.(mode);show('settings','',true);body.querySelector('[data-do="orientation"][aria-pressed="true"]')?.focus({preventScroll:true})},
  tab,close,settings:()=>show('settings'),confirmreset:()=>show('confirmreset'),
- reset:()=>{if(s.pending||busy)return;battle=placement=cursor=null;team=[];const deliveries=s.deliveries,purchaseCount=s.purchaseCount??deliveries.length,lastRaid=s.lastRaid??null,incubationCredits=s.incubationCredits||0;s=initialState();Object.assign(s,{deliveries,purchaseCount,lastRaid,incubationCredits});close();update();toast('Остров основан заново')},
+ reset:()=>{if(s.pending||busy)return;battle=placement=cursor=null;team=[];const deliveries=s.deliveries,purchaseCount=s.purchaseCount??deliveries.length,lastRaid=s.lastRaid??null,incubationCredits=s.incubationCredits||0,limitReceipt=s.limitReceipt;s=initialState();Object.assign(s,{deliveries,purchaseCount,lastRaid,incubationCredits});if(limitReceipt){s.limitReceipt=limitReceipt;if(limitReceipt.retiredIds.includes(s.buildings[0].id))s.buildings[0].id=uid()}close();update();toast('Остров основан заново')},
  wallet:()=>{show('wallet');syncWallet()},sync:refreshStudy,recover:deliver,purchase,
  learn:v=>{if(islandSync)islandSync.leave(v)},exit:()=>{if(islandSync)islandSync.leave('home');else if(location.protocol.startsWith('http'))location.assign('./?oplot=1');else toast('Открой «Драконий Оплот» в меню платформы «Фаги естественных наук».')},
  sound:()=>{s.settings.sound=!s.settings.sound;sounds('collect');update()},
@@ -3831,7 +3838,7 @@ const acts={
  confirmwalls:confirmWalls,wallundo:()=>{const plan=wallPlan();if(plan&&!plan.drag){plan.corners.pop();renderWallPlan()}},
  move:id=>{const b=B(id);if(!b)return;if(b.stowed){openEditor();draftSelect(id);return}placement={kind:'move',id};const center=OplotLayout.center(b);cursor={x:Math.floor(center.x),y:Math.floor(center.y)};close();refreshIsland()},
  edit:openEditor,cancelplace:()=>{placement=cursor=null;refreshIsland()},
- layoutapply:applyEditor,layoutcancel:()=>leaveEditor(true),layoutclear:()=>changeDraft('clear'),layoutstash:()=>changeDraft('take'),layoutundo:()=>changeDraft('undo'),layoutreserve:draftSelect,layoutindustry:()=>changeDraft('industry'),
+ layoutapply:applyEditor,layoutcancel:()=>leaveEditor(true),layoutclear:()=>changeDraft('clear'),layoutstash:()=>changeDraft('take'),layoutundo:()=>changeDraft('undo'),layoutreserve:draftSelect,
  layoutwalls:()=>{const b=editBuilding();startWallShift(5,b?.type==='wall'&&!b.stowed?b.id:null);world.focus({preventScroll:true})},
  layoutwallpick:()=>{if(wallShift){startWallShift(wallShift.count);world.focus({preventScroll:true})}},layoutwallcancel:cancelWallShift,layoutwallplace:placeWallShift,
  upgrade:id=>{const b=B(id);if(!b||b.level>=upLimit(b)||s.gold<upCost(b))return;
@@ -4315,7 +4322,7 @@ function frame(ms){
   if(panel==='breed'&&s.egg){const l=secLeft();if(!l&&$('#egg-status')?.textContent!=='Пора вылупляться!')show('breed','',true);else if(l&&$('#egg-timer'))$('#egg-timer').textContent='До вылупления: '+l+' с'}
  }
 }
-addEventListener('storage',e=>{if(islandSync||e.key!==key)return;s=upgradeIsland(read());refreshIsland();if(dlg.open&&panel)show(panel,current,true)});
+addEventListener('storage',e=>{if(islandSync||e.key!==key&&e.key!==settledGuestKey)return;s=upgradeIsland(read());refreshIsland();if(dlg.open&&panel)show(panel,current,true)});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&host)refreshStudy()});
 // Establish the founding time on the first visit as well as after the first move.
 if(host){

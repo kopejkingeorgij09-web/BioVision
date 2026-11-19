@@ -41,6 +41,52 @@ async function check(browser,width) {
   await close();await page.evaluate(({key,save})=>localStorage.setItem(key,JSON.stringify(save)),{key,save});await page.reload();
  }
  async function openBuilding(id){await tab('build');await act(dialog,'structure',id)}
+ async function checkIndustry(start){
+  const when=Math.floor(Date.now()/1000)*1000;
+  await page.clock.setFixedTime(when);
+  const keep=start.buildings[0];
+  const mine={id:'first-mine',type:'mine',level:1,x:2,y:2,since:when-50625};
+  const extraMine={...mine,id:'extra-mine',x:8,y:2,since:when-50000};
+  const reserve={...mine,id:'reserve-mine',x:null,y:null,stowed:true,pausedStock:61};
+  const treasury={id:'treasury',type:'goldstore',level:1,x:2,y:8,since:when};
+  const spareStore={...treasury,id:'spare-treasury',x:null,y:null,stowed:true};
+  const card=type=>dialog.locator('article').filter({has:page.locator('[data-do="construct"][data-id="'+type+'"]')});
+  const purchase=type=>card(type).locator('[data-do="construct"]');
+  const legacy={...start,gold:812,buildings:[{...keep,level:2},mine,extraMine,reserve,treasury,spareStore]};
+  await seed(legacy);await tab('build');
+  for(const [type,count] of [['mine',3],['goldstore',2]]){
+   assert.ok(await purchase(type).isDisabled());assert.match(await card(type).innerText(),new RegExp('Построено '+count+' · текущий лимит 1'));
+  }
+  assert.match(await card('mine').innerText(),/48 → 96 золота\/мин/);
+  assert.match(await card('goldstore').innerText(),/450 → 1\s?800 золота/);
+  await openBuilding(mine.id);assert.match(await dialog.innerText(),/48 золота в минуту/);
+  assert.match(await dialog.innerText(),/96 в минуту и до 180/);
+  await act(dialog,'upgrade',mine.id);
+  const improved=await read(),newMine=improved.buildings.find(b=>b.id===mine.id);
+  assert.equal(improved.gold,812-42);assert.equal(improved.berries,legacy.berries);
+  assert.deepEqual(improved.buildings.filter(b=>b.id!==mine.id),legacy.buildings.filter(b=>b.id!==mine.id));
+  const stock=await page.evaluate(({b,t})=>productionStock(b,t),{b:newMine,t:when});
+  assert.ok(stock>=40.5&&stock<40.502,'An upgrade retains both ready stock and work on the next unit');
+  assert.equal(await page.evaluate(({b,t})=>stored(b,t+60000),{b:newMine,t:when}),136,'L2 actually produces 96 gold in a minute');
+  await close();await act(page,'collectall');await page.reload();
+  const collected=await read();assert.equal(collected.gold,850,'Both grandfathered mines delivered gold');
+  assert.deepEqual(collected.buildings.find(b=>b.id===reserve.id),reserve);
+  // A one-cell save goes through the real conversion before its next collection is saved.
+  const vintage={...start,layoutVersion:1,gold:200,buildings:[{...keep,x:4,y:4},mine,{...extraMine,x:8,y:0}]};
+  await seed(vintage);await tab('build');assert.ok(await purchase('mine').isDisabled());
+  await close();await act(page,'collectall');await page.reload();
+  const converted=await read();assert.equal(converted.layoutVersion,2);assert.equal(converted.gold,280);
+  assert.deepEqual(converted.buildings.map(b=>b.id),vintage.buildings.map(b=>b.id));
+  const grown={...start,gold:800,buildings:[{...keep,level:4},mine,treasury]};
+  await seed(grown);await tab('build');assert.match(await card('mine').innerText(),/Построено 1 из 2/);
+  assert.match(await purchase('mine').innerText(),/195 зол/);assert.ok(await purchase('goldstore').isDisabled());
+  await place('mine',13,6);const second=await read();assert.equal(second.gold,605);
+  await tab('build');assert.ok(await purchase('mine').isDisabled());
+  await seed({...second,buildings:second.buildings.map(b=>b.type==='keep'?{...b,level:7}:b)});
+  await tab('build');assert.match(await purchase('mine').innerText(),/325 зол/);
+  assert.match(await purchase('goldstore').innerText(),/270 зол/);
+  await place('goldstore',9,15);await tab('build');assert.ok(await purchase('goldstore').isDisabled());
+ }
  async function checkWallBuilder(start){
   const panel=page.locator('#wall-builder'),confirm=panel.locator('[data-do="confirmwalls"]');
   const wall=(id,x,y)=>({id,type:'wall',level:1,x,y,since:start.buildings[0].since});
@@ -81,7 +127,9 @@ async function check(browser,width) {
    await act(page,'cancelplace');assert.deepEqual(await read(),island);
   }
   await blocked({...start,gold:39},7,/золот/i);
-  const nearlyFull=Array.from({length:135},(_,i)=>wall('section-'+i,i%35,Math.floor(i/35)));
+  const field=await page.evaluate(base=>islandGrid(base),start);
+  const perimeter=2*(field.width+field.height)-4;
+  const nearlyFull=Array.from({length:perimeter-1},(_,i)=>wall('section-'+i,i%field.width,Math.floor(i/field.width)));
   await blocked({...start,buildings:[...start.buildings,...nearlyFull]},7,/лимит/i);
  }
  async function checkSale(start){
@@ -119,7 +167,7 @@ async function check(browser,width) {
  try {
   await page.goto(url);
   const start=await read();assert.deepEqual(start.buildings.map(b=>b.type),['keep']);
-  await expectExpansion(35,'38×35');
+  await expectExpansion(35,'36×33');
   const guide=progress.locator('details#xp-guide');
   await guide.locator('summary').click();
   assert.ok(await guide.evaluate(el=>el.open));
@@ -129,20 +177,20 @@ async function check(browser,width) {
   }
   for(const amount of [18,35,12,8,20,15])assert.match(rewards,new RegExp('\\b'+amount+'\\b'),'XP reward or factor '+amount);
   await guide.locator('summary').click();
-  await seed({...start,xp:35});await expectExpansion(105,'38×38');
+  await seed({...start,xp:35});await expectExpansion(105,'36×36');
   await seed(start);
   await tab('build');assert.equal(await dialog.locator('[data-do="construct"][data-id="academy"]').isDisabled(),true);
   const mine=await place('mine',13,7);
-  assert.equal((await read()).xp,18);await expectExpansion(17,'38×35');
+  assert.equal((await read()).xp,18);await expectExpansion(17,'36×33');
   const farm=await place('farm',4,13);assert.equal((await read()).gold,start.gold);
-  await expectExpansion(104,'38×38');
-  assert.match(await page.locator('#island-area').innerText(),/Уровень 2 · 38 × 35/);
+  await expectExpansion(104,'36×36');
+  assert.match(await page.locator('#island-area').innerText(),/Уровень 2 · 36 × 33/);
   // The extra rows stay closed while the new columns accept a 4×4 store.
   await tab('build');await act(dialog,'construct','foodstore');
-  const closedCell=await world.evaluate(c=>Art.point(2,35,c.clientWidth,c.clientHeight,38));
+  const closedCell=await world.evaluate(c=>Art.point(2,33,c.clientWidth,c.clientHeight,36));
   await world.click({position:closedCell});assert.equal((await read()).buildings.length,3);
   await act(page,'cancelplace');
-  const barn=await place('foodstore',34,12), treasury=await place('goldstore',7,14);
+  const barn=await place('foodstore',32,12), treasury=await place('goldstore',7,14);
   const built=await read();
   assert.equal(built.gold,start.gold-75-90);
   assert.match(await page.locator('#berries + small').innerText(),/620/);
@@ -168,8 +216,8 @@ async function check(browser,width) {
   assert.ok((await read()).buildings.filter(b=>b.type.endsWith('store')).every(b=>b.level===2));
   await close();await act(page,'collectall');
   assert.ok((await read()).berries>620);
-  const savedBarn=(await read()).buildings.find(b=>b.id===barn.id);assert.equal(savedBarn.x,34);
-  await page.reload();assert.equal((await read()).buildings.find(b=>b.id===barn.id).x,34);
+  const savedBarn=(await read()).buildings.find(b=>b.id===barn.id);assert.equal(savedBarn.x,32);
+  await page.reload();assert.equal((await read()).buildings.find(b=>b.id===barn.id).x,32);
   const beforeKeep=await read();await selectCell(17,17);
   assert.deepEqual(await dialog.locator('.keep-evolution canvas').evaluateAll(nodes=>nodes.map(n=>n.dataset.level)),['1','2']);
   await act(dialog,'upgrade','b0');
@@ -205,19 +253,20 @@ async function check(browser,width) {
   assert.match(await dialog.innerText(),/Зачарование 2 \/ 5/);
   assert.match(await dialog.innerText(),/Фокус/);assert.match(await dialog.locator('.ability .kicker').textContent(),/Ульта · Вода/);
   const maxIsland=await read();maxIsland.xp=35*12*12;maxIsland.gold=450;await seed(maxIsland);
-  assert.match(await page.locator('#island-area').innerText(),/Уровень 13 · 55 × 55/);
-  assert.match(await expansion.innerText(),/максим|полностью|все клетки|все 3\s?025/i);
+  assert.match(await page.locator('#island-area').innerText(),/Уровень 13 · 53 × 53/);
+  assert.match(await expansion.innerText(),/максим|полностью|все клетки|все 2\s?809/i);
   assert.doesNotMatch(await expansion.innerText(),/до (?:следующего )?расширения/i);
   await openBuilding(wall.id);await act(dialog,'move',wall.id);
   await world.focus();for(let i=0;i<55;i++)await world.press('ArrowRight');
   for(let i=0;i<55;i++)await world.press('ArrowDown');
   await world.press('Enter');
   const moved=(await read()).buildings.find(b=>b.id===wall.id);
-  assert.deepEqual([moved.x,moved.y],[54,54]);await page.reload();
+  assert.deepEqual([moved.x,moved.y],[52,52]);await page.reload();
   assert.deepEqual((await read()).buildings.find(b=>b.id===wall.id),moved);
   await checkSale(start);
   await checkWallBuilder(start);
-  assert.deepEqual(errors,[]);console.log('PASS '+width+'px · placement, storage, profile XP, enchantments, walls, dragon sales and housing');
+  await checkIndustry(start);
+  assert.deepEqual(errors,[]);console.log('PASS '+width+'px · placement, industry quotas/prices/legacy stock, storage, profile XP, enchantments, walls, dragon sales and housing');
  }finally{await ctx.close()}
 }
 (async()=>{const browser=process.env.PHAGI_WEBKIT?await webkit.launch():await chromium.launch(process.env.PHAGI_CHROME?{executablePath:process.env.PHAGI_CHROME}:{});

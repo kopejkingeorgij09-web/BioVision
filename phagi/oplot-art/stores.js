@@ -60,10 +60,78 @@
     }
     return out;
   }
+  // Vault turrets and the granary's ventilated towers sit behind the cutaway;
+  // the graded stock surface always remains visible through the front opening.
+  function cornerTower(x,base,diameter,height,{wall,light,dark,roof,ridge},shape){
+    const r=diameter/2,top=base-height,cap=shape==='spire'?r*1.65:r*.76;
+    let out=path(`M${x-r} ${top}l${r} -4 ${r} 4v${height}l-${r} 4-${r}-4Z`,wall,metalOutline,1.1)+
+      path(`M${x} ${top+3}l${r} -3v${height}l-${r} 4Z`,dark)+
+      line(`M${x-r+2} ${base-3}v-${height-5}`,light,1.55);
+    if(shape==='vent'){
+      for(let i=0;i<3;i++)out+=line(`M${x-r+2} ${top+5+i*3}l${r-4} 2`,dark,1.5);
+    }else{
+      out+=path(`M${x-3} ${top+9}q2-6 4-1v4l-4-1Z`,dark,light,.65);
+    }
+    out+=path(`M${x-r-2} ${top+.8}l${r+2} -${cap} ${r+2} ${cap} -${r+2} 5Z`,roof,metalOutline,1.05)+
+      path(`M${x-r-2} ${top+.8}l${r+2} -${cap} -1 ${cap+4.5}Z`,ridge)+
+      line(`M${x-r-1} ${top+1}l${r+1} 4 ${r+1}-4`,light,1.1);
+    return out;
+  }
+  const vaultStone={wall:'#a6a292',light:'#e6d4a1',dark:'#6a756e',roof:'#597c7a',ridge:'#94b3a0'};
+  const vaultCopper={wall:'#cba674',light:'#f2dc9e',dark:'#816e5a',roof:'#a16a45',ridge:'#d99b62'};
+  const fruitWood={wall:'#c29c68',light:'#edd4a0',dark:'#775c49',roof:'#627f60',ridge:'#9bb178'};
+  const fruitStone={wall:'#d0b698',light:'#f2dab2',dark:'#8e8271',roof:'#ad624a',ridge:'#e4966f'};
+  function countingHouse(x,y,width,roof){
+    const r=width/2;
+    return path(`M${x-r} ${y}l${r+5}-9 ${r-2} 5v16l-${r+6} 9-${r-3}-5Z`,'#d2b48a',metalOutline,1.05)+
+      path(`M${x+2} ${y+4}l${r+1}-8v16l-${r+2} 9Z`,'#9e8d76')+
+      path(`M${x-r-4} ${y+1}l${r-2}-14 ${r+3}-6 ${r*.72} 13-${r+4} 8Z`,roof,metalOutline,1.1)+
+      path(`M${x-r-3} ${y+1}l${r-3}-13 6 9 -7 7Z`,'#d7ba83',metalOutline,.7)+
+      line(`M${x-5} ${y-12}l${r+2}-6M${x+1} ${y-2}l${r+5}-8`,'#f2d196',1.4)+
+      path(`M${x+5} ${y+4}l5-3v5l-5 3Z`,'#456c6d','#c6ac83',.9);
+  }
+  function vaultWorks(level){
+    let s='';
+    if(level>=2)s+=cornerTower(34,79,level>=5?16:14,level>=5?42:34,level>=5?vaultCopper:vaultStone,level>=8?'spire':'cap');
+    if(level>=3)s+=cornerTower(121,84,level>=7?17:12,level>=7?43:31,vaultStone,level>=9?'spire':'cap');
+    if(level>=4)s+=countingHouse(62,level>=7?37:42,level>=7?29:24,level>=7?'#4a8183':'#8d775e');
+    if(level>=6)s+=cornerTower(23,91,13,33,vaultStone,level>=9?'spire':'cap');
+    if(level>=7)s+=cornerTower(135,92,13,26,vaultCopper,'cap');
+    if(level>=8){
+      s+=path('M77 37V23a9 9 0 0 1 18 0v11l-4 1V23a5 5 0 0 0-10 0v12Z','url(#opStoreBrass)',metalOutline,1.15)+
+        path('M81 30l5-3 6 2v8l-6 3-5-3Z','#d4a958',metalOutline,.8)+oval(86,33,1.3,1.7,'#51584f');
+    }
+    if(level>=9)s+=cornerTower(52,58,12,29,vaultStone,'spire')+cornerTower(104,58,12,27,vaultStone,'spire');
+    if(level>=10)s+=path('M56 30q22-16 45-4l-2.4 3q-21-11-40.5 5Z','#c8a25d',metalOutline,.95);
+    return s;
+  }
+  function granaryWorks(level){
+    let s='';
+    if(level>=2)s+=cornerTower(119,78,level>=6?20:16,level>=6?41:35,fruitWood,'vent');
+    if(level>=3)s+=countingHouse(54,58,level>=5?26:17,'#b18e50');
+    if(level>=4)s+=cornerTower(29,81,17,36,fruitStone,'vent');
+    if(level>=5)s+=path('M22 68l5-13 16-10 13 5 2 7-17 9-10 8Z','#ac6250',woodOutline,1)+
+      path('M29 57l4-3 6 12-4 3ZM40 50l3-2.5 7 11-4 3Z','#efcc91')+
+      line('M24 67v15m30-25v13','#835d3f',2.1);
+    if(level>=6)s+=cornerTower(104,56,17,22,fruitStone,'vent');
+    if(level>=7)s+=cornerTower(131,85,16,33,fruitWood,'vent')+countingHouse(74,36,18,'#779582');
+    if(level>=8)s+=cornerTower(46,55,15,29,fruitStone,'vent');
+    if(level>=9)s+=countingHouse(93,31,21,'#618e88')+
+      path('M92 20V9l8-1-2 3 4 3-8 .4V20Z','#d6a653',woodOutline,.8);
+    if(level>=10)s+=cornerTower(22,90,13,31,fruitWood,'vent');
+    return s;
+  }
+  function shell(size){
+    return `<g transform="translate(80 105) scale(${size}) translate(-80 -105)">`;
+  }
   function treasury(level,fill){
-    let out=goldDefs+foot(false);
+    const size=[.77,.84,.89,.93,.96,.98,1,1,1,1][Math.min(level,10)-1];
+    let defs=goldDefs;
+    if(level===1)defs=defs.replace('#d2d3af','#d6bb8a').replace('#97a291','#b49369').replace('#707d78','#997958').replace('#4d6667','#7b634d').replace('#394f54','#604e40');
+    let out=defs+shell(size)+foot(false)+'</g>'+vaultWorks(level)+shell(size);
+
     // Two square stone piers protect the rear lock and anchor the bronze ring.
-    for(const [x,y] of [[39,49],[117,49]]){
+    for(const [x,y] of (level>=5?[[39,49],[117,49]]:[])){
       out+=`<g transform="translate(${x} ${y})">`+
         path('M-8 3l7-4 9 4v30l-8 5-8-5Z','#6c7772',metalOutline,1.2)+
         path('M-8 3l8 4 8-4-8-4Z','#d0c3a1')+path('M-8 4l8 4v29l-8-4Z','#a7a28c')+
@@ -107,7 +175,7 @@
       path('M74.1 108.7l3.5-2.6 3.4 2.5-3.3 4.3Z','#4caba6',metalOutline,.75);
     if(level>=10)for(const x of [39,117])out+=path(`M${x-4.6} 40.3l4.5-8.4 4.3 8.2-4.5 3.3Z`,'#56a3a0',metalOutline,.8)+
       path(`M${x-4} 40.1l3.9-7.4.5 8.2Z`,'#aad6b7');
-    return out;
+    return out+'</g>';
   }
 
   const berrySpots=[
@@ -129,9 +197,10 @@
     return out;
   }
   function granary(level,fill){
-    let out=foodDefs+foot(true);
+    const size=[.80,.85,.90,.94,.96,.98,1,1,1,1][Math.min(level,10)-1];
+    let out=foodDefs+shell(size)+foot(true)+'</g>'+granaryWorks(level)+shell(size);
     // Shingled rain cover shelters the rear of the store, keeping the fruit visible at the front.
-    out+=path('M39 49l5-2 3 56-5 2ZM98 30l5 .7v58l-5-.4Z','url(#opStoreWood)',woodOutline,1.1)+
+    if(level>=3)out+=path('M39 49l5-2 3 56-5 2ZM98 30l5 .7v58l-5-.4Z','url(#opStoreWood)',woodOutline,1.1)+
       '<g transform="translate(-1 -10)">'+path('M32 58Q48 49 75 34l16.4 1.5 14.6 10-28.2 6.2-32 19-12.9-4Z','#47785d','#42523b',1.4)+
       path('M31.3 58.1Q54.1 44.5 75 32.7l15.2 1.7-28.4 16.4-16.5 13.4Z','#91ae6a','#526b48',1)+
       path('M45.2 64.1l16.4-13.8 28.6-16.1 16 10.5-26.9 8.8-32.9 18.1Z','url(#opStoreLeaves)','#466f54',1)+
@@ -140,6 +209,8 @@
       path('M31.6 57.9l13.6 5.9 1.5 7.3-14.2-6.4Z','#63875d','#536648',.8)+
       path('M46.3 69.3l32.7-17.5 26.8-8.7-.1 3.3-25.2 9.1L46.7 74Z','#6a6242','#536244',.85)+
       line('M49.1 67.6l.5 2.8m8.2-7.4.8 2.1m7.5-6.5.7 2.4m8.1-7.4.7 2.3m9.1-6.1.3 2.1m9.4-5.4.7 2.0','#d3ca82',1.3)+'</g>';
+    if(level<=2)out+=path('M44 61v-9l21-13 20 1 9 8-27 8-19 12Z','#c8a563',woodOutline,1)+
+      path('M44 52l21-13 11 1.4-22 14.8Z','#e5ca88')+line('M46 61v24m43-38v16','#866749',2.5);
     if(level>=4)out+=path('M72.5 22.4l2.1-3.8 16.4 1.5 3.5 4-6.3 1.8Z','#c6894c',woodOutline,.95);
     if(level>=8)out+=path('M78 21l1.2-10.3 2.5-.2-.9 10.6Z','#a57a49',woodOutline,.8)+
       path('M81.2 11q5-3 10.4-1l-2.9 2.1 3.1 2.2q-5.5-1.7-11 .8Z','#c75d58','#804b48',.68);
@@ -170,7 +241,7 @@
     if(level>=10)out+=path('M104.9 52.1l4.9-5.3 4.8 4.4-.6 6.7-4.8 3.7-4.1-3.8Z','#80a982',woodOutline,.85)+
       path('M106.8 51.4l3-3.1 2.9 2.9-3.1 2.7Z','#d5dc9a')+
       line('M46.2 111.3l12.4 5.7m51.2-3.3 11.8-8.4','#78a18a',1.9);
-    return out;
+    return out+'</g>';
   }
   window.OplotStoreSVG=(type,level=1,fill=0)=>{
     const amount=Math.max(0,Math.min(1,Number(fill)||0)),tier=Math.max(1,Math.floor(Number(level)||1));

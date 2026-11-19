@@ -8,23 +8,34 @@ declare
   old_base jsonb:='{"xp":0,"gold":100,"berries":75,"dragons":[],"buildings":[{"id":"keep","type":"keep","x":4,"y":4,"level":1}]}';
   formation jsonb:='{"v":3,"layoutVersion":2,"entrySide":0,"attackers":[{"id":"a","type":"raider","species":0,"level":4,"x":0,"y":10,"hp":100,"damage":100,"flying":false,"enchant":0}]}';
   spare jsonb:='{"id":"spare","type":"farm","x":null,"y":null,"stowed":true,"level":1,"pausedStock":13,"since":0}';
-  guard_base jsonb; guard_wave jsonb; sky jsonb; fort jsonb; s jsonb; f jsonb; orig jsonb; report jsonb; result jsonb; wallet jsonb; latest jsonb;
+  rectangle jsonb; archived jsonb; malformed jsonb; guard_base jsonb; guard_wave jsonb; sky jsonb; fort jsonb; s jsonb; f jsonb; orig jsonb; report jsonb; result jsonb; wallet jsonb; latest jsonb;
   events jsonb; failed boolean:=false; i int;
 begin
   if (select array_agg(oplot.raid_span(k) order by i0) from unnest(array['keep','goldstore','foodstore','den','academy','archer','cannon','home','farm','mine','spire','wall','firetrap','icetrap']) with ordinality t(k,i0))
     <>array[5,4,4,4,4,3,3,3,3,3,2,1,1,1] then raise exception 'Footprint contract';end if;
-  if array(select oplot.raid_axis(n) from generate_series(10,16) n)<>array[35,38,42,45,48,52,55] then raise exception 'Profile axes differ';end if;
+  if array(select oplot.raid_axis(n) from generate_series(10,16) n)<>array[33,36,40,43,46,50,53] then raise exception 'Profile axes differ';end if;
   if not oplot.valid_grid_layout(base) or oplot.valid_grid_layout(jsonb_set(base,'{buildings,0,x}','31'))
      or oplot.valid_grid_layout(jsonb_set(base,'{buildings,0,stowed}','true'))
      or oplot.valid_grid_layout(jsonb_set(base,'{buildings}',(base->'buildings')||'[{"id":"x","type":"wall","x":11,"y":11}]'))
      or not oplot.valid_grid_layout(jsonb_set(base,'{buildings}',(base->'buildings')||'[{"id":"x","type":"wall","x":12,"y":11}]'))
      then raise exception 'Footprints inside the board without overlaps'; end if;
+  rectangle:=jsonb_set(base,'{buildings}',(base->'buildings')||'[{"id":"edge","type":"farm","x":4,"y":32,"level":1}]');
+  if oplot.raid_dimensions(base)<>array[33,33] or oplot.raid_dimensions(rectangle)<>array[33,35]
+    or not oplot.valid_grid_layout(rectangle) or oplot.raid_dimensions(jsonb_set(rectangle,'{buildings,1,y}','31'))<>array[33,34]
+    or oplot.raid_dimensions(jsonb_set(rectangle,'{buildings,1}',spare))<>array[33,33]
+    or oplot.valid_grid_layout(jsonb_set(rectangle,'{buildings,1,y}','33')) then raise exception 'Grandfathered compact borders';end if;
+  for malformed in select value from jsonb_array_elements(
+    '[null,[],{},{"buildings":7},{"buildings":[false]},{"buildings":[{"type":"keep","id":7,"x":1,"y":1}]},
+      {"buildings":[{"type":"keep","id":"k","x":{},"y":1}]},{"buildings":[{"type":"keep","id":"k","x":0,"y":99999999999999999999999999}]},
+      {"buildings":[{"type":"keep","id":"k","stowed":"false","x":0,"y":0}]}]') loop
+    if oplot.valid_grid_layout(malformed) then raise exception 'Accepted malformed map: %',malformed;end if;
+  end loop;
   for i in 1..12 loop
     if oplot.night_battle(old_base,i,day1+i,who)<>oplot.simulate_classic_raid(old_base,i,day1+i,who,null) then raise exception 'Original night changed'; end if;
   end loop;
   fort:=jsonb_set(base,'{buildings}',(base->'buildings')||'[{"id":"w","type":"wall","x":2,"y":10,"level":2},{"id":"t","type":"icetrap","x":3,"y":10,"level":1}]');
   f:=oplot.simulate_raid(fort,1,day1,who,formation);events:=f#>'{replay,events}';
-  if f#>>'{replay,gridWidth}'<>'35' or f#>>'{replay,layoutVersion}'<>'2' or f#>>'{replay,buildings,0,span}'<>'5'
+  if f#>>'{replay,gridWidth}'<>'33' or f#>>'{replay,layoutVersion}'<>'2' or f#>>'{replay,buildings,0,span}'<>'5'
      or not jsonb_path_exists(events,'$[*] ? (@.t == 1 && @.kind == "wall" && @.target == "w")')
      or not jsonb_path_exists(events,'$[*] ? (@.t == 1 && @.kind == "move" && @.to[0] == 1)')
      or not jsonb_path_exists(events,'$[*] ? (@.t == 2 && @.kind == "trap" && @.id == "t")')
@@ -36,10 +47,10 @@ begin
      not jsonb_path_exists(events,'$[*] ? (@.t == 1 && @.kind == "move" && @.to[0] == 2)') then raise exception 'Flight or doubled movement';end if;
   sky:=jsonb_set(formation,'{entrySide}','2');
   events:=oplot.simulate_raid(base,1,day1,who,sky)#>'{replay,events}';
-  if not jsonb_path_exists(events,'$[*] ? (@.t == 12 && @.kind == "strike" && @.target == "keep" && @.from[0] == 12 && @.to[0] == 9 && @.to[1] == 9)')
+  if not jsonb_path_exists(events,'$[*] ? (@.t == 11 && @.kind == "strike" && @.target == "keep" && @.from[0] == 12 && @.to[0] == 9 && @.to[1] == 9)')
     then raise exception 'Raider must attack the near face before reaching the anchor and aim at the centre';end if;
   for i in 1..2 loop
-    s:=jsonb_set(base,'{buildings}',jsonb_build_array(jsonb_build_object('id','c','type','cannon','level',1,'x',24+i,'y',9)));
+    s:=jsonb_set(base,'{buildings}',jsonb_build_array(jsonb_build_object('id','c','type','cannon','level',1,'x',22+i,'y',9)));
     events:=oplot.simulate_raid(s,1,day1,who,sky)#>'{replay,events}';
     if jsonb_path_exists(events,'$[*] ? (@.t == 1 && @.kind == "tower")')<>(i=2)
       then raise exception 'Cannon coverage from actual edge';end if;
@@ -60,12 +71,14 @@ begin
   if f->>'stars'<>'3' or (f#>>'{replay,duration}')::int not between 50 and 68 or
     not jsonb_path_exists(f,'$.replay.events[*] ? (@.kind == "destroy" && @.target == "keep" && @.t >= 50)') then
     raise exception 'The clock expired before the raider could cross 55×55';end if;
+  archived:=f->'replay';
+  if archived->>'gridSize'<>'55' or archived->>'gridWidth'<>'55' or archived->>'gridHeight'<>'55' then raise exception 'Old far keep moved';end if;
   -- The ground guard starts north of this keep, directly opposite a grounded raider.
   -- The unobstructed flank is short enough to intercept before the first hit on the keep.
   guard_base:='{"layoutVersion":2,"xp":0,"buildings":[{"id":"fort","type":"keep","x":15,"y":15,"level":1}],
     "dragons":[{"id":"guard","species":0,"level":10,"enchant":0}]}';
-  guard_wave:=formation||'{"entrySide":3,"gridWidth":35,"gridHeight":35,
-    "attackers":[{"id":"a","type":"raider","species":0,"level":4,"x":17,"y":34,"hp":20,"damage":112,"flying":false,"enchant":0}]}';
+  guard_wave:=formation||'{"entrySide":3,"gridWidth":33,"gridHeight":33,
+    "attackers":[{"id":"a","type":"raider","species":0,"level":4,"x":17,"y":32,"hp":20,"damage":112,"flying":false,"enchant":0}]}';
   result:=oplot.simulate_raid(guard_base,1,day1,who,guard_wave);events:=result#>'{replay,events}';
   if result->>'stars'<>'0' or not jsonb_path_exists(events,'$[*] ? (@.kind == "guard" && @.id == "guard" && @.target == "a")')
     or jsonb_path_exists(events,'$[*] ? (@.kind == "strike" && @.target == "fort")')
@@ -87,7 +100,7 @@ begin
     '$.replay.events[*] ? (@.t == 1 && @.kind == "wall" && @.target == "w0/0")') then raise exception 'Dense full-grid lookup';end if;
   -- Transitional 20..32-wide v3 snapshots also preserve their relative shoreline lane.
   f:=oplot.simulate_raid(base,1,day1,who,formation||'{"gridWidth":32,"gridHeight":30}');
-  if f#>>'{replay,attackers,0,y}'<>floor(10.5*35/30)::text then raise exception 'Intermediate archive entrance mapping';end if;
+  if f#>>'{replay,attackers,0,y}'<>floor(10.5*33/30)::text then raise exception 'Intermediate archive entrance mapping';end if;
   insert into public.ph_students(uid,code) values(who,code);
   wallet:=public.ph_oplot_wallet(code);
   perform public.ph_oplot_store(code,path,jsonb_build_object('rev',1,'op','original','state',old_base),null,null);
@@ -102,17 +115,33 @@ begin
   exception when invalid_parameter_value then failed:=true; end;
   if not failed then raise exception 'Invalid proposal accepted';end if;
   result:=public.ph_oplot_practice(code,day1,jsonb_set(s,'{xp}','4235'));
-  if result#>>'{replay,gridWidth}'<>'55' or result#>>'{replay,gridHeight}'<>'52' or result#>>'{replay,entrySide}'<>orig#>>'{replay,entrySide}'
+  if result#>>'{replay,gridWidth}'<>'53' or result#>>'{replay,gridHeight}'<>'50' or result#>>'{replay,entrySide}'<>orig#>>'{replay,entrySide}'
      or result#>>'{replay,attackers,0,hp}'<>orig#>>'{replay,attackers,0,hp}'
-     or ((orig#>>'{replay,entrySide}')::int%2=0 and (result#>>'{replay,attackers,0,y}')::int<>floor(((orig#>>'{replay,attackers,0,y}')::int+.5)*52/10))
-     or ((orig#>>'{replay,entrySide}')::int%2=1 and (result#>>'{replay,attackers,0,x}')::int<>floor(((orig#>>'{replay,attackers,0,x}')::int+.5)*55/10))
+     or ((orig#>>'{replay,entrySide}')::int%2=0 and (result#>>'{replay,attackers,0,y}')::int<>floor(((orig#>>'{replay,attackers,0,y}')::int+.5)*50/10))
+     or ((orig#>>'{replay,entrySide}')::int%2=1 and (result#>>'{replay,attackers,0,x}')::int<>floor(((orig#>>'{replay,attackers,0,x}')::int+.5)*53/10))
      or orig->'replay'<>(select replay from oplot.raid_reports where uid=who and day=day1) then raise exception 'Archive changed or old formation trained incorrectly';end if;
+  insert into oplot.raid_reports(uid,day,summary,replay) values(who,day1-1,
+    jsonb_build_object('day',day1-1,'wave',1,'stars',3),archived);
+  result:=public.ph_oplot_practice(code,day1-1,rectangle);
+  if result#>>'{replay,gridWidth}'<>'33' or result#>>'{replay,gridHeight}'<>'35' or result#>>'{replay,gridSize}'<>'35'
+    or result#>>'{replay,attackers,0,hp}'<>archived#>>'{attackers,0,hp}' or result#>>'{replay,entrySide}'<>archived->>'entrySide'
+    or not exists(select from jsonb_array_elements(public.ph_oplot_raids(code)) r where r->'replay'=archived)
+    then raise exception 'Practice must replay a 55x55 recording on the occupied 33x35 terrain';end if;
+  result:=public.ph_oplot_store(code,path,jsonb_build_object('rev',3,'op','old-border','state',rectangle),2,'large');
+  if result->>'ok'<>'true' then raise exception 'Old southern edge refused';end if;
   insert into oplot.scout_passes values(who,day2);
   report:=public.ph_oplot_scout(code);
   update oplot.raid_islands set next_day=day2 where uid=who;
   if oplot.run_night_raids(oplot.raid_at(day2)+interval '1 second',who)<>1 then raise exception 'Native cron wave did not execute';end if;
   select r.replay into latest from oplot.raid_reports r where uid=who and day=day2;
-  if latest->>'entrySide'<>report->>'entrySide' or latest->>'layoutVersion'<>'2' or wallet<>public.ph_oplot_wallet(code)
+  if latest->>'entrySide'<>report->>'entrySide' or latest->>'layoutVersion'<>'2'
+    or latest->>'gridWidth'<>'33' or latest->>'gridHeight'<>'35' or latest->>'gridSize'<>'35' or wallet<>public.ph_oplot_wallet(code)
     or not oplot.valid_grid_layout((public.ph_oplot_load(code,path))->'state') then raise exception 'Scout, wallet or main save regression';end if;
+  orig:=public.ph_oplot_load(code,path);
+  result:=public.ph_oplot_store(code,path,jsonb_build_object('rev',(orig->>'rev')::int+1,'op','clear-border','state',base),
+    (orig->>'rev')::int,orig->>'op');
+  if result->>'ok'<>'true' or oplot.raid_dimensions((public.ph_oplot_load(code,path))->'state')<>array[33,33]
+    then raise exception 'Clearing the occupied border failed to release the strip';end if;
+
 end $$;
 rollback;

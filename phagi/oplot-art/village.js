@@ -94,22 +94,69 @@
       ellipse(x+.7,y-2.1,1.2,1.2,'#ed7882','#a54356',.45)+
       (seed%2?ellipse(x+2.5,y-.4,.95,1,'#b73e5a'):'');
   }
-  function farm(level){
-    const soil=['#ad8050','#806345','#695740'];
-    let out=foundation(-19,-16,38,33);
-    out+=house(-18,-15,18,13,2.6,10,8,plaster,straw,true);
-    const [wx,wy]=point(9,-12,2.6);
-    out+=cuboid(5,-14,7.5,6,2.6,6,stone)+line([[wx,wy-5],[wx,wy-15],[wx+6,wy-18]],'#79573d',2);
-    out+=line([[wx+5,wy-17],[wx+5,wy-7]],'#8b7652',.85)+ellipse(wx+4,wy-7,1.4,1.4,'#89948b','#637165',.65);
-    out+=cuboid(-17,1,33,13.8,2.6,3.2,soil);
-    for(let row=0;row<3;row++){
-      const v=2.5+row*4.75;
-      out+=line([point(-16,v,3),point(15,v,3)],'#76593a',1.7);
-      for(let k=0;k<5;k++)out+=berryPlant(-13+k*6.5,v,row+k);
+  // The same terraced berry beds run from a garden shed to an irrigated glasshouse.
+  function glasshouse(u,v,width,length,height){
+    const roof=['#def1d3','#8ec3ad','#528f8f','#f4edbf'],base=3;
+    let out=cuboid(u,v,width,length,base,height,['#bcd6b8','#a8c8ac','#749f95']);
+    out+=gable(u,v,width,length,height,6,roof);
+    for(let i=0;i<=width;i+=5)out+=line([point(u+i,v+length,height),point(u+i,v+length,base)],'#697d70',1.25);
+    out+=line([point(u,v+length,height-2),point(u+width,v+length,height-2)],'#e1e7bd',1);
+    return out;
+  }
+  function windPump(u,v,height,large){
+    const base=2.6,p=point,feet=[[u-2,v-2],[u+3,v-2],[u+2,v+3],[u-3,v+2]];
+    let out='';
+    for(const [x,y] of feet)out+=line([p(x,y,base),p(u,v,height)],'#665242',2.7);
+    out+=line([p(u-1.5,v+1,base+5),p(u+1.7,v+.5,height-3),p(u-1.3,v,base+7)],'#b68b55',1.3);
+    const [x,y]=p(u,v,height),r=large?11:8;
+    for(let i=0;i<4;i++){
+      const a=i*Math.PI/2-.27,arm=(d,w)=>[x+Math.cos(a)*d-Math.sin(a)*w,y+Math.sin(a)*d+Math.cos(a)*w];
+      out+=poly([arm(1,0),arm(r,-.8),arm(r+1,large?4.3:3.1),arm(r*.42,2.2)],large?'#f0d893':'#d7c79c','#766348',.8)+
+        line([arm(3,1),arm(r,1)],'#9a8360',.8);
     }
-    out+=barrel(15,-7,2.6)+barrel(15,-2,2.6,2.5,4.8);
-    if(level>=3)out+=cuboid(-13,-6,7,2.2,11,11.8,oak);
-    if(level>=5)out+=barrel(-16,16,2.5,3,5);
+    return out+ellipse(x,y,2,2,'#9b703d',ink,.65);
+  }
+  function farm(level,fill){
+    const soil=['#aa7d51','#806043','#69543e'],crop=level>=6?3:2;
+    let out=foundation(-19,-16,38,33);
+    // Waterworks, covered nurseries and glazed roofs emerge behind the field.
+    if(level>=3){
+      const z=level>=8?23:level>=6?15:8;
+      const [x,y]=point(11,-10,z);
+      out+=cuboid(7,-14,9.5,8,2.4,z+1.5,level>=8?stone:oak);
+      out+=ellipse(x,y-1.9,8,4.0,'#aba793',ink,1)+ellipse(x,y-2.1,6,2.9,'#6eaaa9');
+      out+=line([[x-3,y-1.1],[x+.4,y-2.1],[x+2.7,y-1.8]],'#c8e0bf',.9);
+      if(level>=8)out+=gable(6.3,-15.3,10,9,z+2,8,azure);
+      out+=line([point(11,-6,z-2),point(13,-4,z-2),point(13,1,3.3)],'#8c9a83',2.2);
+    }
+    if(level>=5)out+=glasshouse(3,-15.5,level>=7?15:12,level>=7?10.5:9,level>=7?15:10);
+    const barnRoof=level>=7?coral:level>=4?azure:straw;
+    const length=level>=4?18:level>=2?15:10,h=level>=7?17:level>=4?13:8;
+    out+=house(-18,-15,length,level>=2?12:9,2.6,h,level>=4?9:6,level>=7?chalk:plaster,barnRoof,true);
+    if(level>=6)out+=windPump(-15,-11,h+(level>=9?22:17),level>=9);
+    if(level>=9)out+=glasshouse(2,-4,13,7,11)+gable(-6,-9,7,5,22,6,straw);
+    out+=cuboid(-17,1,32,14,2.4,4,soil);
+    for(let row=0;row<crop;row++){
+      const v=3+row*(crop===3?4.8:7.3);
+      out+=line([point(-16,v,4),point(14,v,4)],'#75533a',1.7);
+      for(let k=0;k<4;k++)out+=berryPlant(-13+k*6.4,v,row+k);
+    }
+    if(level>=2){
+      const a=point(-17,1,8),b=point(-17,15,8);
+      for(const v of [1,7.8,14.9])out+=cuboid(-17.7,v,1.5,1.5,2.5,level>=7?11:9,oak);
+      out+=line([a,b],'#ad834e',2.2);
+      if(level>=7)out+=line([point(-17,1,10.5),point(-17,15,10.5)],'#728c56',1.7);
+    }
+    // The open picking crates are empty immediately after collection.
+    const u=8.6,v=5.6,width=level>=5?10:8,depth=11;
+    out+=cuboid(u,v,width,depth,1.8,7.2,oak);
+    out+=poly([point(u+.6,v+.6,7.3),point(u+width-.6,v+.6,7.3),point(u+width-.6,v+depth-.6,7.3),point(u+.6,v+depth-.6,7.3)],'#65573b',ink,.7);
+    for(let j=0;j<Math.ceil(fill*15);j++){
+      const k=j%9,layer=Math.floor(j/9);
+      const [x,y]=point(u+1.6+(k%3)*((width-3)/2)+layer*.5,v+2+Math.floor(k/3)*3.2,7.4+layer*3);
+      out+=ellipse(x,y,2.25,2.05,j%3?'#d65269':'#ad3e61','#73394a',.5)+ellipse(x-.65,y-.65,.65,.5,'#ffc2a6');
+    }
+    out+=line([point(u,v+depth,5.6),point(u+width,v+depth,5.6),point(u+width,v,5.6)],'#dfb978',1);
     return out;
   }
   function rock(x,y,w,h,color,lit,shade){
@@ -122,30 +169,66 @@
       poly([[x,y-size],[x+size*.36,y-size*.46],[x+size*.2,y],[x-size*.02,y-size*.38]],palette[1],'none')+
       line([[x-size*.28,y-size*.53],[x,y-size*.87]],palette[2],.9);
   }
-  function mine(level){
-    const p=point;
-    let out=foundation(-18,-13,34,28);
-    out+=rock(79,100,61,32,'#9b9482','#bcb49e','#736e69');
-    out+=rock(101,102,26,21,'#8c8c80','#b0ada0','#6f7472');
-    out+=rock(64,108,30,20,'#a29c88','#c8b99b','#77796e');
-    out+=line([[66,85],[70,81],[70,77],[78,72],[80,74],[86,70]],'#857448',3.5);
-    out+=line([[66,85],[70.8,81],[70,78],[78,73],[80,75],[85.6,71]],'#ecc665',1.8);
-    // A dark adit, its braced wooden portal, and a short track that crosses the apron.
-    const edge=6,q=(u,z)=>p(u,edge,z);
-    out+=poly([q(-7,2.7),q(-7,17),q(-4,21),q(5,21),q(9,17),q(9,2.7)],'#353c37');
-    for(const t of [-8,8])out+=cuboid(t,5,2.6,4,2.5,20,oak);
-    out+=cuboid(-9,5,20,4.2,19,22,oak);
-    out+=line([p(-8,9,14),p(-4.8,9,19)],'#d3a25e',2)+line([p(9.3,9,13.5),p(5.8,9,19)],'#d3a25e',2);
-    for(let v=9;v<22;v+=3.1)out+=line([p(-3.4,v,2.9),p(6,v,2.9)],'#765b42',2.1);
-    for(const u of [-1.7,4.2])out+=line([p(u,7,3.2),p(u,22,3.2)],'#9fa6a0',1.1);
-    const [cx,cy]=p(2,15.3,3);
-    out+=ellipse(cx-3.2,cy+.4,2,2.1,'#505b56',ink,.85)+ellipse(cx+3.3,cy+2,2,2.1,'#505b56',ink,.85);
-    out+=poly([[cx-5.8,cy-4.4],[cx+.5,cy-1.8],[cx+5.4,cy-4.4],[cx+3.7,cy+.3],[cx+.4,cy+2.1],[cx-4.3,cy]],'#a48861');
-    out+=poly([[cx-5.8,cy-4.4],[cx,cy-7],[cx+5.4,cy-4.4],[cx+.5,cy-1.8]],'#6d7366');
-    out+=crystal(cx-.8,cy-3.1,4.4,['#e8ad4d','#c58936','#ffe78b'])+crystal(cx+2.1,cy-3.6,3,['#daa547','#b67c35','#ffe78b']);
-    out+=lantern(-7,9.4,14)+barrel(12,7,2.5,2.8,6.5);
-    if(level>=4)out+=crystal(95,88,6.4,['#edc259','#b88438','#ffe996']);
+  function wheel(x,y,r){
+    let out=ellipse(x,y,r,r*.89,'#775435',ink,1)+ellipse(x,y,r*.78,r*.69,'#414c48','#d3a961',1.3);
+    for(let i=0;i<8;i++){const a=i*Math.PI/4;out+=line([[x,y],[x+Math.cos(a)*r*.79,y+Math.sin(a)*r*.70]],'#c79c62',1.25);}
+    return out+ellipse(x,y,1.55,1.45,'#dfba71',ink,.65);
+  }
+  function headframe(level){
+    const x=61,y=90,h=level>=9?47:level>=6?37:25,w=level>=6?11:8;
+    let out='';
+    const p=(side,dx,dy)=>[x+dx+side*4,y+dy-side*4];
+    for(const side of [1,0]){
+      const bottomL=p(side,-w,4),bottomR=p(side,w,4),topL=p(side,-w*.43,-h),topR=p(side,w*.43,-h);
+      out+=poly([bottomL,topL,topR,bottomR,p(side,w-2.8,4),p(side,w*.43-1.8,-h+2),p(side,-w*.43+1.8,-h+2),p(side,-w+2.8,4)],level>=6?'#66837e':'#a97c4b',ink,.9);
+      out+=line([p(side,-w+2,-1),p(side,w*.66,-h*.60),p(side,-w*.65,-h*.60),p(side,w-2,-1)],'#d7b47b',1.55);
+    }
+    out+=wheel(x+1,y-h+1,level>=6?5.8:4.3)+line([[x+3,y-h+4],[x+6,y-12]],'#4c5047',1);
+    if(level>=6)out+=poly([[x-w*.75,y-h-.2],[x-1,y-h-5.6],[x+w+4,y-h-7.7],[x+w+5,y-h-4.9],[x+2,y-h-.3]],'#c68a53',ink,1);
     return out;
+  }
+  function forgeFlue(u,v,height){
+    let out=cuboid(u,v,4.3,4.3,3,height,['#b79077','#966448','#735245']);
+    out+=cuboid(u-.7,v-.7,5.7,5.7,height-2,height+1,['#dbb687','#bb8761','#926c58']);
+    const [x,y]=point(u+2.1,v+2.1,height+1.1);
+    return out+ellipse(x,y,2,1.3,'#534a42');
+  }
+  function mine(level,fill){
+    const p=point;
+    let out=foundation(-18,-13,35,29);
+    if(level>=4)out+=house(6,-16,level>=7?14:13,10,2.7,level>=7?18:15,8,level>=7?stone:oak,level>=7?coral:azure,true);
+    if(level>=7)out+=forgeFlue(12,-15,30);
+    if(level>=9)out+=forgeFlue(5,-16,39)+gable(-3,-14,13,7,22,7,azure);
+    out+=rock(82,100,level>=4?60:52,level>=4?29:25,'#9b9482','#c5b89b','#716d68');
+    out+=rock(99,104,24,17,'#8c8c80','#b0ada0','#6f7472')+rock(65,107,26,17,'#a29c88','#c8b99b','#77796e');
+    out+=line([[72,87],[78,83],[78,80],[85,76],[88,78]],'#cba458',2.3);
+    if(level>=3)out+=headframe(level);
+    else if(level===2){
+      out+=cuboid(-19,-3,6,9,2.6,14,oak)+wheel(55,82,7.3);
+      out+=line([[55,75],[64,70],[76,79]],'#a78b68',1.6);
+    }
+    if(level>=5){
+      const [x,y]=p(-17,2,9);
+      out+=cuboid(-20,-4,10,9,2.6,12,stone)+wheel(x-5,y-.4,level>=8?10:8.6);
+      if(level>=8){
+        out+=gable(-21,-7,13,7,16,6,azure)+line([[x-5,y-9],[62,55]],'#575b50',1.5);
+        out+=line([[x-5,y-8],[67,56]],'#d8bc85',.65);
+      }
+    }
+    const q=(u,z)=>p(u,6,z),height=level>=4?24:20;
+    out+=poly([q(-7,2.7),q(-7,height-5),q(-4,height-1),q(5,height-1),q(9,height-5),q(9,2.7)],'#313b37');
+    for(const t of [-8.5,8])out+=cuboid(t,5,2.9,4,2.5,height-2,level>=4?stone:oak);
+    out+=cuboid(-9,5,20,4.2,height-3,height,level>=4?slate:oak);
+    out+=line([p(-8,9,height-8),p(-4.8,9,height-3)],'#d3a25e',2)+line([p(9.3,9,height-8),p(5.8,9,height-3)],'#d3a25e',2);
+    for(let v=9;v<22;v+=3.1)out+=line([p(-3.4,v,2.9),p(6,v,2.9)],'#765b42',2.1);
+    for(const u of [-1.7,4.2])out+=line([p(u,7,3.2),p(u,22,3.2)],'#b5beb1',1.2);
+    const [cx,cy]=p(2,17.4,3),w=level>=5?9.3:8;
+    out+=ellipse(cx-3.2,cy+.9,2,2.1,'#505b56',ink,.85)+ellipse(cx+3.3,cy+2.4,2,2.1,'#505b56',ink,.85);
+    out+=poly([[cx-w,cy-5],[cx+.5,cy-1.8],[cx+w,cy-5],[cx+w-1.6,cy+1],[cx+.4,cy+3],[cx-w+1,cy]],level>=5?'#7b908a':'#ae8c63');
+    out+=poly([[cx-w,cy-5],[cx,cy-8.2],[cx+w,cy-5],[cx+.5,cy-1.8]],'#514e40',ink,.8);
+    const ore=[[-2.1,-5.1],[1.2,-5.5],[4,-5.2],[-4.1,-5.5],[.4,-7.1],[3.2,-7.2],[-1.4,-8.9]];
+    for(const [dx,dy] of ore.slice(0,Math.ceil(fill*ore.length)))out+=crystal(cx+dx,cy+dy,5.7,['#ebbd51','#b78936','#ffe79b']);
+    return out+lantern(-7,9.5,height-5)+barrel(13,6,2.6,2.5,5);
   }
   function gable(u,v,a,b,z,rise,tiles=coral) {
     const p=(x,y,h)=>point(u+x,v+y,z+h),u0=-1.25,u1=a+1.25,v0=-1.5,v1=b+1.5,r=b*.5;
@@ -354,11 +437,11 @@
     const rgb=color.slice(1).match(/../g).map(n=>Math.round(parseInt(n,16)*(1-w)+blend*w));
     return '#'+rgb.map(n=>n.toString(16).padStart(2,'0')).join('');
   }
-  window.OplotVillageSVG=(type,level=1)=>{
+  window.OplotVillageSVG=(type,level=1,fill=0)=>{
     if(!Object.hasOwn(plans,type))return '';
     const stage=Math.max(1,Math.min(type==='keep'?8:9,Math.floor(Number(level)||1)));
     const used=new Map();
-    const model=plans[type](stage).replace(/fill="(#[0-9a-f]{6})"/g,(attr,color)=>{
+    const model=plans[type](stage,Math.max(0,Math.min(1,Number(fill)||0))).replace(/fill="(#[0-9a-f]{6})"/g,(attr,color)=>{
       if(!painted.has(color))return attr;
       if(!used.has(color))used.set(color,'vlg-'+type+stage+'-'+color.slice(1));
       return 'fill="url(#'+used.get(color)+')"';

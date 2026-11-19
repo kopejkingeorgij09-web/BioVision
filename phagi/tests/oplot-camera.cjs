@@ -10,10 +10,7 @@ async function check(browser,mobile){
  const context=await browser.newContext({viewport:{width,height},isMobile:mobile,hasTouch:mobile,serviceWorkers:'block'});
  try{
   await studyBackend(context);
-  await context.addInitScript(({code,mobile})=>{
-   if(window===top)localStorage.setItem('ph_code',code);
-   else if(mobile)Object.defineProperty(document,'fullscreenEnabled',{value:false});
-  },{code:profiles[0].code,mobile});
+  await context.addInitScript(code=>{if(window===top)localStorage.setItem('ph_code',code)},profiles[0].code);
   const page=await context.newPage();page.setDefaultTimeout(20000);
   await page.goto(site.href,{waitUntil:'domcontentloaded'});
   const frameTag=page.locator('#oplot-game'),f=page.frameLocator('#oplot-game');
@@ -64,6 +61,9 @@ async function check(browser,mobile){
     assert.ok(gaps.every(n=>Math.abs(n)<2),'Expanded map covers the viewport '+gaps);
    }
   }
+  // Install the fallback on the loaded game document, after profile
+  // hydration has finished replacing the iframe.
+  if(mobile)await world.evaluate(canvas=>Object.defineProperty(canvas.ownerDocument,'fullscreenEnabled',{value:false}));
   await toggle.click();await wide(true);
   if(mobile){
    assert.equal(await page.evaluate(()=>document.fullscreenElement),null);
@@ -96,7 +96,7 @@ async function check(browser,mobile){
   // transformed screen position. A mismatched hit-test opens a different panel.
   await plus.click();
   const box=await world.boundingBox();
-  const spot=await world.evaluate(c=>Art.point(17,17,c.clientWidth,c.clientHeight,35));
+  const spot=await world.evaluate(c=>Art.point(17,17,c.clientWidth,c.clientHeight,OplotLayout.gridAtLevel(1).width));
   const x=box.x+box.width/2,y=box.y+box.height/2,dx=mobile?38:90,dy=mobile?23:40;
   if(mobile){
    await touches('touchStart',[[x,y]]);await touches('touchMove',[[x+dx,y+dy]]);await touches('touchEnd',[]);

@@ -15,10 +15,17 @@ for(const [type,side] of Object.entries(shapes)){
  assert.ok(!layout.fits([],type,b.x+1,b.y,grid));
  assert.ok(!layout.fits([],type,b.x,b.y+1,grid));
 }
-assert.deepEqual(layout.gridAtLevel(1),grid);
-assert.deepEqual(layout.gridAtLevel(2),{width:38,height:35});
-assert.deepEqual(layout.gridAtLevel(13),{width:55,height:55});
-assert.deepEqual([1,3,5,7,9,11,13].map(level=>layout.gridAtLevel(level).width),[35,38,42,45,48,52,55]);
+assert.deepEqual(layout.gridAtLevel(1),{width:33,height:33});
+const oldEdge=[building('keep','keep',14,14),building('edge','farm',1,32)];
+assert.deepEqual(layout.gridAtLevel(1,2,oldEdge),{width:33,height:35});
+assert.ok(layout.valid(oldEdge,layout.gridAtLevel(1,2,oldEdge)));
+const moved=oldEdge.map(b=>b.type==='farm'?{...b,y:30}:b);
+assert.deepEqual(layout.gridAtLevel(1,2,moved),{width:33,height:33});
+const outside=[oldEdge[0],{...oldEdge[1],y:33}];
+assert.equal(layout.valid(outside,layout.gridAtLevel(1,2,outside)),false);
+assert.deepEqual(layout.gridAtLevel(2),{width:36,height:33});
+assert.deepEqual(layout.gridAtLevel(13),{width:53,height:53});
+assert.deepEqual([1,3,5,7,9,11,13].map(level=>layout.gridAtLevel(level).width),[33,36,40,43,46,50,53]);
 assert.deepEqual(layout.gridAtLevel(21),layout.gridAtLevel(13));
 assert.deepEqual(layout.gridAtLevel(2,1),{width:11,height:10});
 const old={
@@ -64,7 +71,7 @@ const split=layout.migrate({...old,xp:35*12**2,buildings:[
  building('keep','keep',9,9),building('left','home',0,9),building('right','mine',10,9),building('corner','wall',15,15)
 ]});
 assert.deepEqual(split.buildings.map(b=>[b.x,b.y]),[[30,30],[0,31],[35,31],[53,53]]);
-assert.ok(layout.valid(split.buildings,layout.gridAtLevel(13)));
+assert.ok(layout.valid(split.buildings,layout.gridAtLevel(13,2,split.buildings)));
 // Fully occupy all 256 legacy tiles using the economic and tower limits of a
 // level-eight keep, rotate the ordering through the grid, and fill with walls.
 const developed=['keep','den','academy',
@@ -75,7 +82,7 @@ const fullProduction=developed.map((type,i)=>{
  const tile=i*17%256;return building('veteran-'+i,type,tile%16,Math.floor(tile/16));
 });
 const migratedTown=layout.migrate({...old,xp:35*12**2,buildings:fullProduction});
-assert.ok(layout.valid(migratedTown.buildings,layout.gridAtLevel(13)));
+assert.ok(layout.valid(migratedTown.buildings,layout.gridAtLevel(13,2,migratedTown.buildings)));
 assert.ok(migratedTown.buildings.every(b=>!b.stowed),'A fully developed legacy town fits on the expanded field');
 assert.deepEqual(migratedTown.buildings.map(b=>b.id),fullProduction.map(b=>b.id));
 console.log('PASS footprints, grid progression, wall connectivity, deterministic packed legacy islands, inventory, paused production, retained histories and clocks');

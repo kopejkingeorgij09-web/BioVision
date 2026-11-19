@@ -45,9 +45,11 @@ body.island-wide .wide-resources{display:flex;gap:10px;align-items:center;margin
 .keep-evolution canvas{width:100%;height:clamp(95px,20vh,180px);display:block}.keep-evolution figcaption{padding:4px 6px 8px;font-weight:650;font-size:13px;color:#44583f}
 .store-meter{width:100%;accent-color:#a77735;height:10px}.store-meter.foodstore{accent-color:#9d4a62}
 #layout-editor[hidden]{display:none}#layout-editor{border:1px solid #a89565;border-radius:10px;margin:5px 0 0;padding:10px 13px;background:#f7efd8;color:#344436}
+#layout-industry{display:flex;align-items:center;flex-wrap:wrap;gap:0 8px;margin-top:4px;border-top:1px solid #c9bc9a}#layout-industry button{min-height:44px}#layout-industry small{font-size:12px}
 .layout-title,.layout-actions,.layout-stock{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.layout-title{justify-content:space-between}.layout-title h3{font:600 19px var(--display)}
 .layout-actions{margin-top:7px}.layout-actions button{min-height:37px}#layout-selection{margin-top:4px;font-size:13px}.layout-stock{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin}
 .layout-stock button{flex:none;display:flex;align-items:center;gap:5px;margin:6px 0 2px;padding:3px 8px;background:#fff9e8;border:1px solid #b6a478;color:#374d3f;text-align:left}.layout-stock button[aria-pressed=true]{background:#dbeace;border-color:#477b53;box-shadow:inset 0 0 0 1px #477b53}.layout-stock canvas{width:39px;height:37px}.layout-stock b,.layout-stock small{display:block;font-size:11px}.layout-stock small{color:#615d48}.layout-stock:empty{display:none}
+#layout-editor [hidden]{display:none}#layout-wall-count{appearance:none;-webkit-appearance:none;font:inherit;height:44px;min-width:54px;padding:4px 20px 4px 8px;border:1px solid #a89565;border-radius:6px;background:#fff9e8;color:#344436}#layout-wall-tools label{position:relative;white-space:nowrap}#layout-wall-tools label::after{content:"▾";position:absolute;right:6px;top:50%;transform:translateY(-50%);pointer-events:none;color:#526044}
 body.arranging #world{touch-action:none;cursor:grab}body.arranging #world.panning{cursor:grabbing}body.island-wide #layout-editor{margin:0;border-radius:0;max-height:38dvh;overflow:auto;padding-bottom:max(8px,env(safe-area-inset-bottom))}
 @media(max-width:540px){#layout-editor{padding:7px}.layout-actions{gap:4px}.layout-actions button{font-size:11px;padding:5px 8px;min-height:40px}.layout-title h3{font-size:17px}}
 .mini-overview{display:none;position:absolute;z-index:1;right:max(12px,env(safe-area-inset-right));top:calc(max(12px,env(safe-area-inset-top)) + 50px);padding:3px;background:#183e36e8;border:1px solid #acc19b9c;border-radius:9px;box-shadow:0 2px 6px #142b284d}
@@ -196,6 +198,7 @@ body.island-wide .mapfoot #mapaction{display:flex;align-items:center;gap:5px}
  #dialog[data-panel=build] .card canvas{grid-column:1;grid-row:1/3;height:44px}
  #dialog[data-panel=build] .card h3{margin:0;font-size:16px}#dialog[data-panel=build] .card .tag{font-size:11px}
  #dialog[data-panel=build] .card .desc,#dialog[data-panel=build] .card button{grid-column:1/-1;margin:0}
+ #dialog[data-panel=build] .card [data-do=construct]{grid-row:4}
  #dialog[data-panel=build] .card .desc,#dialog[data-panel=build] #dbody>.desc{font-size:12px;line-height:1.3}
  #night-report:has(.night-stage){overflow:hidden}
  #night-report .night-body:has(.night-stage){height:calc(100dvh - var(--safe-top) - var(--safe-bottom) - 65px);display:grid;grid-template-columns:minmax(0,1.58fr) minmax(165px,1fr);grid-template-rows:auto minmax(0,1fr);gap:6px 10px}
@@ -223,7 +226,23 @@ body.island-wide .mapfoot #mapaction{display:flex;align-items:center;gap:5px}
  <p>Протяни стену или отметь начало и конец. Каждое следующее касание продлевает линию.</p>
  <strong id="wall-summary" aria-live="polite"></strong><p id="wall-budget"></p><p id="wall-issue" role="status"></p>
  <div class="actions"><button type="button" class="cmd gold" data-do="confirmwalls" disabled>Построить</button><button type="button" class="cmd alt" data-do="wallundo" disabled>Шаг назад</button></div>
-</section><section id="layout-editor" aria-labelledby="layout-heading" hidden><div class="layout-title"><h3 id="layout-heading">Расстановка</h3><span class="tag" id="layout-count"></span></div><p id="layout-selection" role="status"></p><div class="layout-stock" id="layout-stock" aria-label="Постройки в запасе"></div><div class="layout-actions"><button class="cmd" type="button" data-do="layoutapply">Сохранить</button><button class="cmd alt" type="button" data-do="layoutstash">В запас</button><button class="cmd alt" type="button" data-do="layoutundo">Шаг назад</button><button class="cmd alt" type="button" data-do="layoutclear">Снять всё</button><button class="linkbtn" type="button" data-do="layoutcancel">Отменить изменения</button></div></section></section><div class="island-sidebar">
+</section><section id="layout-editor" aria-labelledby="layout-heading" hidden><div class="layout-title"><h3 id="layout-heading">Расстановка</h3><span class="tag" id="layout-count"></span></div><p id="layout-selection" role="status"></p><div class="layout-stock" id="layout-stock" aria-label="Постройки в запасе"></div>
+ <div id="layout-wall-tools" class="layout-actions" hidden>
+  <label>Секций <select id="layout-wall-count" aria-label="Количество секций стены">
+   <option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
+  </select></label>
+  <button class="cmd" data-do="layoutwallplace" type="button" disabled>Перенести участок</button>
+  <button class="cmd alt" data-do="layoutwallpick" type="button">Выбрать другой участок</button>
+  <button class="linkbtn" data-do="layoutwallcancel" type="button">Отмена</button>
+ </div>
+ <div class="layout-actions" id="layout-main-tools">
+  <button class="cmd alt" type="button" data-do="layoutwalls">Перенос стены</button>
+  <button class="cmd" type="button" data-do="layoutapply">Сохранить</button><button class="cmd alt" type="button" data-do="layoutstash">В запас</button><button class="cmd alt" type="button" data-do="layoutundo">Шаг назад</button><button class="cmd alt" type="button" data-do="layoutclear">Снять всё</button><button class="linkbtn" type="button" data-do="layoutcancel">Отменить изменения</button>
+ </div>
+ <div id="layout-industry" hidden>
+  <button class="linkbtn" type="button" data-do="layoutindustry" aria-describedby="layout-industry-note"></button>
+  <small class="desc" id="layout-industry-note">Запасы и вместимость складов сохранятся. Шахты и фермы в запасе приостановят добычу.</small>
+ </div></section></section><div class="island-sidebar">
 <section class="panel" id="island-progress" aria-labelledby="xp-title">
  <span class="kicker" id="xp-title">Опыт профиля</span>
  <h2 id="xp-expansion"></h2><p id="xp-target"></p>
@@ -236,7 +255,7 @@ body.island-wide .mapfoot #mapaction{display:flex;align-items:center;gap:5px}
 </section>
 <aside class="aside" id="aside"></aside></div></div><div class="attribution"><span id="caption"></span><button class="linkbtn" data-do="exit">Вернуться в Фаги</button></div></main>
 <dialog id="dialog" aria-labelledby="dt"><div class="dlghead"><h2 id="dt"></h2><button class="close" data-do="close" aria-label="Закрыть">×</button></div><div class="dlgbody"><div id="dbody"></div><div class="dlgnotice" role="status" id="dnotice"></div></div></dialog><div class="toast" role="status" id="toast"></div>
-<script src="oplot-layout.js?v=1"></script><script src="oplot-editor.js?v=2"></script><script src="oplot-art/village.js?v=1"></script><script src="oplot-art/stores.js?v=1"></script><script src="oplot-art/defenses.js?v=1"></script>
+<script src="oplot-layout.js?v=2"></script><script src="oplot-editor.js?v=3"></script><script src="oplot-art/village.js?v=2"></script><script src="oplot-art/stores.js?v=2"></script><script src="oplot-art/defenses.js?v=1"></script>
 <script>
 'use strict';
 const GAME_ELEMENTS = window.GAME_ELEMENTS = ['Огонь','Вода','Природа','Молния','Земля','Свет'];
@@ -382,7 +401,8 @@ const uid=()=>globalThis.crypto?.randomUUID?.() || 'id-'+Date.now().toString(36)
 const num=n=>new Intl.NumberFormat('ru').format(n);
 function initialState() {
  const now=Date.now();
- const layout=[['keep',15,15]];
+ const origin=Math.floor((OplotLayout.gridAtLevel(1).width-OplotLayout.size('keep'))/2);
+ const layout=[['keep',origin,origin]];
  return {version:1,layoutVersion:2,xp:0,gold:235,berries:120,buildings:layout.map(([type,x,y],i)=>({id:'b'+i,type,x,y,level:1,since:now-40000})),dragons:[0,1,2].map((species,i)=>({id:'d'+i,species,level:1})),book:[0,1,2],egg:null,quest:0,marks:{},campaign:{},waves:0,bosses:0,arenas:0,settings:{sound:false},pending:null,deliveries:[]};
 }
 function upgradeIsland(state){return OplotLayout.migrate(state)}
@@ -393,9 +413,8 @@ const PROFILE_XP={
 };
 function islandLevel(state){return 1+Math.floor(Math.sqrt(Math.max(0,state.xp||0)/LEVEL_XP_BASE))}
 function xpAtLevel(level){return LEVEL_XP_BASE*(level-1)**2}
-function gridAtLevel(level){return OplotLayout.gridAtLevel(level)}
-function islandGrid(state){return OplotLayout.gridAtLevel(islandLevel(state),state.layoutVersion??1)}
-function islandSize(state){return islandGrid(state).width}
+function islandGrid(state,level=islandLevel(state)){return OplotLayout.gridAtLevel(level,state.layoutVersion??1,state.buildings)}
+function islandSize(state){const g=islandGrid(state);return Math.max(g.width,g.height)}
 function containsCell(grid,x,y){
  return Number.isInteger(x)&&Number.isInteger(y)&&x>=0&&y>=0&&x<grid.width&&y<grid.height;
 }
@@ -440,11 +459,12 @@ function keepProduction(b,units,stamp){
  b.since=stamp-Math.ceil(units*5000/(rates[b.type]*b.level));
 }
 function capacity(s){return 3+s.buildings.filter(b=>b.type==='home').reduce((n,b)=>n+3*b.level,0)}
-function stored(b,now=Date.now()){
+function productionStock(b,now){
  if(!rates[b.type])return 0;
  if(b.stowed)return b.pausedStock||0;
- return Math.max(0,Math.min(b.level*90,Math.floor((now-b.since)/1000*rates[b.type]*b.level/5)));
+ return Math.max(0,Math.min(b.level*90,(now-b.since)*rates[b.type]*b.level/5000));
 }
+function stored(b,now=Date.now()){return Math.floor(productionStock(b,now))}
 // The nightly server checks the primary target by orthogonal tile distance before it moves.
 function nightTowerReach(type,level=1,layoutVersion=1){
   if(type!=='archer'&&type!=='cannon'&&type!=='spire')return 0;
@@ -452,6 +472,7 @@ function nightTowerReach(type,level=1,layoutVersion=1){
 }
 /* All island art is painted locally. Board geometry is shared by the renderer and pointer input. */
 window.Art = (() => {
+  const dragonScale=1.12;
   'use strict';
   const TAU = Math.PI * 2;
   const palettes = [
@@ -1001,7 +1022,8 @@ window.Art = (() => {
   let repaintModels=0;
   function svgModel(type,level,fill=0,part='base',mask=0){
     const store=type==='goldstore'||type==='foodstore';
-    const quantity=store&&fill>0?(fill>=1?100:Math.min(99,Math.max(1,Math.round(fill*100)))):0;
+    const producer=type==='mine'||type==='farm',steps=producer?12:100;
+    const quantity=(store||producer)&&fill>0?(fill>=1?steps:Math.min(steps-1,Math.max(1,Math.round(fill*steps)))):0;
     const stage=Math.min(10,Math.max(1,Math.floor(level)||1)),key=[type,stage,quantity,part,mask].join('/');
     if(svgModels.has(key)){
       const entry=svgModels.get(key);
@@ -1010,7 +1032,7 @@ window.Art = (() => {
     }
     const artist=store?window.OplotStoreSVG:['keep','home','den','mine','farm','academy'].includes(type)?window.OplotVillageSVG:window.OplotDefenseSVG;
     if(!artist)return null;
-    const shapes=store?artist(type,stage,quantity/100):artist(type,stage,part,mask);
+    const shapes=store||producer?artist(type,stage,quantity/steps):artist(type,stage,part,mask);
     if(!shapes)return null;
     const image=new Image(),entry={image};
     if(svgModels.size>=256)svgModels.delete(svgModels.keys().next().value);
@@ -1447,7 +1469,7 @@ window.Art = (() => {
           x+=dx*travel;y+=dy*travel;flip=(dx-dy)*Math.sin(phase)<0;break;
         }
       }
-      const p=point(x,y,w,h,n),size=u*(d.level>=10?.93:d.level>=5?.82:.72);
+      const p=point(x,y,w,h,n),size=u*(d.level>=10?.93:d.level>=5?.82:.72)*dragonScale;
       const lift=flying?size*(.60+.05*Math.sin(t*2.1+i)):size*(d.level<5?.17:.21);
       result.push({item:d,x:p.x,y:p.y-lift,ground:p.y,size,flip});
     }
@@ -1531,6 +1553,9 @@ window.Art = (() => {
       c.lineWidth=state.grid?Math.max(.85,u*.032):Math.max(.55,u*.016);c.stroke(blocks);
     }else{c.lineWidth=state.grid?Math.max(.95,u*.023):Math.max(.6,u*.012);c.stroke(grid);}
     if(state.nightCoverage)drawNightCoverage(c,w,h,n,cols,rows,state.nightCoverage);
+    for(const [i,b] of (state.wallSelection||[]).entries()){
+      tile(c,b.x,b.y,w,h,i?'rgba(83,155,221,.47)':'rgba(255,210,81,.82)',i?'#22618d':'#80510a',Math.max(2,u*.09),n);
+    }
     const preview=(state.wallPreview||[]).filter(b=>inBounds(b,state));
     if(state.hover&&!preview.length&&!state.placementPreview&&inBounds(state.hover,state)){
       const q=state.hover,occupied=(state.buildings||[]).some(b=>{
@@ -1580,7 +1605,7 @@ window.Art = (() => {
       if(a.kind==='placementPreview')continue;
       if(a.kind==='figure'){b.draw(c,a);continue;}
       if(a.kind==='wallPreview'){
-        c.save();c.globalAlpha*=.63;wallSprite(c,a.x,a.y,u,1,a.wallMask,state.wallPreviewValid?'ok':'bad');c.restore();
+        c.save();c.globalAlpha*=.63;wallSprite(c,a.x,a.y,u,b.level||1,a.wallMask,state.wallPreviewValid?'ok':'bad');c.restore();
       }else if(a.kind==='building'){
         if(b.type==='wall')wallSprite(c,a.x,a.y,u,b.level||1,a.wallMask);
         else{
@@ -1890,7 +1915,7 @@ window.Art = (() => {
     const length=(type==='archer'?13:type==='cannon'?20:0)*scale;
     return {x:origin.x+length*Math.cos(angle),y:baseY+length*Math.sin(angle)};
   }
-  return Object.freeze({island,point,cell,unit,dragon,building,egg,hit,bubblePoint,combatEffect,towerMuzzle});
+  return Object.freeze({island,point,cell,unit,dragon,dragonScale,building,egg,hit,bubblePoint,combatEffect,towerMuzzle});
 })();
 
 /* Battle simulation uses tile coordinates. Rendering projects them through the island renderer. */
@@ -2140,7 +2165,7 @@ window.Art = (() => {
     const layoutVersion=defense&&state.layoutVersion===2?2:1,fieldScale=layoutVersion===2?2:1;
     const ownedGrid=defense&&typeof islandGrid==='function'?islandGrid(state):{};
     const minSide=layoutVersion===2?window.OplotLayout.gridAtLevel(1).width:10;
-    const maxSide=layoutVersion===2?window.OplotLayout.gridAtLevel(100).width:16;
+    const maxSide=layoutVersion===2?55:16;
     const gridWidth=defense?clamp(Math.floor(state.gridWidth||state.gridSize||ownedGrid.width)||minSide,minSide,maxSide):10;
     const gridHeight=defense?clamp(Math.floor(state.gridHeight||ownedGrid.height||state.gridSize)||minSide,minSide,maxSide):10;
     const gridSize=Math.max(gridWidth,gridHeight),lastX=gridWidth-1,lastY=gridHeight-1;
@@ -2639,7 +2664,7 @@ window.Art = (() => {
         ctx.fillStyle=i%2?'#b4ab8a':'#e5d6a9';ctx.fill();
       }
       oval(.08,'#f1deb2','#bcaa78',.012);ctx.restore();
-      const size=Math.min(w*.19,h*.202);
+      const size=Math.min(w*.19,h*.202)*Art.dragonScale;
       const rows=[...party,...enemy].filter(displayed).sort((a,b)=>a.y-b.y);
       for(const u of rows){
         const p=formation(u,w,h),isFoe=u.side==='enemy';
@@ -2718,7 +2743,7 @@ window.Art = (() => {
     const fieldUnits=()=>party.filter(u=>u.joined&&displayed(u)).concat(enemy.filter(displayed));
     function paintFighter(ctx,u,p,unit,t){
         const large=u.kind==='guardian', foe=u.side==='enemy';
-        const size=unit*(large?2.75:u.kind==='goblin'?.87:1.22);
+        const size=unit*(u.kind==='goblin'?.87:(large?2.75:1.22)*Art.dragonScale);
         const off=u.kind==='goblin'?.20:.32;
         const lift=(u.air>0?.72:.0)*unit;
         if(large||u.air>0)ring(ctx,p,unit*(large?.75:.40),large?'#a96977':'#e8edc4',t);
@@ -3105,6 +3130,7 @@ let s=upgradeIsland(read()), wallet=null, walletError='', busy=false;
 let storesOnMap=warehouseStocks(s);
 let panel='', current='', placement=null, cursor=null, battle=null, lastResult=null;
 let editor=null,editId=null,editDrag=null,editMessage='';
+let wallShift=null;
 const draftKey=key+'.layout-draft-v2';
 function layoutBuildings(){return editor?.buildings||s.buildings}
 const editBuilding=()=>editor?.buildings.find(b=>b.id===editId);
@@ -3116,18 +3142,34 @@ function openEditor(){
  if(editor){leaveEditor();return}
  let previous=null;try{previous=JSON.parse(localStorage.getItem(draftKey))}catch{}
  editor=OplotEditor.create(s.buildings,islandGrid(s),previous);
- editId=editDrag=placement=cursor=null;editMessage=editor.dirty?'Открыт черновик расстановки.':'';
+ wallShift=editId=editDrag=placement=cursor=null;editMessage=editor.dirty?'Открыт черновик расстановки.':'';
  close();refreshIsland();world.focus({preventScroll:true});
 }
 function leaveEditor(discard=false){
- draftLocal(discard);editor=editId=editDrag=cursor=null;editMessage='';refreshIsland();
+ draftLocal(discard);editor=wallShift=editId=editDrag=cursor=null;editMessage='';refreshIsland();
 }
 function renderEditor(){
  const box=$('#layout-editor');if(editor&&!editor.matches(s.buildings)){
-   editor=editId=editDrag=cursor=null;toast('Расстановка изменилась на другом устройстве. Открыта актуальная база.');
+   editor=wallShift=editId=editDrag=cursor=null;toast('Расстановка изменилась на другом устройстве. Открыта актуальная база.');
  }
  box.hidden=!editor;document.body.classList.toggle('arranging',!!editor);if(!editor)return;
  editor.setGrid?.(islandGrid(s));
+ const shelf=$('#layout-stock');
+ $('#layout-main-tools').hidden=!!wallShift;shelf.hidden=!!wallShift;$('#layout-wall-tools').hidden=!wallShift;
+ const industry=$('#layout-industry');industry.hidden=true;
+ if(wallShift){
+   if(wallShift.target)wallShift.preview=editor.wallDestination(wallShift.section,wallShift.target);
+   const {source,section,count,target,preview}=wallShift;
+   $('#layout-wall-count').value=String(count);
+   box.querySelector('[data-do="layoutwallpick"]').disabled=!source;
+   box.querySelector('[data-do="layoutwallplace"]').disabled=!target||!!preview?.issue||section.length!==count;
+   const note=!source?'Выбери первую секцию касанием или стрелками и Enter.':
+     section.length<count?'В участке '+section.length+' из '+count+' секций. Выбери другой участок или измени количество.':
+     target?(preview?.issue||'Клетка '+(target.x+1)+', '+(target.y+1)+' свободна. Нажми «Перенести участок».'):
+     'Выбрано '+count+' секций. Укажи новое место для золотой секции касанием или стрелками и Enter.';
+   const status=$('#layout-selection');if(status.textContent!==note)status.textContent=note;
+   return;
+ }
  const spare=editor.buildings.filter(b=>b.stowed),groups=new Map(),selected=editBuilding();
  for(const b of spare){const groupKey=b.type+'-'+b.level;let group=groups.get(groupKey);
    if(!group){group={item:b,n:0};groups.set(groupKey,group)}group.n++;if(b.id===editId)group.item=b;
@@ -3135,17 +3177,59 @@ function renderEditor(){
  $('#layout-count').textContent='На острове · '+(editor.buildings.length-spare.length)+'　В запасе · '+spare.length;
  $('#layout-selection').textContent=editMessage||(selected?STRUCT[selected.type][0]+' · '+OplotLayout.size(selected.type)+'×'+OplotLayout.size(selected.type)+' · укажи место на поле.':
    !editor.ready?'Начни с ратуши. Выбери её в запасе и коснись места на острове.':'Перетащи постройку или коснись её, а затем нового места.');
- const shelf=$('#layout-stock'),previousScroll=shelf.scrollLeft;
+ const previousScroll=shelf.scrollLeft;
  const html=[...groups.values()].map(({item:b,n})=>'<button type="button" data-do="layoutreserve" data-id="'+escape(b.id)+'" aria-pressed="'+(b.id===editId)+'">'+buildingArt(b.type,b.level)+'<span><b>'+STRUCT[b.type][0]+'</b><small>ур. '+b.level+' · '+OplotLayout.size(b.type)+'×'+OplotLayout.size(b.type)+' · '+n+' шт.</small></span></button>').join('');
  if(shelf.innerHTML!==html){shelf.innerHTML=html;shelf.scrollLeft=previousScroll;paintMini(shelf)}
  box.querySelector('[data-do="layoutapply"]').disabled=!editor.ready;
  box.querySelector('[data-do="layoutstash"]').disabled=!selected||!!selected.stowed;
  box.querySelector('[data-do="layoutundo"]').disabled=!editor.canUndo;
  box.querySelector('[data-do="layoutclear"]').disabled=!editor.buildings.some(b=>!b.stowed);
+ const wallTool=box.querySelector('[data-do="layoutwalls"]');
+ wallTool.disabled=editor.buildings.filter(b=>b.type==='wall'&&!b.stowed).length<5;
+ wallTool.textContent=wallTool.disabled?'Перенос стены · от 5 секций':'Перенос стены';
+ const surplus=surplusIndustry();industry.hidden=!surplus.size;
+ if(surplus.size)industry.querySelector('button').textContent='Убрать лишние хозяйства · '+surplus.size;
+
 }
+function startWallShift(count=5,id=null){
+ if(!editor)return;
+ const section=editor.wallSection(id,count),anchor=section[0]||editor.buildings.find(b=>b.type==='wall'&&!b.stowed);
+ editId=editDrag=null;cursor=anchor?{x:anchor.x,y:anchor.y}:null;editMessage='';
+ wallShift={count,source:id,section,target:null,preview:null};renderEditor();
+}
+function cancelWallShift(){
+ wallShift=editDrag=cursor=null;editMessage='';renderEditor();
+}
+function aimWallShift(cell){
+ if(!wallShift?.source)return;
+ if(wallShift.preview&&wallShift.target?.x===cell?.x&&wallShift.target?.y===cell?.y)return;
+ wallShift.target=cell?{x:cell.x,y:cell.y}:null;
+ if(cell)cursor={x:cell.x,y:cell.y};
+ wallShift.preview=null;
+ renderEditor();
+}
+function selectWallCell(cell){
+ if(!wallShift.source||wallShift.section.length!==wallShift.count){
+   const b=cell&&OplotLayout.at(editor.buildings,cell.x,cell.y);
+   if(b?.type==='wall')startWallShift(wallShift.count,b.id);
+   else toast('Выбери секцию стены на острове.');
+   return;
+ }
+ aimWallShift(cell);
+}
+function placeWallShift(){
+ if(!wallShift||!editor||!editor.moveWalls(wallShift.source,wallShift.count,wallShift.target))return;
+ const n=wallShift.count;cancelWallShift();editMessage='Участок из '+n+' секций перенесён. Нажми «Сохранить», чтобы обновить остров.';
+ draftLocal();refreshIsland();world.focus({preventScroll:true});
+}
+$('#layout-wall-count').addEventListener('change',e=>{if(wallShift)startWallShift(Number(e.target.value),wallShift.source)});
 function changeDraft(action){
  if(!editor)return;
  editMessage='';if(action==='clear'){editor.clear();editId=null}
+ else if(action==='industry'){
+   const ids=surplusIndustry();if(!ids.size)return;
+   editor.takeMany(ids);editId=null;editMessage='В запас перемещено зданий — '+ids.size+'. Нажми «Сохранить», чтобы обновить остров.';
+ }
  else if(action==='take'){editor.take(editId);editId=null}
  else{editor.undo();editId=null}
  editDrag=cursor=null;draftLocal();refreshIsland();
@@ -3319,7 +3403,7 @@ function xpPoints(n){
  return num(n)+' '+noun+' опыта';
 }
 function refreshXpPanel(level,grid){
- const next=gridAtLevel(level+1),start=xpAtLevel(level),goal=xpAtLevel(level+1),remaining=goal-s.xp;
+ const next=islandGrid(s,level+1),start=xpAtLevel(level),goal=xpAtLevel(level+1),remaining=goal-s.xp;
  const grows=next.width!==grid.width||next.height!==grid.height;
  $('#xp-expansion').textContent=grows?'До расширения — '+xpPoints(remaining):'Открыты все '+grid.width*grid.height+' клеток';
  $('#xp-target').textContent=grows?'На '+(level+1)+'-м уровне остров вырастет до '+next.width+' × '+next.height+'.':'Остров '+grid.width+' × '+grid.height+' · до '+(level+1)+'-го уровня ещё '+xpPoints(remaining)+'.';
@@ -3441,11 +3525,60 @@ function confirmWalls(){
  placement=newWallPlan();sounds('build');refreshIsland();
  toast('Построено секций — '+fresh.length+' · −'+num(total)+' золота');
 }
-function capFor(type){if(type==='wall')return wallCapacity();if(['keep','den','academy'].includes(type))return 1;return STRUCT[type][4]*lev()+1}
-function upCost(b){return b.type==='keep'?Math.round(175*1.65**(b.level-1)):Math.round((STRUCT[b.type][2]*.72+12)*b.level)}
+const industryUnlocks={mine:[1,4,7],farm:[1,4,7],goldstore:[1,6],foodstore:[1,6]};
+const ownedCount=type=>s.buildings.filter(b=>b.type===type).length;
+function capFor(type){
+ if(industryUnlocks[type])return industryUnlocks[type].filter(level=>level<=lev()).length;
+ if(type==='wall')return wallCapacity();
+ if(['keep','den','academy'].includes(type))return 1;
+ return STRUCT[type][4]*lev()+1;
+}
+function surplusIndustry(){
+ const active=new Set(editor.buildings.filter(b=>!b.stowed).map(b=>b.id)),extra=new Set(),now=Date.now();
+ for(const type of Object.keys(industryUnlocks)){
+   const limit=capFor(type),items=s.buildings.filter(b=>b.type===type&&active.has(b.id));
+   if(items.length<=limit)continue;
+   items.sort((a,b)=>b.level-a.level||stored(b,now)-stored(a,now)||(a.id<b.id?-1:a.id>b.id?1:0));
+   for(const b of items.slice(limit))extra.add(b.id);
+ }
+ return extra;
+}
+function upCost(b){
+ if(b.type==='keep')return Math.round(175*1.65**(b.level-1));
+ const base=STRUCT[b.type][2];
+ if(industryUnlocks[b.type]){
+  const step=b.level-1;
+  return Math.round(base*(.65+.24*step+.018*step*step));
+ }
+ return Math.round((base*.72+12)*b.level);
+}
 function upLimit(b){return b.type==='keep'?8:lev()+1}
-function priceOf(t){return (t==='mine'||t==='farm')&&!s.buildings.some(b=>b.type===t)?0:STRUCT[t][2]}
-function canAdd(t){return (t!=='academy'||islandLevel(s)>=7)&&t!=='keep'&&lev()>=STRUCT[t][3]&&s.buildings.filter(b=>b.type===t).length<capFor(t)}
+function priceOf(type){
+ const base=STRUCT[type][2];
+ if(!industryUnlocks[type])return base;
+ const count=ownedCount(type);
+ if(count===0&&(type==='mine'||type==='farm'))return 0;
+ return base*(1+2*count);
+}
+function canAdd(t){return (t!=='academy'||islandLevel(s)>=7)&&t!=='keep'&&lev()>=STRUCT[t][3]&&ownedCount(t)<capFor(t)}
+function industryDetails(type,building){
+ const slots=industryUnlocks[type];if(!slots)return '';
+ const count=ownedCount(type),limit=capFor(type);
+ const next=slots[Math.max(count,limit)];
+ const total=count>limit?'Построено '+count+' · текущий лимит '+limit+'. Ранее построенные здания сохранены.':'Построено '+count+' из '+limit+'.';
+ const level=building?.level||1,nextLevel=Math.min(9,level+1);
+ let output;
+ if(type==='mine'||type==='farm'){
+  const perLevel=rates[type]*12,units=type==='mine'?' золота/мин':' ягод/мин';
+  output=level===nextLevel?'Добыча — '+num(perLevel*level)+units+'.':
+   'Ур. '+level+' → '+nextLevel+' · '+num(perLevel*level)+' → '+num(perLevel*nextLevel)+units+', запас '+num(90*level)+' → '+num(90*nextLevel)+'.';
+ }else{
+  const units=type==='goldstore'?' золота':' ягод';
+  output=level===nextLevel?'Вмещает '+num(storeSpace(type,level))+units+'.':
+   'Ур. '+level+' → '+nextLevel+' · вместимость '+num(storeSpace(type,level))+' → '+num(storeSpace(type,nextLevel))+units+'.';
+ }
+ return '<p class="desc">'+output+'</p><p class="desc">'+total+(next?' Ещё одно место откроется на '+next+'-м уровне Цитадели.':'')+'</p>';
+}
 const feedCost=d=>Math.ceil(18+6*d.level+1.8*d.level*d.level);
 const stageHint=d=>d.level<5?'Следующая эволюция на 5-м уровне.':d.level<10?'Следующая эволюция на 10-м уровне.':'Достигнута взрослая стадия.';
 function pop(x,y,txt,color='#ffdd75'){flying.push({x,y,txt,color,born:performance.now()/1000})}
@@ -3465,12 +3598,15 @@ function collect(list){
 }
 function update(){save();refreshIsland();if(dlg.open&&panel)show(panel,current,true)}
 function buyStructure(t,x,y){
- if(!STRUCT[t]||!canAdd(t)||s.gold<priceOf(t)||!OplotLayout.fits(s.buildings,t,x,y,islandGrid(s))){toast('Для этой постройки нужен свободный участок.');return}
+ if(!STRUCT[t]||!canAdd(t)){toast('Достигнут лимит этой постройки.');return}
+ if(s.gold<priceOf(t)){toast('На строительство нужно '+num(priceOf(t))+' золота.');return}
+ if(!OplotLayout.fits(s.buildings,t,x,y,islandGrid(s))){toast('Для этой постройки нужен свободный участок.');return}
  s.gold-=priceOf(t);s.xp+=PROFILE_XP.build;s.buildings.push({id:uid(),type:t,x,y,level:1,since:Date.now()});if(t==='wall')mark('wall');
  placement=null;cursor=null;sounds('build');pop(x,y,'Построено','#fff3b5');update();
 }
 function useCell(cell,hit){
  if(editor){
+   if(wallShift){selectWallCell(cell);return}
    const b=cell&&OplotLayout.at(editor.buildings,cell.x,cell.y);
    if(editId){
      if(b?.id===editId){draftSelect(null);return}
@@ -3605,19 +3741,24 @@ const views={
   return ['Драконья академия','<label>Ученик<select class="pick" id="academy-dragon">'+options+'</select></label><div class="portrait">'+portrait(d)+'</div><span class="kicker">Ульта · '+GAME_ELEMENTS[p.ability.leadElement]+'</span><h3>'+p.ability.name+' · '+tier+' / 5</h3><p class="desc">'+info+'</p><div class="actions">'+btn('enchant','Зачаровать · '+cost.gold+' зол. и '+cost.berries+' яг.',d.id,'cmd',tier>=limit||s.gold<cost.gold||s.berries<cost.berries)+btn('structure','Академия · ур. '+building.level,building.id,'cmd alt')+'</div>'+academyPaths(d,p.ability)];
  },
  build(){
-  const level=islandLevel(s),grid=islandGrid(s),next=gridAtLevel(level+1);
+  const level=islandLevel(s),grid=islandGrid(s),next=islandGrid(s,level+1);
   const growth=next.width===grid.width&&next.height===grid.height?'Открыты все '+grid.width*grid.height+' клеток.':'На '+(level+1)+'-м уровне откроется ещё '+(next.width*next.height-grid.width*grid.height)+' клеток.';
   return ['Мастерская острова','<h3>Остров '+grid.width+' × '+grid.height+'</h3><p class="desc">'+growth+' До нового уровня профиля — '+num(xpAtLevel(level+1)-s.xp)+' опыта.</p><p class="desc">Выбери постройку, затем свободную клетку. Для переноса или улучшения коснись готовой постройки на карте.</p><div class="cards">'+Object.entries(STRUCT).filter(([t])=>t!=='keep').map(([t,[name,desc,price,min]])=>{
    const allowed=canAdd(t),has=s.buildings.find(b=>b.type===t&&!b.stowed)||s.buildings.find(b=>b.type===t),side=OplotLayout.size(t);
-   return '<article class="card">'+buildingArt(t)+'<h3>'+name+'</h3><span class="tag">'+side+' × '+side+' клеток</span><p class="desc">'+desc+'</p>'+btn('construct',t==='academy'&&islandLevel(s)<7?'Профиль острова · ур. 7':lev()<min?'Цитадель ур. '+min:!allowed?'Лимит построек':t==='wall'?'Разметить · '+priceOf(t)+' зол. за секцию':priceOf(t)?'Построить · '+priceOf(t)+' зол.':'Разместить бесплатно',t,'cmd alt',!allowed||s.gold<priceOf(t))+(has?' '+btn('structure',has.stowed?'В запасе':'На острове',has.id,'linkbtn'):'')+'</article>'}).join('')+'</div>'];
+   return '<article class="card">'+buildingArt(t)+'<h3>'+name+'</h3><span class="tag">'+side+' × '+side+' клеток</span><p class="desc">'+desc+'</p>'+industryDetails(t,has)+btn('construct',t==='academy'&&islandLevel(s)<7?'Профиль острова · ур. 7':lev()<min?'Цитадель ур. '+min:!allowed?'Лимит построек':t==='wall'?'Разметить · '+priceOf(t)+' зол. за секцию':priceOf(t)?'Построить · '+priceOf(t)+' зол.':'Разместить бесплатно',t,'cmd alt',!allowed||s.gold<priceOf(t))+(has?' '+btn('structure',has.stowed?'В запасе':'На острове',has.id,'linkbtn'):'')+'</article>'}).join('')+'</div>'];
  },
  structure(){
   const b=B(current);if(!b)return views.build();const data=STRUCT[b.type],n=stored(b),stock=storesOnMap.get(b.id);
-  let illustration='<div class="portrait">'+buildingArt(b.type,b.level,stock?.fill)+'</div>';
+  let illustration='<div class="portrait">'+buildingArt(b.type,b.level,stockOnModel(b,n))+'</div>';
   if(b.type==='keep'&&b.level<upLimit(b)){
     illustration='<div class="keep-evolution">'+[b.level,b.level+1].map(level=>'<figure>'+buildingArt('keep',level)+'<figcaption>'+(level===b.level?'Сейчас':'После улучшения')+' · ур. '+level+'</figcaption></figure>').join('')+'</div>';
   }
   let detail=b.type==='den'?'<p class="desc">Время инкубации · '+incubationSeconds()+' с.</p>':'';
+  if(b.type==='mine'||b.type==='farm'){
+   const units=b.type==='mine'?'золота':'ягод',perLevel=rates[b.type]*12;
+   detail='<p class="desc">Добыча — '+num(perLevel*b.level)+' '+units+' в минуту. Накапливает до сбора '+num(90*b.level)+'.</p>';
+   if(b.level<upLimit(b))detail+='<p class="desc">После улучшения — '+num(perLevel*(b.level+1))+' в минуту и до '+num(90*(b.level+1))+' до сбора.</p>';
+  }
   if(['goldstore','foodstore'].includes(b.type)){
    const resource=b.type==='goldstore'?'gold':'berries';
    detail='<p class="desc">В этом хранилище · <strong>'+num(stock.amount)+' из '+num(stock.capacity)+'</strong></p><progress class="store-meter '+b.type+'" aria-label="Заполненность хранилища" value="'+stock.amount+'" max="'+stock.capacity+'"></progress><p class="desc">Вместимость здания — '+num(stock.capacity)+'. '+(b.level<upLimit(b)?'После улучшения — '+num(storeSpace(b.type,b.level+1))+'. ':'')+'Всего на острове '+num(s[resource])+' из '+num(stockLimit(s,resource))+'.</p>';
@@ -3646,7 +3787,7 @@ function startFight(){
  const stage=planned==='raid'?campaignStage:planned==='defense'?s.waves+1:planned==='boss'?s.bosses+1:s.arenas+1;
  if(planned==='raid'&&stage>1&&!s.campaign[stage-1])return;
  if(wide)toggleWide();
- const island=planned==='defense'?{...s,buildings:s.buildings.map(b=>({...b,fill:storesOnMap.get(b.id)?.fill||0}))}:s;
+ const island=planned==='defense'?{...s,buildings:s.buildings.map(b=>({...b,fill:stockOnModel(b)}))}:s;
  placement=cursor=null;close();battle=Battle.start(planned,stage,island,squad,{change:combatControls,sound:sounds,finish:r=>{
   battle=null;const earnedGold=acceptStock(s,'gold',r.gold),earnedBerries=acceptStock(s,'berries',r.berries);
   lastResult={...r,gold:earnedGold,berries:earnedBerries,full:earnedGold<r.gold||earnedBerries<r.berries};
@@ -3690,9 +3831,11 @@ const acts={
  confirmwalls:confirmWalls,wallundo:()=>{const plan=wallPlan();if(plan&&!plan.drag){plan.corners.pop();renderWallPlan()}},
  move:id=>{const b=B(id);if(!b)return;if(b.stowed){openEditor();draftSelect(id);return}placement={kind:'move',id};const center=OplotLayout.center(b);cursor={x:Math.floor(center.x),y:Math.floor(center.y)};close();refreshIsland()},
  edit:openEditor,cancelplace:()=>{placement=cursor=null;refreshIsland()},
- layoutapply:applyEditor,layoutcancel:()=>leaveEditor(true),layoutclear:()=>changeDraft('clear'),layoutstash:()=>changeDraft('take'),layoutundo:()=>changeDraft('undo'),layoutreserve:draftSelect,
+ layoutapply:applyEditor,layoutcancel:()=>leaveEditor(true),layoutclear:()=>changeDraft('clear'),layoutstash:()=>changeDraft('take'),layoutundo:()=>changeDraft('undo'),layoutreserve:draftSelect,layoutindustry:()=>changeDraft('industry'),
+ layoutwalls:()=>{const b=editBuilding();startWallShift(5,b?.type==='wall'&&!b.stowed?b.id:null);world.focus({preventScroll:true})},
+ layoutwallpick:()=>{if(wallShift){startWallShift(wallShift.count);world.focus({preventScroll:true})}},layoutwallcancel:cancelWallShift,layoutwallplace:placeWallShift,
  upgrade:id=>{const b=B(id);if(!b||b.level>=upLimit(b)||s.gold<upCost(b))return;
-   const now=Date.now(),n=stored(b,now);s.gold-=upCost(b);b.level++;s.xp+=PROFILE_XP.upgradePerLevel*b.level;keepProduction(b,n,now);if(b.type==='wall')mark('wall');sounds('build');update()},
+   const now=Date.now(),n=productionStock(b,now);s.gold-=upCost(b);b.level++;s.xp+=PROFILE_XP.upgradePerLevel*b.level;keepProduction(b,n,now);if(b.type==='wall')mark('wall');sounds('build');update()},
  quest:()=>{const q=QUESTS[s.quest];if(!q||!s.marks[q[2]])return;if(!fitsStock(s,'gold',q[3])||!fitsStock(s,'berries',q[4]))return toast('Награда ждёт. Освободи место или расширь хранилища.');
  s.gold+=q[3];s.berries+=q[4];s.xp+=PROFILE_XP.chapter;s.quest++;sounds('victory');update();toast('Награда главы получена')},
  mode:m=>{if(!MODE_NAMES[m])return;planned=m;team=s.dragons.slice(0,m==='arena'?3:4).map(d=>d.id);show('battle','',true)},
@@ -3723,9 +3866,9 @@ function clampView(){
 }
 const overview=$('#island-overview'),mini=overview.querySelector('canvas');
 function overviewScale(){
- const grid=islandGrid(s),n=grid.width;
- const left=Art.point(-.5,grid.height-.5,W,H,n),right=Art.point(n-.5,-.5,W,H,n);
- const top=Art.point(-.5,-.5,W,H,n),bottom=Art.point(n-.5,grid.height-.5,W,H,n);
+ const grid=islandGrid(s),n=Math.max(grid.width,grid.height);
+ const left=Art.point(-.5,grid.height-.5,W,H,n),right=Art.point(grid.width-.5,-.5,W,H,n);
+ const top=Art.point(-.5,-.5,W,H,n),bottom=Art.point(grid.width-.5,grid.height-.5,W,H,n);
  const scale=Math.min((mini.width-18)/(right.x-left.x),(mini.height-18)/(bottom.y-top.y));
  return {scale,x:(mini.width-(left.x+right.x)*scale)/2,y:(mini.height-(top.y+bottom.y)*scale)/2,n,
    left,top,right,bottom};
@@ -3806,10 +3949,18 @@ async function toggleWide(){
 }
 fullButton.addEventListener('click',toggleWide);
 document.addEventListener('fullscreenchange',()=>{
- if(!document.fullscreenElement&&ownsFullscreen){ownsFullscreen=false;setWide(false)}
+ if(!document.fullscreenElement&&ownsFullscreen){
+   ownsFullscreen=false;
+   // WebKit consumes Escape in native fullscreen before the canvas receives
+   // keydown. Exit the wall tool and keep the in-game map open in that case.
+   if(wide&&wallShift){cancelWallShift();world.focus({preventScroll:true})}
+   else setWide(false);
+ }
 });
 document.addEventListener('keydown',e=>{
- if(e.key==='Escape'&&wide&&!document.querySelector('dialog[open]')){e.preventDefault();toggleWide()}
+ if(e.key!=='Escape'||document.querySelector('dialog[open]'))return;
+ if(wallShift){e.preventDefault();cancelWallShift();world.focus({preventScroll:true});return}
+ if(wide){e.preventDefault();toggleWide()}
 });
 world.addEventListener('wheel',e=>{
  if(battle||(!wide&&!e.ctrlKey&&!e.metaKey&&camera.zoom===1))return;
@@ -3817,8 +3968,11 @@ world.addEventListener('wheel',e=>{
  setViewZoom(camera.zoom*Math.exp(-Math.max(-100,Math.min(100,delta))*.003),mapScreen(e));
 },{passive:false});
 function mapCell(px,py){
- const grid=islandGrid(s),cell=Art.cell(px,py,W,H,grid.width);
+ const grid=islandGrid(s),cell=Art.cell(px,py,W,H,Math.max(grid.width,grid.height));
  return cell&&containsCell(grid,cell.x,cell.y)?cell:null;
+}
+function stockOnModel(b,units=stored(b)){
+ return b.type==='mine'||b.type==='farm'?units/(90*b.level):storesOnMap.get(b.id)?.fill||0;
 }
 function buildingToPlace(){
  return editor?editBuilding():placement?.kind==='move'?B(placement.id):placement?.kind==='add'?placement:null;
@@ -3829,9 +3983,12 @@ function sampleMap(){
  const ghost=location&&tower?{type:tower.type,id:tower.id,x:location.x,y:location.y,level:tower.level||1,valid:OplotLayout.fits(list,tower.type,location.x,location.y,grid,tower.id)}:null;
  const preview=reach&&location&&containsCell(grid,location.x,location.y)?{x:location.x,y:location.y,span:s.layoutVersion===2?OplotLayout.size(tower.type):1,reach}:null;
  const walls=wallPlan();
- stateArt={layoutVersion:s.layoutVersion,gridSize:grid.width,gridWidth:grid.width,gridHeight:grid.height,buildings:list.filter(b=>!b.stowed).map(b=>({...b,ready:!editor&&!placement&&stored(b)>=3,fill:storesOnMap.get(b.id)?.fill||0})),
+ const groupPreview=wallShift?.preview,hiddenWalls=groupPreview?.cells.length?new Set(wallShift.section.map(b=>b.id)):null;
+ stateArt={layoutVersion:s.layoutVersion,gridSize:Math.max(grid.width,grid.height),gridWidth:grid.width,gridHeight:grid.height,buildings:list.filter(b=>!b.stowed&&!hiddenWalls?.has(b.id)).map(b=>{
+    const units=stored(b);return {...b,ready:!editor&&!placement&&units>=3,fill:stockOnModel(b,units)};
+   }),
    dragons:editor?[]:s.dragons.slice(0,8),selected:editor?editId:placement?.id||null,grid:!!editor||!!placement,hover:ghost?null:cursor,placementPreview:ghost,
-   wallPreview:walls?.preview,wallPreviewValid:walls?.valid,nightCoverage:preview,waves:!reduced};
+   wallSelection:wallShift?.section,wallPreview:groupPreview?.cells||walls?.preview,wallPreviewValid:groupPreview?!groupPreview.issue:walls?.valid,nightCoverage:preview,waves:!reduced};
 }
 function tap(px,py){
  if(battle){battle.tap(px,py,W,H);if(battle)combatControls();return}
@@ -3856,6 +4013,13 @@ world.addEventListener('pointerdown',e=>{
  world.setPointerCapture(e.pointerId);
  if(editor){
    const cell=worldCell(e),item=cell&&OplotLayout.at(editor.buildings,cell.x,cell.y);
+   if(wallShift){
+     if(wallShift.section.length===wallShift.count&&item&&wallShift.section.includes(item)){
+       const first=wallShift.section[0];
+       editDrag={id:e.pointerId,group:true,offset:{x:item.x-first.x,y:item.y-first.y},moved:false};
+     }
+     return;
+   }
    if(item)editDrag={id:e.pointerId,item:item.id,offset:{x:cell.x-item.x,y:cell.y-item.y},moved:false};
    return;
  }
@@ -3876,6 +4040,11 @@ world.addEventListener('pointermove',e=>{
      Object.assign(point,next);return;
    }
    if(editor&&editDrag?.id===e.pointerId&&(editDrag.moved||Math.hypot(next.x-point.startX,next.y-point.startY)>5)){
+     if(editDrag.group){
+       const cell=worldCell(e),offset=editDrag.offset;editDrag.moved=mapGesture=true;
+       if(cell)aimWallShift({x:cell.x-offset.x,y:cell.y-offset.y});else aimWallShift(null);
+       Object.assign(point,next);return;
+     }
      if(!editDrag.moved){editId=editDrag.item;editMessage='';editDrag.moved=true;renderEditor()}
      cursor=worldCell(e);mapGesture=true;Object.assign(point,next);return;
    }
@@ -3895,7 +4064,7 @@ world.addEventListener('pointermove',e=>{
 });
 world.addEventListener('pointerup',e=>{
  mapPointers.delete(e.pointerId);if(!mapPointers.size)world.classList.remove('panning');
- if(editDrag?.id===e.pointerId){const drag=editDrag;editDrag=null;if(drag.moved){mapGesture=true;draftDrop(worldCell(e),drag.offset)}}
+ if(editDrag?.id===e.pointerId){const drag=editDrag;editDrag=null;if(drag.moved){mapGesture=true;if(!drag.group)draftDrop(worldCell(e),drag.offset)}}
  const plan=wallPlan(),drag=plan?.drag;
  if(!drag||drag.id!==e.pointerId)return;
  const cell=worldCell(e);
@@ -3916,12 +4085,14 @@ world.addEventListener('click',e=>{
  const r=world.getBoundingClientRect();tap(e.clientX-r.left,e.clientY-r.top);
 });
 world.addEventListener('keydown',e=>{
- if(battle)return;if(e.key==='Escape'){if(!wide){if(editor){if(editId)draftSelect(null);else leaveEditor()}else acts.cancelplace()}return}
+ if(battle)return;if(e.key==='Escape'){if(!wide&&!wallShift){if(editor){if(editId)draftSelect(null);else leaveEditor()}else acts.cancelplace()}return}
  if(['+','=','-','0'].includes(e.key)){e.preventDefault();changeZoom(e.key==='0'?'fit':e.key==='-'?'out':'in');return}
  if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Enter',' '].includes(e.key))return;e.preventDefault();
- cursor??={x:4,y:4};if(e.key==='Enter'||e.key===' '){useCell(cursor,null);return}
+ cursor??={x:4,y:4};if(e.key==='Enter'||e.key===' '){const aiming=!!wallShift?.source;useCell(cursor,null);
+   if(aiming)$('#layout-wall-tools [data-do="layoutwallplace"]:enabled')?.focus({preventScroll:true});return}
  if(e.key==='ArrowLeft')cursor.x--;if(e.key==='ArrowRight')cursor.x++;if(e.key==='ArrowUp')cursor.y--;if(e.key==='ArrowDown')cursor.y++;
  const grid=islandGrid(s);cursor.x=Math.max(0,Math.min(grid.width-1,cursor.x));cursor.y=Math.max(0,Math.min(grid.height-1,cursor.y));
+ if(wallShift?.source&&wallShift.section.length===wallShift.count)aimWallShift(cursor);
 });
 function resize(){
  const r=world.getBoundingClientRect();
@@ -4035,7 +4206,7 @@ function drawRaid(){
   return {x,y,above:a.flying,draw:(ctx,p)=>{
    const enemy=a.side==='attacker';ctx.beginPath();ctx.ellipse(p.x,p.y+2,unit*.55,unit*.22,0,0,Math.PI*2);ctx.fillStyle=enemy?'#a42e34bd':'#195d55c4';ctx.fill();
    const altitude=a.flying?unit*.9:unit*.46,move=poses.get(a.id);
-   Art.dragon(ctx,p.x,p.y-altitude,unit*1.4,Number(a.species)||0,Number(a.level)||1,activeTime,enemy,
+   Art.dragon(ctx,p.x,p.y-altitude,unit*1.4*Art.dragonScale,Number(a.species)||0,Number(a.level)||1,activeTime,enemy,
      move?{phase:move.phase,ultimate:move.ultimate,reduced}:undefined);health(a,p,altitude+unit*.65);
   }};
  });

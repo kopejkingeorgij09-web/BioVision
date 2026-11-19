@@ -9,6 +9,12 @@ async function check(browser,width) {
  const page=await ctx.newPage(),errors=[];
  page.on('pageerror',e=>errors.push(e.message));
  const dialog=page.locator('#dialog'),world=page.locator('#world');
+ const progress=page.locator('#island-progress'),expansion=progress.locator('#xp-expansion');
+ async function expectExpansion(remaining,size){
+  assert.ok(await progress.isVisible(),'Profile progress is visible on the island');
+  assert.match(await expansion.innerText(),new RegExp('\\b'+remaining+'\\b'),'Remaining XP before expansion');
+  assert.ok((await progress.innerText()).replace(/\s/g,'').includes(size),'Next plot size '+size);
+ }
  const read=()=>page.evaluate(key=>JSON.parse(localStorage.getItem(key)),key);
  const act=(scope,action,id)=>scope.locator('[data-do="'+action+'"]'+(id===undefined?'':'[data-id="'+id+'"]')).click();
  async function close(){if(await dialog.isVisible())await act(dialog,'close')}
@@ -28,8 +34,23 @@ async function check(browser,width) {
  try {
   await page.goto(url);
   const start=await read();assert.deepEqual(start.buildings.map(b=>b.type),['keep']);
+  await expectExpansion(35,'11×10');
+  const guide=progress.locator('details#xp-guide');
+  await guide.locator('summary').click();
+  assert.ok(await guide.evaluate(el=>el.open));
+  const rewards=await guide.innerText();
+  for(const action of [/строи|построй/i,/улучш/i,/корм/i,/вылуп|из яйца|инкубац|вывед/i,/глав|задани/i,/зачаро/i,/побед|выигр/i]){
+   assert.match(rewards,action,'Profile XP source');
+  }
+  for(const amount of [18,35,12,8,20,15])assert.match(rewards,new RegExp('\\b'+amount+'\\b'),'XP reward or factor '+amount);
+  await guide.locator('summary').click();
+  await seed({...start,xp:35});await expectExpansion(105,'11×11');
+  await seed(start);
   await tab('build');assert.equal(await dialog.locator('[data-do="construct"][data-id="academy"]').isDisabled(),true);
-  const farm=await place('farm',3,4), mine=await place('mine',5,4);assert.equal((await read()).gold,start.gold);
+  const mine=await place('mine',5,4);
+  assert.equal((await read()).xp,18);await expectExpansion(17,'11×10');
+  const farm=await place('farm',3,4);assert.equal((await read()).gold,start.gold);
+  await expectExpansion(104,'11×11');
   assert.match(await page.locator('#island-area').innerText(),/Уровень 2 · 11 × 10/);
   // Row eleven stays closed while column eleven immediately accepts construction.
   await tab('build');await act(dialog,'construct','foodstore');
@@ -74,6 +95,8 @@ async function check(browser,width) {
   assert.match(await dialog.innerText(),/Зачарование 2 \/ 5/);
   const maxIsland=await read();maxIsland.xp=35*12*12;maxIsland.gold=450;await seed(maxIsland);
   assert.match(await page.locator('#island-area').innerText(),/Уровень 13 · 16 × 16/);
+  assert.match(await expansion.innerText(),/максим|полностью|все клетки|все 256/i);
+  assert.doesNotMatch(await expansion.innerText(),/до (?:следующего )?расширения/i);
   await openBuilding(wall.id);await act(dialog,'move',wall.id);
   await world.focus();for(let i=0;i<17;i++)await world.press('ArrowRight');
   for(let i=0;i<17;i++)await world.press('ArrowDown');

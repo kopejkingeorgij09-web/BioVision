@@ -477,6 +477,18 @@ B.datesWith = id => Object.keys(docs).filter(k => k.startsWith('d_') && (docs[k]
 B.saveDay = (date, d, quiet) => B.put('d_' + date, d, quiet);
 B.editDay = (date, fn, quiet) => { const d = JSON.parse(JSON.stringify(B.day(date))); fn(d); B.saveDay(date, d, quiet); };
 B.habits = () => B.list('h_').filter(h => !h.arch).sort((a, b) => (a.order || 0) - (b.order || 0));
+B.habitPins = () => {
+  const ids = B.get('habitPins')?.ids;
+  return Array.isArray(ids) ? [...new Set(ids)].filter(id => {
+    const h = B.get('h_' + id);
+    return h && !h.arch;
+  }).slice(0, 2) : [];
+};
+B.trackerHabits = () => {
+  const pins = B.habitPins(), habits = B.habits();
+  return pins.map(id => B.get('h_' + id)).concat(habits.filter(h => !pins.includes(h.id)));
+};
+
 B.books = () => B.list('b_');
 B.workouts = () => B.list('w_').sort((a, b) => (b.date + (b.at || 0)).localeCompare(a.date + (a.at || 0)));
 B.readMin = date => (B.day(date).read || []).reduce((a, r) => a + (r.min || 0), 0);

@@ -45,7 +45,11 @@ public final class HabitWidget extends AppWidgetProvider {
             String key=ack.optString("date")+"/"+ack.optString("id");JSONObject current=queue.optJSONObject(key);
             if(current!=null && current.optString("token").equals(ack.optString("token")))queue.remove(key);
         }
-        prefs(c).edit().putString(SNAPSHOT,snapshot.toString()).putString(QUEUE,queue.toString()).commit();
+        SharedPreferences.Editor editor=prefs(c).edit();
+        if(!snapshot.optString("pins","[]").equals(read(c,SNAPSHOT).optString("pins","[]"))){
+            for(String key:prefs(c).getAll().keySet())if(key.startsWith("habitPage"))editor.remove(key);
+        }
+        editor.putString(SNAPSHOT,snapshot.toString()).putString(QUEUE,queue.toString()).commit();
     }
     private static double value(JSONObject snapshot,JSONObject queue,JSONObject h,String date){
         JSONObject change=queue.optJSONObject(date+"/"+h.optString("id"));

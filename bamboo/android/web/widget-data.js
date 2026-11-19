@@ -61,7 +61,7 @@
     const study={date:today,shad:{total:B.shad.plan.length,closed:stages[4],watched:stages[2]+stages[3]+stages[4],homework:stages[3]+stages[4],
       schedule:schedule.slice(0,300),today:todayShad.slice(0,30),week:weekShad.slice(0,100),weekDone:weekShad.filter(x=>x.done).length,unplaced:weekShad.filter(x=>!x.placed&&!x.done).length},alberts:B.alberts?.widget()||null};
     const day = B.today();
-    const habits = {date:day, rows:B.habits().filter(h => !h.created || h.created <= day).map(h =>
+    const habits = {date:day, pins:B.habitPins(), rows:B.trackerHabits().filter(h => !h.created || h.created <= day).map(h =>
       ({id:h.id, name:text(h.name,160), auto:h.auto || '', value:B.habitVal(h,day)}))};
     const packet = JSON.stringify({op:'widgets',items:items.slice(0,300),study,habits,habitAcks});
     if(habitAcks.length || packet!==last){bridge.postMessage(packet);last=packet;}

@@ -92,3 +92,21 @@ test('cloud status includes pending SHAD writes until acknowledgement', async ()
   assert.equal(B.shadPending(1),false);
   assert.equal(B.sync.mode,'cloud');
 });
+
+test('pinning keeps two habits first, supports unpin and frees archived slots', () => {
+  const {B, page} = planner();
+  vm.runInContext(fs.readFileSync('bamboo/js/habits.js', 'utf8'), page);
+  let toast;
+  B.toast = message => { toast = message; };
+  for (const id of ['a','b','c']) B.put('h_' + id, {id, name:id, order:id.charCodeAt(0)});
+  const tap = id => B.acts.habitPin({dataset:{id}});
+  const first = () => Array.from(B.trackerHabits(), h => h.id).slice(0, 2);
+  tap('c'); tap('b'); tap('a');
+  assert.deepEqual(first(), ['c','b']);
+  assert.match(toast, /две привычки/);
+  tap('c'); tap('a');
+  assert.deepEqual(first(), ['b','a']);
+  B.put('h_b', {...B.get('h_b'), arch:true});
+  tap('c');
+  assert.deepEqual(first(), ['a','c']);
+});

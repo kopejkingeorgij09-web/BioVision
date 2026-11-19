@@ -2,14 +2,24 @@
 (function(root){
  'use strict';
  const sides=Object.freeze({keep:5,goldstore:4,foodstore:4,den:4,academy:4,archer:3,cannon:3,home:3,farm:3,mine:3,spire:2,wall:1,icetrap:1,firetrap:1});
- const fieldSides=Object.freeze([35,38,42,45,48,52,55]);
+ const fieldSides=Object.freeze([33,36,40,43,46,50,53]);
+ // Two occupied border cells from the previous release may extend either axis.
+ const oldBorder=2;
  const production=Object.freeze({mine:4,farm:3,home:.85});
  const size=type=>typeof type==='string'&&Object.hasOwn(sides,type)?sides[type]:0;
  const active=b=>b&&b.stowed!==true&&Number.isInteger(b.x)&&Number.isInteger(b.y);
- function gridAtLevel(level,version=2){
+ function gridAtLevel(level,version=2,buildings){
    const strips=Math.min(12,Math.max(0,Math.floor(level||1)-1));
    const dimension=i=>version===2?fieldSides[i]:10+i;
-   return {width:dimension(Math.ceil(strips/2)),height:dimension(Math.floor(strips/2))};
+   const width=dimension(Math.ceil(strips/2)),height=dimension(Math.floor(strips/2));
+   if(version!==2||!Array.isArray(buildings))return {width,height};
+   let right=width,bottom=height;
+   for(const b of buildings){
+     if(!active(b))continue;
+     const span=size(b.type);
+     if(span){right=Math.max(right,b.x+span);bottom=Math.max(bottom,b.y+span)}
+   }
+   return {width:Math.min(right,width+oldBorder),height:Math.min(bottom,height+oldBorder)};
  }
  function center(b){
    if(!active(b))return null;
@@ -252,6 +262,8 @@
    if(state.layoutVersion!==undefined&&state.layoutVersion!==1)throw new RangeError('Unknown island layout version');
    const xp=Number.isFinite(state.xp)?state.xp:legacyXP(state);
    const grid=gridAtLevel(1+Math.floor(Math.sqrt(Math.max(0,xp)/35))),old=state.buildings;
+   // Keep the original deterministic v1 packing for already queued cloud saves.
+   grid.width+=oldBorder;grid.height+=oldBorder;
    const oldGrid=gridAtLevel(1+Math.floor(Math.sqrt(Math.max(0,state.xp||0)/35)),1);
    let placed=pack(old,grid,oldGrid,0);
    const maximum=placed.size===old.length?old.length:old.length-minimumStowed(old,grid);

@@ -13,7 +13,8 @@ function settlement(now){
   add('keep',6,6,5);add('mine',2,2,2);add('farm',3,12);add('den',6,1);
   add('goldstore',13,6,4);add('foodstore',7,13,3);add('cannon',14,12);
   add('archer',2,7);add('academy',13,1,4);add('spire',11,15);
-  for(let n=5;n<15;n++)add('wall',n,18,3,'wall-'+n);
+  for(let n=5;n<15;n++)add('wall',Math.min(10,n),18+Math.max(0,n-10),1+n%4,'wall-'+n);
+  add('wall',1,20,2,'isolated');
   return {version:1,layoutVersion:2,xp:140,gold:326,berries:158,buildings,
     dragons:[{id:'fire',species:0,level:6},{id:'ice',species:1,level:8}],book:[0,1],
     egg:null,quest:0,marks:{},campaign:{},waves:0,bosses:0,arenas:0,
@@ -55,8 +56,8 @@ async function check(browser,mobile){
       const rect=await world.boundingBox();
       const pos=await world.evaluate((canvas,data)=>{
         const w=canvas.clientWidth,h=canvas.clientHeight,zoom=parseInt(document.querySelector('[data-camera=fit]').textContent)/100;
-        const columns=Number(document.querySelector('#island-area').textContent.match(/(\d+) ×/)[1]);
-        const p=Art.point(data.x,data.y,w,h,columns);return {x:w/2+(p.x-w/2)*zoom,y:h/2+(p.y-h/2)*zoom};
+        const [,cols,rows]=document.querySelector('#island-area').textContent.match(/(\d+) × (\d+)/);
+        const p=Art.point(data.x,data.y,w,h,Math.max(Number(cols),Number(rows)));return {x:w/2+(p.x-w/2)*zoom,y:h/2+(p.y-h/2)*zoom};
       },{x:x+shift,y:y+shift});
       return {x:rect.x+pos.x,y:rect.y+pos.y};
     }
@@ -78,7 +79,7 @@ async function check(browser,mobile){
     }
     await open();await start();
     if(mobile){
-      const controls=await editor.locator('.layout-actions button').evaluateAll(items=>items.map(b=>{
+      const controls=await editor.locator('.layout-actions:not([hidden]) button').evaluateAll(items=>items.map(b=>{
         const r=b.getBoundingClientRect();return {x:r.left,right:r.right,width:innerWidth,height:r.height};
       }));
       assert.ok(controls.length>=5&&controls.every(r=>r.x>=0&&r.right<=r.width+1&&r.height>=32),
@@ -95,6 +96,65 @@ async function check(browser,mobile){
       await page.screenshot({path:process.env.PHAGI_EDITOR_SCREENSHOT,animations:'disabled'});
       await game.locator('[data-camera=fit]').click();await press('layoutcancel');await start();
     }
+    const originalWalls=original.buildings.filter(b=>b.id.startsWith('wall-'));
+    const groupButton=button('layoutwallplace'),groupCount=game.locator('#layout-wall-count');
+    const groupStatus=game.locator('#layout-selection');
+    await press('layoutwalls');
+    if(mobile){
+      const controls=await game.locator('#layout-wall-tools button,#layout-wall-tools select').evaluateAll(items=>items.map(item=>{
+        const box=item.getBoundingClientRect();return {label:item.textContent,x:box.left,right:box.right,height:box.height,width:innerWidth};
+      }));
+      for(const c of controls)assert.ok(c.height>=32&&c.x>=0&&c.right<=c.width+1,'Group action must fit on phone '+JSON.stringify(c));
+    }
+    await tile(1,20);assert.match(await groupStatus.innerText(),/1 из 5/);
+    await tile(5,18);assert.match(await groupStatus.innerText(),/Выбрано 5 секций/);
+    await groupCount.selectOption('7');assert.match(await groupStatus.innerText(),/Выбрано 7 секций/);
+    await groupCount.selectOption('10');await tile(8,8);
+    assert.ok(await groupButton.isDisabled());assert.match(await groupStatus.innerText(),/занято/);
+    await tile(grid.width-1-shift,14-shift);assert.ok(await groupButton.isDisabled());assert.match(await groupStatus.innerText(),/край/);
+    await press('layoutwallcancel');assert.equal(await draft(),null);assert.deepEqual(head().state,original);
+    if(mobile&&browser.browserType().name()==='chromium'){
+      await press('layoutwalls');await tile(5,18);
+      const client=await context.newCDPSession(page),a=await point(7,18),b=await point(7,21);
+      try{
+        await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[a]});
+        for(let i=1;i<=5;i++)await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:a.x+(b.x-a.x)*i/5,y:a.y+(b.y-a.y)*i/5}]});
+        await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+      }finally{await client.detach()}
+      await press('layoutwallplace');
+      const screenMove=await draft();
+      assert.deepEqual(coords(screenMove,'wall-5'),[5,21],'Dragging a middle section preserves the touch offset of the group');
+      assert.deepEqual(coords(screenMove,'wall-9'),[9,21]);
+      assert.deepEqual(coords(screenMove,'wall-10'),[10,18]);
+      await press('layoutundo');assert.equal(await draft(),null);
+    }
+    async function moveSection(x,y,by){
+      await press('layoutwalls');await groupCount.selectOption('10');await tile(x,y);
+      if(!mobile)await drag(x+2,y,x+2+by,y);else await tile(x+by,y);
+      assert.ok(await groupButton.isEnabled(),'A section can move across cells it currently occupies');
+      await press('layoutwallplace');
+    }
+    await moveSection(5,18,1);
+    const shifted=await draft();
+    for(const b of originalWalls)assert.deepEqual(coords(shifted,b.id),[b.x+1-shift,b.y-shift]);
+    assert.deepEqual(head().state,original,'A group preview and local edit must not change the active defense');
+    await press('layoutundo');assert.equal(await draft(),null,'A single undo restores the entire section');
+    await moveSection(5,18,1);await open();await start();
+    assert.deepEqual(await draft(),shifted,'A grouped move survives reopening the local editor');
+    await apply();
+    const translated=originalWalls.map(b=>({...b,x:b.x+1}));
+    assert.deepEqual(head().state.buildings.filter(b=>b.id.startsWith('wall-')),translated);
+    const other=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,serviceWorkers:'block'});
+    try{
+      await studyBackend(other,server);
+      await other.addInitScript(code=>{if(window===top)localStorage.setItem('ph_code',code)},p.code);
+      const remote=await other.newPage();await remote.goto(site.href,{waitUntil:'domcontentloaded'});
+      const island=remote.frameLocator('#oplot-game');await island.locator('#island-cloud-status').filter({hasText:'Остров в облаке'}).waitFor();
+      const walls=await island.locator('#world').evaluate((_,id)=>JSON.parse(localStorage.getItem('phagi.oplot.v1.user.'+id+'.sync2')).state.buildings.filter(b=>b.id.startsWith('wall-')),p.id);
+      assert.deepEqual(walls,translated,'All ten levels, corners and coordinates reach an independent device');
+    }finally{await other.close()}
+    await start();await moveSection(6,18,-1);await apply();assert.deepEqual(head().state,original);
+    await start();
     await press('layoutclear');
     const cleared=await draft();
     assert.equal(cleared.length,original.buildings.length);assert.ok(cleared.every(row=>row[1]===null&&row[2]===null));
@@ -186,18 +246,103 @@ async function check(browser,mobile){
     await press('layoutreserve','cannon');
     const expanded={...parkedRemotely,rev:parkedRemotely.rev+1,op:'other-device-profile-xp',
       state:{...parkedRemotely.state,xp:35*3**2}};
+    const nextGrid=layout.gridAtLevel(4),towerX=nextGrid.width-layout.size('cannon');
     server.docs.set(path,expanded);await world.evaluate(()=>window.dispatchEvent(new Event('online')));
-    await game.locator('#island-area').filter({hasText:'42 × 38'}).waitFor();
-    await tile(40-shift,14-shift);
-    assert.deepEqual(coords(await draft(),'cannon'),[39-shift,13-shift],'The tower fits in the strip unlocked by the other device');
+    await game.locator('#island-area').filter({hasText:nextGrid.width+' × '+nextGrid.height}).waitFor();
+    await tile(towerX+1-shift,14-shift);
+    assert.deepEqual(coords(await draft(),'cannon'),[towerX-shift,13-shift],'The tower fits in the strip unlocked by the other device');
     await press('layoutundo');assert.deepEqual(await draft(),earlierDraft,'Expansion must retain earlier edits and their undo history');
-    await press('layoutreserve','cannon');await tile(40-shift,14-shift);
+    await press('layoutreserve','cannon');await tile(towerX+1-shift,14-shift);
     await press('layoutapply');await until(()=>head().rev>expanded.rev,'The live expanded layout should reach the cloud');
     assert.equal(head().state.xp,expanded.state.xp);
-    assert.ok(layout.valid(head().state.buildings,layout.gridAtLevel(4)));
-    assert.equal(head().state.buildings.find(b=>b.id==='cannon').x,39);
+    assert.ok(layout.valid(head().state.buildings,nextGrid));
+    assert.equal(head().state.buildings.find(b=>b.id==='cannon').x,towerX);
+    // A saved wall on the former southern boundary keeps two extra rows. The
+    // renderer and pointer projection must use the taller axis at every zoom.
+    const bottom=grid.height+1,wallX=13,edgeWalls=Array.from({length:5},(_,i)=>({
+      type:'wall',x:wallX+i,y:bottom,id:'south-'+i,level:i+1,since:stamp
+    }));
+    const rectState={...original,buildings:[structuredClone(original.buildings[0]),...edgeWalls]};
+    const tall=layout.gridAtLevel(3,2,rectState.buildings);
+    assert.ok(tall.height>tall.width&&layout.valid(rectState.buildings,tall));
+    server.docs.set(path,{rev:head().rev+1,op:'legacy-southern-edge',state:rectState});
+    await open();await game.locator('#island-area').filter({hasText:tall.width+' × '+tall.height}).waitFor();
+    const plus=game.locator('[data-camera="in"]'),fit=game.locator('[data-camera="fit"]'),modal=game.locator('#dialog');
+    await plus.click();
+    if(mobile)await page.setViewportSize({width:844,height:390});
+    await tile(wallX+2-shift,bottom-shift);
+    assert.equal(await modal.locator('#dt').innerText(),'Магическая стена','Zoomed far-edge wall hit opens its structure');
+    assert.ok(!await editor.isVisible());await press('close');
+    if(mobile)await page.setViewportSize({width,height});
+    await fit.click();await start();await press('layoutwalls');
+    if(mobile&&browser.browserType().name()==='chromium'){
+      await tile(wallX-shift,bottom-shift);await groupStatus.filter({hasText:'Выбрано 5 секций'}).waitFor();
+      await world.scrollIntoViewIfNeeded();const box=await world.boundingBox(),x=box.x+box.width/2,y=box.y+box.height/2;
+      const cdp=await context.newCDPSession(page);
+      const fingers=(type,points)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:points.map(([x,y],i)=>({id:i+1,x,y}))});
+      try{
+        await fingers('touchStart',[[x-18,y],[x+18,y]]);
+        for(const spread of [23,28,33,36])await fingers('touchMove',[[x-spread,y],[x+spread,y]]);
+        await fingers('touchEnd',[]);await fit.filter({hasText:'200%'}).waitFor();
+        await fingers('touchStart',[[x,y]]);await fingers('touchMove',[[x+30,y+20]]);await fingers('touchEnd',[]);
+        assert.ok(await groupButton.isDisabled());assert.equal(await draft(),null);
+        assert.ok(!await modal.isVisible()&&await editor.isVisible(),'Camera gestures leave the selected section and editor intact');
+      }finally{await cdp.detach()}
+      await fit.click();await press('layoutwallcancel');await press('layoutwalls');
+    }
+    await world.focus();await world.press('Enter');
+    await groupStatus.filter({hasText:'Выбрано 5 секций'}).waitFor({timeout:2400});
+    await world.press('ArrowRight');await world.press('Enter');
+    assert.ok(await groupButton.isEnabled(),'A keyboard step is relative to the selected wall anchor');
+    assert.ok(!await modal.isVisible()&&await editor.isVisible());assert.equal(await draft(),null);
+    const full=game.locator('#island-full');await full.click();await editor.waitFor();
+    await world.focus();await world.press('Escape');
+    await button('layoutwalls').waitFor();
+    assert.ok(await editor.isVisible()&&await button('layoutwalls').isVisible(),'Escape cancels the group without closing the editor');
+    assert.equal(await full.getAttribute('aria-pressed'),'true','Cancelling the group preserves the current fullscreen view');
+    await full.click();await press('layoutcancel');
+    const clockNow=stamp+3600000;
+    const industries=[
+      ['castle','keep',3],['mine-ready','mine',3,12500],['mine-dry','mine',3,5000],['mine-small','mine',2,500000],
+      ['farm-b','farm',2,10000],['farm-a','farm',2,10000],
+      ['treasury-z','goldstore',2],['treasury-small','goldstore',1],['treasury-a','goldstore',2],
+      ['barn-small','foodstore',1],['barn-large','foodstore',2],['home','home',2]
+    ];
+    const legacyIndustry={...original,gold:4498,berries:1890,buildings:industries.map(([id,type,level,age],i)=>
+      ({id,type,level,x:2+i%5,y:2+Math.floor(i/5),since:clockNow-(age||0)}))};
+    delete legacyIndustry.layoutVersion;
+    server.docs.set(path,{rev:head().rev+1,op:'legacy-economic-limits',state:legacyIndustry});
+    await open();await start();
+    const beforeIndustry=structuredClone(head().state);
+    assert.equal(beforeIndustry.layoutVersion,2,'An old single-tile save is migrated before editing');
+    const cleanup=button('layoutindustry'),storageCaps=state=>world.evaluate((_,s)=>[stockLimit(s,'gold'),stockLimit(s,'berries')],state);
+    assert.deepEqual(await storageCaps(beforeIndustry),[4500,1900]);
+    assert.match(await cleanup.innerText(),/6$/);
+    assert.match(await game.locator('#layout-industry-note').innerText(),/вместимость складов сохранятся/);
+    const small=beforeIndustry.buildings.find(b=>b.id==='mine-small');
+    await tile(small.x+1-shift,small.y+1-shift);await press('layoutstash');
+    const previousDraft=await draft();assert.match(await cleanup.innerText(),/5$/);
+    await press('layoutindustry');assert.ok(!await cleanup.isVisible());
+    assert.deepEqual(head().state,beforeIndustry);
+    await press('layoutundo');assert.deepEqual(await draft(),previousDraft,'One undo restores the whole cleanup, keeping earlier moves');
+    await press('layoutundo');assert.equal(await draft(),null);assert.match(await cleanup.innerText(),/6$/);
+    await press('layoutindustry');await press('layoutapply');
+    await until(()=>head().state.buildings.filter(b=>b.stowed).length===6,'Industrial reserves should persist to the profile');
+    const savedIndustry=head().state,survivors=new Set(['castle','mine-ready','farm-a','treasury-a','barn-large','home']);
+    for(const [i,b] of savedIndustry.buildings.entries()){
+      const old=beforeIndustry.buildings[i];
+      if(survivors.has(b.id))assert.deepEqual(b,old);
+      else assert.deepEqual(b,{...old,stowed:true,x:null,y:null,
+        ...({'mine-dry':{pausedStock:12},'mine-small':{pausedStock:180},'farm-b':{pausedStock:12}}[b.id]||{})});
+    }
+    assert.deepEqual(await storageCaps(savedIndustry),[4500,1900]);
+    for(const field of ['gold','berries','xp','dragons'])assert.deepEqual(savedIndustry[field],beforeIndustry[field]);
+    await open();await start();assert.ok(!await cleanup.isVisible());
+    assert.deepEqual(await storageCaps(head().state),[4500,1900],'Reserve warehouses keep their capacity after reload');
+    assert.deepEqual(await world.evaluate((_,{state,now})=>state.buildings.filter(b=>b.stowed&&['mine','farm'].includes(b.type)).map(b=>stored(b,now)),
+      {state:head().state,now:clockNow+3600000}),[12,180,12],'Reserved producers retain their harvest without accumulating more');
     assert.deepEqual(errors,[]);
-    console.log('PASS editor, cloud isolation, full-footprint picking, repeated moves, clear, undo, cancel, local recovery and production',mobile?'390px touch':'1366px drag');
+    console.log('PASS editor, group wall moves, collision previews, cloud sync, remote expansion, undo and production',mobile?'390px touch':'1366px drag');
   }finally{await context.close();}
 }
 (async()=>{

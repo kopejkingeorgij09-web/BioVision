@@ -269,7 +269,7 @@ for(const [cols,rows] of [[11,10],[16,16]]){
 }
 // A tap belongs to the occupied ground tile, including the far corner of a
 // large keep right next to another building. Stored and moving originals vanish.
-for(const [cols,rows] of [[35,35],[38,35],[55,55]]){
+for(const [cols,rows] of [[33,33],[33,35],[36,33],[55,55]]){
   const buildings=[
     {id:'keep',type:'keep',x:2,y:3,level:8},
     {id:'vault',type:'goldstore',x:7,y:3,level:4},
@@ -358,4 +358,4 @@ for(let i=0;i<25*30;i++){
   const {party,structures}=guards.inspect();
   for(const u of living(party))assert.ok(!structures.some(b=>b.hp>0&&occupying(b,u)),'A guard phased through a foundation');
 }
-console.log('PASS campaign, arena, flight, enchantments, legacy 10–16 and new 35–55 grids, footprint picking, moving, four-sided defense and pathfinding');
+console.log('PASS campaign, arena, flight, enchantments, legacy 10–16 and compact 33–53 and legacy 55 grids, footprint picking, moving, four-sided defense and pathfinding');

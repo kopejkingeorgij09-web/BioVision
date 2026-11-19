@@ -49,7 +49,7 @@ async function run(browser,tablet){
    await f.locator('[data-do="'+action+'"]'+(id?'[data-id="'+id+'"]':'')).filter({visible:true}).first().tap();
   }
   async function mapTap(x,y){
-   const p=await world.evaluate((el,{x,y})=>Art.point(x,y,el.clientWidth,el.clientHeight,35),{x,y});
+   const p=await world.evaluate((el,{x,y})=>Art.point(x,y,el.clientWidth,el.clientHeight,OplotLayout.gridAtLevel(1).width),{x,y});
    await world.tap({position:p});
   }
   await tap('tab','build');
@@ -60,7 +60,7 @@ async function run(browser,tablet){
   await rotate(portrait);assert.match(await f.locator('#mapnote').innerText(),/Строительство/);
   await mapTap(7,9);
   await f.locator('#maptools [data-do=edit]').waitFor();
-  assert.ok(await world.evaluate(()=>document.querySelector('#island-area').textContent.includes('35')));
+  assert.ok(await world.evaluate(()=>document.querySelector('#island-area').textContent.includes('33 × 33')));
   // The draft and the active reserve selection must persist through both directions.
   await f.locator('#island-full').tap();await tap('edit');await tap('layoutclear');await tap('layoutreserve','b0');
   const stock=f.locator('#layout-stock [data-id=b0]');
@@ -161,7 +161,7 @@ async function manualTurns(browser){
   }
   async function tapMine(zoom=1){
    const p=await world.evaluate((c,z)=>{
-    const w=c.clientWidth,h=c.clientHeight,p=Art.point(6,11,w,h,35);
+    const w=c.clientWidth,h=c.clientHeight,p=Art.point(6,11,w,h,OplotLayout.gridAtLevel(1).width);
     return {x:w/2+(p.x-w/2)*z,y:h/2+(p.y-h/2)*z};
    },zoom);
    await physicalTap(world,p);

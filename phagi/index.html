@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<script src="cloud.js?v=15"></script>
+<script src="cloud.js?v=16"></script>
 <script src="forest/progress.js?v=1"></script>
 <script src="forest/scene.js?v=1"></script>
 <link rel="stylesheet" href="forest/forest.css?v=1">
@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="lesson-workspace.css?v=1">
 <script src="lesson-files.js?v=2"></script>
 <meta charset="utf-8">
-<meta name="ph-ver" content="2026-11-19-oplot-market-walls-4">
+<meta name="ph-ver" content="2026-11-19-oplot-ultimates-5">
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Фаги естественных наук</title>
@@ -2541,7 +2541,7 @@ function reviewHTML(){
   const sti=streakInfo(S.streak[meId()]);
   const tm=!!d&&typeMode(d);
   const top=`<div class="rv-top"><button class="back" data-act="endreview">← Закончить</button><span class="ttl">${r.mix?(r.sub?'Всё '+SUBJ_PO[r.sub]:'Все колоды'):esc(d.title)}</span>${d?`<button class="rv-tm" data-act="typemode" data-id="${d.id}" aria-pressed="${tm}" title="${r.mix?'Писать ответ с клавиатуры в колоде «'+esc(d.title)+'»':'Писать ответ с клавиатуры'}">⌨<span class="l"> Ввод ответа</span></button>`:''}<span class="rv-dish" title="Чашка Петри">${dishSVG(meId(),{size:30,pulse:S.pulseAt&&Date.now()-S.pulseAt<700})}<small>${sti.done?'+'+spawnN(sti.todayN)+' кол.':sti.todayN+'/'+GOAL}</small></span><span class="cnt">${r.done} / ${total}</span></div><div class="rv-bar" aria-hidden="true"><i style="width:${total?r.done/total*100:0}%"></i></div>`;
-  if(!r.queue.length){const inf=streakInfo(S.streak[meId()]),party=r.newDay&&!forestOn();return `<div class="rv" style="--c:${col}">${top}<section class="rv-card"><div class="rv-done${party?' party':''}">${party?`<div class="party-dish">${dishSVG(meId(),{size:150,ring:false})}<span class="plus">+1</span></div><div class="big">${inf.cur} ${plural(inf.cur,'день','дня','дней')}</div><p><b>Серия продлена!</b> В чашке выросла новая колония, а старые получили порцию питания. Каждые 5 карточек сверх ${GOAL} дают ещё одну колонию.</p>`:`<div class="big">${r.done}</div><p>${plural(r.done,'повторение','повторения','повторений')} на сегодня сделано. Карточки вернутся, когда начнут забываться.${inf.done?(inf.cur?` Серия: ${inf.cur} ${plural(inf.cur,'день','дня','дней')} подряд.`:''):` Для серии сегодня ${inf.todayN} из ${GOAL}: повторите ещё ${GOAL-inf.todayN}, можно через «Пройти всю колоду».`}</p>`}<p class="small">💎 За первую успешную попытку по каждой карточке — 1 алмаз в «Драконьем Оплоте».</p><button class="btn" data-act="endreview">${r.mix?'К колодам':'К колоде'}</button></div></section></div>`}
+  if(!r.queue.length){const inf=streakInfo(S.streak[meId()]),party=r.newDay&&!forestOn();return `<div class="rv" style="--c:${col}">${top}<section class="rv-card"><div class="rv-done${party?' party':''}">${party?`<div class="party-dish">${dishSVG(meId(),{size:150,ring:false})}<span class="plus">+1</span></div><div class="big">${inf.cur} ${plural(inf.cur,'день','дня','дней')}</div><p><b>Серия продлена!</b> В чашке выросла новая колония, а старые получили порцию питания. Каждые 5 карточек сверх ${GOAL} дают ещё одну колонию.</p>`:`<div class="big">${r.done}</div><p>${plural(r.done,'повторение','повторения','повторений')} на сегодня сделано. Карточки вернутся, когда начнут забываться.${inf.done?(inf.cur?` Серия: ${inf.cur} ${plural(inf.cur,'день','дня','дней')} подряд.`:''):` Для серии сегодня ${inf.todayN} из ${GOAL}: повторите ещё ${GOAL-inf.todayN}, можно через «Пройти всю колоду».`}</p>`}<p class="small">💎 За первую успешную попытку по каждой карточке — 1 алмаз в «Драконьем Оплоте».</p>${r.done?'<p class="small">Завершённое повторение колоды открывает разведку ближайшего ночного набега. Донесение можно посмотреть на острове.</p>':''}<button class="btn" data-act="endreview">${r.mix?'К колодам':'К колоде'}</button></div></section></div>`}
   const c=(d.cards||[]).find(x=>x.i===ci);
   if(!c){r.queue.shift();return reviewHTML()}
   const st=((S.srs[meId()]||{})[d.id]||{s:{}}).s[c.i];
@@ -3258,12 +3258,18 @@ function peopleHTML(){
 }
 
 function oplotHTML(){
-  return '<section data-sig="oplot-game"><iframe id="oplot-game" src="oplot.html?v=4" title="Драконий Оплот" allow="autoplay"></iframe></section>';
+  return '<section data-sig="oplot-game"><iframe id="oplot-game" src="oplot.html?v=5" title="Драконий Оплот" allow="autoplay; fullscreen" allowfullscreen></iframe></section>';
 }
 window.OplotHost=Object.freeze({
   identity(){return S.view==='oplot' && S.me?.id && (T()||S.joined)?{id:S.me.id}:null},
   delivery(op,remember){return PHCLOUD.oplotDelivery(op,remember)},
   loadRaids(){return PHCLOUD.oplotRaids()},
+  practiceRaid(day,island){return PHCLOUD.oplotPractice(day,island)},
+  async scout(){
+    if(dirty.size)flush();
+    await chain;
+    return PHCLOUD.oplotScout();
+  },
   loadIsland(){return PHCLOUD.oplotLoad()},
   storeIsland(rev,op,doc,keepalive=false){return PHCLOUD.oplotStore(rev,op,doc,keepalive)},
   wallet(){return PHCLOUD.oplotWallet()},
@@ -3427,7 +3433,7 @@ function mergeSrs(m){
   S.srs[uid]=m;
 }
 /* srs progress of a big deck is sharded: `${deck}` holds shard 0 (+nd, updatedAt), `${deck}~k` the rest */
-const srsShards={},srsSaved=new Map();
+const srsShards={},srsSaved=new Map(),scoutFinishes=new Map();
 const hashKey=s=>{let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return Math.abs(h)};
 function mergeShards(m,uid){
   Object.keys(m).forEach(id=>{const i=id.indexOf('~');if(i<0)return;const b=id.slice(0,i),x=m[id];delete m[id];
@@ -3440,16 +3446,40 @@ function srsWrites(uid,id,st){
   const out=[[`srs/${uid}/decks/${id}`,{s:sh[0],nd:st.nd||null,shards:n,updatedAt:now()}]];
   for(let k=1;k<n;k++)out.push([`srs/${uid}/decks/${id}~${k}`,{s:sh[k]}]);
   for(let k=n;k<(srsShards[id]||1);k++)out.push([`srs/${uid}/decks/${id}~${k}`,null]);
+  const finish=scoutFinishes.get(id);
+  if(finish){
+    const k=n>1?hashKey(finish.card)%n:0;
+    if(sh[k][finish.card]?.[3]>0){
+      const marked=out.splice(k,1)[0];
+      marked[1].oplotFinish=finish;out.push(marked);
+    }
+  }
   srsShards[id]=n;return out}
 /* srs saving: one write at a time per deck, batched */
-const dirty=new Set();let saveT=null,chain=Promise.resolve();
+const dirty=new Set();let saveT=null,retryT=null,retryDelay=2000,chain=Promise.resolve();
 function queueSave(id){dirty.add(id);clearTimeout(saveT);saveT=setTimeout(flush,1500)}
+function retrySrs(id,error){
+  dirty.add(id);fail(error);
+  if(retryT)return;
+  retryT=setTimeout(()=>{retryT=null;if(dirty.size)flush()},retryDelay);
+  retryDelay=Math.min(60000,retryDelay*2);
+}
 function flush(){
   clearTimeout(saveT);const ids=[...dirty];dirty.clear();const uid=meId();
   ids.forEach(id=>{const st=(S.srs[uid]||{})[id];if(!st)return;
-    srsWrites(uid,id,st).forEach(([path,data])=>{const js=data&&JSON.stringify(data.s);
-      if(data&&!data.nd&&!('nd' in data)&&srsSaved.get(path)===js)return;
-      chain=chain.then(()=>data?S.db.doc(path).set(data):S.db.doc(path).delete()).then(()=>{if(data)srsSaved.set(path,js);else srsSaved.delete(path)}).catch(e=>{fail(e)})})});
+    const writes=srsWrites(uid,id,st);
+    chain=chain.then(async()=>{
+      // A completion must reach the server after every part of this deck.
+      for(const [path,data] of writes){
+        const js=data&&JSON.stringify([data.s,data.nd,data.shards]);
+        const pending=data?.oplotFinish&&scoutFinishes.get(id)===data.oplotFinish;
+        if(data&&!pending&&srsSaved.get(path)===js)continue;
+        if(data){await S.db.doc(path).set(data);srsSaved.set(path,js)}
+        else{await S.db.doc(path).delete();srsSaved.delete(path)}
+        if(pending&&scoutFinishes.get(id)===data.oplotFinish)scoutFinishes.delete(id);
+      }
+      retryDelay=2000;
+    }).catch(e=>retrySrs(id,e))});
   if(streakDirty&&S.streak[uid]){const lim=addDays(today(),-400),days={};Object.entries(S.streak[uid].days||{}).forEach(([k,v])=>{if(k>=lim)days[k]=v});
     const rev=streakRev,ack=S.streak[uid].ack||null,muts=(S.streak[uid].muts||[]).slice(-60);
     chain=chain.then(()=>S.db.doc(`srs/${uid}/meta/streak`).set({days,ack,muts,updatedAt:now()})).then(()=>{if(streakRev===rev)streakDirty=false;syncArena()}).catch(e=>{fail(e)})}
@@ -4623,7 +4653,9 @@ function startMix(sub){
   const q=[],draw=per=>{while(per.length){const k=Math.floor(Math.random()*per.length);q.push(per[k].shift());if(!per[k].length)per.splice(k,1)}};
   draw(perDue);draw(perNew);
   if(!q.length)return toast(sub?'На сегодня '+SUBJ_PO[sub]+' всё':'На сегодня во всех колодах всё');
-  S.rev={mix:true,sub,deckId:q[0].split(MIXSEP)[0],queue:q,shown:false,done:0,all:false};delete S.fv.rvin;S.view='review';window.scrollTo(0,0);focusTyped();
+  const scoutLeft=new Map();
+  for(const entry of q){const dk=entry.split(MIXSEP)[0];scoutLeft.set(dk,(scoutLeft.get(dk)||0)+1)}
+  S.rev={mix:true,sub,deckId:q[0].split(MIXSEP)[0],queue:q,shown:false,done:0,all:false,scoutLeft};delete S.fv.rvin;S.view='review';window.scrollTo(0,0);focusTyped();
 }
 function startReview(deckId,all){
   const d=S.decks.find(x=>x.id===deckId);if(!d)return;
@@ -4655,7 +4687,12 @@ function rate(g,source){
   state.s={...state.s,[cid]:nextState(prev,g)};
   if(g!==1){const first=bumpStreak();if(first)r.newDay=true;const n=(S.streak[uid].days||{})[t]||0;if(n>=GOAL)S.growPop={t:Date.now(),n,first}}
   if(g===1)r.queue.splice(Math.min(r.queue.length,3),0,ent);
-  else{r.done++;S.forest?.card(t,dk,cid,(source||document.querySelector('.grades4 .g'+g))?.getBoundingClientRect())}
+  else{
+    if(r.mix)r.scoutLeft.set(dk,r.scoutLeft.get(dk)-1);
+    if(!T() && (r.mix?r.scoutLeft.get(dk)===0:r.queue.length===0)){
+      scoutFinishes.set(dk,{card:String(cid),studyDay:t,ended:Date.now(),full:r.all});
+    }
+    r.done++;S.forest?.card(t,dk,cid,(source||document.querySelector('.grades4 .g'+g))?.getBoundingClientRect())}
   rvCid(r);aiStop();r.shown=false;r.verdict=null;delete S.fv.rvin;queueSave(dk);render();focusTyped();
 }
 const focusTyped=()=>{const r=S.rev;if(r&&typeMode(S.decks.find(x=>x.id===r.deckId)))setTimeout(()=>{const i=$('#rvin');if(i&&document.activeElement!==i)i.focus({preventScroll:true})},80)};

@@ -254,6 +254,8 @@ window.PHCLOUD={rpc,
     return true;
   },
   oplotRaids:()=>rpc('ph_oplot_raids',islandAuth()),
+  oplotPractice:(day,island)=>rpc('ph_oplot_practice',{...islandAuth(),p_day:day,p_island:island}),
+  oplotScout:()=>rpc('ph_oplot_scout',islandAuth()),
   oplotWallet:()=>rpc('ph_oplot_wallet',islandAuth()),
   oplotBuy:(item,op)=>rpc('ph_oplot_buy',{...islandAuth(),p_item:item,p_op:op}),
   teacherLogin:()=>loginScreen(true),get me(){return me},sync,codes:()=>me&&me.isOwner&&codes()};

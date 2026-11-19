@@ -63,7 +63,8 @@ async function studyBackend(context,server=fixtures()) {
       docs.set(args.p_path,data);
       if(args.p_path===`srs/${profile.id}/decks/${deckId}`&&data.s?.[cardId]?.[3]>0)acct.cards.add(cardId);
       result=new Date().toISOString();
-    } else if(fn==='ph_oplot_wallet')result=wallet(acct);
+    } else if(fn==='ph_oplot_scout')result={unlocked:false,at:'2040-04-01T00:00:00Z',day:'2040-04-01'};
+    else if(fn==='ph_oplot_wallet')result=wallet(acct);
     else if(fn==='ph_oplot_buy'){
       const price={berries:3,gold:5,incubate:1}[args.p_item];
       const prior=acct.receipts.get(args.p_op);

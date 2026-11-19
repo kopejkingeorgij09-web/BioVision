@@ -18,7 +18,7 @@ const battleAPI = 'return {draw,tick,tap,action,controls};';
 assert.ok(combat.includes(battleAPI));
 const context = {window: {}, Art: {point: (x,y) => ({x,y})}};
 vm.runInNewContext(genetics + '\n' + combat.replace(battleAPI,
-  'return {draw,tick,tap,action,controls, inspect:()=>({party,enemy,structures,objectives,fury,gridWidth,gridHeight,rally})};'), context);
+  'return {draw,tick,tap,action,controls, inspect:()=>({party,enemy,structures,objectives,fury,gridWidth,gridHeight,rally,sparks,time,displayHp})};'), context);
 const {Battle, GAME_SPECIES} = context.window;
 const species = mask => GAME_SPECIES.find(s => s.mask === mask).id;
 const studentTeam = [1,2,4].map(species);
@@ -121,6 +121,46 @@ for(const property of ['extra','restore','amplify','activeBonus','furyPower']){
     assert.ok(value>last,property+' stopped improving at '+enchant);last=value;
   }
 }
+// Every hatchable species keeps one named signature and one leading element.
+const signatures=new Set();
+for(const sp of GAME_SPECIES){
+  const a=Battle.profile(sp.id,10,2).ability;
+  assert.ok(a.name&&!signatures.has(a.name));signatures.add(a.name);
+  assert.equal(a.leadElement,sp.element);assert.ok(sp.elements.includes(a.leadElement));
+  for(const specialty of ['focus','area']){
+    const stats=Battle.profile(sp.id,10,2,specialty);
+    assert.equal(stats.ability.name,a.name);assert.equal(stats.ability.specialty,specialty);
+    assert.equal(stats.ability.focusDamage,Math.round(stats.damage*(1+2*.18)*.40));
+    assert.equal(stats.ability.splashDamage,Math.round(stats.damage*(1+2*.18)*.55));
+  }
+}
+assert.equal(signatures.size,63);
+function academyDuel(specialty){
+  // Earth protects the caster. Its inherited passive does not deal further damage to foes.
+  const attacker={species:species(16),level:9,enchant:2,specialty};
+  const game=Battle.start('arena',16,fortress,[attacker],{});
+  game.action('strike');
+  for(let i=0;i<24;i++)game.tick(.04);
+  game.action('target',1);
+  const {enemy,party,sparks,displayHp}=game.inspect(),before=enemy.map(e=>e.hp);
+  game.action('magic');
+  const spell=party[0].ability,shot=sparks.findLast(s=>s.source===party[0]&&s.attack?.kind==='ultimate');
+  assert.ok(shot);assert.equal(shot.attack.species,attacker.species);assert.equal(shot.attack.specialty,specialty);
+  assert.ok(party[0].shield>0,'Earth passive must survive academy training');
+  const losses=enemy.map((e,i)=>before[i]-e.hp);
+  assert.equal(displayHp(enemy[1]),before[1],'Health bar must wait for the visible projectile');
+  for(let i=0;i<16;i++)game.tick(.04);
+  assert.equal(displayHp(enemy[1]),enemy[1].hp,'Visible health must drop on impact');
+  const affinity=enemy.map(e=>e.elements.some(to=>context.window.strongAgainst(4,to))?1.5:1);
+  return {losses,affinity,spell};
+}
+const plainCast=academyDuel(''),focusedCast=academyDuel('focus'),wideCast=academyDuel('area');
+for(let i=0;i<3;i++){
+  const bonus=i===1?Math.round(plainCast.spell.focusDamage*plainCast.affinity[i]):0;
+  const splash=i===1?0:Math.round(plainCast.spell.splashDamage*plainCast.affinity[i]);
+  assert.equal(focusedCast.losses[i]-plainCast.losses[i],bonus,'Focus bonus landed on the wrong arena slot');
+  assert.equal(wideCast.losses[i]-plainCast.losses[i],splash,'Sweep bonus landed on the wrong arena slot');
+}
 function duelDamage(enchant) {
   const team=Array.from({length:3},()=>({species:species(1),level:5,enchant}));
   const game=Battle.start('arena',5,fortress,team,{});
@@ -132,8 +172,8 @@ function duelDamage(enchant) {
   return before-health(foes);
 }
 assert.ok(duelDamage(5)>duelDamage(0),'The arena special did not benefit from training');
-function fieldDamage(mode,enchant) {
-  const squad=[{species:species(1),level:12,enchant}];
+function fieldDamage(mode,enchant,specialty='') {
+  const squad=[{species:species(1),level:12,enchant,specialty}];
   const base=mode==='defense'?{buildings:[{type:'keep',x:4,y:4,level:50}]}:fortress;
   const game=Battle.start(mode,mode==='defense'?14:2,base,squad,{});
   if(mode!=='defense')game.action('deploy',mode==='boss'?2:0);
@@ -144,15 +184,26 @@ function fieldDamage(mode,enchant) {
     const before=health(targets),strikes=party[0].strikes;
     if(fury>=100&&!furyHit){
       game.action('fury');furyHit=before-health(targets);
+      const effect=game.inspect().sparks.findLast(e=>e.source===party[0]&&e.attack?.kind==='ultimate'&&e.t===0);
+      assert.ok(effect,mode+' fury should emit the caster signature');assert.equal(effect.attack.specialty,specialty);
     }else{
       game.tick(.035);
-      if(strikes>0&&party[0].strikes===0&&!special)special=before-health(targets);
+      if(strikes>0&&party[0].strikes===0&&!special){
+        const effect=game.inspect().sparks.findLast(e=>e.source===party[0]&&e.attack?.kind==='ultimate'&&e.t===0);
+        assert.ok(effect,mode+' automatic ability should emit the caster signature');assert.equal(effect.attack.specialty,specialty);
+        special=before-health(targets);
+      }
     }
   }
   return {special,furyHit};
 }
 for(const mode of ['raid','defense','boss']){
   const base=fieldDamage(mode,0),enhanced=fieldDamage(mode,5);
+  for(const specialty of ['focus','area']){
+    const qualified=fieldDamage(mode,0,specialty);
+    assert.ok(qualified.special>=base.special&&qualified.furyHit>=base.furyHit,mode+' '+specialty+' weakened an attack');
+    assert.ok(qualified.special>base.special||qualified.furyHit>base.furyHit,mode+' '+specialty+' never landed its training bonus');
+  }
   assert.ok(base.special>0 && enhanced.special>base.special,mode+' passive: '+JSON.stringify([base,enhanced]));
   assert.ok(base.furyHit>0 && enhanced.furyHit>base.furyHit,mode+' fury: '+JSON.stringify([base,enhanced]));
 }

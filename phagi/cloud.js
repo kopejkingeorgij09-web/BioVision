@@ -17,7 +17,7 @@ async function rpc(fn,args){
   try{r=await fetch(URL+'/rest/v1/rpc/'+fn,{method:'POST',headers:{'Content-Type':'application/json',apikey:KEY,Authorization:'Bearer '+KEY},body:JSON.stringify(args||{})})}
   catch(e){throw {code:'unavailable',message:'Нет связи с облаком'}}
   const t=await r.text();let j=null;try{j=t?JSON.parse(t):null}catch(e){}
-  if(!r.ok){const den=r.status===403||(j&&j.code==='42501');throw {code:den||(j&&j.code==='22023')?'invalid_argument':'unavailable',message:(j&&j.message)||('HTTP '+r.status)}}
+  if(!r.ok){const den=r.status===403||(j&&j.code==='42501');throw {code:den||(j&&j.code==='22023')?'invalid_argument':'unavailable',dbCode:j&&j.code,message:(j&&j.message)||('HTTP '+r.status)}}
   return j}
 
 /* ---------- вход ---------- */
@@ -228,7 +228,10 @@ const gate=ready.then(m=>{if(m)return m;
   return new Promise(()=>{})});
 gate.then(()=>{const go=()=>bar();document.readyState==='loading'?document.addEventListener('DOMContentLoaded',go):go()});
 
-window.PHCLOUD={rpc,teacherLogin:()=>loginScreen(true),get me(){return me},sync,codes:()=>me&&me.isOwner&&codes()};
+window.PHCLOUD={rpc,
+  oplotWallet:()=>rpc('ph_oplot_wallet',{p_code:getCode()}),
+  oplotBuy:(item,op)=>rpc('ph_oplot_buy',{p_code:getCode(),p_item:item,p_op:op}),
+  teacherLogin:()=>loginScreen(true),get me(){return me},sync,codes:()=>me&&me.isOwner&&codes()};
 /* ---------- файлы (28.10.2026): фото и PDF к работам и заданиям ----------
    Хранятся в той же базе, кусками по ~300 КБ (base64): заголовок <путь>/<id> {name,type,size,parts}, куски <путь>/<id>~k {d}.
    Файл ученицы — subs/<uid>/files/<id> (читают она и учитель, правило subs/{self}), файл учителя — files/<id> (читают все).

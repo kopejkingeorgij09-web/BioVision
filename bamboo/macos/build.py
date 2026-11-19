@@ -18,7 +18,7 @@ for name in ['bamboo','bioviz/x','shad']:
   shutil.copy2(repo/'bamboo/android/web/app-updates.js',dst/'app-updates.js')
  elif name=='shad':shutil.copy2(repo/name/'plan.json',dst/'plan.json')
  else:shutil.copy2(repo/name/'cloud.js',dst/'cloud.js')
-info={'CFBundleIdentifier':'org.biovision.zovlesa.mac','CFBundleName':'Зов леса','CFBundleDisplayName':'Зов леса','CFBundleExecutable':'ZovLesa','CFBundlePackageType':'APPL','CFBundleShortVersionString':'1.1.1','CFBundleVersion':'6','LSMinimumSystemVersion':'12.0','NSHighResolutionCapable':True,'NSAppTransportSecurity':{'NSAllowsLocalNetworking':True}}
+info={'CFBundleIdentifier':'org.biovision.zovlesa.mac','CFBundleName':'Зов леса','CFBundleDisplayName':'Зов леса','CFBundleExecutable':'ZovLesa','CFBundlePackageType':'APPL','CFBundleShortVersionString':'1.1.2','CFBundleVersion':'7','LSMinimumSystemVersion':'12.0','NSHighResolutionCapable':True,'NSAppTransportSecurity':{'NSAllowsLocalNetworking':True}}
 (out/'Contents/Info.plist').write_bytes(plistlib.dumps(info))
 for arch in ['arm64','x86_64']:
  subprocess.run(['xcrun','swiftc',str(repo/'bamboo/macos/main.swift'),'-O','-target',arch+'-apple-macosx12.0','-framework','AppKit','-framework','WebKit','-framework','Network','-framework','CryptoKit','-o','/private/tmp/ZovLesa-'+arch],check=True)

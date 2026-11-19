@@ -13,6 +13,8 @@ function server() {
   let mode = '';
   let failSubmission = '';
   let interrupted = 0;
+  let delayNextSubmission = false;
+  let delayed = null;
   const stamp = () => new Date(++tick).toISOString();
   const docs = new Map();
   const put = (path, data) => {
@@ -45,11 +47,20 @@ function server() {
         result = {now:stamp(),ch:[...docs].filter(([p,d]) => d.t>a.p_since &&
           (a.p_cols.includes(p.slice(0,p.lastIndexOf('/'))) || a.p_docs.includes(p)))
           .map(([p,d]) => ({p,d:d.data,t:d.t}))};
+        if (delayed && a.p_cols.includes(`subs/${uid}/items`)) {
+          result.ch = result.ch.filter(change=>change.p!==sub('written-fixture'));
+          result.ch.push({p:sub('written-fixture'),d:delayed.prior.data,t:delayed.prior.t});
+        }
       }
       if (fn==='ph_get') result = docs.get(a.p_path)?.data ?? null;
       if (fn==='ph_set') {
         if (a.p_path===sub('fail-fixture') && a.p_data.status==='submitted' && failSubmission==='offline') return route.abort();
+        const prior = docs.get(a.p_path);
         result = put(a.p_path,a.p_data);
+        if (a.p_path===sub('written-fixture') && a.p_data.status==='submitted' && delayNextSubmission) {
+          delayNextSubmission=false;
+          await new Promise(release => { delayed={prior,release}; });
+        }
         if (a.p_path===sub('fail-fixture') && a.p_data.status==='submitted' && failSubmission==='lost-response') {
           failSubmission = '';
           return route.abort();
@@ -79,6 +90,9 @@ function server() {
   }, 0);
   return {
     attach, points, docs,
+    delayWritten() { delayNextSubmission=true; },
+    isWaiting() { return !!delayed; },
+    resumeWritten() { const hold=delayed; delayed=null; hold?.release(); },
     stopRewards(value) { mode=value; },
     stopSubmission(value) { failSubmission=value; },
     interrupted: () => interrupted,
@@ -166,7 +180,12 @@ async function main() {
         await page.getByText('Черновик сохранён',{exact:true}).waitFor();
         assert.equal(fixture.docs.get(sub('written-fixture')).data.status,'draft');
         assert.equal(fixture.points(),1);
+        fixture.delayWritten();
         await page.locator('[data-act=submit]').click();
+        await wait(fixture.isWaiting);
+        await page.evaluate(()=>PHCLOUD.sync());
+        await page.waitForFunction(()=>S.subs[meId()]['written-fixture'].status==='draft');
+        fixture.resumeWritten();
         await total(page,11);
         await report(page,10);
         await page.locator('[data-act=unsubmit]').click();
@@ -183,6 +202,7 @@ async function main() {
         fixture.stopSubmission('lost-response');
         await page.locator('[data-act=submit]').click();
         await total(page,21);
+        await page.locator('[data-act=unsubmit]').waitFor();
 
         await backToTasks(page);
         await startAssignment(page,'test-fixture');
@@ -237,6 +257,7 @@ async function main() {
         })), errors);
         throw error;
       } finally {
+        fixture.resumeWritten();
         await otherCtx.close();
         await ctx.close();
       }

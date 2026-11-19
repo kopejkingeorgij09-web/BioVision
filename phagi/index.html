@@ -1729,10 +1729,15 @@ function writeSubmission(uid,id,data,source){
   if(forestSubmissions.has(id))return forestSubmissions.get(id);
   const origin=source?.getBoundingClientRect();
   // The receipt survives a lost response or a closed tab between the two writes.
-  const saving=Promise.resolve().then(()=>ref.set({...data,forestCredit:true})).then(
-    ()=>forest.homework(id,origin),
-    error=>{ref.get().then(snap=>{if(snap.data()?.forestCredit===true)forest.homework(id,origin)}).catch(()=>{});throw error}
-  ).finally(()=>forestSubmissions.delete(id));
+  const saving=Promise.resolve().then(async()=>{
+    try{await ref.set({...data,forestCredit:true})}
+    catch(error){
+      const saved=(await ref.get().catch(()=>null))?.data();
+      if(saved?.forestCredit!==true||saved.status!=='submitted'||saved.updatedAt!==data.updatedAt)throw error;
+      S.subs[uid]={...S.subs[uid],[id]:saved};
+    }
+    forest.homework(id,origin);
+  }).finally(()=>forestSubmissions.delete(id));
   forestSubmissions.set(id,saving);
   return saving;
 }

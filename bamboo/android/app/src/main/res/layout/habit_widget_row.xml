@@ -1,0 +1,11 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_row"
+    android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:gravity="center_vertical"
+    android:orientation="horizontal" android:paddingStart="10dp" android:paddingEnd="10dp" android:paddingTop="5dp" android:paddingBottom="5dp"
+    android:layout_marginBottom="4dp" android:background="@drawable/widget_card">
+    <TextView android:id="@+id/habit_state" android:layout_width="32dp" android:layout_height="wrap_content"
+        android:textSize="22sp" android:textStyle="bold" android:textColor="@color/widget_ink" android:includeFontPadding="false" android:importantForAccessibility="no"/>
+    <TextView android:id="@+id/habit_name" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+        android:textColor="@color/widget_ink" android:textSize="16sp" android:textStyle="bold" android:maxLines="2" android:ellipsize="end" android:includeFontPadding="false"/>
+    <TextView android:id="@+id/habit_entry" android:layout_width="20dp" android:layout_height="wrap_content" android:gravity="end" android:text="›"
+        android:textSize="22sp" android:textColor="@color/widget_sub" android:includeFontPadding="false" android:importantForAccessibility="no"/>
+</LinearLayout>

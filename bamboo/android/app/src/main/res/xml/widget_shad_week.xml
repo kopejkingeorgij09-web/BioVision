@@ -1,0 +1,4 @@
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp" android:minHeight="180dp" android:targetCellWidth="4" android:targetCellHeight="3"
+    android:minResizeWidth="180dp" android:minResizeHeight="132dp" android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/study_widget" android:resizeMode="horizontal|vertical" android:previewLayout="@layout/preview_shad_week" android:description="@string/widget_desc_shad_week" android:widgetCategory="home_screen"/>

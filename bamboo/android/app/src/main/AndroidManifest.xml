@@ -8,7 +8,7 @@
     <application
         android:theme="@style/ZovTheme"
         android:label="Зов леса"
-        android:icon="@drawable/zov_launcher"
+        android:icon="@mipmap/zov_launcher" android:roundIcon="@mipmap/zov_launcher"
         android:allowBackup="false"
         android:usesCleartextTraffic="false"
         android:supportsRtl="true">
@@ -48,6 +48,18 @@
         <receiver android:name=".AlbertsWidget" android:exported="false" android:label="Альбертс">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_alberts"/>
+        </receiver>
+        <receiver android:name=".BookmarkWidget" android:exported="false" android:label="Закладка Альбертса">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_bookmark"/>
+        </receiver>
+        <receiver android:name=".ShadWeekWidget" android:exported="false" android:label="ШАД на неделю">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_shad_week"/>
+        </receiver>
+        <receiver android:name=".HabitWidget" android:exported="false" android:label="Привычки">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_habits"/>
         </receiver>
         <provider android:name=".UpdateProvider" android:authorities="org.biovision.zovlesa.updates" android:exported="false" android:grantUriPermissions="true"/>
     </application>

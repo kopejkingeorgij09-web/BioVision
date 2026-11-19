@@ -64,7 +64,9 @@ let lsT;
 function persistLocal(){
   try { localStorage.setItem(LS_DOCS, JSON.stringify(docs)); localStorage.setItem(LS_DIRTY, JSON.stringify(dirty)); B.lsFull=false; }
   catch(e){if(!B.lsFull&&B.toast)B.toast('Память браузера заполнена. Войди в облако или освободи место.',8000);B.lsFull=true;}
+  return !B.lsFull;
 }
+B.persistLocal = persistLocal;
 function lsSave(){clearTimeout(lsT);lsT=setTimeout(persistLocal,120);}
 addEventListener('pagehide',persistLocal);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)persistLocal();});

@@ -37,7 +37,7 @@ jobs:
           cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" /tmp/zov-release/
       - uses: actions/upload-artifact@v4
         with:
-          name: Zov-Lesa-1.4.2-unsigned
+          name: Zov-Lesa-1.5.0-unsigned
           path: /tmp/zov-release/
       - name: Enable KVM
         run: |
@@ -61,6 +61,7 @@ jobs:
             adb logcat -d -s chromium AndroidRuntime | tail -100
             adb pull /sdcard/Android/data/org.biovision.zovlesa/files /tmp/widget-previews || true
             grep -q 'PASS: WebView bridge' /tmp/native-result.txt
+            python3 bamboo/tools/check-apk-upgrade.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

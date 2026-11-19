@@ -193,7 +193,7 @@ if (location.hash.startsWith('#/sport')) location.replace('#/habits');
 /* нажатие: нет ↔ сделано; долгое нажатие ставит минимальную версию (если она задана) */
 let lpT = 0, lpDone = false;
 document.addEventListener('pointerdown', e => {
-  const el = e.target.closest('.hchip[data-act=habitToggle]'); if (!el) return;
+  const el = e.target.closest('.hchip[data-act=habitToggle],.habit-mark[data-act=habitToggle]'); if (!el) return;
   lpDone = false; clearTimeout(lpT);
   lpT = setTimeout(() => {
     const h = B.get('h_' + el.dataset.id) || {}; if (!h.mini) return;
@@ -204,7 +204,7 @@ document.addEventListener('pointerdown', e => {
   }, 550);
 });
 ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => document.addEventListener(ev, () => clearTimeout(lpT), true));
-document.addEventListener('contextmenu', e => { if (e.target.closest('.hchip')) e.preventDefault(); });
+document.addEventListener('contextmenu', e => { if (e.target.closest('.hchip,.habit-mark')) e.preventDefault(); });
 B.acts.habitToggle = el => {
   if (lpDone){ lpDone = false; return; }
   const id = el.dataset.id, date = el.dataset.d;

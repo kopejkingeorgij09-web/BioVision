@@ -96,15 +96,17 @@ public class ZovWidget extends AppWidgetProvider {
         RemoteViews v=new RemoteViews(c.getPackageName(),R.layout.zov_widget);
         LocalDateTime clock=LocalDateTime.now();LocalDate now=clock.toLocalDate();
         String today=now.toString(),until=now.plusDays(7).toString();
-        boolean compact=height<220;
+        boolean compact=height<220, narrow=width<225;
+        boolean shortHeader=narrow&&height<260;
         int padding=compact?10:14, rowPadding=compact?6:9, titleSize=compact?15:16, detailSize=14;
         v.setViewPadding(R.id.widget_root,dp(c,padding),dp(c,padding),dp(c,padding),dp(c,padding));
-        v.setTextViewText(R.id.widget_title,agenda?"Ближайшие события":"Дела на сегодня");
+        String heading=shortHeader?(agenda?"События":"Сегодня"):(agenda?"Ближайшие события":"Дела на сегодня");
+        v.setTextViewText(R.id.widget_title,heading);
         v.setTextViewTextSize(R.id.widget_title,TypedValue.COMPLEX_UNIT_SP,compact?18:21);
         String dateLabel=now.format(DateTimeFormatter.ofPattern("d MMMM, EEEE",new Locale("ru")));
         v.setTextViewText(R.id.widget_date,dateLabel);
         v.setViewVisibility(R.id.widget_date,compact?View.GONE:View.VISIBLE);
-        v.setViewVisibility(R.id.widget_open,height<180?View.GONE:View.VISIBLE);
+        v.setViewVisibility(R.id.widget_open,height<180||shortHeader?View.GONE:View.VISIBLE);
         v.setOnClickPendingIntent(R.id.widget_header,open(c,"page",agenda?"tasks/calendar":"today",""));
         v.setOnClickPendingIntent(R.id.widget_open,open(c,"page",agenda?"tasks/calendar":"tasks/week",""));
         ArrayList<JSONObject> rows=new ArrayList<>();
@@ -133,17 +135,23 @@ public class ZovWidget extends AppWidgetProvider {
             card.setTextViewText(R.id.widget_location,location);
             card.setTextViewText(R.id.widget_teacher,teacher);
             card.setTextViewTextSize(R.id.widget_event_title,TypedValue.COMPLEX_UNIT_SP,titleSize);
-            card.setInt(R.id.widget_event_title,"setMaxLines",compact?1:2);
+            card.setInt(R.id.widget_event_title,"setMaxLines",compact&&!narrow?1:3);
             for(int field:new int[]{R.id.widget_location,R.id.widget_teacher}){
                 card.setTextViewTextSize(field,TypedValue.COMPLEX_UNIT_SP,detailSize);
-                card.setInt(field,"setMaxLines",compact?1:2);
+                card.setInt(field,"setMaxLines",compact&&!narrow?1:3);
             }
             card.setViewVisibility(R.id.widget_location,location.isEmpty()?View.GONE:View.VISIBLE);
             card.setViewVisibility(R.id.widget_teacher,teacher.isEmpty()?View.GONE:View.VISIBLE);
             if(shown==0 || ongoing(x,clock)) emphasize(c,card);
             card.setContentDescription(R.id.widget_row,time+". "+title+". "+location+". "+teacher);
             card.setOnClickPendingIntent(R.id.widget_row,open(c,text(x,"kind"),text(x,"id"),text(x,"date")));
-            if(!layout.fits(card))break;
+            if(!layout.fits(card)){
+                if(shown>0)break;
+                // Keep the first title available even with the largest accessibility fonts.
+                for(int field:new int[]{R.id.widget_event_title,R.id.widget_location,R.id.widget_teacher})
+                    card.setInt(field,"setMaxLines",1);
+                if(!layout.fits(card))break;
+            }
             v.addView(R.id.widget_rows,card);shown++;
             if(shown==8)break;
         }
@@ -153,6 +161,10 @@ public class ZovWidget extends AppWidgetProvider {
         v.setTextViewText(R.id.widget_empty,updated==0?"Открой Зов леса,\nчтобы загрузить календарь и дела":!rows.isEmpty()?"Открой список или увеличь виджет":agenda?"Ближайшие дни свободны":"На сегодня всё свободно");
         String footer=rows.size()>shown?"Ещё "+(rows.size()-shown)+" · ":"";
         footer+=agenda?"Открыть календарь":"Все дела";
+        if(shortHeader && rows.size()>shown){
+            v.setTextViewText(R.id.widget_title,heading+" · +"+(rows.size()-shown));
+            v.setContentDescription(R.id.widget_header,heading+". "+footer);
+        }
         v.setTextViewText(R.id.widget_open,footer);
         v.setContentDescription(R.id.widget_open,footer+(updated==0?"":". Данные обновлены "+java.time.Instant.ofEpochMilli(updated).atZone(java.time.ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d.MM HH:mm"))));
         return v;

@@ -103,6 +103,11 @@ public class StudyWidget extends AppWidgetProvider {
             out.progress(Math.max(0,Math.min(n,current-week.optInt("pageFrom")+1)),n,"стр. за неделю · цель до стр. "+week.optInt("pageTo"));
         }else out.progress(book.optInt("done"),book.optInt("total"),complete?"Том 1 прочитан":"страниц в первом томе");
         out.cards.add(new Card(chapter,complete?"Открыть книгу":"Продолжить со стр. "+next,"",read));
+        if(week!=null && !complete){
+            int remaining=Math.max(0,week.optInt("pageTo")-current);
+            out.cards.add(new Card(remaining==0?"Цель недели достигнута":"До цели недели · "+remaining+" стр.",
+                "Прочитано в томе: "+book.optInt("done")+" из "+book.optInt("total")+" стр.","",out.primary));
+        }
         out.link="Записать страницу";out.footer=ZovWidget.open(c,"albertsLog","book",date);
     }
     private static void shad(Context c,Content out,JSONObject data,LocalDate now,int mode){

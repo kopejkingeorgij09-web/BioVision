@@ -56,6 +56,15 @@ public final class NativeChecks extends Instrumentation {
         }catch(Throwable e){error.set(e);}});
         if(error.get()!=null)throw new AssertionError(error.get());
     }
+    private void habitPreview(Context c,View widget) {
+        int w=ZovWidget.dp(c,320),h=ZovWidget.dp(c,310);
+        widget.measure(View.MeasureSpec.makeMeasureSpec(w,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(h,View.MeasureSpec.EXACTLY));
+        widget.layout(0,0,w,h);
+        android.graphics.Bitmap image=android.graphics.Bitmap.createBitmap(w,h,android.graphics.Bitmap.Config.ARGB_8888);
+        try(java.io.FileOutputStream file=new java.io.FileOutputStream(new java.io.File(c.getExternalFilesDir(null),"habits.png"))){
+            widget.draw(new android.graphics.Canvas(image));image.compress(android.graphics.Bitmap.CompressFormat.PNG,100,file);
+        }catch(java.io.IOException ex){throw new RuntimeException(ex);}finally{image.recycle();}
+    }
     @Override public void onStart() {
         Bundle result=new Bundle();
         try {
@@ -113,6 +122,7 @@ public final class NativeChecks extends Instrumentation {
             Thread.sleep(350);
             check(HabitWidget.pending(c).length()==1 && HabitWidget.pending(c).getJSONObject(0).getBoolean("checked"),"Home screen tap was not queued");
             String token=HabitWidget.pending(c).getJSONObject(0).getString("token");
+            runOnMainSync(()->habitPreview(c,HabitWidget.buildViews(c,17,320,310).apply(c,null)));
             HabitWidget.mark(c,"widgettest",habitDate,true).send();Thread.sleep(200);
             check(token.equals(HabitWidget.pending(c).getJSONObject(0).getString("token")),"Duplicate tap created a second change");
             HabitWidget.mark(c,"widgettest",habitDate,false).send();Thread.sleep(200);

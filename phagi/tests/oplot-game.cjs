@@ -13,14 +13,17 @@ const homeworkId = 'fixture-homework';
 const cardId = 'test-card';
 const day = '2026-11-19T08:00:00.000Z';
 
-async function studyBackend(context) {
+function fixtures() {
   const docs=new Map(profiles.map(p=>['people/'+p.id,{label:p.label,joinedAt:day}]));
   docs.set('decks/'+deckId,{title:'Тестовая колода',subject:'bio',to:[profiles[0].id],cards:[{i:cardId,f:'Вопрос',b:'Ответ'}],createdAt:day});
   docs.set('tasks/'+homeworkId,{title:'Тестовая домашняя работа',subject:'bio',kind:'task',max:10,to:[profiles[0].id],createdAt:day});
   docs.set('subs/'+profiles[0].id+'/items/'+homeworkId,{status:'submitted',text:'Готово',updatedAt:day});
   docs.set('grades/'+profiles[0].id+'/items/'+homeworkId,{score:6,returnedAt:day});
   const accounts=new Map(profiles.map((p,i)=>[p.id,{cards:new Set(),homework:i===0?8:0,receipts:new Map(),attempts:[]}]));
-  let loseBuyReply=true;
+  return {docs,accounts,loseBuyReply:true};
+}
+async function studyBackend(context,server=fixtures()) {
+  const {docs,accounts}=server;
   function wallet(acct) {
     const spent=[...acct.receipts.values()].reduce((sum,r)=>sum+r.price,0);
     return {cards:acct.cards.size,homework:acct.homework,spent,balance:acct.cards.size+acct.homework-spent};
@@ -36,7 +39,24 @@ async function studyBackend(context) {
     else if(fn==='ph_list')result=[...docs].filter(([path])=>path.slice(0,path.lastIndexOf('/'))===args.p_col)
       .map(([path,data])=>({id:path.split('/').pop(),data,t:day}));
     else if(fn==='ph_sync')result={ch:[],now:new Date().toISOString()};
-    else if(fn==='ph_get')result=docs.get(args.p_path)||null;
+    else if(args.p_path?.startsWith('data/users/')&&args.p_path.split('/')[2]!==profile.id){
+      if(fn==='ph_get')result=null;else return route.fulfill({status:403,json:{code:'42501'}});
+    }else if(fn==='ph_oplot_load'){
+      if(args.p_path!==`data/users/${profile.id}/oplot/saves/main`)return route.fulfill({status:403,json:{code:'42501'}});
+      result=server.partialLoads?.length?server.partialLoads.shift():docs.get(args.p_path)||null;
+    }else if(fn==='ph_get')result=docs.get(args.p_path)||null;
+    else if(fn==='ph_set_if'||fn==='ph_oplot_store'){
+      const isIsland=args.p_path===`data/users/${profile.id}/oplot/saves/main`;
+      if((fn==='ph_oplot_store')!==isIsland)return route.fulfill({status:400,json:{code:'22023'}});
+      if(isIsland&&server.beforeIslandStore){const hook=server.beforeIslandStore;server.beforeIslandStore=null;hook(args.p_path);}
+      const cur=docs.get(args.p_path)||null;
+      if((cur?.rev??null)!==args.p_rev||(cur?.op??null)!==args.p_op)result={ok:false,cur};
+      else if(args.p_data.rev!==(args.p_rev??0)+1)return route.fulfill({status:400,json:{code:'22023'}});
+      else{
+        docs.set(args.p_path,args.p_data);result={ok:true,t:new Date().toISOString()};
+        if(server.loseSaveReply){server.loseSaveReply=false;return route.abort();}
+      }
+    }
     else if(fn==='ph_profiles')result={};
     else if(fn==='ph_set'||fn==='ph_update'){
       const data=fn==='ph_set'?args.p_data:{...docs.get(args.p_path),...args.p_data};
@@ -51,17 +71,17 @@ async function studyBackend(context) {
       if(!price||!args.p_op||prior&&prior.item!==args.p_item||!prior&&wallet(acct).balance<price)
         return route.fulfill({status:400,json:{code:'22023',message:'Покупка отклонена'}});
       if(!prior)acct.receipts.set(args.p_op,{op:args.p_op,item:args.p_item,price});
-      if(loseBuyReply){loseBuyReply=false;return route.abort();}
+      if(server.loseBuyReply){server.loseBuyReply=false;return route.abort();}
       result={...wallet(acct),...acct.receipts.get(args.p_op)};
     }
     return route.fulfill({json:result,headers:{'access-control-allow-origin':'*'}});
   });
-  return accounts;
+  return server;
 }
 
 async function check(browser,width,dark){
   const context=await browser.newContext({viewport:{width,height:850},colorScheme:dark?'dark':'light',serviceWorkers:'block'});
-  const accounts=await studyBackend(context);
+  const {accounts}=await studyBackend(context);
   const page=await context.newPage();
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const game=page.frameLocator('#oplot-game');
@@ -127,7 +147,8 @@ async function check(browser,width,dark){
     console.log('PASS embedded Phagi, card and homework rewards, purchase replay and profile switch',width,dark?'dark':'light');
   }finally{await context.close();}
 }
-(async()=>{
+module.exports={fixtures,studyBackend,profiles};
+if(require.main===module)(async()=>{
   const browser=process.env.PHAGI_WEBKIT?await webkit.launch():await chromium.launch(process.env.PHAGI_CHROME?{executablePath:process.env.PHAGI_CHROME}:{});
   try{await check(browser,1180,false);await check(browser,390,true);}finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

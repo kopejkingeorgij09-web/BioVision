@@ -1,0 +1,218 @@
+// Run with node phagi/tests/oplot-combat.cjs. Only the test VM exposes a read-only battle snapshot.
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+
+const html = fs.readFileSync(path.join(__dirname, '..', 'oplot.html'), 'utf8');
+function section(first, last) {
+  const from = html.indexOf(first), to = html.indexOf(last, from);
+  assert.ok(from >= 0 && to > from, 'Missing shipped section: ' + first);
+  return html.slice(from, to);
+}
+const genetics = section('const GAME_ELEMENTS', 'const STRUCT');
+const combatModule = html.match(/\/\* Battle simulation uses tile coordinates\.[\s\S]*?^\}\)\(\);/m);
+assert.ok(combatModule,'Missing shipped Battle module');
+const combat = combatModule[0];
+const battleAPI = 'return {draw,tick,tap,action,controls};';
+assert.ok(combat.includes(battleAPI));
+const context = {window: {}, Art: {point: (x,y) => ({x,y})}};
+vm.runInNewContext(genetics + '\n' + combat.replace(battleAPI,
+  'return {draw,tick,tap,action,controls, inspect:()=>({party,enemy,structures,objectives,fury,gridWidth,gridHeight,rally})};'), context);
+const {Battle, GAME_SPECIES} = context.window;
+const species = mask => GAME_SPECIES.find(s => s.mask === mask).id;
+const studentTeam = [1,2,4].map(species);
+const eliteTeam = [63,63,47,62].map(species);
+const fortress = {buildings:[{type:'keep',x:4,y:4,level:1}]};
+const inside = (unit, tile) => Math.abs(unit.x-tile.x)<.5 && Math.abs(unit.y-tile.y)<.5;
+const living = list => list.filter(o => o.hp>0);
+const health = list => list.reduce((sum,o) => sum + o.hp, 0);
+
+function raid(stage, team, level, enchant, side, order) {
+  let result;
+  const squad = team.map(species => ({species,level,enchant}));
+  const game = Battle.start('raid',stage,fortress,squad,{finish:r=>{assert.equal(result,undefined);result=r;}});
+  squad.forEach(()=>game.action('deploy',side));
+  const {structures,objectives} = game.inspect();
+  assert.equal(new Set(structures.map(b=>b.x+','+b.y)).size,structures.length);
+  assert.ok(objectives.every(b => b.type!=='wall'));
+  for(let frame=0;frame<1205&&!result;frame++){
+    if(frame%12===0 && order){
+      const target = living(objectives).find(b=>order==='keep'?b.type==='keep':['archer','spire','cannon'].includes(b.type));
+      if(target)game.tap(target.x,target.y,10,10);
+    }
+    if(game.inspect().fury>=100)game.action('fury');
+    game.tick(1/12);
+  }
+  assert.ok(result,'Raid '+stage+' timed out');
+  return result.stars;
+}
+
+assert.equal(Battle.stages.length,6);
+for(let stage=1;stage<=6;stage++){
+  const scores=[];
+  const preview=Battle.start('raid',stage,fortress,[],{}).inspect();
+  const walls=preview.structures.filter(b=>b.type==='wall');
+  assert.ok(walls.length>=10 && new Set(walls.map(w=>w.x)).size>=3 && new Set(walls.map(w=>w.y)).size>=3);
+  for(let side=0;side<4;side++)for(const order of ['', 'keep','towers']){
+    scores.push(raid(stage,studentTeam,1,0,side,order));
+  }
+  if(stage===1){assert.ok(scores.includes(3));assert.ok(scores.some(s=>s<3));}
+  else if(stage===2)assert.ok(Math.max(...scores)<3);
+  else assert.equal(Math.max(...scores),0,'Starter dragons swept stage '+stage);
+}
+assert.equal(raid(6,eliteTeam,30,5,0,''),3,'A trained team should be able to finish the campaign');
+
+function fencedBase(gap) {
+  const buildings=[{type:'keep',x:4,y:4,level:10000}];
+  for(let x=2;x<=7;x++)for(let y=2;y<=7;y++){
+    if((x===2||x===7||y===2||y===7)&&!gap?.(x,y))buildings.push({type:'wall',x,y,level:10000});
+  }
+  return {buildings};
+}
+function invasion(wave,base) {
+  const game=Battle.start('defense',wave,base,[],{});
+  const walls=game.inspect().structures.filter(b=>b.type==='wall');
+  let groundInside=false,groundCrossed=false,dragonInside=false,dragonCrossed=false,dragonLevel=0;
+  for(let i=0;i<25*30;i++){
+    game.tick(1/30);
+    for(const u of living(game.inspect().enemy)){
+      const entered=u.x>2.505&&u.x<6.495&&u.y>2.505&&u.y<6.495;
+      const crossed=walls.some(w=>w.hp>0&&inside(u,w));
+      if(u.kind==='goblin'){groundInside||=entered;groundCrossed||=crossed;}
+      else{dragonLevel=u.level;dragonInside||=entered;dragonCrossed||=crossed;}
+    }
+  }
+  assert.ok(walls.every(b=>b.hp>0));
+  return {groundInside,groundCrossed,dragonInside,dragonCrossed,dragonLevel};
+}
+const grounded=invasion(28,fencedBase()), flying=invasion(29,fencedBase());
+assert.deepEqual(grounded,{groundInside:false,groundCrossed:false,dragonInside:false,dragonCrossed:false,dragonLevel:20});
+assert.deepEqual(flying,{groundInside:false,groundCrossed:false,dragonInside:true,dragonCrossed:true,dragonLevel:21});
+const gate=invasion(28,fencedBase((x,y)=>y===7&&(x===4||x===5)));
+assert.equal(gate.dragonInside,true);assert.equal(gate.dragonCrossed,false);
+
+function raidWall(level) {
+  const g=Battle.start('raid',1,fortress,[{species:species(1),level}],{});
+  const {party,structures}=g.inspect(), fighter=party[0], wall=structures.find(b=>b.type==='wall'&&b.x===2&&b.y===4);
+  const keep=structures.find(b=>b.type==='keep');
+  g.action('deploy',0);g.tap(keep.x,keep.y,10,10);
+  let crossed=false,attacked=false;
+  for(let i=0;i<280&&fighter.hp>0;i++){
+    g.tick(.025);
+    if(wall.hp>0&&inside(fighter,wall))crossed=true;
+    if(wall.hp<wall.maxHp)attacked=true;
+    if(fighter.x>2.51)break;
+  }
+  return {crossed,attacked,passed:fighter.x>2.51};
+}
+assert.deepEqual(raidWall(20),{crossed:false,attacked:true,passed:true});
+assert.deepEqual(raidWall(21),{crossed:true,attacked:false,passed:true});
+
+const common=Battle.profile(species(1),10);
+const legendary=Battle.profile(species(63),10);
+assert.ok(legendary.hp>common.hp && legendary.damage>common.damage);
+const trained=Battle.profile(species(63),10,5);
+assert.equal(trained.hp,legendary.hp);assert.equal(trained.damage,legendary.damage);
+for(const property of ['extra','restore','amplify','activeBonus','furyPower']){
+  let last=-1;
+  for(let enchant=0;enchant<=5;enchant++){
+    const value=Battle.profile(species(63),10,enchant).ability[property];
+    assert.ok(value>last,property+' stopped improving at '+enchant);last=value;
+  }
+}
+function duelDamage(enchant) {
+  const team=Array.from({length:3},()=>({species:species(1),level:5,enchant}));
+  const game=Battle.start('arena',5,fortress,team,{});
+  game.action('target',0);game.action('strike');
+  for(let i=0;i<30;i++)game.tick(.04);
+  assert.ok(game.controls().buttons.some(b=>b.id==='magic'&&!b.disabled));
+  const foes=game.inspect().enemy, before=health(foes);
+  game.action('magic');
+  return before-health(foes);
+}
+assert.ok(duelDamage(5)>duelDamage(0),'The arena special did not benefit from training');
+function fieldDamage(mode,enchant) {
+  const squad=[{species:species(1),level:12,enchant}];
+  const base=mode==='defense'?{buildings:[{type:'keep',x:4,y:4,level:50}]}:fortress;
+  const game=Battle.start(mode,mode==='defense'?14:2,base,squad,{});
+  if(mode!=='defense')game.action('deploy',mode==='boss'?2:0);
+  let special=0,furyHit=0;
+  for(let i=0;i<1800 && (!special||!furyHit);i++){
+    const {party,enemy,structures,fury}=game.inspect();
+    const targets=mode==='defense'?enemy:structures.concat(enemy);
+    const before=health(targets),strikes=party[0].strikes;
+    if(fury>=100&&!furyHit){
+      game.action('fury');furyHit=before-health(targets);
+    }else{
+      game.tick(.035);
+      if(strikes>0&&party[0].strikes===0&&!special)special=before-health(targets);
+    }
+  }
+  return {special,furyHit};
+}
+for(const mode of ['raid','defense','boss']){
+  const base=fieldDamage(mode,0),enhanced=fieldDamage(mode,5);
+  assert.ok(base.special>0 && enhanced.special>base.special,mode+' passive: '+JSON.stringify([base,enhanced]));
+  assert.ok(base.furyHit>0 && enhanced.furyHit>base.furyHit,mode+' fury: '+JSON.stringify([base,enhanced]));
+}
+// The guardian's dodge order only lifts deployed dragons that have learned to fly.
+const mixed = Battle.start('boss',1,fortress,[{species:0,level:20},{species:1,level:21}],{});
+mixed.action('deploy',0);mixed.action('deploy',0);mixed.action('evade');
+assert.equal(mixed.inspect().party[0].air,0);
+assert.ok(mixed.inspect().party[1].air>0);
+const young = Battle.start('boss',1,fortress,[{species:0,level:20}],{});
+young.action('deploy',0);young.action('evade');
+assert.equal(young.inspect().party[0].air,0);
+assert.ok(!young.controls().buttons.some(button=>button.id==='evade'));
+const artModule=section('/* All island art','/* Battle simulation uses tile coordinates.');
+vm.runInNewContext(artModule,context);
+const art=context.window.Art;
+for(const [cols,rows] of [[11,10],[16,16]]){
+  const n=Math.max(cols,rows);
+  const farm={id:'edge-farm',type:'farm',x:cols-1,y:rows-1,level:1,ready:true};
+  const phantom={...farm,id:'out-of-bounds',x:0,y:rows};
+  const map={gridSize:n,gridWidth:cols,gridHeight:rows,buildings:[farm,phantom],dragons:[]};
+  for(const [w,h] of [[366,437],[827,573]]){
+    for(let x=0;x<cols;x++)for(let y=0;y<rows;y++){
+      const pt=art.point(x,y,w,h,n),hit=art.cell(pt.x,pt.y,w,h,n);
+      assert.ok(hit&&hit.x===x&&hit.y===y&&pt.x>0&&pt.y>0&&pt.x<w&&pt.y<h);
+    }
+    const top=art.bubblePoint(farm,w,h,0,n),voidBubble=art.bubblePoint(phantom,w,h,0,n);
+    assert.equal(art.hit(top.x,top.y,w,h,map,0)?.id,farm.id);
+    assert.equal(art.hit(voidBubble.x,voidBubble.y,w,h,map,0),null);
+  }
+  const corner={type:'keep',x:cols-2,y:rows-2,level:10000};
+  const ring=[];
+  for(let x=cols-3;x<cols;x++)for(let y=rows-3;y<rows;y++){
+    if(x!==corner.x||y!==corner.y)ring.push({type:'wall',x,y,level:10000});
+  }
+  const base={gridSize:n,gridWidth:cols,gridHeight:rows,buildings:[corner,...ring]};
+  for(const mode of ['raid','arena','boss']){
+    const fixed=Battle.start(mode,1,base,[],{}).inspect();
+    assert.equal(fixed.gridWidth,10);assert.equal(fixed.gridHeight,10);
+  }
+  const defense=Battle.start('defense',28,base,[],{});
+  assert.equal(defense.inspect().gridWidth,cols);assert.equal(defense.inspect().gridHeight,rows);
+  defense.tap(cols-1,0,10,10);assert.equal(defense.inspect().rally.x,cols-1);
+  defense.tap(0,rows-1,10,10);assert.equal(defense.inspect().rally.y,rows-1);
+  const order=defense.inspect().rally;
+  defense.tap(0,rows,10,10);assert.equal(defense.inspect().rally,order,'An order hit an unopened row');
+  const sides=new Set(),seen=new Set();
+  for(let i=0;i<40*30;i++){
+    defense.tick(1/30);
+    const {enemy,structures}=defense.inspect();
+    for(const u of living(enemy)){
+      if(!seen.has(u)){
+        seen.add(u);
+        if(u.x<0)sides.add('west');else if(u.x>cols-1)sides.add('east');
+        else if(u.y<0)sides.add('north');else if(u.y>rows-1)sides.add('south');
+        else assert.fail('Invader spawned inside the actual island');
+      }
+      assert.ok(!structures.some(b=>b.type==='wall'&&b.hp>0&&inside(u,b)),'Ground unit crossed a corner wall');
+    }
+  }
+  assert.equal(sides.size,4,'All four actual edges should launch invaders');
+  assert.equal(defense.inspect().structures[0].hp,defense.inspect().structures[0].maxHp);
+}
+console.log('PASS six forts, starter and endgame raids, walls and flight, enchantments, 11×10 and 16×16 corner hits and defense');

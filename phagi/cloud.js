@@ -12,9 +12,9 @@ const LS='ph_code';
 const getCode=()=>{try{return localStorage.getItem(LS)||''}catch(e){return ''}};
 const setCode=c=>{try{c?localStorage.setItem(LS,c):localStorage.removeItem(LS)}catch(e){}};
 
-async function rpc(fn,args){
+async function rpc(fn,args,keepalive=false){
   let r;
-  try{r=await fetch(URL+'/rest/v1/rpc/'+fn,{method:'POST',headers:{'Content-Type':'application/json',apikey:KEY,Authorization:'Bearer '+KEY},body:JSON.stringify(args||{})})}
+  try{r=await fetch(URL+'/rest/v1/rpc/'+fn,{method:'POST',keepalive,headers:{'Content-Type':'application/json',apikey:KEY,Authorization:'Bearer '+KEY},body:JSON.stringify(args||{})})}
   catch(e){throw {code:'unavailable',message:'Нет связи с облаком'}}
   const t=await r.text();let j=null;try{j=t?JSON.parse(t):null}catch(e){}
   if(!r.ok){const den=r.status===403||(j&&j.code==='42501');throw {code:den||(j&&j.code==='22023')?'invalid_argument':'unavailable',dbCode:j&&j.code,message:(j&&j.message)||('HTTP '+r.status)}}
@@ -228,9 +228,34 @@ const gate=ready.then(m=>{if(m)return m;
   return new Promise(()=>{})});
 gate.then(()=>{const go=()=>bar();document.readyState==='loading'?document.addEventListener('DOMContentLoaded',go):go()});
 
+const islandCode=getCode();
+function islandAuth(){
+  if(!me?.id||!islandCode||getCode()!==islandCode)throw {code:'profile_changed',message:'Профиль изменился. Открой игру заново.'};
+  return {p_code:islandCode};
+}
+const islandPath=()=>'data/users/'+me.id+'/oplot/saves/main';
 window.PHCLOUD={rpc,
-  oplotWallet:()=>rpc('ph_oplot_wallet',{p_code:getCode()}),
-  oplotBuy:(item,op)=>rpc('ph_oplot_buy',{p_code:getCode(),p_item:item,p_op:op}),
+  async oplotLoad(){
+    let previousRevision=-1;
+    for(;;){
+      const doc=await rpc('ph_oplot_load',{...islandAuth(),p_path:islandPath()});
+      if(!doc?._raidPending)return doc;
+      if(!Number.isSafeInteger(doc.rev)||doc.rev<=previousRevision)throw Error('Не удалось обновить ночной дозор');
+      previousRevision=doc.rev;
+    }
+  },
+  oplotStore:(rev,op,data,keepalive=false)=>rpc('ph_oplot_store',{...islandAuth(),p_path:islandPath(),p_data:data,p_rev:rev,p_op:op},keepalive),
+  async oplotDelivery(op,remember=false){
+    if(typeof op!=='string'||!/^[a-zA-Z0-9_-]{1,96}$/.test(op))throw bad('Некорректная квитанция');
+    const args={...islandAuth(),p_path:'data/users/'+me.id+'/oplot/deliveries/'+op};
+    if(!remember)return (await rpc('ph_get',args))?.delivered===true;
+    const r=await rpc('ph_set_if',{...args,p_data:{rev:1,op,delivered:true},p_rev:null,p_op:null});
+    if(!r?.ok&&r?.cur?.delivered!==true)throw Error('Не удалось сохранить квитанцию');
+    return true;
+  },
+  oplotRaids:()=>rpc('ph_oplot_raids',islandAuth()),
+  oplotWallet:()=>rpc('ph_oplot_wallet',islandAuth()),
+  oplotBuy:(item,op)=>rpc('ph_oplot_buy',{...islandAuth(),p_item:item,p_op:op}),
   teacherLogin:()=>loginScreen(true),get me(){return me},sync,codes:()=>me&&me.isOwner&&codes()};
 /* ---------- файлы (28.10.2026): фото и PDF к работам и заданиям ----------
    Хранятся в той же базе, кусками по ~300 КБ (base64): заголовок <путь>/<id> {name,type,size,parts}, куски <путь>/<id>~k {d}.

@@ -18,40 +18,158 @@ dialog{padding:0;border:1px solid #958451;box-shadow:0 18px 80px #142a2980;backg
 @media(max-width:760px){.play{display:flex;flex-direction:column}.mapframe,.aside{width:100%}.aside{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.aside .earnpanel,.aside .combat{grid-column:1/-1}.tabs{margin-bottom:8px}.tabs button{font-size:12px;padding:7px 8px}.map{height:clamp(365px,64svh,570px)}.layout{padding:7px}.header-inner{gap:8px;padding:7px 9px;flex-wrap:wrap}.logo{width:37px;height:37px}.logo canvas{width:28px;height:28px}.brand small{font-size:8px;letter-spacing:1px}.wallets{gap:3px}.res,.topbtn{min-height:33px;gap:3px;padding:4px 6px}.res b{font-size:13px}.res canvas{width:18px;height:18px}.topbtn{width:33px}.panel h2{font-size:20px}.maplabel{left:10px;top:10px}.mapfoot{left:7px;bottom:7px;right:7px}.mapfoot .note{font-size:11px}.dlgbody,.dlghead{padding:12px}.petrow canvas{width:40px;height:36px}}
 @media(max-width:540px){.brand h1{font-size:22px}.header-inner{display:grid;grid-template-columns:auto 1fr auto}.wallets{grid-row:2;grid-column:1/-1;margin:0;justify-content:flex-start;gap:6px}.wallets .res{flex:1}.wallets .res small{display:inline;font-size:10px}.tabs .fullnav{display:none}.tabs .shortnav{display:inline}.tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0}.tabs button{flex-direction:column;gap:2px;padding:6px 1px;font-size:10.5px}.tabs canvas{width:20px;height:20px}.mapframe{padding:3px;border-radius:13px}.map{border-radius:10px;height:clamp(354px,52svh,490px)}.maptools{top:7px;right:7px}.glass{font-size:12px}.panel{padding:10px}.petrow small{font-size:10px}.kicker,.maplabel small{font-size:9px;letter-spacing:1px}.attribution{font-size:11px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.card{padding:8px}.card h3{font-size:17px}.card canvas{height:70px}.cards .cmd{padding:7px 8px}.row{gap:5px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+#island-area{display:block;font-size:12px;font-weight:650;margin-top:3px}
+/* The field guide and the hatchery use the same elemental seals and rarity key. */
+.element-seals{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center}
+.element-seal{display:inline-flex;align-items:center;gap:4px;color:#414936;font-size:11px;line-height:1.5}
+.element-seal:before{content:"";width:8px;height:8px;border-radius:2px 5px 2px 5px;background:var(--element);box-shadow:inset 0 0 0 1px #38372e30}
+.rank{display:inline-block;color:var(--rank-ink);font-weight:750;font-size:12px}
+.rank-1{--rank-ink:#546340;--rank-fill:#87976b}.rank-2{--rank-ink:#24657a;--rank-fill:#4e9bad}.rank-3{--rank-ink:#754489;--rank-fill:#ac79bc}.rank-4{--rank-ink:#81551a;--rank-fill:#c59b4d}
+.codex .card h3,.species-name{overflow-wrap:anywhere}
+.codex .card,.dragon-card{border-top:3px solid var(--rank-fill)}
+.codex .card .element-seals,.dragon-card .element-seals{margin:4px 0 7px}
+.earmark{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.pet-stats{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.pet-stats div{background:#f0e4c4;border-radius:7px;padding:7px 13px;min-width:92px}
+.pet-stats dt{color:#605c45;font-size:12px}.pet-stats dd{margin:0;font:bold 22px var(--display);color:var(--pine)}
+.ability{border-left:3px solid var(--rank-fill);padding:4px 12px;background:#fff8e780}
+.hatch-parents{display:grid;grid-template-columns:1fr 1fr;gap:12px}.parent-card{min-width:0;border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff7e3}
+.parent-card>canvas{display:block;width:100%;height:72px}.parent-card label{display:block;font-size:12px;font-weight:700}
+.forecast{margin-top:14px;padding:13px 15px;border:1px solid #bba878;border-radius:10px;background:#fff9e7}
+.forecast .desc{margin-bottom:0}.odds-row{display:grid;grid-template-columns:minmax(90px,auto) 1fr auto;align-items:center;gap:9px;margin-top:8px;font-variant-numeric:tabular-nums}
+.odds-row .track{background:#e4dac1;height:7px;border-radius:5px;overflow:hidden}.odds-row .track i{background:var(--rank-fill);height:100%;display:block}
+.forecast details{margin-top:12px}.forecast summary{cursor:pointer;font-size:13px;color:var(--pine);font-weight:650}
+.offspring{display:flex;justify-content:space-between;gap:12px;padding:4px 0;border-bottom:1px solid #c6b99044;font-size:13px}.offspring b{white-space:nowrap}
+.codex-filter{margin:12px 0}.codex-filter button{flex:0 1 auto}.codex .cost{line-height:1.4}
+@media(max-width:540px){.parent-card{padding:7px}.hatch-parents{gap:6px}.parent-card>canvas{height:56px}.parent-card select{max-width:100%}.petrow b{overflow-wrap:anywhere}}
+
+.night-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 10px;padding:10px 14px}.night-banner[hidden]{display:none}.night-banner h3,.night-banner p{margin:0}.night-banner p,.night-summary p{font-size:13px;color:#5e5d46}.night-summary{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0}.night-summary h3,.night-summary p{margin:0}.night-summary>span{color:#91621a;font-size:20px;letter-spacing:.07em;white-space:nowrap}.night-map{display:block;width:100%;height:clamp(220px,42vh,400px);border:1px solid var(--line);border-radius:12px;background:#b9d5bb}.night-legend{display:flex;align-items:center;gap:12px;font-size:12px;margin:7px 0}.night-legend span:first-child{color:#216756}.night-legend span:nth-child(2){color:#983a39}.night-legend [data-night-time]{margin-left:auto;font-variant-numeric:tabular-nums}.night-body [data-night-seek]{width:100%;min-height:30px;accent-color:#35694f}.night-body [data-night-event]{min-height:2em;margin:9px 0 0}.night-rules{margin-top:10px;font-size:13px;color:#50533e}.night-rules summary{cursor:pointer;font-weight:700}.night-rules p{margin:8px 0}.night-actions{display:flex;flex-wrap:wrap;gap:8px}.night-actions button{min-height:40px}#night-report{max-height:90dvh;overflow-y:auto}#night-report label{display:block;color:#575a44;font-size:13px}#night-report select{display:block;width:100%;margin-top:4px}#night-report .night-body{overflow:visible;max-height:none}.attribution{flex-wrap:wrap}
 </style></head><body>
 <header><div class="header-inner"><button class="logo" data-do="exit" title="Вернуться в Фаги" aria-label="Вернуться в Фаги"><canvas data-icon="crest"></canvas></button><div class="brand"><small>Фаги естественных наук</small><h1>Драконий Оплот</h1></div>
 <div class="wallets"><span class="res"><canvas data-icon="gold"></canvas><b id="gold">0</b><small>Золото</small></span><span class="res"><canvas data-icon="berries"></canvas><b id="berries">0</b><small>Ягоды</small></span><button class="res" data-do="wallet"><canvas data-icon="gem"></canvas><b id="balance">—</b><small>Алмазы</small></button></div><button class="topbtn" data-do="settings" aria-label="Настройки" title="Настройки">⚙</button></div></header>
 <main class="layout"><nav class="tabs" aria-label="Разделы игры"></nav>
-<div class="play"><section class="mapframe" aria-label="Игровое поле"><div class="map"><canvas id="world" tabindex="0" aria-label="Карта острова. Стрелки выбирают клетку, Enter открывает её."></canvas><div class="maplabel"><small>Облачный архипелаг</small><h2>Остров Рассвета</h2></div><div class="maptools" id="maptools"></div><div class="mapfoot"><span class="note" id="mapnote"></span><span id="mapaction"></span></div></div></section><aside class="aside" id="aside"></aside></div><div class="attribution"><span id="caption"></span><button class="linkbtn" data-do="exit">Вернуться в Фаги</button></div></main>
+<div class="play"><section class="mapframe" aria-label="Игровое поле"><div class="map"><canvas id="world" tabindex="0" aria-label="Карта острова. Стрелки выбирают клетку, Enter открывает её."></canvas><div class="maplabel"><small>Облачный архипелаг</small><h2>Остров Рассвета</h2><span id="island-area"></span></div><div class="maptools" id="maptools"></div><div class="mapfoot"><span class="note" id="mapnote"></span><span id="mapaction"></span></div></div></section><aside class="aside" id="aside"></aside></div><div class="attribution"><span id="caption"></span><button class="linkbtn" data-do="exit">Вернуться в Фаги</button></div></main>
 <dialog id="dialog" aria-labelledby="dt"><div class="dlghead"><h2 id="dt"></h2><button class="close" data-do="close" aria-label="Закрыть">×</button></div><div class="dlgbody"><div id="dbody"></div><div class="dlgnotice" role="status" id="dnotice"></div></div></dialog><div class="toast" role="status" id="toast"></div>
 <script>
 'use strict';
-const GAME_ELEMENTS = window.GAME_ELEMENTS = ['Огонь','Вода','Природа','Молния','Земля','Легенда'];
+const GAME_ELEMENTS = window.GAME_ELEMENTS = ['Огонь','Вода','Природа','Молния','Земля','Свет'];
 const ELEMENT_COLORS = ['#c7522d','#227993','#3e8157','#8662a4','#93673e','#ad7e27'];
-const SPECIES_ROWS = [
-  ['Искрик',0,'Ищет под золой тёплые угли и спит, обняв свой хвост.'],
-  ['Капель',1,'Собирает утреннюю росу и рисует круги на воде.'],
-  ['Листик',2,'Там, где он садится передохнуть, распускается клевер.'],
-  ['Разрядник',3,'Перед грозой его рожки тихонько звенят.'],
-  ['Кремешок',4,'Прячет самоцветы в тёплых трещинах скал.'],
-  ['Туманник',1,'Стелет над ручьём серебряный туман.',0,1],
-  ['Огнецвет',0,'Каждая алая чешуйка похожа на лепесток мака.',0,2],
-  ['Штормокрыл',3,'Скользит по кромке туч на сухих искрящихся крыльях.',1,3],
-  ['Мохоспин',2,'На спине у него растёт крохотная роща.',2,4],
-  ['Обсидиан',4,'Под чёрным стеклом чешуи тлеет сердце вулкана.',0,4],
-  ['Аврора',2,'Разворачивает над ночным лесом ленты сияния.',2,3],
-  ['Громовой Бархан',3,'От взмаха его крыльев песок превращается в стекло.',3,4],
-  ['Звездочёт',5,'Несёт созвездия на перепонках крыльев.',5,10],
-  ['Солнцевенец',5,'Его золотой гребень встречает рассвет над всем архипелагом.',9,12]
-];
-const GAME_SPECIES = window.GAME_SPECIES = SPECIES_ROWS.map(([name,element,lore,a,b],i)=>({name,element,lore,parents:a==null?null:[a,b],rarity:i<5?'Обычный':i<9?'Редкий':i<12?'Эпический':'Легендарный'}));
-window.strongAgainst=(a,b)=>[[2],[0],[4],[1],[3],[0,1,2,3,4]][a]?.includes(b)||false;
+const Genetics = window.Genetics = (() => {
+  const rarityNames = ['','Обычный','Редкий','Эпический','Легендарный'];
+  const genitive = ['огня','воды','природы','молнии','земли','света'];
+  const formatList = parts => parts.length < 2 ? parts[0] : parts.slice(0,-1).join(', ') + ' и ' + parts.at(-1);
+  const elementsOf = mask => GAME_ELEMENTS.map((_,i)=>i).filter(i=>mask & (1<<i));
+
+  // Save files refer to the first fourteen species by these numbers. Keep their
+  // names, illustrations and identities for residents, pending eggs and book pages.
+  const originals = [
+    [1,  'Искрик',0,'Ищет под золой тёплые угли и спит, обняв свой хвост.'],
+    [2,  'Капель',1,'Собирает утреннюю росу и рисует круги на воде.'],
+    [4,  'Листик',2,'Там, где он садится передохнуть, распускается клевер.'],
+    [8,  'Разрядник',3,'Перед грозой его рожки тихонько звенят.'],
+    [16, 'Кремешок',4,'Прячет самоцветы в тёплых трещинах скал.'],
+    [3,  'Туманник',1,'Стелет над ручьём серебряный туман.'],
+    [5,  'Огнецвет',0,'Каждая алая чешуйка похожа на лепесток мака.'],
+    [10, 'Штормокрыл',3,'Скользит по кромке туч на сухих искрящихся крыльях.'],
+    [20, 'Мохоспин',2,'На спине у него растёт крохотная роща.'],
+    [17, 'Обсидиан',4,'Под чёрным стеклом чешуи тлеет сердце вулкана.'],
+    [12, 'Аврора',2,'Разворачивает над ночным лесом ленты сияния.'],
+    [24, 'Громовой Бархан',3,'От взмаха его крыльев песок превращается в стекло.'],
+    [47, 'Звездочёт',5,'Несёт созвездия на перепонках крыльев.'],
+    [63, 'Солнцевенец',5,'Его золотой гребень встречает рассвет над всем архипелагом.'],
+    [32, 'Светляк',5,'Собирает на крыльях первые солнечные лучи и освещает вход в логово.']
+  ];
+  const epithets = {
+    6:'Кувшинка',7:'Тепличник',9:'Искрогрив',11:'Кипучий гром',13:'Пламенная крона',14:'Ливнецвет',15:'Муссон',
+    18:'Глинокрыл',19:'Гейзер',21:'Торфяник',22:'Мангр',23:'Оазис',25:'Фульгурит',26:'Грозовой берег',
+    27:'Кипящий перевал',28:'Каменный дуб',29:'Грозовой кратер',30:'Древо дождя',31:'Пять ветров',
+    33:'Зарница',34:'Радужник',35:'Солярис',36:'Светолист',37:'Жар-папоротник',38:'Жемчужная роса',39:'Утренняя чаща',
+    40:'Шаровая молния',41:'Коронный разряд',42:'Серебряный шквал',43:'Зеркальный шторм',44:'Звёздный плющ',
+    45:'Золотая буря',46:'Сияющий ливень',48:'Янтарник',49:'Солнечный янтарь',50:'Опал',51:'Хрустальный ключ',
+    52:'Золотой дуб',53:'Осеннее золото',54:'Зелёный опал',55:'Златоречье',56:'Громовой кварц',57:'Кузнец зари',
+    58:'Зеркальный берег',59:'Солнечный вулкан',60:'Янтарная роща',61:'Венец леса',62:'Небесный сад'
+  };
+  const signs = ['тёплые искры','капли росы','листья','ветви молний','грани камня','лучи света'];
+  const catalog = [], byMask = new Map();
+  function add(mask,shortName,element,art,lore) {
+    const elements = elementsOf(mask), rank = Math.min(4,elements.length);
+    const species = {
+      id:catalog.length, mask, shortName, name:shortName+' — дракон '+formatList(elements.map(i=>genitive[i])),
+      element, elements, rank, rarity:rarityNames[rank], art, lore, parents:null
+    };
+    catalog.push(species);
+    byMask.set(mask,species);
+  }
+  originals.forEach(([mask,name,element,lore],i)=>add(mask,name,element,i===14?13:i,lore));
+  // Append masks in ascending order so every new combination has a stable save ID.
+  for(let mask=1;mask<1<<GAME_ELEMENTS.length;mask++){
+    if(byMask.has(mask))continue;
+    const a=elementsOf(mask), rank=Math.min(4,a.length);
+    const illustrations=originals.slice(5,12).map(([genes],index)=>({genes,id:5+index}))
+      .filter(sprite=>(sprite.genes&mask)===sprite.genes);
+    const art=rank===4?12+(mask%2):illustrations.length?illustrations[mask%illustrations.length].id:
+      mask&32?12:a[0];
+    add(mask,epithets[mask],a[0],art,'На крыльях видны '+formatList(a.map(i=>signs[i]))+'.');
+  }
+  for(const species of catalog){
+    if(species.elements.length===1)continue;
+    const first=species.elements[0], last=species.elements.at(-1);
+    species.parents=[byMask.get(species.mask^(1<<first)).id,byMask.get(species.mask^(1<<last)).id];
+  }
+  const baseIds=GAME_ELEMENTS.map((_,i)=>byMask.get(1<<i).id);
+
+  function outcomes(parentA,parentB) {
+    const a=catalog[parentA?.species], b=catalog[parentB?.species];
+    if(!a||!b)return [];
+    const pool=a.mask|b.mask;
+    const sameSize=a.elements.length===b.elements.length;
+    const size=Math.max(a.elements.length,b.elements.length);
+    if(a.id===b.id || size===1) return [{species:byMask.get(pool).id,chance:1}];
+
+    // Each offspring receives at least one element present in each parent.
+    const candidates=catalog.filter(child=>(child.mask&pool)===child.mask && (child.mask&a.mask) && (child.mask&b.mask));
+    let regular=candidates.filter(child=>child.elements.length===size);
+    const recombined=regular.filter(child=>child.id!==a.id && child.id!==b.id);
+    if(recombined.length)regular=recombined;
+    const promoted=sameSize?candidates.filter(child=>child.elements.length===size+1):[];
+    const level=p=>Math.min(30,Math.max(4,Math.floor(Number(p.level)||4)));
+    const training=(level(parentA)+level(parentB)-8)/52;
+    let promotion=0;
+    if(promoted.length){
+      // Two rares: 8–40%. Two epics: 5–30%. Beyond four elements: 4–22%.
+      const [floor,ceiling]=size===2?[.08,.40]:size===3?[.05,.30]:[.04,.22];
+      promotion=floor+(ceiling-floor)*training;
+    }
+    return [
+      ...regular.map(child=>({species:child.id,chance:(1-promotion)/regular.length})),
+      ...promoted.map(child=>({species:child.id,chance:promotion/promoted.length}))
+    ];
+  }
+  function roll(parentA,parentB,random=Math.random) {
+    const possibilities=outcomes(parentA,parentB);
+    if(!possibilities.length)throw new RangeError('Для выведения нужны два известных дракона');
+    let draw=random();
+    for(const item of possibilities){
+      if(draw<item.chance)return item.species;
+      draw-=item.chance;
+    }
+    return possibilities.at(-1).species;
+  }
+  return {catalog,baseIds,outcomes,roll};
+})();
+const GAME_SPECIES = window.GAME_SPECIES = Genetics.catalog;
+const elementPrey = [[2],[0],[4],[1],[3,5],[3]];
+window.strongAgainst = (attacking,defending) => elementPrey[attacking]?.includes(defending) || false;
+
 const STRUCT = {
- keep:['Цитадель','Открывает новые уровни построек и расширяет остров.',0,1,0],
+ keep:['Цитадель','Хранит первый запас и открывает новые уровни построек.',0,1,0],
  mine:['Золотая шахта','Золото для строительства и улучшений.',65,1,1],
  farm:['Ягодная ферма','Выращивает ягоды для кормления драконов.',60,1,1],
  home:['Жилище драконов','Три места на уровень и немного золота.',80,1,1],
  den:['Логово скрещивания','Хранит яйцо, пока из него не вылупится дракон.',85,1,0],
+ goldstore:['Золотое хранилище','Увеличивает запас золота. Каждое улучшение расширяет казну.',90,1,1],
+ foodstore:['Ягодный амбар','Хранит ягоды для кормления и скрещивания. Можно увеличить вместимость.',75,1,1],
+ academy:['Драконья академия','Зачаровывает особую способность выбранного дракона. Открывается на 7-м уровне профиля острова.',220,1,0],
  archer:['Башня лучников','Поражает захватчиков на дальних подступах.',70,1,1],
  cannon:['Пушка Бастиона','Разбивает группы врагов одним ядром.',95,1,1],
  spire:['Шпиль стихий','Атакует магией и усиливает ближайших драконов.',130,2,1],
@@ -62,7 +180,7 @@ const STRUCT = {
 const MODE_NAMES={raid:'Набег на крепость',defense:'Оборона острова',boss:'Дракон-хранитель',arena:'Стихийная арена'};
 const MODE_TEXT={raid:'Высади до четырёх драконов на краю вражеского острова и разрушь цитадель.',defense:'Расстановка твоих стен, ловушек и башен определяет, выдержит ли остров волну.',boss:'Следи за красными кругами и уводи отряд из-под удара хранителя.',arena:'Выбери цель, используй преимущество стихии и поймай момент идеального удара.'};
 const QUESTS=[
- ['Первый урожай','Собери припасы с фермы или шахты.','collect',35,20],
+ ['Первый урожай','Поставь бесплатную ферму или шахту через «Постройки», затем собери первые припасы.','collect',35,20],
  ['Пир для дракона','Накорми любого дракона ягодами.','feed',40,18],
  ['Крепкие крылья','Вырасти дракона до 5-го уровня.','evolve',65,30],
  ['Новое гнездо','Скрести двух драконов и вылупи яйцо.','hatch',75,40],
@@ -77,24 +195,45 @@ const uid=()=>globalThis.crypto?.randomUUID?.() || 'id-'+Date.now().toString(36)
 const num=n=>new Intl.NumberFormat('ru').format(n);
 function initialState() {
  const now=Date.now();
- const layout=[['keep',4,3],['mine',2,5],['farm',6,5],['home',6,2],['den',2,3],['archer',4,7],['wall',5,7]];
- return {version:1,gold:235,berries:120,buildings:layout.map(([type,x,y],i)=>({id:'b'+i,type,x,y,level:1,since:now-40000})),dragons:[0,1,2].map((species,i)=>({id:'d'+i,species,level:1})),book:[0,1,2],egg:null,quest:0,marks:{},campaign:{},waves:0,bosses:0,arenas:0,settings:{sound:false},pending:null,deliveries:[]};
+ const layout=[['keep',4,4]];
+ return {version:1,xp:0,gold:235,berries:120,buildings:layout.map(([type,x,y],i)=>({id:'b'+i,type,x,y,level:1,since:now-40000})),dragons:[0,1,2].map((species,i)=>({id:'d'+i,species,level:1})),book:[0,1,2],egg:null,quest:0,marks:{},campaign:{},waves:0,bosses:0,arenas:0,settings:{sound:false},pending:null,deliveries:[]};
 }
+function upgradeIsland(state){
+ if(!Number.isFinite(state.xp)){
+  const trained=state.dragons.reduce((sum,d)=>sum+10*(d.level-1),0);
+  const built=state.buildings.reduce((sum,b)=>sum+12*(b.level-1),0);
+  state.xp=trained+built+35*(state.quest||0)+25*Object.values(state.campaign||{}).reduce((n,v)=>n+v,0);
+ }
+ return state;
+}
+function islandLevel(state){return 1+Math.floor(Math.sqrt(Math.max(0,state.xp||0)/35))}
+function gridAtLevel(level){
+ const strips=Math.min(12,Math.max(0,level-1));
+ return {width:10+Math.ceil(strips/2),height:10+Math.floor(strips/2)};
+}
+function islandGrid(state){return gridAtLevel(islandLevel(state))}
+function islandSize(state){return islandGrid(state).width}
+function containsCell(grid,x,y){
+ return Number.isInteger(x)&&Number.isInteger(y)&&x>=0&&y>=0&&x<grid.width&&y<grid.height;
+}
+function storeSpace(type,level){return (type==='goldstore'?450:320)*level*level}
+function stockLimit(state,resource){
+ const type=resource==='gold'?'goldstore':'foodstore';
+ return state.buildings.reduce((total,b)=>total+(b.type===type?storeSpace(type,b.level):0),resource==='gold'?450:300);
+}
+function fitsStock(state,resource,amount){return state[resource]+amount<=stockLimit(state,resource)}
+function acceptStock(state,resource,amount){
+ const taken=Math.max(0,Math.min(amount,stockLimit(state,resource)-state[resource]));
+ state[resource]+=taken;
+ return taken;
+}
+const rates={mine:4,farm:3,home:0.85};
+function keepProduction(b,units,stamp){if(rates[b.type])b.since=stamp-Math.ceil(units*5000/(rates[b.type]*b.level))}
 function capacity(s){return 3+s.buildings.filter(b=>b.type==='home').reduce((n,b)=>n+3*b.level,0)}
 function stored(b,now=Date.now()){
- const rates={mine:4,farm:3,home:0.85};
  if(!rates[b.type])return 0;
  return Math.max(0,Math.min(b.level*90,Math.floor((now-b.since)/1000*rates[b.type]*b.level/5)));
 }
-function recipe(a,b){
- const p=[a,b].sort((x,y)=>x-y);
- const exact=GAME_SPECIES.findIndex(s=>s.parents&&s.parents[0]===p[0]&&s.parents[1]===p[1]);
- if(exact>=0)return exact;
- const base=[GAME_SPECIES[a].element,GAME_SPECIES[b].element].sort((x,y)=>x-y);
- const hybrid=GAME_SPECIES.findIndex(s=>s.parents&&s.parents[1]<5&&s.parents.every((e,i)=>e===base[i]));
- return hybrid>=0?hybrid:p[0];
-}
-
 /* All island art is painted locally. Board geometry is shared by the renderer and pointer input. */
 window.Art = (() => {
   'use strict';
@@ -109,19 +248,26 @@ window.Art = (() => {
     ['#836aa2','#e9bcd9','#fff1b5','#56497b','#eab8e4'], ['#bd8955','#ffdc91','#fff4cd','#936082','#ffce6b']
   ];
   const silhouettes = [0,1,2,3,4,1,2,3,4,0,2,3,5,5];
+  const elementPaint = [0,1,2,3,4,13].map(i=>palettes[i]);
+  const dragonColors = GAME_SPECIES.map(sp=>{
+    const original=palettes[sp.art];
+    if(sp.id<14||sp.elements.length===1)return original;
+    const first=elementPaint[sp.elements[0]],second=elementPaint[sp.elements[1]];
+    const last=elementPaint[sp.elements.at(-1)];
+    return [first[0],second[1],last[2],first[3],last[1]];
+  });
   const paths = new Map();
-  const unit = (w,h) => Math.max(1, Math.min(w / 12.6, h / 7.45));
-  function point(x,y,w,h) {
-    const u = unit(w,h);
-    return {x:w*0.5+(x-y)*u*0.54, y:h*0.51+(x+y-9)*u*0.245};
+  const unit = (w,h,n=10) => Math.max(1,Math.min(w/(1.08*n+1.1),h/(.58*n+2.85)));
+  const axisX=.54,axisY=.29;
+  const boardY=(h,u)=>h*.5+u*.62;
+  function point(x,y,w,h,n=10) {
+    const u=unit(w,h,n);
+    return {x:w*.5+(x-y)*u*axisX,y:boardY(h,u)+(x+y-(n-1))*u*axisY};
   }
-  function cell(px,py,w,h) {
-    const u = unit(w,h), a=(px-w*0.5)/(u*0.54), b=(py-h*0.51)/(u*0.245)+9;
-    const x=Math.round((a+b)/2), y=Math.round((b-a)/2);
-    return x>=0 && x<10 && y>=0 && y<10 ? {x,y} : null;
-  }
-  function seed(value) {
-    return () => { value=(Math.imul(value,1664525)+1013904223)>>>0; return value/4294967296; };
+  function cell(px,py,w,h,n=10) {
+    const u=unit(w,h,n),a=(px-w*.5)/(u*axisX),b=(py-boardY(h,u))/(u*axisY)+(n-1);
+    const x=Math.round((a+b)/2),y=Math.round((b-a)/2);
+    return x>=0&&x<n&&y>=0&&y<n?{x,y}:null;
   }
   function grad(c,x,y,xx,yy,colors) {
     const g=c.createLinearGradient(x,y,xx,yy); colors.forEach((s,i)=>g.addColorStop(i/(colors.length-1),s)); return g;
@@ -283,6 +429,48 @@ window.Art = (() => {
     egg(c,-2,-7,14,7,0);egg(c,9,-5,9,1,0);
     gem(c,0,-38,.53,['#67b6ac','#bdf4ce','#59958f']);
   }
+  function treasury(c) {
+    brickFoundation(c);
+    shape(c,'M-25 -3 L-25 -25 L2 -34 L27 -25 L27 -1 L0 8Z','#877956','#645842',1.2);
+    shape(c,'M-25 -24 L1 -16 L1 7 L-25 -2Z',grad(c,-24,-21,0,4,['#a69263','#e0c58b']),'#776848',1);
+    shape(c,'M1 -16 L27 -25 L27 -1 L1 7Z',grad(c,0,-15,27,-4,['#dfc88e','#b29a68']),'#786a4d',1);
+    shape(c,'M-28 -24 L-28 -29 Q-23 -40 1 -45 Q7 -45 12 -37 L28 -30 L29 -25 L1 -16Z',grad(c,-24,-43,19,-19,['#f5d975','#d5ab4e','#ba8239']),'#806a46',1.3);
+    shape(c,'M-28 -28 Q-18 -30 -3 -23 L1 -17 M-15 -38 Q-4 -37 12 -21 M-2 -42 Q10 -41 22 -25 M-25 -26 L1 -18 L27 -26',null,'#fae4a0',2);
+    shape(c,'M-18 -6 L-18 -19 M-9 -3 L-9 -16 M20 -2 L20 -15',null,'#b08d4b',2);
+    ell(c,9,-9,6.6,8.8,'#836e4c',.15,'#f2d383',1.6);
+    ell(c,9,-9,4.3,6.2,'#c9a85e',.15,'#9b7d4b',.8);
+    shape(c,'M8 -10 L10 -11 L10 -8 L11 -6 L8 -5 L8.8 -8Z','#715c44');
+    for(const [x,y] of [[-15,4],[-9,6],[-19,1]])for(let k=0;k<3;k++)ell(c,x,y-k*1.6,4,1.8,'#f4c959',0,'#ad803c',.6);
+  }
+  function foodBarn(c) {
+    brickFoundation(c);
+    function silo(x,y,scale){
+      c.save();c.translate(x,y);c.scale(scale,scale);
+      shape(c,'M-12 -2 L-13 -29 Q0 -34 13 -29 L12 -2 Q0 5 -12 -2Z',grad(c,-14,-7,14,-7,['#a4694e','#e5ab6f','#9a6953']),'#795a49',1);
+      for(let j=-8;j<=8;j+=4)shape(c,'M'+j+' -27 L'+j+' -2',null,'#ae7953',.65);
+      for(const yy of [-23,-6]){c.save();c.translate(0,yy);shape(c,'M-13 0 Q0 5 13 0',null,'#8c7361',2);c.restore();}
+      shape(c,'M-16 -29 Q-9 -36 0 -46 Q8 -37 16 -29 Q0 -23 -16 -29Z',grad(c,-11,-41,8,-24,['#f2bb86','#bb6959','#8d5258']),'#795a52',1);
+      shape(c,'M0 -44 L-6 -30 M0 -44 L7 -30',null,'#efbd87',.9);
+      ell(c,0,-46,1.7,2,'#dfb666');c.restore();
+    }
+    silo(-10,-6,.93);silo(12,-3,1.05);
+    shape(c,'M-15 -1 L4 -5 L5 5 L-12 9Z','#ae8052','#755c49',1);
+    shape(c,'M-17 -4 L2 -8 L8 -4 L-12 1Z','#dac395','#886b4f',.8);
+    for(const [x,y] of [[-12,-4],[-7,-6],[-3,-7],[1,-7],[-9,-7],[-4,-9]]){ell(c,x,y,2.8,2.9,'#b84561',0,'#854659',.6);ell(c,x-.7,y-.75,.75,.7,'#f6b3a2');}
+    shape(c,'M-3 -9 Q-3 -14 2 -14 Q1 -11 -3 -9Z','#738e57');
+  }
+  function academy(c) {
+    brickFoundation(c);
+    shape(c,'M-19 -4 L-16 -35 L9 -41 L23 -30 L21 0 L0 5Z',grad(c,-17,-28,22,-6,['#9990a5','#e5d6c0','#a392a6']),'#716979',1.2);
+    shape(c,'M-14 -28 L-11 -4 M-3 -30 L-2 1 M15 -29 L14 -4',null,'#e5d2a7',2.5);
+    shape(c,'M-20 -32 Q-21 -46 -9 -53 Q5 -63 16 -51 Q24 -44 23 -34 Q3 -24 -20 -32Z',grad(c,-17,-55,16,-31,['#ac94bf','#7a6a99','#585a80']),'#6a6177',1.2);
+    shape(c,'M-19 -32 Q2 -25 23 -34 M1 -55 Q-6 -47 -6 -31 M3 -55 Q13 -45 14 -32',null,'#d6bd8a',1.25);
+    shape(c,'M2 -54 L2 -60',null,'#b79b68',1.4);star(c,2,-62,4,'#fce1a1');
+    arch(c,5,0,9,22,'#59556d','#d9bd86');arch(c,-9,-12,5,10,'#84b4c0','#d4bb8a');
+    shape(c,'M-12 1 L-6 6 L-9 11 L-14 6Z','#91705a','#75624e',.8);
+    shape(c,'M-21 -6 Q-16 -7 -11 -3 Q-8 -7 -3 -8 L-1 -1 Q-8 -2 -10 2 Q-15 -1 -19 0Z','#fbebc4','#8b765e',.9);
+    shape(c,'M-11 -3 L-10 2 M-18 -4 L-14 -3 M-7 -4 L-4 -5',null,'#b79c72',.8);
+  }
   function defense(c,type) {
     if(type==='cannon'){
       brickFoundation(c);turret(c,-9,-3,12,7,blueRoof);
@@ -322,10 +510,11 @@ window.Art = (() => {
     else {shape(c,'M-8 0 Q-4 -3 -3 -7 L0 -5 L3 -12 Q11 -6 6 -2 Q3 2 -8 0Z',col,'#b58053',.85);shape(c,'M-2 0 Q2 -4 1 -7 Q6 -3 3 0Z','#ffe69b');}
   }
   function egg(c,x,y,size,species,time=0) {
-    const p=palettes[(species>>>0)%palettes.length];
+    const sp=GAME_SPECIES[species],p=dragonColors[species];
     c.save();c.translate(x,y);c.rotate(Math.sin(time*2)*.035);c.scale(size/20,size/20);
     shape(c,'M0 -12 C5 -12 10 -3 9 3 C8 11 -8 12 -9 3 C-10 -3 -5 -12 0 -12Z',grad(c,-6,-8,7,7,[p[2],p[1],p[0]]),p[3],.8);
     shape(c,'M-7 -1 L-3 -4 L0 -2 L4 -5 L8 -3 M-6 4 L-2 1 L2 3',null,p[0],1.5);
+    sp.elements.forEach((el,i)=>ell(c,(i-(sp.elements.length-1)/2)*2.25,3.1,1.1,1.5,elementPaint[el][0],-.15));
     ell(c,-3.7,-6.3,2.4,1.2,'#fff1c7',-.9);c.restore();
   }
   const sprites=new Map();
@@ -335,7 +524,8 @@ window.Art = (() => {
   function makeBuilding(type,level) {
     const img=newLayer(256,320), c=img.getContext('2d');c.translate(128,260);c.scale(2.6,2.6);c.lineCap='round';c.lineJoin='round';
     if(type==='keep')keep(c);else if(type==='farm')farm(c);else if(type==='mine')mine(c);
-    else if(type==='home')house(c);else if(type==='den')den(c);else defense(c,type);
+    else if(type==='home')house(c);else if(type==='den')den(c);
+    else if(type==='goldstore')treasury(c);else if(type==='foodstore')foodBarn(c);else if(type==='academy')academy(c);else defense(c,type);
     if(level>1){
       const len=Math.min(4,level-1);
       for(let i=0;i<len;i++)star(c,(i-(len-1)/2)*3.5,3.7,1.95,'#fff0aa');
@@ -347,8 +537,9 @@ window.Art = (() => {
     const s=size/66;
     c.drawImage(sprites.get(key),x-(128/2.6)*s,y-(260/2.6)*s,(256/2.6)*s,(320/2.6)*s);
   }
-  function wing(c,stage,p,variant,near,phase) {
-    c.save();c.translate(near?-6:1,near?-6:-9);c.rotate(phase*(near?.16:.12)+(near?-.03:.24));
+  function wing(c,stage,p,variant,near,phase,folded) {
+    c.save();c.translate(near?-6:1,near?-6:-9);c.rotate(folded?-.66+phase*.025:phase*(near?.16:.12)+(near?-.03:.24));
+    if(folded)c.scale(.77,.52);
     const factor=[.64,.87,1.08][stage];c.scale(factor*(near?1:.83),factor*(near?1:.76));
     const membrane=near?grad(c,-31,-44,-4,-3,[p[1],p[0],p[3]]):grad(c,-28,-38,0,-4,[p[0],p[3]]);
     const edge=near?p[3]:p[3];
@@ -371,21 +562,21 @@ window.Art = (() => {
     shape(c,d,grad(c,-6,-12,1,0,[p[2],p[1],'#af8461']),p[3],.8);
     c.restore();
   }
-  function leg(c,x,y,s,p,back) {
-    c.save();c.translate(x,y);c.scale(s,s);
+  function leg(c,x,y,s,p,back,stride=0) {
+    c.save();c.translate(x,y);c.rotate(stride);c.scale(s,s);
     shape(c,'M-4 -2 Q-5 4 -2 8 L-4 13 Q-3 15 1 14 L5 13 Q8 13 7 11 Q7 9 3 9 L4 3 Q4 -2 1 -3Z',back?p[3]:p[0],p[3],1);
     shape(c,'M4 11 Q7 10 8 12 L5 13 M1 12 Q4 11 5 13 L2 14',p[2],p[3],.55);c.restore();
   }
-  function paintDragon(c,species,level,t) {
-    const idx=(species>>>0)%palettes.length,p=palettes[idx],variant=silhouettes[idx],st=level<5?0:level<10?1:2;
-    const phase=Math.sin(t*3.9+idx*.72),legScale=[.72,1,1.12][st];
+  function paintDragon(c,species,level,t,walking) {
+    const sp=GAME_SPECIES[species],idx=sp.art,p=dragonColors[species],variant=silhouettes[idx],st=level<5?0:level<10?1:2;
+    const phase=Math.sin(t*3.9+idx*.72),stride=walking?phase*.35:0,legScale=[.72,1,1.12][st];
     if(st===2){
       ell(c,-2,-5,46,32,glow(c,-2,-5,48,p[1]+'50',p[1]+'00'));
       for(let i=0;i<3;i++){const angle=t*.48+i*TAU/3;star(c,Math.cos(angle)*40,Math.sin(angle)*19-7,1.8+.7*Math.sin(t*2+i),p[1]);}
     }
-    c.save();c.translate(0,Math.sin(t*2.7)*1.35);
-    wing(c,st,p,variant,false,phase);
-    leg(c,-9,8,legScale,p,true);leg(c,14,6,legScale*.88,p,true);
+    c.save();c.translate(0,walking?Math.abs(phase)*.6:Math.sin(t*2.7)*1.35);
+    wing(c,st,p,variant,false,phase,walking);
+    leg(c,-9,8,legScale,p,true,stride);leg(c,14,6,legScale*.88,p,true,-stride);
     /* The tail tapers to one of six elemental silhouettes. */
     c.save();c.rotate(Math.sin(t*2.25)*.045);
     shape(c,'M-8 -4 C-21 -1 -23 12 -35 12 C-43 13 -49 6 -48 0 Q-54 11 -44 17 Q-27 25 -13 12 L-5 9Z',grad(c,-42,-4,-19,18,[p[1],p[0],p[3]]),p[3],1.3);
@@ -403,8 +594,13 @@ window.Art = (() => {
     shape(c,'M15 7 L20 9 M19 2 L24 4 M23 -5 L27 -4 M24 -10 L28 -10',null,p[0],.8);
     c.restore();
     for(let i=0;i<(st===0?4:7);i++){const x=-21+i*4.5, y=-5-Math.sin((i+1)*.49)*6;poly(c,[[x-2,y+2],[x-3.5,y-(st+1)*2],[x+3,y+1]],p[1],p[3],.65);}
-    leg(c,-14,6,legScale,p,false);leg(c,11,8,legScale*.9,p,false);
-    wing(c,st,p,variant,true,phase);
+    leg(c,-14,6,legScale,p,false,-stride);leg(c,11,8,legScale*.9,p,false,stride);
+    wing(c,st,p,variant,true,phase,walking);
+    // A row of coloured scales on the shoulder records every inherited element.
+    if(sp.elements.length>1)sp.elements.forEach((el,i)=>{
+      const x=-6+i*2.6,y=-6+Math.sin(i*.6)*1.7;
+      poly(c,[[x-1,y-2],[x+1.5,y-1],[x+1,y+1.6],[x-1.5,y+1]],elementPaint[el][0],p[2],.5);
+    });
     c.save();c.translate(st===0?18:21,st===0?-13:-21);c.rotate(.05*Math.sin(t*1.7));c.scale(st===0?1.2:1.04,st===0?1.19:1.05);
     faceHorn(c,-1,-10,st===0?.46:st===1?.84:1.15,variant,p);faceHorn(c,8,-10,st===0?.4:st===1?.75:1,variant,p);
     if(st===2){
@@ -431,228 +627,75 @@ window.Art = (() => {
   const dragonSprites=new Map();
   function dragon(c,x,y,size,species=0,level=1,time=0,flip=false) {
     if(!(size>0))return;
-    const stage=level<5?1:level<10?5:10;
+    const stage=level<5?1:level<10?5:10,walking=level<21;
     const phase=((Math.floor(time*12)%24)+24)%24;
-    const id=(species>>>0)%palettes.length+'-'+stage+'-'+phase;
+    const id=species+'-'+stage+'-'+phase+(walking?'-walk':'-fly');
     let img=dragonSprites.get(id);
     if(!img){img=newLayer(286,246);const d=img.getContext('2d');d.translate(144,166);d.scale(2.55,2.55);d.lineJoin='round';d.lineCap='round';
-      paintDragon(d,species,stage,phase*TAU/24/3.9);
+      paintDragon(d,species,stage,phase*TAU/24/3.9,walking);
       if(dragonSprites.size>=120)dragonSprites.delete(dragonSprites.keys().next().value);
       dragonSprites.set(id,img);
     }
     c.save();c.translate(x,y);if(flip)c.scale(-1,1);const s=size/100;
     c.drawImage(img,-144/2.55*s,-166/2.55*s,286/2.55*s,246/2.55*s);c.restore();
   }
-  function pine(c,x,y,s,tone=0) {
-    const shades=[['#2f6256','#41816b','#73ad75','#acce84'],['#305c66','#3f8381','#66a796','#99c898'],['#4f6753','#668a5d','#9ab26b','#d6ce83']][tone%3];
-    c.save();c.translate(x,y);c.scale(s,s);
-    ell(c,2,0,12,3.5,'rgba(64,90,61,.17)');
-    shape(c,'M-2 0 L-1 -18 L3 -20 L3 -1Z','#8b7459');
-    shape(c,'M0 -45 Q3 -35 9 -30 L6 -30 Q9 -23 14 -19 L9 -20 Q11 -14 18 -9 Q12 -9 8 -10 L9 -7 Q0 -4 -10 -7 L-15 -7 L-11 -11 L-18 -10 Q-12 -15 -9 -20 L-13 -18 Q-8 -24 -5 -30 L-8 -29 Q-3 -35 0 -45Z',grad(c,-15,-32,16,-15,[shades[3],shades[2],shades[1],shades[0]]));
-    shape(c,'M0 -43 Q0 -34 -4 -29 L0 -32 L-3 -25 L-9 -22 L-7 -23 L-12 -14 L-5 -17 L-8 -12 L-1 -15',null,shades[2],1);
-    shape(c,'M2 -32 Q5 -27 8 -26 M3 -22 Q8 -17 11 -17 M1 -13 Q6 -11 11 -12',null,shades[0],1.1);
-    c.restore();
-  }
-  function oak(c,x,y,s,tone=0) {
-    const p=tone===1?['#7a815b','#abb56a','#d9ce8a']:tone===2?['#82785c','#b39a65','#eac78a']:['#56815f','#83a963','#b5c978'];
-    c.save();c.translate(x,y);c.scale(s,s);ell(c,4,1,13,3,'rgba(72,91,70,.19)');
-    shape(c,'M-2 0 L-1 -12 L-8 -21 L-6 -22 L1 -16 L5 -25 L7 -24 L3 -12 L4 0Z','#846f53');
-    for(const [a,b,r] of [[-8,-18,8],[-13,-24,6],[-4,-27,11],[4,-30,9],[12,-23,8],[6,-18,9],[-2,-19,8]]){
-      ell(c,a,b,r,r*.87,grad(c,a-r,b-r,a+r*.6,b+r,[p[2],p[1],p[0]]));
-    }shape(c,'M-13 -24 Q-10 -28 -7 -27 M-1 -33 Q3 -35 6 -33 M7 -20 L9 -21',null,p[2],1.2);c.restore();
-  }
-  function cloud(c,x,y,s,tint=0) {
-    c.save();c.translate(x,y);c.scale(s,s*.77);
-    const col=tint?'rgba(255,252,225,.72)':'rgba(247,252,238,.91)';
-    shape(c,'M-77 4 Q-65 1 -55 0 Q-57 -10 -44 -13 Q-36 -15 -30 -12 Q-24 -28 -7 -27 Q7 -39 24 -29 Q37 -24 36 -13 Q51 -16 59 -6 Q75 -7 85 0 Q73 5 49 5 Q23 14 -10 11 Q-25 13 -40 8 Q-59 11 -77 6Z',col);
-    shape(c,'M-65 5 Q-52 3 -38 6 Q-23 10 -7 7 Q6 6 16 8 Q30 10 39 7 M19 -27 Q33 -22 30 -16 M41 -10 Q48 -11 52 -5',null,'rgba(148,195,190,.26)',1.7);
-    shape(c,'M-87 12 Q-68 10 -57 12 M37 15 Q52 14 62 12',null,'rgba(242,250,234,.75)',2.3);
-    c.restore();
-  }
-  function smallIsland(c,x,y,s,alpha,trees=true) {
-    c.save();c.translate(x,y);c.scale(s,s);c.globalAlpha*=alpha;
-    shape(c,'M-60 -1 Q-48 -11 -29 -10 Q-10 -18 10 -10 Q30 -13 58 -3 L50 8 L39 11 L33 22 L22 20 L7 40 L1 32 L-4 44 L-13 20 L-25 22 L-34 11 L-47 10Z','#899e95');
-    shape(c,'M-59 -1 Q-44 -11 -27 -10 Q-9 -17 9 -10 Q31 -13 58 -3 Q40 2 27 1 Q12 8 -1 5 Q-18 13 -28 4 Q-46 7 -59 -1Z','#aec28d');
-    shape(c,'M-28 5 L-13 20 L-9 34 L-4 43 L-1 18 M29 3 L23 16 L7 39 L16 9',null,'#738f8d',2);
-    if(trees){pine(c,-20,-9,.64);pine(c,-30,-7,.38,1);pine(c,4,-12,.48,1);pine(c,24,-10,.61);}
-    c.restore();
-  }
-  function sky(c,w,h,theme) {
-    const boss=theme==='boss', arena=theme==='arena';
-    c.fillStyle=grad(c,0,0,w*.3,h,[boss?'#97a6bd':arena?'#9ac7cb':'#7fbccf',boss?'#d0c6c9':'#b4d9d1',boss?'#ecd6bd':'#f0e6c5']);c.fillRect(0,0,w,h);
-    const u=unit(w,h),rr=seed(501);
-    const halo=glow(c,w*.69,h*.12,w*.52,'rgba(255,243,188,.48)','rgba(255,249,217,0)');
-    c.fillStyle=halo;c.fillRect(0,0,w,h);
-    for(let i=0;i<16;i++)cloud(c,(i%2===0?rr()*.4:1-rr()*.4)*w,(.13+rr()*.84)*h,(.37+rr()*.62)*u/65,i%2);
-    smallIsland(c,w*.09,h*.38,u*.0092,.65);
-    smallIsland(c,w*.94,h*.27,u*.007,.60);
-    smallIsland(c,w*.78,h*.12,u*.004,.44,false);
-    smallIsland(c,w*.12,h*.83,u*.0045,.38,false);
-    for(let i=0;i<6;i++){
-      const x=(.1+rr()*.8)*w,y=(.12+rr()*.20)*h,s=u*.035*(.6+rr());c.save();c.translate(x,y);c.scale(s,s);
-      shape(c,'M-2 -1 Q-1.1 -1.5 0 .3 Q.9 -1.2 2.6 -.6',null,'rgba(65,105,108,.48)',.57);c.restore();
-    }
-  }
-  function contour(){
-    const rr=seed(174), out=[];
-    for(let i=0;i<86;i++){
-      const a=i/86*TAU;
-      const r=1+.037*Math.sin(a*5+.4)+.026*Math.cos(a*9-.6)+.021*Math.sin(a*17)+.017*(rr()-.5);
-      const x=Math.cos(a)*559*r, y=Math.sin(a)*259*r;out.push([x,y]);
-    }return out;
-  }
-  const edge=contour();
-  function relief(c) {
-    const rr=seed(415),top=edge.slice(0,44);
-    const depth=top.map(([x,y],i)=>13+Math.max(0,y)*.285+Math.pow(rr(),2)*43+(Math.sin(i*1.7)+1)*10);
-    for(let i=0;i<top.length-1;i++){
-      const [x,y]=top[i],[nx,ny]=top[i+1],z=depth[i],nz=depth[i+1];
-      const a=[x,y-1],b=[nx,ny-1],q=[x*.905+4,y+z*.66],p=[nx*.905+4,ny+nz*.66],deep=[x*.80+8,y+z],nd=[nx*.8+8,ny+nz];
-      const shades=['#bda478','#a39e81','#e0bd83','#c9ac83','#879783','#c9aa82','#a8a98a'];
-      poly(c,[a,b,p,q],grad(c,x,y,nx+3,ny+nz*.7,[shades[i%shades.length],'#a29b7f']));
-      poly(c,[q,p,nd,deep],grad(c,x,y+z*.5,nx,ny+nz,['#9b9781','#63868a']));
-      poly(c,[a,q,[x*.956+3,y+z*.43]],'rgba(255,229,164,.38)');
-      if(i%2===0){
-        const midx=(x+nx)*.5,midy=(y+ny)*.5,flip=i%4?1:-1;
-        const fissure=[[midx+flip*3,midy+4],[midx-flip,midy+z*.17],[midx+flip*4,midy+z*.23],[midx+flip*2,midy+z*.36]];
-        poly(c,fissure,null,'rgba(97,96,76,.43)',1.4,false);
-        poly(c,[[midx+flip*4,midy+z*.23],[midx+flip*10,midy+z*.20]],null,'rgba(102,104,79,.34)',1,false);
-        for(let k=0;k<6;k++){
-          const xx=midx+(rr()-.5)*Math.abs(nx-x)*.48,yy=midy+4+rr()*z*.40;
-          ell(c,xx,yy,1+rr()*2,.35+rr()*.65,'rgba(236,210,156,.36)',-.16);
-        }
-      }
-      if(i%3===0)poly(c,[b,p,nd], 'rgba(75,93,86,.23)');
-      if(i%3!==2){poly(c,[[x+1,y+11],[x*.99,y+z*.21],[x*.967+2,y+z*.35]],null,'rgba(107,105,80,.47)',1.2,false);}
-    }
-    for(let i=0;i<top.length;i+=3){
-      const [x,y]=top[i],len=12+rr()*32;
-      c.save();c.translate(x,y+4);shape(c,'M0 0 Q1 11 -3 19 Q-4 27 -1 31',null,'#7a9369',Math.max(1.3,len/11));
-      for(let j=0;j<4;j++)ell(c,Math.sin(j*2.1)*2,j*5,3.2,1.6,j%2?'#7e9969':'#a7ad70',j%2?-.7:.7);c.restore();
-    }
-    for(const [x,y,f] of [[-339,265,.45],[-292,324,.50],[178,323,.55],[131,355,.24],[437,211,.3],[32,387,.21]]){
-      c.save();c.translate(x,y);c.scale(f,f);
-      shape(c,'M-16 -6 L-4 -11 L14 -3 L6 12 L0 23 L-10 11Z','#91a099');shape(c,'M-16 -6 L-4 -11 L14 -3 L-2 1Z','#ccbf94');shape(c,'M-2 1 L14 -3 L6 12 L0 23Z','#7f928f');c.restore();
-    }
-  }
-  function waterfall(c) {
-    shape(c,'M-333 197 Q-326 231 -330 265 Q-334 295 -336 330 L-318 349 Q-314 308 -310 286 Q-299 235 -298 203Z',grad(c,-335,220,-302,236,['#c4ebcf','#83c5bb','#b4e8d0','#65a7a6']));
-    shape(c,'M-329 211 Q-323 238 -329 272 Q-331 292 -333 312 M-316 228 Q-316 251 -319 279 M-305 218 Q-306 253 -314 278',null,'rgba(238,253,223,.78)',2.6);
-    for(let i=0;i<7;i++)ell(c,-320+Math.sin(i*12)*11,322+i*3,14+i*1.6,4.5+i,'rgba(230,247,226,.13)');
-  }
-  function pond(c) {
-    c.save();c.translate(-264,152);c.rotate(-.10);
-    const pts=[[-82,-4],[-77,-11],[-53,-11],[-39,-19],[-17,-23],[5,-21],[17,-25],[38,-24],[51,-17],[63,-14],[68,-6],[63,1],[44,7],[34,19],[16,23],[-7,21],[-22,13],[-40,9],[-52,3],[-74,3]];
-    poly(c,pts,'#d7cd9b','#9fac75',2.6);
-    c.save();c.scale(.96,.84);poly(c,pts,grad(c,-48,-15,24,28,['#8fb6a0','#66ad9f','#88cebb','#a6d8b9']));c.restore();
-    shape(c,'M-45 -9 Q-31 -18 -17 -17 M4 16 Q20 20 30 12 M36 5 Q45 0 55 -1 M-24 4 Q-12 6 -9 5 M2 -8 Q12 -10 23 -7',null,'rgba(218,240,202,.83)',1.7);
-    for(const [x,y] of [[10,6],[17,9],[22,4],[-16,-9],[-20,-11]]){
-      ell(c,x,y,3.6,1.6,'#718e69');ell(c,x,y-.6,3.5,1.5,'#b0cd83');
-    }
-    flower(c,16,7,.63,'#f7d0bf');
-    for(let i=0;i<11;i++){
-      const x=31+i*1.8,y=13-Math.sin(i*.4)*2;poly(c,[[x,y],[x-1.3+i%4*.8,y-4-(i*3)%8]],null,i%3?'#808f5c':'#a2ac69',1.1,false);
-    }c.restore();
-  }
-  function creek(c) {
-    const d='M-409 -189 C-385 -142 -435 -111 -432 -73 C-433 -16 -487 -22 -483 18 C-480 55 -395 35 -395 83 C-393 121 -351 105 -348 147 C-347 177 -310 170 -315 231';
-    shape(c,d,null,'rgba(108,150,94,.46)',30);shape(c,d,null,'#d7d3a0',24);
-    shape(c,d,null,grad(c,-440,-100,-331,171,['#80b6ac','#71b5ac','#90cfbd','#77bbb3']),18);
-    shape(c,'M-432 -65 Q-433 -45 -453 -39 M-473 29 Q-458 39 -440 39 M-388 91 Q-383 102 -367 103 M-342 162 Q-334 173 -325 175 M-312 204 L-313 217',null,'rgba(228,241,207,.83)',2.5);
-    for(const [x,y] of [[-435,-79],[-476,12],[-399,58],[-349,128],[-314,199]]){ell(c,x,y,5.8,1.5,'#c1e4cb');ell(c,x+6,y+3,3.6,.8,'#c1e4cb');}
-  }
-  function flower(c,x,y,s,color) {
-    c.save();c.translate(x,y);c.scale(s,s);
-    shape(c,'M0 0 L0 -4 L-2 -6 M0 -1 L3 -3',null,'#75985c',.9);
-    for(let i=0;i<4;i++)ell(c,Math.cos(i*TAU/4)*1.4,-5.5+Math.sin(i*TAU/4)*1.23,1.4,1.1,color);
-    ell(c,0,-5.4,.82,.7,'#edbd61');c.restore();
-  }
-  function meadow(c,theme) {
-    const rr=seed(8946);
-    c.save();c.beginPath();c.moveTo(...edge[0]);for(const p of edge.slice(1))c.lineTo(...p);c.closePath();c.clip();
-    c.fillStyle=grad(c,-420,-225,425,255,theme==='boss'?['#a9bd86','#9bb67d','#83a184']:['#91b474','#baca79','#9ebf70','#6caa7c']);c.fillRect(-590,-288,1180,578);
-    /* Broad transparent washes retain the paper-like grain under buildings. */
-    for(let i=0;i<230;i++){
-      const x=(rr()-.5)*1170,y=(rr()-.5)*580;
-      const r=8+rr()*72, tint=['rgba(62,137,97,.27)','rgba(255,226,131,.36)','rgba(156,210,112,.29)','rgba(85,160,132,.29)'][i%4];
-      c.save();c.translate(x,y);c.scale(1,.31+rr()*.32);ell(c,0,0,r,r,glow(c,0,0,r,tint,'rgba(190,209,132,0)'));c.restore();
-    }
-    for(let i=0;i<1650;i++){
-      const x=(rr()-.5)*1130,y=(rr()-.5)*540;
-      const col=i%5===0?'rgba(91,135,75,.32)':i%3?'rgba(245,233,169,.45)':'rgba(129,162,83,.34)';
-      ell(c,x,y,.6+rr()*2,.35+rr()*.76,col,-.22);
-    }
-    pond(c);creek(c);
-    for(let i=0;i<155;i++){const x=(rr()-.5)*1100,y=(rr()-.5)*510;
-      if((x/492)**2+(y/217)**2<.66)continue;
-      const k=2+Math.floor(rr()*4);
-      for(let j=0;j<k;j++)flower(c,x+(rr()-.5)*15,y+(rr()-.5)*9,.55+rr()*.48,['#faf1bd','#eedda2','#e3a391','#eacbc5'][i%4]);
-    }
-    c.restore();
-    /* A soft shadow and an ochre layer separate turf from the mineral faces. */
-    const lip=edge.slice(0,44);
-    for(let i=1;i<lip.length;i++){
-      const a=lip[i-1],b=lip[i],k=5+Math.sin(i*2.7)*2;
-      poly(c,[a,b,[b[0]*.999,b[1]+k],[a[0]*.999,a[1]+4]],grad(c,a[0],a[1],a[0],a[1]+k,['#9fa86b','#ae9d70']));
-      if(i%2===0)poly(c,[[a[0],a[1]+k],[a[0]+1,a[1]+k+7],[a[0]+2.3,a[1]+k+11]],null,'#b3ac78',1.5,false);
-    }
-    /* Turf ledge follows the uneven rock lip. */
-    const front=edge.slice(0,44);
-    poly(c,front,null,'#8c9c69',4,false);
-    for(let i=0;i<front.length-1;i++){
-      const a=front[i],b=front[i+1];
-      poly(c,[[a[0],a[1]-1],[(a[0]+b[0])/2,(a[1]+b[1])/2+1.5],[b[0],b[1]-.7]],null,i%3?'#c6c77b':'#e2d798',2.4,false);
-    }
-    const decor=[];
-    for(let i=0;i<210;i++){
-      const a=rr()*TAU,dist=.76+rr()*.20;
-      const x=545*Math.cos(a)*dist,y=247*Math.sin(a)*dist;
-      /* Free every edge cell. Dense woods grow in the crescent between meadow and grid. */
-      const edgeDistance=Math.abs(x)/54+Math.abs(y)/24.5;
-      if(edgeDistance<10.65 || ((x+264)/82)**2+((y-152)/31)**2<1 || (x<-286&&x>-495&&y>-.6*x-271&&y<-.65*x+51) || (y>140&&Math.abs(x)<235)) continue;
-      const s=(.54+rr()*.80)*(y<0?1.37:1.14);
-      decor.push({x,y,s,kind:i%7===2?'rock':i%5===4?'oak':'pine',tone:i%3});
-    }
-    for(const [x,y,s] of [[-438,-75,1.45],[-424,-79,1.10],[401,-90,1.3],[414,-82,.91],[-283,-196,1.1],[291,-179,1.2],[484,48,.95],[220,194,.8]]){
-      decor.push({x,y,s,kind:'rock',tone:0});
-    }
-    for(const [x,y,s,tone] of [[-378,110,1.21,0],[-352,124,1,1],[-369,133,.85,1],[336,151,1.37,0],[357,142,.99,1],[323,157,.70,1],[388,-89,1.40,2],[-300,-158,1.40,0],[-319,-146,.91,2],[230,-199,1.23,1],[266,-190,1.40,0]]){
-      decor.push({x,y,s,kind:'pine',tone});
-    }
-    for(const [x,y,s] of [[-383,141,1.36],[-374,151,.85],[-389,145,.52],[-174,208,1.04],[-160,215,.77],[307,170,1.20],[326,179,.80]]){
-      decor.push({x,y,s,kind:'rock',tone:0});
-    }
-    decor.sort((a,b)=>a.y-b.y);
-    for(const it of decor){
-      if(it.kind==='rock')boulder(c,it.x,it.y,it.s);
-      else if(it.kind==='pine')pine(c,it.x,it.y,it.s,it.tone);
-      else oak(c,it.x,it.y,it.s,it.tone);
-    }
-    /* A modest timber crossing and a ribbon trail at the water's edge. */
-    c.save();c.translate(-400,72);c.rotate(-.5);
-    shape(c,'M-13 -3 Q0 -9 15 -5 L15 2 Q0 -1 -13 5Z','#a27e53','#87724d',1);
-    for(let k=-11;k<15;k+=4)poly(c,[[k,-3-Math.cos(k/12)*2],[k,4-Math.cos(k/12)*2]],null,'#d9bb7f',1.4,false);
-    shape(c,'M-13 3 L-13 -6 Q1 -11 15 -7 L15 1 M0 -8 L0 -3',null,'#96764f',2);c.restore();
+  function inBounds(item,state) {
+    return item.x>=0&&item.x<(state.gridWidth||state.gridSize||10)&&item.y>=0&&item.y<(state.gridHeight||state.gridSize||10);
   }
   const backgroundCache=new Map();
-  function backdrop(w,h,dpr,theme) {
-    const key=[w,h,dpr,theme==='boss'?'boss':theme==='arena'?'arena':'home'].join(':');
+  function backdrop(w,h,dpr,theme,n,cols,rows) {
+    const key=[w,h,dpr,n,cols,rows,theme==='boss'?'boss':'home'].join(':');
     if(backgroundCache.has(key))return backgroundCache.get(key);
-    const img=newLayer(w*dpr,h*dpr),c=img.getContext('2d');c.scale(dpr,dpr);c.lineJoin='round';c.lineCap='round';sky(c,w,h,theme);
-    const u=unit(w,h);c.translate(w*.5,h*.51);c.scale(u/100,u/100);
-    relief(c);waterfall(c);meadow(c,theme);
+    const image=newLayer(w*dpr,h*dpr),c=image.getContext('2d'),u=unit(w,h,n);
+    c.scale(dpr,dpr);c.lineJoin='round';c.lineCap='round';
+    c.fillStyle=grad(c,0,0,w*.7,h,['#a8d2ce','#c4ded3','#f2e8c9']);c.fillRect(0,0,w,h);
+    const right=cols-.5,bottomEdge=rows-.5;
+    const corners=[[-.5,-.5],[right,-.5],[right,bottomEdge],[-.5,bottomEdge]].map(([x,y])=>point(x,y,w,h,n));
+    const [north,east,south,west]=corners;
+    function face(a,b,leftFace,segments) {
+      const bottom=[];
+      for(let i=0;i<=segments;i++){
+        const f=i/segments,x=a.x+(b.x-a.x)*f,y=a.y+(b.y-a.y)*f;
+        const depth=(.37+.27*(1-Math.abs(x-w*.5)/(axisX*n*u))+.065*Math.sin(i*2.28))*u;
+        bottom.push([x+(w*.5-x)*.018,y+depth]);
+      }
+      poly(c,[[a.x,a.y],[b.x,b.y],...bottom.slice().reverse()],grad(c,a.x,a.y,b.x,b.y+u*.6,leftFace?['#c4b38b','#8c9784']:['#adb18e','#7b938b']));
+      for(let i=0;i<segments;i++){
+        const t=i/segments,m=(i+1)/segments;
+        const top=[a.x+(b.x-a.x)*t,a.y+(b.y-a.y)*t],next=[a.x+(b.x-a.x)*m,a.y+(b.y-a.y)*m];
+        poly(c,[top,next,bottom[i+1]],i%2?'rgba(255,228,160,.12)':'rgba(64,94,83,.12)');
+      }
+      poly(c,[[a.x,a.y],[b.x,b.y],[b.x,b.y+u*.095],[a.x,a.y+u*.095]],leftFace?'#c1b77f':'#b3ad78');
+    }
+    face(west,south,true,cols);face(south,east,false,rows);
+    const turf=theme==='boss'?['#aec48c','#91ac80','#829e80']:['#c2d69a','#aeca8c','#99b884'];
+    poly(c,corners.map(q=>[q.x,q.y]),grad(c,north.x,north.y,south.x,south.y,turf));
+    for(let x=0;x<cols;x++)for(let y=0;y<rows;y++){
+      const tint=(x+y)%2?'rgba(255,247,194,.12)':'rgba(73,117,71,.045)';
+      tile(c,x,y,w,h,tint,null,0,n);
+    }
+    // Trace each grid line once to keep the expanded board legible at mobile scale.
+    c.beginPath();
+    for(let i=-.5;i<=right;i++){
+      const a=point(i,-.5,w,h,n),b=point(i,bottomEdge,w,h,n);c.moveTo(a.x,a.y);c.lineTo(b.x,b.y);
+    }
+    for(let j=-.5;j<=bottomEdge;j++){
+      const a=point(-.5,j,w,h,n),b=point(right,j,w,h,n);c.moveTo(a.x,a.y);c.lineTo(b.x,b.y);
+    }
+    c.strokeStyle='rgba(70,107,70,.46)';c.lineWidth=Math.max(.85,u*.015);c.stroke();
+    poly(c,corners.map(q=>[q.x,q.y]),null,'#778d66',Math.max(1.2,u*.027));
     if(backgroundCache.size>=3)backgroundCache.delete(backgroundCache.keys().next().value);
-    backgroundCache.set(key,img);return img;
+    backgroundCache.set(key,image);return image;
   }
-  const sizes={keep:1.56,mine:1.12,farm:1.27,home:1.17,den:1.19,cannon:.84,archer:1.01,spire:1.04,wall:.81,firetrap:.75,icetrap:.75};
-  const heights={keep:1.40,mine:.68,farm:.59,home:.80,den:.65,cannon:.52,archer:1.08,spire:.9,wall:.35,firetrap:.19,icetrap:.24};
-  function buildingWidth(b,w,h) { return (sizes[b.type]||1)*unit(w,h); }
-  function bubblePoint(b,w,h,t=0) {
-    const a=point(b.x,b.y,w,h),width=buildingWidth(b,w,h),radius=Math.max(9,Math.min(16,unit(w,h)*.19));
+  const sizes={goldstore:1.06,foodstore:1.12,academy:1.14,keep:1.56,mine:1.12,farm:1.27,home:1.17,den:1.19,cannon:.84,archer:1.01,spire:1.04,wall:.81,firetrap:.75,icetrap:.75};
+  const heights={goldstore:.74,foodstore:.80,academy:1.01,keep:1.40,mine:.68,farm:.59,home:.80,den:.65,cannon:.52,archer:1.08,spire:.9,wall:.35,firetrap:.19,icetrap:.24};
+  function buildingWidth(b,w,h,n) { return (sizes[b.type]||1)*unit(w,h,n); }
+  function bubblePoint(b,w,h,t=0,n=10) {
+    const a=point(b.x,b.y,w,h,n),width=buildingWidth(b,w,h,n),radius=Math.max(9,Math.min(16,unit(w,h,n)*.19));
     return {x:a.x+width*.23,y:a.y-width*(heights[b.type]||.64)-radius*.82+Math.sin(t*2+b.x)*2,r:radius};
   }
-  function resourceBubble(c,b,w,h,t) {
-    const a=bubblePoint(b,w,h,t),s=a.r;
+  function resourceBubble(c,b,w,h,t,n) {
+    const a=bubblePoint(b,w,h,t,n),s=a.r;
     c.save();c.translate(a.x,a.y);c.scale(s/15,s/15);c.lineJoin='round';
     shape(c,'M-3 12 Q-5 12 -7 11 C-19 6 -16 -10 -6 -14 C6 -19 18 -10 15 2 Q13 11 4 13 L0 17Z','rgba(95,88,66,.26)');
     shape(c,'M-3 10 Q-9 10 -12 4 C-18 -6 -9 -16 0 -16 C13 -16 18 -6 14 3 Q11 10 4 11 L0 15Z',grad(c,-2,-16,3,13,['#fff5cc','#f3e1a5']),'#a58a59',1.4);
@@ -664,51 +707,58 @@ window.Art = (() => {
       shape(c,'M1 -6 L-1 1',null,'#b58b42',1.1);
     }c.restore();
   }
-  function pathsToKeep(c,buildings,w,h) {
-    const base=buildings.find(b=>b.type==='keep');if(!base)return;
-    const u=unit(w,h),a=point(base.x,base.y,w,h);
-    for(const b of buildings){
-      if(b===base||['wall','firetrap','icetrap'].includes(b.type))continue;
-      const p=point(b.x,b.y,w,h),cx=(p.x+a.x)*.5+.12*(a.y-p.y),cy=(p.y+a.y)*.5+(b.x%2?-.18:.22)*u;
-      c.beginPath();c.moveTo(p.x,p.y+u*.04);c.quadraticCurveTo(cx,cy,a.x,a.y+u*.09);c.strokeStyle='rgba(169,156,107,.52)';c.lineWidth=u*.125;c.stroke();
-      c.strokeStyle='rgba(225,206,149,.96)';c.lineWidth=u*.095;c.stroke();
-      if(u>25){
-        let idx=0;
-        for(let t=.22;t<.95;t+=.19){const q=1-t;const x=q*q*p.x+2*t*q*cx+t*t*a.x;const y=q*q*p.y+2*t*q*cy+t*t*a.y;ell(c,x,y,u*.034,u*.015,idx++%2?'#e9dab0':'#c4b58a',.13);}
-      }
-    }
-  }
-  function tile(c,x,y,w,h,fill,stroke,lw) {
-    const p=point(x,y,w,h),u=unit(w,h);
-    poly(c,[[p.x,p.y-u*.245],[p.x+u*.54,p.y],[p.x,p.y+u*.245],[p.x-u*.54,p.y]],fill,stroke,lw);
+  function tile(c,x,y,w,h,fill,stroke,lw,n) {
+    const p=point(x,y,w,h,n),u=unit(w,h,n);
+    poly(c,[[p.x,p.y-u*axisY],[p.x+u*axisX,p.y],[p.x,p.y+u*axisY],[p.x-u*axisX,p.y]],fill,stroke,lw);
   }
   function same(b,selected) {return selected!=null&&(selected===b||selected===b.id||(typeof selected==='object'&&(selected.id!=null?selected.id===b.id:selected.x===b.x&&selected.y===b.y)));}
-  const flightLocations=[[6,7],[7,3],[1,6],[3,1],[5,8],[8,3],[1,4],[3,7],[7,7],[2,1],[4,9],[8,6]];
+  const roosts=[[6,7],[7,3],[1,6],[3,1],[5,8],[8,3],[1,4],[3,7],[7,7],[2,1],[4,9],[8,6]];
   function dragonPoints(state,w,h,t) {
-    const u=unit(w,h),list=(state.dragons||[]).slice(0,12),used=new Set((state.buildings||[]).map(b=>b.x+','+b.y));
-    return list.map((d,i)=>{
+    const n=state.gridSize||10,cols=state.gridWidth||n,rows=state.gridHeight||n,u=unit(w,h,n),list=(state.dragons||[]).slice(0,12),occupied=new Set((state.buildings||[]).map(b=>b.x+','+b.y));
+    const result=[],roost=([x,y])=>[Math.round(x*(cols-1)/9),Math.round(y*(rows-1)/9)];
+    for(let i=0;i<list.length;i++){
+      const d=list[i],flying=d.level>=21;
       let x=d.x,y=d.y;
-      if(!Number.isFinite(x)||!Number.isFinite(y)){
-        let spot=flightLocations[i];
-        for(let k=0;k<flightLocations.length;k++){
-          const a=flightLocations[(i+k)%flightLocations.length];
-          if(!used.has(a.join(','))){spot=a;break;}
-        }[x,y]=spot;used.add(spot.join(','));
+      if(!inBounds({x,y},state)){
+        let spot;
+        for(let j=0;j<roosts.length;j++){
+          const candidate=roost(roosts[(i+j)%roosts.length]);
+          if(!occupied.has(candidate.join(','))){spot=candidate;break;}
+        }
+        if(!spot){
+          for(let j=0;j<cols*rows;j++){const candidate=[j%cols,Math.floor(j/cols)];if(!occupied.has(candidate.join(','))){spot=candidate;break;}}
+        }
+        if(!spot&&!flying)continue;
+        [x,y]=spot||roost(roosts[i]);
       }
-      const a=point(x,y,w,h),phase=t*.63+i*2.17;
-      a.x+=Math.sin(phase)*u*.095;a.y+=Math.cos(phase*.7)*u*.035;
-      const size=u*(d.level>=10?1.38:d.level>=5?1.2:1.02);
-      return {item:d,x:a.x,y:a.y-u*.24+Math.sin(t*2.1+1.2*i)*u*.035,ground:a.y,size,flip:i%3===2};
-    });
+      occupied.add(x+','+y);
+      const phase=t*.57+i*2.17;
+      let flip=i%3===2;
+      if(flying){x+=Math.sin(phase)*.42;y+=Math.cos(phase*.8)*.36;flip=Math.cos(phase)+.7*Math.sin(phase*.8)<0;}
+      else{
+        const steps=[[1,0],[0,1],[-1,0],[0,-1]];
+        for(let j=0;j<4;j++){
+          const [dx,dy]=steps[(i+j)%4],xx=x+dx,yy=y+dy;
+          if(xx<0||xx>=cols||yy<0||yy>=rows||occupied.has(xx+','+yy))continue;
+          occupied.add(xx+','+yy);const travel=(1-Math.cos(phase))*.38;
+          x+=dx*travel;y+=dy*travel;flip=(dx-dy)*Math.sin(phase)<0;break;
+        }
+      }
+      const p=point(x,y,w,h,n),size=u*(d.level>=10?1.20:d.level>=5?1.05:.93);
+      const lift=flying?size*(.60+.05*Math.sin(t*2.1+i)):size*(d.level<5?.17:.21);
+      result.push({item:d,x:p.x,y:p.y-lift,ground:p.y,size,flip});
+    }
+    return result;
   }
   function objectList(state,w,h,t){
-    const things=(state.buildings||[]).map(b=>({kind:'building',item:b,...point(b.x,b.y,w,h),size:buildingWidth(b,w,h)}));
+    const n=state.gridSize||10;
+    const things=(state.buildings||[]).filter(b=>inBounds(b,state)).map(b=>({kind:'building',item:b,...point(b.x,b.y,w,h,n),size:buildingWidth(b,w,h,n)}));
     for(const a of dragonPoints(state,w,h,t))things.push({kind:'dragon',...a});
     return things.sort((a,b)=>(a.ground??a.y)-(b.ground??b.y));
   }
   function hit(px,py,w,h,state,t=0) {
     const bs=state.buildings||[];
-    for(let i=bs.length-1;i>=0;i--){if(!bs[i].ready)continue;const p=bubblePoint(bs[i],w,h,t);
+    for(let i=bs.length-1;i>=0;i--){if(!bs[i].ready||!inBounds(bs[i],state))continue;const p=bubblePoint(bs[i],w,h,t,state.gridSize||10);
       if(Math.hypot(px-p.x,py-p.y)<=p.r*1.26)return {kind:'bubble',id:bs[i].id,item:bs[i]};}
     const objects=objectList(state,w,h,t);
     for(let i=objects.length-1;i>=0;i--){const a=objects[i],dx=(px-a.x)/a.size,dy=(py-a.y)/a.size;
@@ -720,24 +770,18 @@ window.Art = (() => {
   }
   function island(c,w,h,t=0,state={}) {
     if(!(w>0&&h>0))return;
-    const u=unit(w,h),transform=c.getTransform(),dpr=Math.max(1,Math.min(2,Math.hypot(transform.a,transform.b)||1));
-    c.save();c.lineCap='round';c.lineJoin='round';c.drawImage(backdrop(w,h,dpr,state.theme||state.mode),0,0,w,h);
-    /* Small rays of light and flowing water are the only animated terrain strokes. */
-    c.save();c.translate(w*.5,h*.51);c.scale(u/100,u/100);
-    for(let i=0;i<7;i++){
-      const y=220+(t*29+i*16)%105,x=-317-(y-220)*.11+Math.sin(i*53)*7;
-      poly(c,[[x,y],[x-1.3,y+7]],null,'rgba(237,252,228,.65)',1.2,false);
-    }c.restore();
-    pathsToKeep(c,state.buildings||[],w,h);
-    if(state.grid){
-      for(let i=0;i<10;i++)for(let j=0;j<10;j++)tile(c,i,j,w,h,(i+j)%2?'rgba(255,246,201,.10)':'rgba(102,146,107,.09)','rgba(78,111,83,.36)',Math.max(.65,u*.012));
+    const n=state.gridSize||10,u=unit(w,h,n),transform=c.getTransform(),dpr=Math.max(1,Math.min(2,Math.hypot(transform.a,transform.b)||1));
+    c.save();c.lineCap='round';c.lineJoin='round';c.drawImage(backdrop(w,h,dpr,state.theme||state.mode,n,state.gridWidth||n,state.gridHeight||n),0,0,w,h);
+    if(state.hover&&inBounds(state.hover,state)){
+      const q=state.hover,occupied=(state.buildings||[]).some(b=>b.x===q.x&&b.y===q.y&&!same(b,state.selected));
+      tile(c,q.x,q.y,w,h,occupied?'rgba(215,118,94,.61)':'rgba(255,235,150,.81)',occupied?'#a94d40':'#8a672c',Math.max(1.8,u*.045),n);
+      tile(c,q.x,q.y,w,h,null,occupied?'#f6b8a9':'#fff4b8',Math.max(.8,u*.018),n);
     }
-    if(state.hover&&Number.isFinite(state.hover.x)&&Number.isFinite(state.hover.y))tile(c,state.hover.x,state.hover.y,w,h,'rgba(255,231,135,.49)','#fff0a4',2);
     const things=objectList(state,w,h,t);
     for(const a of things){
       const b=a.item;
       if(a.kind==='building'){
-        if(same(b,state.selected))tile(c,b.x,b.y,w,h,'rgba(255,227,127,.65)','#fff0af',2.4);
+        if(same(b,state.selected))tile(c,b.x,b.y,w,h,'rgba(255,227,127,.65)','#fff0af',2.4,n);
         ell(c,a.x+a.size*.03,a.y+a.size*.032,a.size*.46,a.size*.13,'rgba(66,88,62,.19)');
         ell(c,a.x,a.y+a.size*.022,a.size*.30,a.size*.075,'rgba(76,84,58,.13)');
         building(c,a.x,a.y,a.size,b.type,b.level||1,t);
@@ -750,18 +794,7 @@ window.Art = (() => {
         dragon(c,a.x,a.y,a.size,b.species,b.level,t+a.x*.013,a.flip);
       }
     }
-    for(const b of state.buildings||[])if(b.ready)resourceBubble(c,b,w,h,t);
-    if(!state.grid&&!['raid','defense','boss','arena'].includes(state.theme||state.mode)){
-      for(let i=0;i<6;i++){
-        const a=t*.45+i*1.78;
-        const xx=w*.5+(i%2?1:-1)*u*(3.12+.17*Math.cos(a)+i*.19), yy=h*.51+u*(.87+Math.sin(a*.88+i)*.30);
-        const flap=Math.abs(Math.sin(t*4.8+i));
-        ell(c,xx,yy,u*.026,.55+u*.028*flap,i%2?'#e3aa57':'#e9c1ad',-.60);
-        ell(c,xx+u*.032,yy-u*.011,u*.031,.6+u*.033*flap,i%2?'#ffda85':'#f8deca',.5);
-      }
-    }
-    const sway=Math.sin(t*.083)*u*.13;
-    cloud(c,w*.005+sway,h*.74,u*.012,1);cloud(c,w*.993-sway,h*.84,u*.014,1);
+    for(const b of state.buildings||[])if(b.ready&&inBounds(b,state))resourceBubble(c,b,w,h,t,n);
     c.restore();
   }
   return Object.freeze({island,point,cell,dragon,building,egg,hit,bubblePoint});
@@ -771,23 +804,81 @@ window.Art = (() => {
 (() => {
   'use strict';
   const stages = ['Лазурная пристань', 'Сады янтаря', 'Облачная застава', 'Громовой перевал', 'Терновая корона', 'Солнечный бастион'];
-  const entrances = [{x:0,y:4}, {x:4,y:0}, {x:9,y:5}, {x:5,y:9}];
   const entryNames = ['Слева сверху', 'Справа сверху', 'Справа снизу', 'Слева снизу'];
   const banner = {defense:'Оборона Оплота',raid:'Набег',boss:'Дракон-Хранитель',arena:'Стихийная арена'};
   const colors = ['#f07349','#49a9cd','#78ad57','#ae84d1','#c79548','#ebc260'];
-  const elementNames = ['Огонь','Вода','Природа','Молния','Земля','Легенда'];
-  const buildingNames = {keep:'Цитадель',mine:'Шахта',farm:'Ферма',home:'Жилище',archer:'Башня лучников',cannon:'Бастион',spire:'Шпиль стихий',wall:'Магическая стена',den:'Логово',firetrap:'Огненная руна',icetrap:'Ледяная ловушка'};
+  const elementsLabel = id => window.GAME_ELEMENTS?.[id] || ['Огонь','Вода','Природа','Молния','Земля','Свет'][id];
+  const elementalBuildings = {goldstore:4,foodstore:2,academy:5,archer:2,cannon:0,spire:3,farm:2,mine:4,den:5,firetrap:0,icetrap:1};
+  const skillNames = ['Огненное эхо','Живая вода','Цепкие корни','Цепная молния','Каменный щит','Солнечный зов'];
+  const hybridSkills = {'0,1':'Кипящий прилив','0,2':'Цветок пламени','0,3':'Грозовой огонь','0,4':'Сердце вулкана','0,5':'Солнечная вспышка',
+    '1,2':'Живой ручей','1,3':'Грозовой ливень','1,4':'Каменный ключ','1,5':'Радужный поток',
+    '2,3':'Гроза в кроне','2,4':'Каменные корни','2,5':'Цветок рассвета','3,4':'Гремящий утёс','3,5':'Полярное сияние','4,5':'Светоч недр',
+    '0,1,2':'Дыхание оранжереи','0,1,3':'Шторм пара','0,1,4':'Пылающий гейзер','0,1,5':'Радужное пламя',
+    '0,2,3':'Грозовой цветок','0,2,4':'Вулканическая роща','0,2,5':'Венок рассвета','0,3,4':'Гром вулкана',
+    '0,3,5':'Огни грозы','0,4,5':'Янтарное сердце','1,2,3':'Танец муссона','1,2,4':'Живой оазис',
+    '1,2,5':'Лотос света','1,3,4':'Поющий гейзер','1,3,5':'Радужная гроза','1,4,5':'Хрустальный прилив',
+    '2,3,4':'Гром леса','2,3,5':'Сияющая крона','2,4,5':'Солнечный дуб','3,4,5':'Громовой кристалл',
+    '0,1,2,3':'Буря цветущих искр','0,1,2,4':'Сад горячих ключей','0,1,2,5':'Рассвет над оазисом',
+    '0,1,3,4':'Кузница бури','0,1,3,5':'Грозовая корона','0,1,4,5':'Солнце в кристалле',
+    '0,2,3,4':'Сердце огненного леса','0,2,3,5':'Заря над кроной','0,2,4,5':'Золотая роща',
+    '0,3,4,5':'Метеорный дождь','1,2,3,4':'Зов весенней грозы','1,2,3,5':'Цветение радуги',
+    '1,2,4,5':'Кристалл живого источника','1,3,4,5':'Призма бури','2,3,4,5':'Гимн древней кроны',
+    '0,1,2,3,4':'Пробуждение острова','0,1,2,3,5':'Северное сияние','0,1,2,4,5':'Песнь первого сада',
+    '0,1,3,4,5':'Звёздный ливень','0,2,3,4,5':'Венец древнего леса','1,2,3,4,5':'Свет семи ручьёв',
+    '0,1,2,3,4,5':'Хоровод шести стихий'};
+  const vitality = [1,1.19,1.42,1.70];
+  const strength = [1,1.23,1.49,1.81];
+  const buildingNames = {goldstore:'Золотое хранилище',foodstore:'Амбар ягод',academy:'Академия чар',keep:'Цитадель',mine:'Шахта',farm:'Ферма',home:'Жилище',archer:'Башня лучников',cannon:'Бастион',spire:'Шпиль стихий',wall:'Магическая стена',den:'Логово',firetrap:'Огненная руна',icetrap:'Ледяная ловушка'};
   const towerType = {archer:{range:3.25,damage:5.2,delay:1.1,color:'#edce85'},cannon:{range:2.7,damage:9,delay:1.85,color:'#e68c51'},spire:{range:3.3,damage:6.5,delay:1.45,color:'#ae8dcf'}};
-  const health = {keep:112,mine:31,farm:28,home:35,den:38,archer:40,cannon:45,spire:48,wall:35,firetrap:7,icetrap:7};
+  const health = {goldstore:70,foodstore:62,academy:84,keep:112,mine:31,farm:28,home:35,den:38,archer:40,cannon:45,spire:48,wall:35,firetrap:7,icetrap:7};
   const distance = (a,b) => Math.hypot(a.x-b.x,a.y-b.y);
   const alive = a => a.hp>0;
   const clamp = (x,a,b) => Math.min(b,Math.max(a,x));
   const spec = i => window.GAME_SPECIES?.[i] || {name:'Дракон',element:0};
-  const elem = u => Number(spec(u.species).element)||0;
-  const elementName = u => elementNames[elem(u)] || elementNames[0];
-  const color = u => colors[elem(u)] || colors[0];
-  const name = u => u.name || spec(u.species).name;
-  const advantage = (a,b) => typeof window.strongAgainst==='function' && window.strongAgainst(elem(a),elem(b));
+  function speciesElements(index) {
+    const species = spec(index);
+    return [...new Set(species.elements || [species.element])].filter(e=>Number.isInteger(e)&&e>=0&&e<6);
+  }
+  const elementName = u => (u.elements || []).map(elementsLabel).join(' + ') || 'без стихии';
+  const color = u => colors[u.elements?.[0]] || '#e3c28c';
+  const name = u => u.name || spec(u.species).shortName || spec(u.species).name;
+  const advantage = (a,b) => a.elements?.some(x=>b.elements?.some(y=>window.strongAgainst(x,y))) || false;
+  function profile(species,level=1,enchant=0) {
+    level=clamp(Math.floor(Number(level)||1),1,100);
+    enchant=clamp(Math.floor(Number(enchant)||0),0,5);
+    const powerFactor=1+enchant*.18,activeBonus=35+enchant*9;
+    const elements=speciesElements(species),tier=clamp(elements.length,1,4);
+    const hp=Math.round((55+7*level)*vitality[tier-1]),damage=Math.round((7+1.45*level)*strength[tier-1]);
+    const charges=tier<3?4:3;
+    const extra=Math.max(1,Math.round(damage*(.52+.035*(tier-1))*powerFactor));
+    const restore=Math.max(1,Math.round(damage*(.75+.045*(tier-1))*powerFactor));
+    const amplify=Math.round((25+3*(tier-1))*powerFactor);
+    const furyPower=Math.round(damage*.52*powerFactor);
+    const effects=[
+      'Огонь наносит ещё '+extra+' урона цели.',
+      'Вода восполняет до '+restore+' здоровья самому раненому дракону отряда.',
+      'Корни усиливают следующий входящий удар по цели на '+amplify+'%.',
+      'Молния наносит '+extra+' урона ещё одному ближайшему врагу или повторно бьёт одиночную цель.',
+      'Земля даёт владельцу щит на '+restore+' урона. Повторное наложение обновляет щит.',
+      'Свет усиливает следующий удар каждого дракона отряда на '+amplify+'%.'
+    ];
+    const signature=[...elements].sort((a,b)=>a-b).join(',');
+    const abilityName=tier===1?skillNames[elements[0]]:hybridSkills[signature];
+    const passive='Каждая '+(charges===4?'четвёртая':'третья')+' атака вызывает способность. '+elements.map(e=>effects[e]).join(' ');
+    const active='На арене за 2 магии дракон немедленно применяет способность и бьёт на '+activeBonus+'% сильнее. Счётчик атак начинается заново.';
+    const ability={enchant,powerFactor,activeBonus,furyPower,name:abilityName,description:passive+' '+active,passive,active,charges,extra,restore,amplify};
+    const advantageElements=Array.from({length:6},(_,i)=>i).filter(i=>elements.some(e=>window.strongAgainst(e,i)));
+    return {hp,damage,tier,elements,enchant,ability,advantageElements};
+  }
+  function rivalSpecies(rank,seed,used=[]) {
+    const species=window.GAME_SPECIES || [];
+    const available=species.map((_,i)=>i).filter(i=>!used.includes(i));
+    for(let tier=rank;tier>0;tier--){
+      const matching=available.filter(i=>Math.min(4,speciesElements(i).length)===tier);
+      if(matching.length)return matching[seed%matching.length];
+    }
+    return available[seed%available.length] ?? 0;
+  }
   const ratio = u => Math.max(0,u.hp/u.maxHp);
   function nearest(from, list, accept=alive) {
     let result=null, closest=Infinity;
@@ -805,28 +896,103 @@ window.Art = (() => {
     unit.flip=target.x-target.y < unit.x-unit.y;
     unit.x+=(target.x-unit.x)*step; unit.y+=(target.y-unit.y)*step;
   }
+  const clearsWalls=u=>u.kind!=='goblin'&&u.level>=21;
+  // Intersect the whole movement segment with closed wall tiles. The small
+  // overlap between adjacent tiles also seals diagonal corner crossings.
+  function firstWall(from,to,walls) {
+    let nearestWall=null,entry=Infinity;
+    for(const wall of walls){
+      if(!alive(wall))continue;
+      let t0=0,t1=1;
+      for(const axis of ['x','y']){
+        const step=to[axis]-from[axis],offset=wall[axis]-from[axis];
+        if(Math.abs(step)<1e-8){if(Math.abs(offset)>.505){t1=-1;break;}continue;}
+        const a=(offset-.505)/step,b=(offset+.505)/step;
+        t0=Math.max(t0,Math.min(a,b));t1=Math.min(t1,Math.max(a,b));
+        if(t0>t1)break;
+      }
+      if(t0<=t1&&t0<entry){nearestWall=wall;entry=t0;}
+    }
+    return nearestWall?{wall:nearestWall,entry}:null;
+  }
+  function clearPosition(position,walls,bounds) {
+    if(!firstWall(position,position,walls))return position;
+    let best=null,d=Infinity;
+    for(let y=0;y<bounds.height;y++)for(let x=0;x<bounds.width;x++){
+      const cell={x,y},offset=distance(position,cell);
+      if(offset<d&&!firstWall(cell,cell,walls)){d=offset;best=cell;}
+    }
+    return best || {x:-1,y:position.y};
+  }
+  function friendlyRoute(unit,goal,walls,revision,bounds) {
+    const target=clearPosition({x:Math.round(goal.x),y:Math.round(goal.y)},walls,bounds);
+    const key=target.x+','+target.y+','+revision;
+    if(unit.pathKey!==key){
+      const start={x:Math.round(unit.x),y:Math.round(unit.y)}, queue=[start], previous=new Map([[start.x+','+start.y,null]]);
+      let reached=null;
+      for(let i=0;i<queue.length;i++){
+        const cell=queue[i];if(cell.x===target.x&&cell.y===target.y){reached=cell;break;}
+        for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+          const next={x:cell.x+dx,y:cell.y+dy}, id=next.x+','+next.y;
+          if(next.x< -1||next.y< -1||next.x>bounds.width||next.y>bounds.height||previous.has(id)||firstWall(cell,next,walls))continue;
+          previous.set(id,cell);queue.push(next);
+        }
+      }
+      unit.path=[];unit.pathKey=key;
+      while(reached){unit.path.unshift(reached);reached=previous.get(reached.x+','+reached.y);}
+    }
+    while(unit.path.length&&distance(unit,unit.path[0])<.03)unit.path.shift();
+    return unit.path[0];
+  }
+  function advance(unit,goal,speed,dt,range,walls,friendly,revision,bounds) {
+    const barrier=clearsWalls(unit)?null:firstWall(unit,goal,walls);
+    if(!barrier){unit.pathKey=null;walk(unit,goal,speed,dt,range);return distance(unit,goal)<=range+.021?goal:null;}
+    if(friendly){
+      const next=friendlyRoute(unit,goal,walls,revision,bounds);
+      if(next&&!firstWall(unit,next,walls))walk(unit,next,speed,dt);
+      return null;
+    }
+    const length=distance(unit,goal),remaining=Math.max(0,length*barrier.entry-.32);
+    walk(unit,goal,speed,dt,length-remaining);
+    return remaining<=.03?barrier.wall:null;
+  }
+  function edgePosition(x,y,lastX,lastY) {
+    const nearest=Math.min(x,y,lastX-x,lastY-y);
+    if(nearest===x)return {x:-.72,y:clamp(y,0,lastY)};
+    if(nearest===y)return {x:clamp(x,0,lastX),y:-.72};
+    if(nearest===lastX-x)return {x:lastX+.72,y:clamp(y,0,lastY)};
+    return {x:clamp(x,0,lastX),y:lastY+.72};
+  }
   function makeDragon(d,i) {
-    const level=clamp(Number(d.level)||1,1,100), hp=55+level*7;
-    return {...d,level,maxHp:hp,hp,kind:'dragon',cd:0.25+i*0.13,damage:7+level*1.45,speed:1.55,range:1.48,side:'ally',joined:false,air:0};
+    const level=clamp(Math.floor(Number(d.level)||1),1,100),stats=profile(d.species,level,d.enchant);
+    return {...d,...stats,level,maxHp:stats.hp,kind:'dragon',cd:0.25+i*0.13,speed:1.55,range:1.48,
+      side:'ally',joined:false,air:0,strikes:0,shield:0,mark:0,inspired:0};
   }
   function makeBuilding(b,i,scale=1) {
     const level=Number(b.level)||1, hp=Math.ceil((health[b.type]||30)*(0.76+level*0.24)*scale);
-    return {...b,id:b.id??('tower-'+i),level,maxHp:hp,hp,kind:'building',cd:0.6+(i%3)*0.26,spent:false};
+    const element=elementalBuildings[b.type];
+    return {...b,id:b.id??('tower-'+i),level,maxHp:hp,hp,elements:element==null?[]:[element],
+      kind:'building',cd:0.6+(i%3)*0.26,spent:false};
   }
+  // Campaign and boss forts keep their authored ten-by-ten layouts.
+  const fortPlans = [
+    ['..........','..........','..ww.ww...','..w..Aw...','..w.K.w...','..wF.Mw...','..www.w...','.....C....','..........','..........'],
+    ['..........','..wwwwww..','..w..BAw..','..w.C..w..','..w.K..w..','..w.M.Gw..','..ww.wwA..','....F.....','..........','..........'],
+    ['..........','.wwww.www.','.wAG.B.Cw.','.w.www..w.','.w.wKw.Mw.','...w.A..w.','.wCw.w.Dw.','.wwwwwwww.','...F......','..........'],
+    ['..........','.wwwwwwww.','.w.SB..Aw.','.w.wwww.w.','.wCwK.wGw.','.w.w..w.w.','.wAwwwwCw.','.wM.D...w.','.wwww.wwww','..........'],
+    ['..........','.wwwwwwww.','.wC.AS.Gw.','.w.wwww.w.','.wAwKGwCw.','.w.wS.w.w.','.w.wwwwMw.','.wBC.A.Dw.','.wwwwwwww.','..........'],
+    ['..........','.wwwwwwww.','.wACSBACw.','.w.wwwwSw.','.wSwKGwCw.','.wCwSAwDw.','.w.wwwwAw.','.wAGC.CMw.','.wwwwwwww.','..........']
+  ];
+  const fortSigns = {K:'keep',w:'wall',A:'archer',C:'cannon',S:'spire',F:'farm',M:'mine',G:'goldstore',B:'foodstore',D:'academy'};
+  const fortHp=[1.40,1.7,2,2.42,2.9,3.3], fortDamage=[1.72,1.85,2.05,2.36,2.66,2.96];
   function fortress(stage,boss) {
-    const shape=[
-      [[3,3],[6,5],[5,7],[3,6],[7,3]], [[6,3],[4,6],[3,3],[7,6],[2,5]],
-      [[5,6],[3,4],[7,5],[6,2],[3,7]], [[3,5],[5,3],[6,7],[2,7],[7,4]],
-      [[6,6],[4,4],[2,5],[7,4],[4,7]], [[4,3],[6,6],[2,4],[7,2],[4,7]]
-    ][(stage-1)%6];
-    const [keep,archer,mine,farm,extra]=shape;
-    const entries=[[keep,'keep'],[archer,'archer'],[mine,'mine'],[farm,'farm']];
-    if(stage>=2||boss) entries.push([extra,'cannon']);
-    if(stage>=3) entries.push([[5,5],'home']);
-    if(stage>=4) entries.push([[1,3],'spire']);
-    if(stage>=5) entries.push([[8,7],'archer']);
-    if(stage>=6) entries.push([[7,8],'mine']);
-    return entries.map(([[x,y],type],i)=>makeBuilding({x,y,type,level:1+Math.floor((stage-1)/3)},i,1+(stage-1)*0.15));
+    const rank=clamp(stage-1,0,fortPlans.length-1),structures=[];
+    fortPlans[rank].forEach((row,y)=>[...row].forEach((symbol,x)=>{
+      const type=fortSigns[symbol];if(!type)return;
+      const structure=makeBuilding({x,y,type,level:rank+1},structures.length,fortHp[rank]);
+      structure.attackScale=fortDamage[rank];structures.push(structure);
+    }));
+    return structures;
   }
   function rounded(ctx,x,y,w,h,r) {
     ctx.beginPath();
@@ -861,14 +1027,21 @@ window.Art = (() => {
   function start(mode,stage,state,squad,events={}) {
     stage=Math.max(1,Math.floor(Number(stage)||1));
     const defense=mode==='defense', arena=mode==='arena', boss=mode==='boss';
+    const ownedGrid=defense&&typeof islandGrid==='function'?islandGrid(state):{};
+    const gridWidth=defense?clamp(Math.floor(state.gridWidth||ownedGrid.width||state.gridSize)||10,10,16):10;
+    const gridHeight=defense?clamp(Math.floor(state.gridHeight||ownedGrid.height||state.gridSize)||10,10,16):10;
+    const gridSize=Math.max(gridWidth,gridHeight),lastX=gridWidth-1,lastY=gridHeight-1;
+    const bounds={width:gridWidth,height:gridHeight};
+    const entrances=[{x:0,y:Math.floor(lastY/2)},{x:Math.floor(lastX/2),y:0},{x:lastX,y:Math.ceil(lastY/2)},{x:Math.ceil(lastX/2),y:lastY}];
     const party=(squad||[]).slice(0,arena?3:4).map(makeDragon);
     const structures=arena?[]:defense?(state.buildings||[]).map((b,i)=>makeBuilding(b,i)):fortress(stage,boss);
     const keep=structures.find(b=>b.type==='keep');
     const enemy=[],sparks=[],zones=[],rubble=[];
+    let wallRevision=0;
     const waveSize=4+stage*2;
     let reserve=0, spawned=0, spawnTimer=0.8, elapsed=0, time=0, done=false, started=defense||arena;
     let fury=defense?32:22, focus=null, rally=null, guardian=null, bossClock=2.5, evadeCd=0, stress=0;
-    let hint='', notice=0, refresh=0, dirty=true, turn=0, actorIndex=0, foeIndex=0, selected=0, mana=1, delay=0, awaitingEnemy=false;
+    let hint='', notice=0, refresh=0, dirty=true, turn=0, actorIndex=0, foeIndex=0, selected=0, mana=1, foeMana=0, delay=0, awaitingEnemy=false;
     let clockReset=0, pulse=0, swing=0, lastHit='Выберите цель и поймайте золотой сектор.';
     const fxSound=id=>{if(events.sound)events.sound(id);};
     const tell=(msg)=>{hint=msg;notice=3;dirty=true;};
@@ -878,21 +1051,72 @@ window.Art = (() => {
     };
     const note=(u,txt,ink)=>impact(u,u,ink,'text',txt);
     const kill=(target)=>{
+      if(target.type==='wall')wallRevision++;
       if(target.kind==='building') {rubble.push(target);impact(target,target,'#ddba83','nova');}
       if(target===focus) focus=null;
       dirty=true;
     };
-    const hit=(a,b,amount,ink,kind='bolt')=>{
-      if(!b||!alive(b)||amount<=0)return;
-      const old=b.hp;b.hp=Math.max(0,b.hp-amount);
-      impact(a,b,ink,kind);
-      if(old>0&&b.hp===0)kill(b);
-    };
+    function hit(a,b,amount,ink,kind='bolt',origin=a) {
+      if(!b||!alive(b)||amount<=0)return 0;
+      const strong=advantage(a,b);
+      const force=Math.round(amount*(strong?1.5:1)*(1+(b.mark||0)/100));
+      b.mark=0;
+      const absorbed=Math.min(b.shield||0,force);
+      b.shield=(b.shield||0)-absorbed;
+      const old=b.hp;b.hp=Math.max(0,b.hp-force+absorbed);
+      impact(origin,b,ink,kind);
+      if(strong){note(b,'×1,5','#ffe89d');stress=Math.max(stress,.10);}
+      if(absorbed>0)note(b,'Щит −'+absorbed,'#ffe6ba');
+      if(b.hp===0)kill(b);
+      return old-b.hp;
+    }
+    function unleash(actor,primary,enemies,friends) {
+      const spell=actor.ability;
+      const visible=d=>{
+        if(!alive(d))return false;
+        if(arena||clearsWalls(actor))return true;
+        const block=firstWall(actor,d,walls);
+        return !block||block.wall===d;
+      };
+      const nextTarget=()=>visible(primary)?primary:nearest(primary,enemies,d=>visible(d)&&distance(primary,d)<=2.65);
+      const liveFriends=friends.filter(d=>alive(d)&&d.joined);
+      const extraTarget=()=>nearest(primary,enemies,d=>d!==primary&&visible(d)&&(arena||distance(primary,d)<=2.65))||nextTarget();
+      if(actor.elements.includes(0)&&nextTarget())hit(actor,nextTarget(),spell.extra,colors[0],'ray');
+      if(actor.elements.includes(1)&&liveFriends.length){
+        const wounded=liveFriends.reduce((a,b)=>ratio(a)<=ratio(b)?a:b);
+        const restored=Math.min(spell.restore,wounded.maxHp-wounded.hp);
+        if(restored>0){
+          wounded.hp+=restored;impact(actor,wounded,colors[1],'ray');note(wounded,'+'+restored,colors[1]);
+        }
+      }
+      if(actor.elements.includes(3)&&extraTarget())hit(actor,extraTarget(),spell.extra,colors[3],'ray');
+      if(actor.elements.includes(4)){
+        actor.shield=Math.max(actor.shield,spell.restore);impact(actor,actor,colors[4],'nova');
+      }
+      if(actor.elements.includes(5)){
+        for(const friend of liveFriends)friend.inspired=Math.max(friend.inspired||0,spell.amplify);
+      }
+      if(actor.elements.includes(2)&&nextTarget()){
+        const marked=nextTarget();marked.mark=Math.max(marked.mark||0,spell.amplify);impact(actor,marked,colors[2],'ray');
+      }
+      impact(actor,actor,color(actor),'nova');note(actor,spell.name,'#fff0b8');
+    }
+    function dragonStrike(actor,target,enemies,friends,multiplier=1,forceSkill=false) {
+      const enhanced=actor.inspired||0;actor.inspired=0;
+      const power=actor.damage*multiplier*(1+enhanced/100);
+      const loss=hit(actor,target,power,color(actor),forceSkill||actor.level>=10?'ray':'bolt');
+      actor.strikes++;
+      const cast=forceSkill||actor.strikes>=actor.ability.charges;
+      if(cast){actor.strikes=0;unleash(actor,target,enemies,friends);}
+      return {loss,cast};
+    }
     const gain=v=>{const old=fury;fury=Math.min(100,fury+v);if(old<100&&fury===100)dirty=true;};
-    const destroyed=()=>structures.reduce((n,u)=>n+(!alive(u)?1:0),0);
+    const objectives=structures.filter(b=>!['wall','firetrap','icetrap'].includes(b.type));
+    const walls=structures.filter(b=>b.type==='wall');
+    const destroyed=()=>objectives.reduce((n,u)=>n+(!alive(u)?1:0),0);
     const raidStars=()=>{
-      const half=destroyed()>=Math.ceil(structures.length/2), fallen=keep&&!alive(keep);
-      return Number(half)+Number(!!fallen)+Number(destroyed()===structures.length);
+      const half=destroyed()>=Math.ceil(objectives.length/2), fallen=keep&&!alive(keep);
+      return Number(half)+Number(!!fallen)+Number(destroyed()===objectives.length);
     };
     function end(win,stars=0) {
       if(done)return; done=true;dirty=true;
@@ -903,26 +1127,34 @@ window.Art = (() => {
       if(events.finish) events.finish({win,stars:win?stars:0,gold,berries,mode,stage});
     }
     if(defense){
-      const anchor=keep||{x:4.5,y:4.5};
-      party.forEach((u,i)=>{u.x=clamp(anchor.x+Math.cos(i*Math.PI/2)*1.4,0,9);u.y=clamp(anchor.y+Math.sin(i*Math.PI/2)*1.4,0,9);u.joined=true;});
+      const anchor=keep||{x:lastX*.5,y:lastY*.5};
+      party.forEach((u,i)=>{
+        const position={x:clamp(anchor.x+Math.cos(i*Math.PI/2)*1.4,0,lastX),y:clamp(anchor.y+Math.sin(i*Math.PI/2)*1.4,0,lastY)};
+        Object.assign(u,clearsWalls(u)?position:clearPosition(position,walls,bounds),{joined:true});
+      });
     }
     if(boss){
-      const hp=123+stage*36;
-      guardian={kind:'guardian',species:Math.min(13,Math.max(0,(window.GAME_SPECIES?.length||14)-1)),level:10+stage,x:keep.x+.5,y:keep.y-.75,hp,maxHp:hp,side:'enemy',damage:8+stage*1.8,cd:1.1};
+      const tier=Math.min(4,1+Math.ceil(stage/2));
+      const kind=rivalSpecies(tier,stage*7);
+      guardian=makeDragon({species:kind,level:stage},0);
+      const hp=Math.round(guardian.hp*(1.85+.07*stage));
+      Object.assign(guardian,{kind:'guardian',side:'enemy',joined:true,x:keep.x+.5,y:keep.y-.75,
+        hp,maxHp:hp,visualLevel:10+stage,cd:1.1});
       enemy.push(guardian);
     }
     if(arena){
-      // The duel uses formation coordinates independent of the map projection.
-      const total=Math.max(1,window.GAME_SPECIES?.length||14);
+      const used=[];
       for(let i=0;i<3;i++){
-        const d=makeDragon({species:(i*2+(stage-1)*3+1)%total,level:Math.max(1,stage+(i===1?1:0))},i);
+        const tier=Math.min(4,1+Math.floor((stage-1+(i===2?1:0))/2));
+        const species=rivalSpecies(tier,i*2+(stage-1)*3+1,used);used.push(species);
+        const d=makeDragon({species,level:Math.max(1,stage+(i===1&&stage>1?1:0))},i);
         Object.assign(d,{x:1,y:i,joined:true,side:'enemy'});enemy.push(d);
       }
       party.forEach((d,i)=>Object.assign(d,{x:0,y:i,joined:true}));
     }
     function deploy(x,y) {
       if(reserve>=party.length)return;
-      const i=reserve++,u=party[i];u.x=x;u.y=y;u.joined=true;
+      const i=reserve++,u=party[i];Object.assign(u,edgePosition(x,y,lastX,lastY),{joined:true});
       started=true;impact(u,u,'#a4ebdf','nova');fxSound('click');
       tell(name(u)+' в бою. '+(reserve<party.length?'Можно выбрать другую сторону.':'Коснитесь цели для общего удара.'));
     }
@@ -931,9 +1163,9 @@ window.Art = (() => {
       const target=nearest(p,units);
       const reach=defense?1.4:1.07;
       if(target&&distance(p,target)<reach) {
-        focus=target;rally=null;tell('Цель отряда — '+(target.kind==='building'?buildingNames[target.type]:target.kind==='guardian'?'Хранитель':target.kind==='goblin'?'гоблин':'тёмный дракон')+'.');
+        focus=target;rally=null;tell('Цель отряда — '+(target.kind==='building'?buildingNames[target.type]:target.kind==='guardian'?'Хранитель':target.kind==='goblin'?'гоблин':name(target))+(target.elements?.length?' · '+elementName(target):'')+'.');
       }else{
-        focus=null;rally={x:clamp(p.x,0,9),y:clamp(p.y,0,9),life:2.4};tell('Отряд летит к вашей метке.');
+        focus=null;rally={x:clamp(p.x,0,lastX),y:clamp(p.y,0,lastY),life:2.4};tell('Отряд летит к вашей метке.');
       }
       fxSound('click');
     }
@@ -941,9 +1173,19 @@ window.Art = (() => {
       const side=(Math.floor((spawned+stage-1)/2))%4;
       const edge=entrances[side], drift=((spawned*3+stage)%5-2)*.48;
       const flying=spawned%4===3;
-      const hp=(flying?35:23)+stage*(flying?6:4);
-      const u={x:edge.x,y:edge.y,side:'enemy',kind:flying?'shadow':'goblin',hp,maxHp:hp,cd:0.4,speed:flying?1.12:1.02,damage:(flying?7:5)+stage,slow:0,species:9,level:5};
-      if(edge.x===0||edge.x===9)u.y+=drift;else u.x+=drift;
+      let u;
+      if(flying){
+        const tier=Math.min(4,1+Math.floor(stage/3));
+        const species=rivalSpecies(tier,stage*3+spawned);
+        u=makeDragon({species,level:Math.max(1,Math.ceil(stage*.70))},0);
+        Object.assign(u,{side:'enemy',kind:'shadow',joined:true,visualLevel:Math.max(5,u.level),speed:1.12});
+      }else{
+        const hp=23+stage*4;
+        u={side:'enemy',kind:'goblin',hp,maxHp:hp,speed:1.02,damage:5+stage,elements:[]};
+      }
+      Object.assign(u,{x:edge.x,y:edge.y,cd:.4,slow:0});
+      if(edge.x===0||edge.x===lastX)u.y+=drift;else u.x+=drift;
+      Object.assign(u,edgePosition(u.x,u.y,lastX,lastY));
       enemy.push(u);spawned++;dirty=true;impact(u,u,'#ac89ac','nova');
     }
     function useFury() {
@@ -952,10 +1194,22 @@ window.Art = (() => {
       if(!targets.length)return;
       const ref=focus&&alive(focus)?focus:rally||nearest(party.find(d=>d.joined&&alive(d))||keep||entrances[0],targets);
       const target=nearest(ref,targets);
-      const amount=31+party.reduce((v,d)=>v+d.level*1.7,0);
-      targets.filter(u=>distance(target,u)<=2.9).forEach(u=>hit(target,u,amount,'#f4d984','ray'));
-      party.filter(u=>u.joined&&alive(u)).forEach(u=>{u.cd=0;u.air=Math.max(u.air,0.45);});
-      impact(target,target,'#ffdf8d','nova');note(target,'ЯРОСТЬ','#ffe698');
+      const casters=party.filter(d=>d.joined&&alive(d));
+      if(!casters.length)return;
+      let centre=target;
+      if(!defense&&casters.every(d=>!clearsWalls(d))){
+        const front=nearest(target,casters),barrier=firstWall(front,target,walls);
+        if(barrier)centre=barrier.wall;
+      }
+      const affected=targets.filter(u=>distance(centre,u)<=2.20);
+      const deliveries=affected.map(u=>{
+        const visible=casters.filter(d=>{if(clearsWalls(d))return true;const b=firstWall(d,u,walls);return !b||b.wall===u;});
+        const amount=visible.length?Math.round(12*visible.length/casters.length)+visible.reduce((v,d)=>v+d.ability.furyPower,0):0;
+        return {u,amount};
+      });
+      for(const {u,amount} of deliveries)if(amount)hit({elements:[]},u,amount,'#f4d984','ray',centre);
+      for(const d of casters){d.cd=0;d.air=Math.max(d.air,.45);}
+      impact(centre,centre,'#ffdf8d','nova');note(centre,'ЯРОСТЬ','#ffe698');
       stress=0.32;fury=0;fxSound('spell');tell('Вспышка стихий поражает цели вокруг метки.');
     }
     function dragonTurns(dt) {
@@ -963,17 +1217,14 @@ window.Art = (() => {
       for(const u of party) {
         if(!u.joined||!alive(u))continue;
         u.air=Math.max(0,u.air-dt);u.cd-=dt;
-        if(rally&&distance(u,rally)>0.52) {walk(u,rally,u.speed*1.7,dt,0.35);continue;}
-        const target=focus&&alive(focus)?focus:nearest(u,enemies);
-        if(!target)continue;
-        walk(u,target,u.speed,dt,u.range);
-        if(distance(u,target)>u.range+.02||u.cd>0)continue;
+        const moving=rally&&distance(u,rally)>.52;
+        const objective=moving?rally:focus&&alive(focus)?focus:nearest(u,enemies,d=>alive(d)&&d.type!=='wall');
+        if(!objective)continue;
+        const target=advance(u,objective,u.speed*(moving?1.7:1),dt,moving?.35:u.range,walls,defense,wallRevision,bounds);
+        if(!target||(moving&&target===rally)||u.cd>0)continue;
         u.cd=1.05;
         const boost=defense&&structures.some(s=>s.type==='spire'&&alive(s)&&distance(s,u)<3.25);
-        const crit=target.kind==='guardian'||target.kind==='shadow'?advantage(u,target):false;
-        const multiplier=(boost?1.3:1)*(crit?1.5:1);
-        hit(u,target,u.damage*multiplier,color(u),u.level>=10?'ray':'bolt');gain(6);
-        if(crit){note(target,'×1,5','#ffe89d');stress=.11;}
+        dragonStrike(u,target,enemies,party,boost?1.3:1);gain(6);
       }
     }
     function towerTurns(dt) {
@@ -982,10 +1233,10 @@ window.Art = (() => {
         const cfg=towerType[s.type];if(!cfg||!alive(s))continue;
         s.cd-=dt;if(s.cd>0)continue;
         const target=nearest(s,list);if(!target||distance(s,target)>cfg.range)continue;
-        s.cd=cfg.delay;hit(s,target,cfg.damage*(1+0.22*(s.level-1)),cfg.color,s.type==='spire'?'ray':'bolt');
+        s.cd=cfg.delay;hit(s,target,cfg.damage*(1+0.22*(s.level-1))*(s.attackScale||1),cfg.color,s.type==='spire'?'ray':'bolt');
         if(s.type==='cannon'){
           for(const nearby of list){
-            if(nearby!==target&&alive(nearby)&&distance(target,nearby)<1.05)hit(target,nearby,cfg.damage*.45*s.level,cfg.color);
+            if(nearby!==target&&alive(nearby)&&distance(target,nearby)<1.05)hit(s,nearby,cfg.damage*.45*(1+0.22*(s.level-1))*(s.attackScale||1),cfg.color,'bolt',target);
           }
           impact(target,target,cfg.color,'nova');
         }
@@ -999,11 +1250,10 @@ window.Art = (() => {
       for(const u of enemy) {
         if(!alive(u))continue;
         u.cd-=dt;u.slow=Math.max(0,u.slow-dt);
-        const d=distance(u,keep)||1;
-        const next={x:u.x+(keep.x-u.x)/d*Math.min(d,.72),y:u.y+(keep.y-u.y)/d*Math.min(d,.72)};
-        const wall=u.kind==='goblin'?nearest(next,structures,s=>alive(s)&&s.type==='wall'&&distance(next,s)<.79):null;
-        const target=wall||keep;
-        walk(u,target,u.speed*(u.slow>0?.36:1),dt,.70);
+        const defenders=party.filter(d=>d.joined&&alive(d)&&d.air<=0);
+        const dragon=u.kind==='shadow'?nearest(u,defenders):null;
+        const objective=dragon&&distance(u,dragon)<1.6?dragon:keep;
+        const target=advance(u,objective,u.speed*(u.slow>0?.36:1),dt,.70,walls,false,wallRevision,bounds);
         for(const trap of structures) {
           if(trap.spent||!alive(trap)||!['firetrap','icetrap'].includes(trap.type)||distance(trap,u)>1.1)continue;
           trap.spent=true;trap.hp=0;
@@ -1014,8 +1264,10 @@ window.Art = (() => {
           }
           impact(trap,trap,ink,'nova');note(trap,ice?'Заморозка':'Огненная руна',ink);gain(12);fxSound('spell');
         }
-        if(alive(u)&&distance(u,target)<=.72&&u.cd<=0){
-          u.cd=1.1;hit(u,target,u.damage,'#d68481');
+        if(alive(u)&&target&&alive(target)&&u.cd<=0){
+          u.cd=1.1;
+          if(u.kind==='shadow')dragonStrike(u,target,structures.concat(defenders),enemy);
+          else hit(u,target,u.damage,'#d68481');
           if(target===keep)stress=.09;
         }
       }
@@ -1028,17 +1280,19 @@ window.Art = (() => {
       if(!allies.length)return;
       const target=nearest(guardian,allies);
       guardian.cd-=dt;
-      if(distance(guardian,target)<2.6&&guardian.cd<=0&&target.air<=0){hit(guardian,target,guardian.damage,'#cea1d4');guardian.cd=1.8;}
+      if(distance(guardian,target)<2.6&&guardian.cd<=0&&target.air<=0){
+        dragonStrike(guardian,target,allies.filter(u=>u.air<=0),enemy);guardian.cd=1.8;
+      }
       bossClock-=dt;
       if(bossClock<=0){
         zones.push({x:target.x,y:target.y,r:1.85,left:1.8,total:1.8});bossClock=4.4;dirty=true;
-        tell('Красный круг! Уведите драконов или нажмите «Взлёт».');
+        tell(party.some(d=>d.joined&&alive(d)&&clearsWalls(d))?'Красный круг! Уведи отряд или подними летающих драконов.':'Красный круг! Коснись свободного места, чтобы отвести отряд.');
       }
     }
     function resolveZones(dt) {
       for(let i=zones.length-1;i>=0;i--){
         const z=zones[i];z.left-=dt;if(z.left>0)continue;
-        for(const u of party.filter(d=>d.joined&&alive(d)&&d.air<=0&&distance(z,d)<z.r)) hit(z,u,23+stage*3,'#f38076','ray');
+        for(const u of party.filter(d=>d.joined&&alive(d)&&d.air<=0&&distance(z,d)<z.r)) hit(guardian,u,guardian.damage*1.9,'#f38076','ray',z);
         impact(z,z,'#ed7e72','nova');stress=.22;zones.splice(i,1);
       }
     }
@@ -1059,17 +1313,14 @@ window.Art = (() => {
       if(awaitingEnemy||done||!party[actorIndex]||!alive(party[actorIndex])||(magic&&mana<2))return;
       const a=party[actorIndex],b=enemy[selected];if(!b||!alive(b))return;
       const pos=meter(),perfect=pos>=.61&&pos<=.73,good=pos>=.43&&pos<=.83;
-      const bonus=magic?1.55:perfect?1.65:good?1.24:1.0;
-      const strong=advantage(a,b), power=Math.round((15+a.level*2.1)*bonus*(strong?1.5:1));
-      hit(a,b,power,color(a),magic?'ray':'bolt');
-      const words=magic?'Печать стихий':perfect?'Идеальный удар':good?'Точный удар':'Удар';
-      lastHit=name(a)+' → '+name(b)+' · '+words.toLowerCase()+' · '+power+' урона'+(strong?' (×1,5)':'')+'.';
-      note(b,(perfect&&!magic?'Идеально! ':'')+'−'+power,perfect||strong?'#ffe69c':'#fff5df');
-      if(magic){
-        mana-=2;
-        for(const u of enemy.filter(d=>d!==b&&alive(d)))hit(a,u,Math.round(power*.34),color(a),'ray');
-        impact(b,b,color(a),'nova');
-      } else mana=Math.min(3,mana+(perfect?2:1));
+      const bonus=magic?1+a.ability.activeBonus/100:perfect?1.65:good?1.24:1;
+      const strong=advantage(a,b),attack=dragonStrike(a,b,enemy,party,bonus,magic);
+      const words=magic?a.ability.name:perfect?'Идеальный удар':good?'Точный удар':'Удар';
+      lastHit=name(a)+' → '+name(b)+' · '+words.toLowerCase()+' · '+attack.loss+' урона'+(strong?' (×1,5)':'')+'.';
+      if(attack.cast&&!magic)lastHit+=' '+a.ability.name+'!';
+      note(b,(perfect&&!magic?'Идеально! ':'')+'−'+attack.loss,perfect||strong?'#ffe69c':'#fff5df');
+      if(magic)mana-=2;
+      else mana=Math.min(3,mana+(perfect?2:1));
       stress=perfect||magic||strong?.24:.09;fxSound(magic||perfect?'spell':'hit');pulse=pos;swing=.9;
       if(resolveArena())return;
       selected=nextAlive(enemy,selected);awaitingEnemy=true;delay=.9;dirty=true;
@@ -1082,9 +1333,11 @@ window.Art = (() => {
       const options=party.filter(alive);
       const preferred=options.filter(u=>advantage(a,u));
       const target=(preferred.length?preferred:options)[turn%(preferred.length||options.length)];
-      const strong=advantage(a,target), amount=Math.round((10.6+a.level*1.6)*(strong?1.5:1));
-      hit(a,target,amount,color(a));note(target,'−'+amount,'#ffbea5');fxSound('hit');
-      lastHit=name(a)+' отвечает · '+amount+' урона'+(strong?' (×1,5)':'')+'.';
+      const strong=advantage(a,target),magic=foeMana>=2;
+      const attack=dragonStrike(a,target,party,enemy,magic?1+a.ability.activeBonus/100:1,magic);
+      foeMana=magic?foeMana-2:Math.min(3,foeMana+1);
+      note(target,'−'+attack.loss,'#ffbea5');fxSound(attack.cast?'spell':'hit');
+      lastHit=name(a)+' отвечает · '+attack.loss+' урона'+(strong?' (×1,5)':'')+(attack.cast?' · '+a.ability.name:'')+'.';
       if(resolveArena())return;
       actorIndex=nextAlive(party,actorIndex+1);foeIndex=(foeIndex+1)%enemy.length;
       turn++;clockReset=time;awaitingEnemy=false;dirty=true;
@@ -1104,7 +1357,7 @@ window.Art = (() => {
           if(defense)defenseTurns(dt);
           else{
             guardianTurn(dt);resolveZones(dt);
-            const cleared=structures.every(u=>!alive(u));
+            const cleared=objectives.every(u=>!alive(u));
             if(boss&&!alive(guardian))end(true,1+Number(!alive(keep))+Number(cleared));
             else if(!boss&&cleared)end(true,3);
             else if((reserve===party.length&&!party.some(u=>u.joined&&alive(u)))||elapsed>=100){
@@ -1126,8 +1379,10 @@ window.Art = (() => {
         if(id==='deploy'&&!defense){const e=entrances[clamp(parseInt(arg,10)||0,0,3)];deploy(e.x,e.y);}
         if(id==='fury')useFury();
         if(id==='evade'&&boss&&started&&evadeCd<=0){
-          for(const u of party.filter(d=>d.joined&&alive(d))){u.air=2.2;impact(u,u,'#b3e7e6','nova');}
-          evadeCd=6;fxSound('spell');tell('Отряд укрылся в облаках на две секунды.');
+          const fliers=party.filter(d=>d.joined&&alive(d)&&clearsWalls(d));
+          if(!fliers.length)return;
+          for(const u of fliers){u.air=2.2;impact(u,u,'#b3e7e6','nova');}
+          evadeCd=6;fxSound('spell');tell('Летающие драконы укрылись в облаках на две секунды.');
         }
         if(id==='withdraw'&&mode==='raid'&&raidStars()>0)end(true,raidStars());
       }
@@ -1139,7 +1394,7 @@ window.Art = (() => {
       return {x:w*(base+dx),y};
     }
     function world(px,py,w,h){
-      const a=Art.point(0,0,w,h), b=Art.point(1,0,w,h), c=Art.point(0,1,w,h);
+      const a=Art.point(0,0,w,h,gridSize), b=Art.point(1,0,w,h,gridSize), c=Art.point(0,1,w,h,gridSize);
       const ax=b.x-a.x,ay=b.y-a.y,bx=c.x-a.x,by=c.y-a.y,det=ax*by-ay*bx;
       if(!det)return null;
       return {x:((px-a.x)*by-(py-a.y)*bx)/det,y:((py-a.y)*ax-(px-a.x)*ay)/det};
@@ -1158,11 +1413,15 @@ window.Art = (() => {
       }
       const p=world(px,py,w,h);if(!p)return;
       if(!defense&&reserve<party.length){
-        if(Math.max(p.x,p.y)<=10.65&&Math.min(p.x,p.y)>=-1.65&&Math.min(Math.abs(p.x),Math.abs(p.y),Math.abs(p.x-9),Math.abs(p.y-9))<1.35){
-          deploy(clamp(p.x,0,9),clamp(p.y,0,9));
+        if(p.x<=lastX+1.65&&p.y<=lastY+1.65&&Math.min(p.x,p.y)>=-1.65&&Math.min(Math.abs(p.x),Math.abs(p.y),Math.abs(p.x-lastX),Math.abs(p.y-lastY))<1.35){
+          deploy(clamp(p.x,0,lastX),clamp(p.y,0,lastY));
         }else if(!reserve)tell('Выберите светящуюся кромку острова или кнопку стороны высадки.');
-        else if(p.x>=-.5&&p.x<=9.5&&p.y>=-.5&&p.y<=9.5)issueOrder(p);
-      }else if(p.x>=-1&&p.x<=10&&p.y>=-1&&p.y<=10)issueOrder(p);
+        else if(p.x>=-.5&&p.x<=lastX+.5&&p.y>=-.5&&p.y<=lastY+.5)issueOrder(p);
+      }else if(p.x>=-.5&&p.x<=lastX+.5&&p.y>=-.5&&p.y<=lastY+.5)issueOrder(p);
+      else if(defense){
+        const outside=nearest(p,enemy);
+        if(outside&&distance(p,outside)<.75)issueOrder(outside);
+      }
       if(dirty)pending();
     }
     function paintArena(ctx,w,h,t) {
@@ -1196,6 +1455,9 @@ window.Art = (() => {
         }
         Art.dragon(ctx,p.x,p.y+bob,size,u.species,u.level,t+u.y*.37,isFoe);
         bar(ctx,p.x-size*.30,p.y+size*.32,size*.6,5,ratio(u),isFoe?'#d17e6d':'#68ba9e');
+        if(u.shield>0)bar(ctx,p.x-size*.30,p.y+size*.32+5,size*.6,4,u.shield/u.ability.restore,'#e7c979');
+        if(u.mark>0)ring(ctx,{x:p.x,y:p.y+size*.26},size*.33,'#77964d',t);
+        if(u.inspired>0)label(ctx,'✦',p.x+size*.28,p.y-size*.22,12,'#ffe8a2');
       }
       const width=Math.min(w*.80,390),gx=(w-width)/2,gy=h*.83,gh=clamp(Math.min(w,h)*.035,10,16);
       ctx.save();ctx.fillStyle='rgba(48,66,59,.88)';rounded(ctx,gx-10,gy-12,width+20,gh+33,12);ctx.fill();
@@ -1209,13 +1471,13 @@ window.Art = (() => {
       ctx.restore();
     }
     function paintEdges(ctx,w,h,t,cellSize){
-      const sides=[[{x:0,y:0},{x:9,y:0}],[{x:9,y:0},{x:9,y:9}],[{x:9,y:9},{x:0,y:9}],[{x:0,y:9},{x:0,y:0}]];
+      const sides=[[{x:0,y:0},{x:lastX,y:0}],[{x:lastX,y:0},{x:lastX,y:lastY}],[{x:lastX,y:lastY},{x:0,y:lastY}],[{x:0,y:lastY},{x:0,y:0}]];
       ctx.save();ctx.lineWidth=Math.max(2,cellSize*.08);ctx.setLineDash([7,5]);ctx.lineDashOffset=-t*10;
       ctx.strokeStyle='#ffffcc';ctx.shadowBlur=5;ctx.shadowColor='#e8d384';
-      for(const [a,b] of sides){const p=Art.point(a.x,a.y,w,h),q=Art.point(b.x,b.y,w,h);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke();}
+      for(const [a,b] of sides){const p=Art.point(a.x,a.y,w,h,gridSize),q=Art.point(b.x,b.y,w,h,gridSize);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke();}
       ctx.setLineDash([]);ctx.restore();
       for(let i=0;i<4;i++){
-        const p=Art.point(entrances[i].x,entrances[i].y,w,h);
+        const p=Art.point(entrances[i].x,entrances[i].y,w,h,gridSize);
         ctx.save();ctx.fillStyle='#407b70';ctx.strokeStyle='#ffdf93';ctx.lineWidth=1.6;ctx.beginPath();ctx.arc(p.x,p.y,Math.max(7,cellSize*.21),0,Math.PI*2);ctx.fill();ctx.stroke();
         label(ctx,''+(i+1),p.x,p.y,clamp(cellSize*.30,9,14));ctx.restore();
       }
@@ -1244,7 +1506,7 @@ window.Art = (() => {
       ctx.restore();
     }
     function paintField(ctx,w,h,t) {
-      const point=(x,y)=>Art.point(x,y,w,h);
+      const point=(x,y)=>Art.point(x,y,w,h,gridSize);
       const p0=point(0,0),p1=point(1,0),unit=Math.max(12,Math.hypot(p1.x-p0.x,p1.y-p0.y)*1.42);
       if(!defense&&reserve<party.length)paintEdges(ctx,w,h,t,unit);
       if(defense&&spawned<waveSize){
@@ -1283,9 +1545,12 @@ window.Art = (() => {
         if(u.kind==='goblin')goblin(ctx,p.x,p.y-size*off,size,t+u.maxHp*.03,u.flip);
         else{
           ctx.save();if(u.kind==='shadow')ctx.globalAlpha=.9;
-          Art.dragon(ctx,p.x,p.y-size*off-lift,size,u.species,u.level,t+u.maxHp*.03,u.kind==='guardian'?true:!!u.flip);ctx.restore();
+          Art.dragon(ctx,p.x,p.y-size*off-lift,size,u.species,u.visualLevel||u.level,t+u.maxHp*.03,u.kind==='guardian'?true:!!u.flip);ctx.restore();
         }
         if(!large)bar(ctx,p.x-size*.25,p.y+size*.11-lift*.3,size*.5,4,ratio(u),foe?'#d17e6d':'#6bc1a0');
+        if(u.shield>0)ring(ctx,p,unit*.53,'#ebc87d',t);
+        if(u.mark>0)ring(ctx,p,unit*.40,'#88a660',t);
+        if(u.inspired>0)label(ctx,'✦',p.x+size*.2,p.y-size*.58-lift,12,'#ffe8a2');
         if(u.slow>0)ring(ctx,p,unit*.33,'#81daee',t);
       }
       drawEffects(ctx,point,unit);
@@ -1295,7 +1560,7 @@ window.Art = (() => {
       t=Number.isFinite(t)?t:time;
       ctx.save();
       if(stress>0){ctx.translate(Math.sin(t*84)*stress*8,Math.cos(t*72)*stress*5);}
-      Art.island(ctx,w,h,t,{buildings:structures.filter(b=>alive(b)),dragons:[],grid:false,theme:mode,mode,hover:null});
+      Art.island(ctx,w,h,t,{buildings:structures.filter(b=>alive(b)),dragons:[],gridSize,gridWidth,gridHeight,grid:false,theme:mode,mode,hover:null});
       if(arena){
         paintArena(ctx,w,h,t);
         drawEffects(ctx,(x,y)=>formation({y,side:x===0?'ally':'enemy'},w,h),Math.min(w,h)*.095);
@@ -1304,10 +1569,10 @@ window.Art = (() => {
       const headerWidth=Math.min(w*.72,322),left=(w-headerWidth)/2;
       const head=boss?'Хранитель  '+Math.ceil(Math.max(0,guardian.hp))+' / '+guardian.maxHp:
         arena?'Ход '+(turn+1)+'  ·  '+(awaitingEnemy?'Соперник':party[actorIndex]?name(party[actorIndex]):'Арена'):
-        defense?'Цитадель  '+Math.round(100*ratio(keep||{hp:0,maxHp:1}))+'%':'Крепость  ·  '+destroyed()+' / '+structures.length;
+        defense?'Цитадель  '+Math.round(100*ratio(keep||{hp:0,maxHp:1}))+'%':'Крепость  ·  '+destroyed()+' / '+objectives.length;
       ctx.save();ctx.fillStyle='rgba(45,63,57,.88)';rounded(ctx,left,8,headerWidth,35,12);ctx.fill();
       label(ctx,head,w*.5,20,12);
-      const v=boss?ratio(guardian):arena?mana/3:defense?ratio(keep||{hp:0,maxHp:1}):destroyed()/Math.max(1,structures.length);
+      const v=boss?ratio(guardian):arena?mana/3:defense?ratio(keep||{hp:0,maxHp:1}):destroyed()/Math.max(1,objectives.length);
       bar(ctx,left+18,30,headerWidth-36,5,v,boss?'#e09086':arena?'#96c8dd':'#b0ce96');
       if(!arena){
         const bw=Math.min(w*.48,205),bx=w-bw-8;
@@ -1327,9 +1592,9 @@ window.Art = (() => {
         stats='Ваш отряд '+party.filter(alive).length+'/'+party.length+' · Соперник '+enemy.filter(alive).length+'/3 · Магия '+mana+'/3';
         for(let i=0;i<enemy.length;i++){
           const u=enemy[i];if(!alive(u))continue;
-          buttons.push(compactButton('target',name(u)+' · '+elementName(u)+(actor&&advantage(actor,u)?' ×1,5':'')+' · '+Math.ceil(u.hp)+' HP',false,i,i===selected));
+          buttons.push(compactButton('target',name(u)+' · '+elementName(u)+(actor&&advantage(actor,u)?' ×1,5':'')+' · '+Math.ceil(u.hp)+' HP'+(u.shield?' + '+u.shield+' щита':''),false,i,i===selected));
         }
-        buttons.push(compactButton('strike','Ударить',awaitingEnemy),compactButton('magic','Печать стихий · 2 магии',mana<2||awaitingEnemy));
+        buttons.push(compactButton('strike','Ударить',awaitingEnemy),compactButton('magic',(actor?actor.ability.name:'Способность')+' · 2 магии',mana<2||awaitingEnemy));
       }else{
         if(defense){
           title+=' · волна '+stage;description='Защитите Цитадель. Касанием назначьте отряду цель или место сбора.';
@@ -1337,10 +1602,10 @@ window.Art = (() => {
         }else{
           title=boss?'Хранитель · испытание '+stage:stages[(stage-1)%stages.length];
           description=reserve<party.length?'Коснитесь края острова или выберите сторону высадки для '+name(party[reserve])+'.':
-            boss?'Победите Хранителя. Красный круг предупреждает об ударе по площади.':'Разрушьте цитадель и хотя бы половину крепости. Касанием выбирайте цель или место сбора.';
-          stats='Высажено '+reserve+'/'+party.length+' · Разрушено '+destroyed()+'/'+structures.length;
+            boss?'Хранитель: '+elementName(guardian)+'. Красный круг предупреждает об ударе по площади.':'Разрушьте цитадель и хотя бы половину крепости. Касанием выбирайте цель или место сбора.';
+          stats='Высажено '+reserve+'/'+party.length+' · Разрушено '+destroyed()+'/'+objectives.length;
           if(reserve<party.length)entrances.forEach((_,i)=>buttons.push(compactButton('deploy',(i+1)+' · '+entryNames[i],false,i)));
-          if(boss)buttons.push(compactButton('evade','Взлёт',evadeCd>0||!reserve));
+          if(boss&&party.some(clearsWalls))buttons.push(compactButton('evade','Взлёт · ур. 21+',evadeCd>0||!party.some(d=>d.joined&&alive(d)&&clearsWalls(d))));
         }
         buttons.push(compactButton('fury','Стихийная ярость',fury<99.99||!started||(defense&&!enemy.some(alive))));
         if(mode==='raid'&&raidStars()>0)buttons.push(compactButton('withdraw','Забрать добычу · '+raidStars()+' ★'));
@@ -1350,8 +1615,215 @@ window.Art = (() => {
     }
     return {draw,tick,tap,action,controls};
   }
-  window.Battle={start,stages};
+  window.Battle={start,stages,profile};
 })();
+
+// A study account owns one private document. Each write names the revision it read.
+function validIslandState(s){
+ const integer=(n,min=0,max=Number.MAX_SAFE_INTEGER)=>Number.isSafeInteger(n)&&n>=min&&n<=max;
+ const id=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,96}$/.test(v);
+ const species=n=>integer(n,0,GAME_SPECIES.length-1);
+ const dictionary=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
+ const unique=(items,fn)=>new Set(items.map(fn)).size===items.length;
+ if(!dictionary(s)||(s.xp!==undefined&&!integer(s.xp)))return false;
+ const {width,height}=islandGrid(s);
+ return s.version===1&&['gold','berries','waves','arenas','bosses'].every(k=>integer(s[k]))
+  &&(s.incubationCredits===undefined||integer(s.incubationCredits))&&(s.lastRaid==null||dictionary(s.lastRaid)&&/^\d{4}-\d{2}-\d{2}$/.test(s.lastRaid.day))
+  &&integer(s.quest,0,QUESTS.length)&&dictionary(s.settings)&&typeof s.settings.sound==='boolean'
+  &&Array.isArray(s.buildings)&&s.buildings.length<=width*height&&s.buildings.filter(b=>b?.type==='keep').length===1
+  &&s.buildings.every(b=>b&&id(b.id)&&Object.hasOwn(STRUCT,b.type)&&integer(b.x,0,width-1)&&integer(b.y,0,height-1)&&integer(b.level,1,9)&&integer(b.since))
+  &&unique(s.buildings,b=>b.id)&&unique(s.buildings,b=>b.x+width*b.y)
+  &&Array.isArray(s.dragons)&&s.dragons.length>0&&s.dragons.every(d=>d&&id(d.id)&&species(d.species)&&integer(d.level,1,30)&&(d.enchant===undefined||integer(d.enchant,0,5)))&&unique(s.dragons,d=>d.id)
+  &&Array.isArray(s.book)&&s.book.every(species)&&s.dragons.every(d=>s.book.includes(d.species))
+  &&(s.egg===null||s.egg&&id(s.egg.id)&&species(s.egg.species)&&integer(s.egg.end))
+  &&dictionary(s.marks)&&Object.entries(s.marks).every(([k,v])=>id(k)&&integer(v))
+  &&dictionary(s.campaign)&&Object.entries(s.campaign).every(([k,v])=>/^[1-9][0-9]*$/.test(k)&&integer(v,0,3))
+  &&Array.isArray(s.deliveries)&&s.deliveries.every(id)&&(s.purchaseCount===undefined||integer(s.purchaseCount,s.deliveries.length))
+  &&(s.pending===null||s.pending&&['gold','berries','incubate'].includes(s.pending.item)&&id(s.pending.op)&&(s.pending.egg==null||id(s.pending.egg)));
+}
+function equalIslandData(a,b){
+ if(a===b)return true;
+ if(!a||!b||typeof a!=='object'||typeof b!=='object'||Array.isArray(a)!==Array.isArray(b))return false;
+ const keys=Object.keys(a);
+ return keys.length===Object.keys(b).length&&keys.every(k=>Object.hasOwn(b,k)&&equalIslandData(a[k],b[k]));
+}
+function createIslandSync(host,key,game){
+ const journalKey=key+'.sync2', clone=x=>JSON.parse(JSON.stringify(x)), same=equalIslandData;
+ const tag=d=>d?{rev:d.rev,op:d.op}:null;
+ const matches=(a,b)=>a?.rev===b?.rev&&a?.op===b?.op;
+ const valid=validIslandState;
+ const copyId=()=>crypto.randomUUID();
+ let saved='', record=null, localIssue=false, conflict=null, remote=null, loaded=false, busy=false, timer, retryAt=0, warned=false;
+ let hadLocal=false,ended=false,running=null;
+ try{
+  saved=localStorage.getItem(journalKey)||'';
+  if(saved){const value=JSON.parse(saved);if(valid(value.state)&&typeof value.dirty==='boolean')record=value;}
+  hadLocal=!!record||valid(JSON.parse(localStorage.getItem(key)));
+ }catch{localIssue=true;}
+ if(!record)record={base:null,state:clone(game.get()),dirty:true,out:null,legacyIntent:game.get().pending||null};
+ else game.set(clone(record.state),false);
+ const status=document.createElement('button');status.type='button';status.id='island-cloud-status';status.className='linkbtn';status.setAttribute('aria-live','polite');
+ const hostBox=document.querySelector('.header-inner')||document.querySelector('header')||document.body;hostBox.append(status);
+ const modal=document.createElement('dialog');modal.id='island-cloud-dialog';modal.style.cssText='color:#243c36;background:#fbefcf;border:2px solid #ac8650;border-radius:16px;padding:20px;width:min(420px,90vw);max-height:78vh;overflow:auto';document.body.append(modal);
+ let label='Открываем остров…';
+ function report(message){label=message;status.textContent=message;status.title='Сохранение острова';}
+ function archive(r){if(!r?.state)return;localStorage.setItem(journalKey+'.copy.'+copyId(),JSON.stringify({at:Date.now(),state:r.state}));}
+ function persist(){
+  try{
+   const other=localStorage.getItem(journalKey)||'';
+   if(other!==saved&&other){const x=JSON.parse(other);if(x.dirty&&!same(x.state,record.state))archive(x);}
+   const value=JSON.stringify(record);localStorage.setItem(journalKey,value);saved=value;localIssue=false;return true;
+  }catch{localIssue=true;report('Не удалось сохранить на устройстве');return false;}
+ }
+ function present(value){record.state=clone(value);game.set(clone(value),true);}
+ function snapshot(){return {base:record.base,state:clone(record.state)};}
+ function updateHead(doc){remote=doc;record.base=tag(doc);record.dirty=false;record.out=null;present(doc.state);persist();}
+ function walletHistory(s){return [s.purchaseCount??s.deliveries?.length??0,s.deliveries?.slice(-1)[0]||null];}
+ function canUseLocal(){return (conflict?.state.lastRaid?.day??null)===(record.state.lastRaid?.day??null)&&!conflict?.state.pending&&!record.state.pending&&same(walletHistory(conflict.state),walletHistory(record.state));}
+ function backupLink(state,label){
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}));a.download='Драконий Оплот — '+label+'.json';a.textContent=label;a.className='linkbtn';a.style.display='block';modal.append(a);
+ }
+ function dismiss(){for(const a of modal.querySelectorAll('a[download]'))URL.revokeObjectURL(a.href);if(modal.open)modal.close();}
+ function details(){
+  for(const a of modal.querySelectorAll('a[download]'))URL.revokeObjectURL(a.href);modal.replaceChildren();
+  const title=document.createElement('h2'),desc=document.createElement('p');title.textContent=conflict?'Какой остров открыть?':'Сохранение острова';modal.append(title,desc);
+  const button=(text,run)=>{const b=document.createElement('button');b.type='button';b.className='cmd';b.textContent=text;b.style.margin='4px';b.onclick=run;modal.append(b);};
+  if(conflict){
+   desc.textContent='На двух устройствах есть изменения. Сохраним копию второй версии на этом устройстве.';
+   button('Открыть облачный остров',()=>choose(false));
+   if(canUseLocal())button('Продолжить на этом острове',()=>choose(true));
+   else desc.textContent+=conflict.state.lastRaid?.day!==record.state.lastRaid?.day?' В облаке уже учтён ночной набег.':' В облаке хранится подтверждённая история покупок.';
+   backupLink(record.state,'Скачать этот остров');backupLink(conflict.state,'Скачать облачный остров');
+  }else{
+   desc.textContent=label;
+   button('Проверить связь',()=>{dismiss();pump(true)});
+   if(loaded)button('Закрыть',dismiss);else button('Вернуться в Фаги',()=>host.leave('home'));
+   try{const keys=Object.keys(localStorage).filter(k=>k.startsWith(journalKey+'.copy.')).sort((a,b)=>JSON.parse(localStorage.getItem(b)).at-JSON.parse(localStorage.getItem(a)).at);
+    for(const k of keys){const x=JSON.parse(localStorage.getItem(k));backupLink(x.state,'Копия '+new Date(x.at).toLocaleString('ru-RU'));}
+   }catch{}
+  }
+  if(!modal.open)modal.showModal();
+ }
+ function choose(local){
+  if(!conflict)return;
+  try{archive(local?conflict:snapshot())}catch{report('Не удалось сохранить копию. Скачай её и освободи место.');return;}
+  const current=conflict;conflict=null;dismiss();loaded=true;
+  if(local){record.base=tag(current);record.out=null;record.dirty=true;persist();}else updateHead(current);
+  schedule(0);
+ }
+ function clash(doc){conflict=doc;report('Две версии острова');details();}
+ function validate(doc){if(doc!==null&&(!Number.isSafeInteger(doc.rev)||doc.rev<1||typeof doc.op!=='string'||!valid(doc.state))){const e=Error('Облачное сохранение содержит неизвестные данные. Сохранили текущую копию.');e.code='bad_island';throw e;}}
+ function schedule(ms=260){clearTimeout(timer);timer=setTimeout(()=>pump(false),ms);}
+ function changed(state){record.state=clone(state);record.dirty=true;const ok=persist();if(ok){report('Сохраняем остров…');schedule();}return ok;}
+ function acknowledge(doc){
+  remote=doc;record.base=tag(doc);record.out=null;record.dirty=!same(record.state,doc.state);persist();
+ }
+ function reconcile(doc){
+  validate(doc);remote=doc;
+  if(record.out&&matches(record.out,doc)){acknowledge(doc);return;}
+  if(matches(record.base,doc))return;
+  if(!doc&&record.base){throw Error('Облачный остров недоступен');}
+  if(!doc)return;
+  if(!record.dirty||!hadLocal||same(record.state,doc.state)){updateHead(doc);return;}
+  // A second device can finish the very purchase this copy was awaiting.
+  if(record.state.pending&&doc.state.deliveries?.includes(record.state.pending.op)&&(!record.out||same(record.out.state,record.state))){updateHead(doc);return;}
+  clash(doc);
+ }
+ async function flush(){
+  while(record.dirty&&!conflict&&!ended){
+   const base=record.base;
+   const next=record.out||{rev:(base?.rev||0)+1,op:copyId(),state:clone(record.state)};
+   record.out=next;if(!persist())throw Error('Недостаточно места для записи');
+   const r=await host.storeIsland(base?.rev??null,base?.op??null,next);
+   if(r?.ok===true)acknowledge(next);
+   else if(r?.ok===false){reconcile(r.cur);if(!conflict&&record.out===next&&!matches(next,r.cur))throw Error('Не удалось подтвердить запись');}
+   else throw Error('Неожиданный ответ облака');
+  }
+ }
+ async function recoverLegacy(){
+  const p=record.legacyIntent;
+  if(!p||!remote||remote.state.pending||record.dirty||conflict||ended)return;
+  if(remote.state.deliveries.includes(p.op)||await host.delivery(p.op,false)){record.legacyIntent=null;persist();return;}
+  const latest=clone(remote.state);latest.pending=p;present(latest);record.dirty=true;persist();await flush();
+ }
+ async function settle(){
+  const pending=remote?.state.pending;
+  if(!pending||conflict||record.dirty||ended)return;
+  let receipt,denied=false;
+  try{
+   receipt=await host.buy(pending.item,pending.op);
+   if(receipt?.op!==pending.op||receipt.item!==pending.item)throw Error('Квитанция не совпала');
+  }catch(e){if(e?.code!=='invalid_argument')throw e;denied=true;}
+  // Only the device that clears the pending intent via CAS may deliver into the island.
+  // Another device can independently obtain the same receipt even when the balance is now zero.
+  for(let attempt=0;attempt<3;attempt++){
+   if(ended||!remote||remote.state.pending?.op!==pending.op)return;
+   const state=clone(remote.state);
+   if(!denied&&!state.deliveries.includes(pending.op)){
+    if(pending.item==='gold')state.gold+=150;
+    if(pending.item==='berries')state.berries+=75;
+    if(pending.item==='incubate'){
+     if(state.egg?.id===pending.egg)state.egg.end=Date.now();
+     else state.incubationCredits=(state.incubationCredits||0)+1;
+    }
+    state.purchaseCount=(state.purchaseCount??state.deliveries.length)+1;
+    // Archive only receipts already committed on the island before removing them from its bounded snapshot.
+    for(const id of state.deliveries.slice(0,Math.max(0,state.deliveries.length-63)))await host.delivery(id,true);
+    state.deliveries=[...state.deliveries.slice(-63),pending.op];
+   }
+   state.pending=null;
+   const next={rev:remote.rev+1,op:copyId(),state};
+   const result=await host.storeIsland(remote.rev,remote.op,next);
+   if(result?.ok){if(record.legacyIntent?.op===pending.op)record.legacyIntent=null;updateHead(next);if(receipt)game.receipt(receipt);game.message(denied?'Покупка отклонена':'Покупка получена');return;}
+   if(result?.ok!==false)throw Error('Неожиданный ответ облака');
+   reconcile(result.cur);if(conflict)return;
+  }
+  schedule(800);
+ }
+ function pump(force){
+  if(ended||conflict||!force&&Date.now()<retryAt)return Promise.resolve();
+  if(!running)running=run().finally(()=>{running=null});return running;
+ }
+ async function run(){
+  busy=true;
+  try{
+   const current=await host.loadIsland();if(ended)return;reconcile(current);if(conflict)return;
+   await flush();if(conflict)return;loaded=true;hadLocal=true;retryAt=0;
+   if(!warned&&modal.open)dismiss();warned=true;
+   await recoverLegacy();await settle();
+   report(record.dirty?'Сохраняем остров…':record.state.pending?'Проверяем покупку…':'Остров в облаке');
+  }catch(e){
+   loaded=loaded||hadLocal;retryAt=Date.now()+6500;
+   report(e?.code==='bad_island'?e.message:localIssue?'Не удалось сохранить на устройстве':record.state.pending?'Покупка ждёт подтверждения':loaded?'Остров на устройстве · нет связи':'Связь прервалась. Остров ещё не загружен.');
+   if(!loaded)details();
+  }finally{busy=false;if(!ended)game.render();if(record.dirty&&!conflict&&!retryAt)schedule();}
+ }
+ function locked(){return !loaded||!!conflict||!!record.state.pending;}
+ function allow(e){
+  if(!locked()||modal.contains(e.target)||status.contains(e.target)||e.target.closest?.('#night-report,[data-night-open]'))return;
+  const action=e.target.closest?.('[data-do]')?.dataset.do;
+  if(['exit','wallet','sync','recover','learn','close'].includes(action))return;
+  e.preventDefault();e.stopImmediatePropagation();if(conflict||!loaded)details();else game.message('Покупка ждёт подтверждения в казне.');
+ }
+ for(const type of ['click','keydown'])document.addEventListener(type,allow,true);
+ modal.addEventListener('cancel',e=>{if(conflict||!loaded)e.preventDefault()});status.addEventListener('click',details);
+ addEventListener('online',()=>pump(true));addEventListener('storage',e=>{if(e.key===journalKey&&e.newValue!==saved)schedule(100)});
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)pump(true);else if(record.dirty)schedule(0)});
+ setInterval(()=>{if(!document.hidden&&!conflict)pump(false)},15000);
+ async function leave(view){
+  if(record.dirty&&!conflict){const timeout=new Promise(resolve=>setTimeout(resolve,1600));await Promise.race([pump(true),timeout]);}
+  host.leave(view);
+ }
+ addEventListener('pagehide',()=>{
+  ended=true;clearTimeout(timer);
+  if(!loaded||!record.dirty||conflict||busy||!record.base)return;
+  const d=record.out||{rev:record.base.rev+1,op:copyId(),state:clone(record.state)};
+  record.out=d;
+  if(persist() && new Blob([JSON.stringify(d)]).size<55000)host.storeIsland(record.base.rev,record.base.op,d,true).catch(()=>{});
+ });
+ function begin(){report('Открываем остров…');pump(true);}
+ return {begin,changed,locked,pump,leave,canPay:()=>loaded&&!conflict&&!record.state.pending&&!localIssue};
+}
 
 (() => {
 'use strict';
@@ -1362,10 +1834,10 @@ const host=(()=>{try{return parent!==window&&parent.OplotHost?.identity()?parent
 const profile=host?.identity()||{id:'standalone',name:'Гость'};
 const key='phagi.oplot.v1.'+(host?'user.':'local.')+profile.id;
 function read(){
- try {const raw=JSON.parse(localStorage.getItem(key));if(raw?.version===1&&Array.isArray(raw.dragons)&&raw.buildings?.some(b=>b.type==='keep'))return raw}catch{}
+ try {const raw=JSON.parse(localStorage.getItem(key));if(validIslandState(raw))return raw}catch{}
  return initialState();
 }
-let s=read(), wallet=null, walletError='', busy=false;
+let s=upgradeIsland(read()), wallet=null, walletError='', busy=false;
 let panel='', current='', placement=null, cursor=null, battle=null, lastResult=null;
 let planned='raid', campaignStage=1, team=[], parentA='',parentB='', soundCtx;
 let W=0,H=0, lastFrame=0, lastSecond=0, flying=[], moment=0, hatchAt=0;
@@ -1380,7 +1852,8 @@ const portrait=(d)=>'<canvas data-dragon="'+d.species+'" data-level="'+d.level+'
 const buildingArt=t=>'<canvas data-building="'+t+'" aria-hidden="true"></canvas>';
 const title=sp=>GAME_SPECIES[sp].name;
 function toast(msg){const el=dlg.open?$('#dnotice'):$('#toast');el.textContent=msg;clearTimeout(el._timer);el._timer=setTimeout(()=>{el.textContent=''},3700)}
-function save(){try{localStorage.setItem(key,JSON.stringify(s));return true}catch{toast('Браузер не сохранил остров. Проверь свободное место и доступ к хранилищу.');return false}}
+let islandSync=null;
+function save(){if(islandSync)return islandSync.changed(s);try{localStorage.setItem(key,JSON.stringify(s));return true}catch{toast('Браузер не сохранил остров. Проверь свободное место и доступ к хранилищу.');return false}}
 function sounds(id) {
  if(!s.settings.sound)return;
  try {
@@ -1423,21 +1896,51 @@ function paintMini(root=document){
 const tabs=[['island','Остров'],['collection','Драконы'],['build','Постройки'],['book','Книга рецептов'],['battle','Сражения']];
 function tabsHTML(){const active=['collection','pet','nursery','breed','hatched'].includes(panel)?'collection':tabs.some(x=>x[0]===panel)?panel:battle?'battle':'island';$('.tabs').innerHTML=tabs.map(([id,name])=>'<button data-do="tab" data-id="'+id+'" aria-current="'+(active===id)+'">'+icon(id)+(id==='book'?'<span class="fullnav">Книга рецептов</span><span class="shortnav">Рецепты</span>':name)+'</button>').join('');paintMini($('.tabs'))}
 function walletText(){return host?(wallet?num(wallet.balance):'—'):'—'}
-function counters(){ $('#gold').textContent=num(s.gold);$('#berries').textContent=num(s.berries);$('#balance').textContent=walletText()}
+function counters(){ for(const resource of ['gold','berries']){
+ const counter=$('#'+resource);counter.textContent=num(s[resource]);
+ const label=counter.nextElementSibling,unit=resource==='gold'?'Золото':'Ягоды';
+ label.textContent=unit+' / '+num(stockLimit(s,resource));counter.parentElement.title=unit+' · '+num(s[resource])+' из '+num(stockLimit(s,resource));
+ }$('#balance').textContent=walletText()}
 function mark(id){s.marks[id]=(s.marks[id]||0)+1}
 function questHTML(){
  const q=QUESTS[s.quest];if(!q)return '<section class="panel quest"><span class="kicker">Летопись острова</span><h2>Хранитель Оплота</h2><p>Все главы пройдены. В книге ещё ждут драконы и новые волны у цитадели.</p></section>';
  const completed=!!s.marks[q[2]];
  return '<section class="panel quest"><span class="kicker">Путь хранителя · '+(s.quest+1)+' / '+QUESTS.length+'</span><h2>'+q[0]+'</h2><p>'+q[1]+'</p><div class="reward">Награда · '+q[3]+' золота и '+q[4]+' ягод</div>'+(completed?'<div class="actions">'+btn('quest','Забрать награду','','cmd gold')+'</div>':'')+'<div class="qprogress"><i style="width:'+(100*s.quest/QUESTS.length)+'%"></i></div></section>';
 }
-function petRow(d){return '<button class="petrow" data-do="pet" data-id="'+d.id+'">'+portrait(d)+'<span><b>'+title(d.species)+'</b><small>'+GAME_ELEMENTS[GAME_SPECIES[d.species].element]+' · ур. '+d.level+'</small></span><i class="chev">›</i></button>'}
+const rankNames=['','Обычный','Редкий','Эпический','Легендарный'];
+const percent=chance=>new Intl.NumberFormat('ru-RU',{style:'percent',maximumFractionDigits:1}).format(chance);
+function seals(sp){return '<div class="element-seals">'+sp.elements.map(e=>'<span class="element-seal" style="--element:'+ELEMENT_COLORS[e]+'">'+GAME_ELEMENTS[e]+'</span>').join('')+'</div>'}
+function rankBadge(sp){return '<span class="rank rank-'+sp.rank+'">'+sp.rarity+'</span>'}
+function petRow(d){
+ const sp=GAME_SPECIES[d.species];
+ return '<button class="petrow" data-do="pet" data-id="'+escape(d.id)+'">'+portrait(d)+'<span><b>'+sp.shortName+'</b><small>'+sp.elements.map(e=>GAME_ELEMENTS[e]).join(' · ')+' · ур. '+d.level+'</small></span><i class="chev">›</i></button>';
+}
+function forecast(a,b){
+ if(!a||!b||a.id===b.id)return '<p id="breed-forecast" class="desc">Выбери двух разных драконов.</p>';
+ const outcomes=Genetics.outcomes(a,b),ranks=[0,0,0,0,0];
+ for(const item of outcomes)ranks[GAME_SPECIES[item.species].rank]+=item.chance;
+ const rows=ranks.map((chance,r)=>chance?'<div class="odds-row rank-'+r+'" data-rank="'+r+'"><span>'+rankNames[r]+'</span><span class="track"><i style="width:'+chance*100+'%"></i></span><b>'+percent(chance)+'</b></div>':'').join('');
+ const children=outcomes.map(item=>'<div class="offspring"><span>'+title(item.species)+'</span><b>'+percent(item.chance)+'</b></div>').join('');
+ return '<section class="forecast" id="breed-forecast" aria-live="polite"><h3>Кто может вылупиться</h3>'+rows+'<details><summary>Виды и шансы</summary>'+children+'</details></section>';
+}
+function academyBuilding(){return s.buildings.find(b=>b.type==='academy')}
+function enchantCost(d){const step=(d.enchant||0)+1;return {gold:70*step,berries:45*step}}
+function enchant(id){
+ const d=D(id),academy=academyBuilding();if(!d||!academy||islandLevel(s)<7)return;
+ const old=d.enchant||0, cost=enchantCost(d);
+ if(old>=Math.min(5,academy.level)||s.gold<cost.gold||s.berries<cost.berries)return;
+ s.gold-=cost.gold;s.berries-=cost.berries;d.enchant=old+1;s.xp+=20*d.enchant;sounds('spell');update();toast('Зачарование получено · ступень '+d.enchant);
+}
 function refreshIsland(){
+ refreshNightBanner();
  counters();tabsHTML();document.body.classList.toggle('battle',!!battle);
  if(battle){$('#maptools').innerHTML='';$('#mapaction').innerHTML='';$('#mapnote').textContent='';$('#caption').textContent='';combatControls();return}
  $('#maptools').innerHTML=btn(placement?'cancelplace':'edit',placement?'Отмена':'✥ Расстановка','','glass');
  $('#mapnote').textContent=placement?(placement.kind==='add'?'Строительство · выбери пустую клетку':placement.kind==='move'?'Перенос · выбери свободную клетку':'Выбери постройку для переноса'):'';
  $('#mapaction').innerHTML=placement?'':btn('collectall','Собрать всё','','cmd gold');
- $('#caption').textContent='Цитадель · ур. '+lev()+'　✦　Драконов '+s.dragons.length+' / '+capacity(s);
+ const level=islandLevel(s),grid=islandGrid(s);
+ $('#island-area').textContent='Уровень '+level+' · '+grid.width+' × '+grid.height+' клеток';
+ $('#caption').textContent='Профиль острова · ур. '+islandLevel(s)+' ('+s.xp+'/'+35*islandLevel(s)**2+' опыта)　·　Цитадель '+lev()+'　·　Драконов '+s.dragons.length+' / '+capacity(s);
  aside.innerHTML=questHTML()+'<section class="panel"><div class="row between"><h2>Мои драконы</h2>'+btn('tab','Все','collection','linkbtn')+'</div>'+s.dragons.slice(0,3).map(petRow).join('')+'</section><section class="panel earnpanel"><div class="earn">'+icon('gem')+'<div><h3>Учебные алмазы</h3><p class="desc">Карточка приносит 1 алмаз, проверенная домашка — от 5 до 10.</p>'+btn('wallet','Открыть кошелёк','','linkbtn')+'</div></div></section>';paintMini(aside);
 }
 function combatControls(){
@@ -1454,29 +1957,37 @@ function show(view,arg='',preserve=false){
 function close(){if(dlg.open)dlg.close();panel='';current='';tabsHTML()}
 dlg.addEventListener('cancel',()=>{panel='';current='';tabsHTML()});
 dlg.addEventListener('click',e=>{if(e.target===dlg){const r=dlg.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)close()}});
-function capFor(type){if(type==='keep'||type==='den')return 1;return STRUCT[type][4]*lev()+(type==='wall'?3:1)}
+function capFor(type){if(['keep','den','academy'].includes(type))return 1;return STRUCT[type][4]*lev()+(type==='wall'?3:1)}
 function upCost(b){return b.type==='keep'?Math.round(175*1.65**(b.level-1)):Math.round((STRUCT[b.type][2]*.72+12)*b.level)}
 function upLimit(b){return b.type==='keep'?8:lev()+1}
-function canAdd(t){return t!=='keep'&&lev()>=STRUCT[t][3]&&s.buildings.filter(b=>b.type===t).length<capFor(t)}
-const feedCost=d=>8+2*d.level;
+function priceOf(t){return (t==='mine'||t==='farm')&&!s.buildings.some(b=>b.type===t)?0:STRUCT[t][2]}
+function canAdd(t){return (t!=='academy'||islandLevel(s)>=7)&&t!=='keep'&&lev()>=STRUCT[t][3]&&s.buildings.filter(b=>b.type===t).length<capFor(t)}
+const feedCost=d=>Math.ceil(18+6*d.level+1.8*d.level*d.level);
 const stageHint=d=>d.level<5?'Следующая эволюция на 5-м уровне.':d.level<10?'Следующая эволюция на 10-м уровне.':'Достигнута взрослая стадия.';
 function pop(x,y,txt,color='#ffdd75'){flying.push({x,y,txt,color,born:performance.now()/1000})}
 function collect(list){
- const stamp=Date.now();let g=0,berries=0;
- list.forEach(b=>{const n=stored(b,stamp);if(!n)return;const fruit=b.type==='farm';if(fruit)berries+=n;else g+=n;b.since=stamp;pop(b.x,b.y,'+'+n+' '+symbols[fruit?'berries':'gold'],fruit?'#ffd5dc':'#ffe199')});
- if(!g&&!berries){toast('Припасы ещё растут.');return}
- s.gold+=g;s.berries+=berries;mark('collect');sounds('collect');update();toast([g?'+'+g+' золота':'',berries?'+'+berries+' ягод':''].filter(Boolean).join(' · '));
+ const stamp=Date.now(),taken={gold:0,berries:0};let full=false;
+ for(const b of list){
+  const produced=stored(b,stamp);if(!produced)continue;
+  const resource=b.type==='farm'?'berries':'gold',n=acceptStock(s,resource,produced);
+  if(n<produced)full=true;
+  if(n){keepProduction(b,produced-n,stamp);taken[resource]+=n;pop(b.x,b.y,'+'+n+' '+symbols[resource],resource==='gold'?'#ffe199':'#ffd5dc')}
+ }
+ if(taken.gold||taken.berries){mark('collect');sounds('collect');update()}
+ const summary=[taken.gold?'+'+taken.gold+' золота':'',taken.berries?'+'+taken.berries+' ягод':''].filter(Boolean);
+ if(full)summary.push('Склад заполнен. Остаток ждёт на производстве.');
+ toast(summary.join(' · ')||'На производствах пока нет припасов.');
 }
 function update(){save();refreshIsland();if(dlg.open&&panel)show(panel,current,true)}
 function buyStructure(t,x,y){
- if(!STRUCT[t]||!canAdd(t)||s.gold<STRUCT[t][2]){placement=null;refreshIsland();toast('Эта постройка сейчас недоступна.');return}
- s.gold-=STRUCT[t][2];s.buildings.push({id:uid(),type:t,x,y,level:1,since:Date.now()});if(t==='wall')mark('wall');
+ if(!STRUCT[t]||!canAdd(t)||s.gold<priceOf(t)||!containsCell(islandGrid(s),x,y)||s.buildings.some(b=>b.x===x&&b.y===y)){placement=null;refreshIsland();toast('Эта постройка сейчас недоступна.');return}
+ s.gold-=priceOf(t);s.xp+=18;s.buildings.push({id:uid(),type:t,x,y,level:1,since:Date.now()});if(t==='wall')mark('wall');
  placement=null;cursor=null;sounds('build');pop(x,y,'Построено','#fff3b5');update();
 }
 function useCell(cell,hit){
  if(placement){
   if(placement.kind==='select'){const b=hit?.kind==='building'||hit?.kind==='bubble'?hit.item:s.buildings.find(b=>cell&&b.x===cell.x&&b.y===cell.y);if(!b)return toast('Выбери постройку на острове.');placement={kind:'move',id:b.id};refreshIsland();return}
-  if(!cell)return toast('Выбери клетку внутри острова.');
+  if(!cell||!containsCell(islandGrid(s),cell.x,cell.y))return toast('Выбери клетку внутри острова.');
   if(s.buildings.some(b=>b.x===cell.x&&b.y===cell.y))return toast('Эта клетка уже занята.');
   if(placement.kind==='add')return buyStructure(placement.type,cell.x,cell.y);
   const b=B(placement.id);if(b){b.x=cell.x;b.y=cell.y}placement=null;cursor=null;sounds('build');update();return
@@ -1488,19 +1999,22 @@ function useCell(cell,hit){
 }
 function feed(id){
  const d=D(id);if(!d||d.level>=30||s.berries<feedCost(d))return;
- s.berries-=feedCost(d);d.level++;mark('feed');if(d.level>=5)mark('evolve');sounds(d.level===5||d.level===10?'hatch':'feed');
+ s.berries-=feedCost(d);d.level++;s.xp+=8+d.level;mark('feed');if(d.level>=5)mark('evolve');sounds(d.level===5||d.level===10?'hatch':'feed');
  update();toast(d.level===5||d.level===10?'Эволюция! '+title(d.species)+' · '+stageName(d.level):title(d.species)+' достиг уровня '+d.level);
 }
+function incubationSeconds(){const den=s.buildings.find(b=>b.type==='den');return Math.max(4,13-(den?.level||1))}
 function eggChoice(){
  if(s.egg||s.dragons.length>=capacity(s))return toast('Освободи место, улучшив жилище.');
  const a=D(parentA),b=D(parentB);if(!a||!b||a===b)return toast('Выбери двух разных родителей.');
+ if(!s.buildings.some(x=>x.type==='den'))return toast('Сначала построй логово скрещивания.');
+ if(Math.min(a.level,b.level)<4)return toast('Каждому из родителей нужен 4-й уровень.');
  if(s.berries<15)return toast('Нужно 15 ягод.');
- s.berries-=15;s.egg={id:uid(),species:recipe(a.species,b.species),end:Date.now()+12000};sounds('spell');update();
+ s.berries-=15;s.egg={id:uid(),species:Genetics.roll(a,b),end:Date.now()+(s.incubationCredits?0:incubationSeconds()*1000)};if(s.incubationCredits)s.incubationCredits--;sounds('spell');update();
 }
 function hatch(){
  if(!s.egg||secLeft()>0||s.pending?.item==='incubate')return;
  if(s.dragons.length>=capacity(s))return toast('Улучши или построй жилище для нового дракона.');
- const d={id:uid(),species:s.egg.species,level:1};s.dragons.push(d);if(!s.book.includes(d.species))s.book.push(d.species);s.egg=null;mark('hatch');sounds('hatch');hatchAt=performance.now()/1000;
+ const d={id:uid(),species:s.egg.species,level:1};s.dragons.push(d);if(!s.book.includes(d.species))s.book.push(d.species);s.egg=null;s.xp+=35;mark('hatch');sounds('hatch');hatchAt=performance.now()/1000;
  panel='';save();refreshIsland();show('hatched',d.id);
 }
 function readyTeam(){
@@ -1510,51 +2024,87 @@ const rewardsInfo='<p class="desc">Первое успешное прохожд�
 const catalog={incubate:['Ускорить яйцо',1],berries:['Корзина · 75 ягод',3],gold:['Сундук · 150 золота',5]};
 const views={
  collection(){
-  const cards=s.dragons.map(d=>'<article class="card">'+portrait(d)+'<div class="tag">'+stageName(d.level)+' · '+GAME_ELEMENTS[GAME_SPECIES[d.species].element]+'</div><h3>'+title(d.species)+'</h3>'+btn('pet','Уровень '+d.level+' →',d.id,'cmd alt')+'</article>').join('');
+  const cards=s.dragons.map(d=>{
+   const sp=GAME_SPECIES[d.species];
+   return '<article class="card dragon-card rank-'+sp.rank+'">'+portrait(d)+rankBadge(sp)+'<h3>'+sp.name+'</h3>'+seals(sp)+btn('pet','Уровень '+d.level+' →',d.id,'cmd alt')+'</article>';
+  }).join('');
   return ['Мои драконы','<div class="row between wrap"><p class="desc">В жилищах занято '+s.dragons.length+' из '+capacity(s)+' мест.</p><div class="actions">'+btn('breed','Логово скрещивания')+btn('nursery','Питомник','','cmd alt')+'</div></div><div class="divider"></div><div class="cards">'+cards+'</div>'];
  },
  pet(){
-  const d=D(current);if(!d)return views.collection();const sp=GAME_SPECIES[d.species];const advantage=GAME_ELEMENTS.filter((_,i)=>window.strongAgainst(sp.element,i)).join(', ');
-  return [sp.name,'<div class="portrait">'+portrait(d)+'</div><span class="kicker">'+sp.rarity+' · '+GAME_ELEMENTS[sp.element]+'</span><h3>'+stageName(d.level)+' · уровень '+d.level+'</h3><p class="desc">'+sp.lore+' '+stageHint(d)+'</p><p class="desc">Преимущество ×1,5 против стихий: '+advantage+'.</p><div class="actions">'+btn('feed',d.level>=30?'Высший уровень':'Накормить · '+feedCost(d)+' ягод',d.id,'cmd',d.level>=30||s.berries<feedCost(d))+btn('breed','В логово скрещивания',d.id,'cmd alt')+'</div>'];
+  const d=D(current);if(!d)return views.collection();
+  const sp=GAME_SPECIES[d.species],p=Battle.profile(d.species,d.level,d.enchant),a=p.ability;
+  const travel=d.level>20?'Летает над стенами.':'Ходит по земле и ломает стены на пути. Полёт откроется на 21-м уровне.';
+  return [sp.name,'<div class="portrait">'+portrait(d)+'</div>'+rankBadge(sp)+seals(sp)+'<h3>'+stageName(d.level)+' · уровень '+d.level+'</h3><p class="desc">'+sp.lore+' '+stageHint(d)+'</p><dl class="pet-stats"><div><dt>Здоровье</dt><dd>'+p.hp+'</dd></div><div><dt>Урон удара</dt><dd>'+p.damage+'</dd></div></dl><p class="desc">'+travel+' Стихийное преимущество ×1,5 против '+p.advantageElements.map(e=>GAME_ELEMENTS[e]).join(', ')+'.</p><section class="ability rank-'+sp.rank+'"><h3>'+a.name+'</h3><p class="desc">'+a.passive+'</p><p class="desc">'+a.active+' Вклад в ярость отряда — '+a.furyPower+'.</p><small>Зачарование '+p.enchant+' / 5</small></section><div class="actions">'+btn('feed',d.level>=30?'Высший уровень':'Накормить · '+num(feedCost(d))+' ягод',d.id,'cmd',d.level>=30||s.berries<feedCost(d))+btn('breed','В логово скрещивания',d.id,'cmd alt')+(academyBuilding()?btn('academy','В академию',d.id,'cmd alt'):'')+'</div>'];
  },
  nursery(){
-  return ['Питомник','<p class="desc">Здесь можно поселить драконов пяти исходных стихий. Гибридов выводят в логове. Свободно мест: '+(capacity(s)-s.dragons.length)+'.</p><div class="cards">'+GAME_SPECIES.slice(0,5).map((sp,i)=>'<article class="card">'+portrait({species:i,level:1})+'<span class="tag">'+GAME_ELEMENTS[i]+'</span><h3>'+sp.name+'</h3>'+btn('adopt','Поселить · 65 золота',i,'cmd alt',s.gold<65||s.dragons.length>=capacity(s)-(s.egg?1:0))+'</article>').join('')+'</div>'];
+  const free=capacity(s)-s.dragons.length-(s.egg?1:0);
+  return ['Питомник','<p class="desc">Шесть исходных стихий. Гибридов можно вывести в логове. Свободных мест — '+free+'.</p><div class="cards">'+Genetics.baseIds.map(i=>'<article class="card">'+portrait({species:i,level:1})+seals(GAME_SPECIES[i])+'<h3>'+title(i)+'</h3>'+btn('adopt','Поселить · 65 золота',i,'cmd alt',s.gold<65||free<1)+'</article>').join('')+'</div>'];
  },
  breed(){
   if(s.egg){const left=secLeft();return ['Логово скрещивания','<canvas class="egg-art" data-egg="'+s.egg.species+'"></canvas><h3 id="egg-status">'+(left?'Скорлупа светится…':'Пора вылупляться!')+'</h3><p class="desc" id="egg-timer">'+(left?'До вылупления: '+left+' с':'Дракон уже стучит изнутри.')+'</p><div class="actions">'+btn('hatch','Вылупить дракона','','cmd',!!left||!!s.pending)+btn('purchase','Ускорить · 1 алмаз','incubate','cmd alt',!left||!wallet||wallet.balance<1||busy||!!s.pending)+'</div>']}
-  if(!D(parentA))parentA=s.dragons[0]?.id;if(!D(parentB)||parentB===parentA)parentB=s.dragons.find(d=>d.id!==parentA)?.id;
-  const options=id=>s.dragons.map((d,i)=>'<option value="'+d.id+'"'+(d.id===id?' selected':'')+'>'+title(d.species)+' · ур. '+d.level+' · №'+(i+1)+'</option>').join('');
-  return ['Логово скрещивания','<p class="desc">Выбери двух родителей. Через 12 секунд из яйца можно вылупить дракона. Подсказки к редким сочетаниям есть в книге рецептов.</p><div class="selects"><label>Первый родитель<select id="parentA">'+options(parentA)+'</select></label><label>Второй родитель<select id="parentB">'+options(parentB)+'</select></label></div><div class="actions">'+btn('lay','Начать выведение · 15 ягод','','cmd',s.dragons.length>=capacity(s)||s.berries<15||s.dragons.length<2)+btn('tab','Книга рецептов','book','cmd alt')+'</div>'+(s.dragons.length>=capacity(s)?'<p class="desc">Для яйца нужно место. Построй или улучши жилище.</p>':'')];
+  if(!D(parentA))parentA=s.dragons[0]?.id;
+  if(!D(parentB))parentB=s.dragons.find(d=>d.id!==parentA)?.id;
+  const a=D(parentA),b=D(parentB),hasDen=s.buildings.some(x=>x.type==='den');
+  const parent=(d,id,label)=>'<div class="parent-card">'+(d?portrait(d):'')+'<label>'+label+'<select class="pick" id="'+id+'">'+s.dragons.map((v,i)=>'<option value="'+escape(v.id)+'"'+(v.id===d?.id?' selected':'')+'>'+GAME_SPECIES[v.species].shortName+' · ур. '+v.level+' · №'+(i+1)+'</option>').join('')+'</select></label>'+(d?seals(GAME_SPECIES[d.species]):'')+'</div>';
+  const reasons=[];
+  if(!hasDen)reasons.push('Построй логово скрещивания в мастерской.');
+  if(!a||!b||a.id===b.id)reasons.push('Нужны два разных дракона.');
+  if(Math.min(a?.level||0,b?.level||0)<4)reasons.push('Каждому родителю нужен хотя бы 4-й уровень.');
+  if(s.dragons.length>=capacity(s))reasons.push('Построй или улучши жилище для детёныша.');
+  if(s.berries<15)reasons.push('Для выведения нужно 15 ягод.');
+  return ['Логово скрещивания','<p class="desc">Две разные чистые стихии всегда дают редкого дракона. У пары редких с тремя или четырьмя стихиями на двоих шанс эпического растёт с уровнем каждого родителя.</p><div class="hatch-parents">'+parent(a,'parentA','Первый родитель')+parent(b,'parentB','Второй родитель')+'</div>'+forecast(a,b)+'<p class="desc">'+(reasons.length?reasons.join(' '):'Время инкубации · '+incubationSeconds()+' с.')+'</p><div class="actions">'+btn('lay','Начать выведение · 15 ягод','','cmd',!!reasons.length)+btn('tab','Книга рецептов','book','cmd alt')+(!hasDen?btn('tab','Мастерская','build','cmd alt'):'')+'</div>'];
  },
- hatched(){const d=D(current);if(!d)return views.collection();return ['Дракон вылупился!','<div class="portrait">'+portrait(d)+'</div><span class="kicker">'+GAME_SPECIES[d.species].rarity+' · '+GAME_ELEMENTS[GAME_SPECIES[d.species].element]+'</span><h3>'+title(d.species)+'</h3><p class="desc">'+GAME_SPECIES[d.species].lore+'</p>'+btn('pet','Познакомиться',d.id)]},
+ hatched(){const d=D(current);if(!d)return views.collection();const sp=GAME_SPECIES[d.species];return ['Дракон вылупился!','<div class="portrait">'+portrait(d)+'</div>'+rankBadge(sp)+seals(sp)+'<h3>'+sp.name+'</h3><p class="desc">'+sp.lore+'</p>'+btn('pet','Познакомиться',d.id)]},
  book(){
-  const hybrids=GAME_SPECIES.map((sp,i)=>({sp,i})).filter(o=>o.sp.parents);
-  return ['Книга рецептов','<p class="desc">Открыто видов: '+s.book.length+' из '+GAME_SPECIES.length+'. В книге собраны все '+hybrids.length+' гибридов архипелага.</p><div class="cards">'+hybrids.map(({sp,i})=>{
-   const known=s.book.includes(i), parents=sp.parents.map(n=>GAME_SPECIES[n].name+' ('+GAME_ELEMENTS[GAME_SPECIES[n].element]+')').join(' + ');
-   return '<article class="card '+(known?'':'locked')+'">'+portrait({species:i,level:10})+'<div class="tag">'+sp.rarity+'</div><h3>'+(known?sp.name:'Неизвестный вид')+'</h3>'+(known?'<p class="desc">'+sp.lore+'</p>':'')+'<div class="cost">'+parents+'</div></article>'}).join('')+'</div>'];
+  const filter=current||'known';
+  const entries=GAME_SPECIES.filter(sp=>filter==='known'?s.book.includes(sp.id):sp.rank===Number(filter));
+  const filters=[['known','Открытые'],...rankNames.slice(1).map((name,i)=>[String(i+1),name])].map(([id,label])=>btn('bookfilter',label,id,'choice '+(id===filter?'active':''))).join('');
+  const cards=entries.map(sp=>{
+   const known=s.book.includes(sp.id),parents=sp.parents?sp.parents.map(n=>GAME_SPECIES[n].shortName).join(' + '):'Питомник';
+   return '<article class="card rank-'+sp.rank+(known?'':' locked')+'">'+portrait({species:sp.id,level:10})+rankBadge(sp)+'<h3>'+sp.name+'</h3>'+seals(sp)+'<div class="cost">'+(sp.parents?'Родители · ':'')+parents+'</div></article>';
+  }).join('');
+  return ['Книга рецептов','<p class="desc">Открыто '+s.book.length+' из '+GAME_SPECIES.length+'. Одна стихия даёт обычного дракона, две — редкого, три — эпического, от четырёх до шести — легендарного.</p><div class="actions codex-filter">'+filters+'</div><div class="cards codex">'+cards+'</div>'];
+ },
+ academy(){
+  const building=academyBuilding(),limit=Math.min(5,building?.level||0);
+  if(!building||islandLevel(s)<7)return ['Драконья академия','<p>Академию можно построить на 7-м уровне профиля острова.</p>'+btn('tab','Открыть мастерскую','build')];
+  const d=D(current)||s.dragons[0];if(!d)return views.collection();
+  const tier=d.enchant||0,cost=enchantCost(d),p=Battle.profile(d.species,d.level,tier),next=Battle.profile(d.species,d.level,tier+1);
+  const options=s.dragons.map((v,i)=>'<option value="'+escape(v.id)+'"'+(v.id===d.id?' selected':'')+'>'+GAME_SPECIES[v.species].shortName+' · ур. '+v.level+' · №'+(i+1)+'</option>').join('');
+  const info=tier===5?'Высшая ступень зачарования.':tier>=limit?'Для следующего зачарования улучши здание академии.':'Следующая ступень усилит удар на арене с +'+p.ability.activeBonus+'% до +'+next.ability.activeBonus+'%, а вклад в ярость — с '+p.ability.furyPower+' до '+next.ability.furyPower+'.';
+  return ['Драконья академия','<label>Ученик<select class="pick" id="academy-dragon">'+options+'</select></label><div class="portrait">'+portrait(d)+'</div><h3>'+p.ability.name+' · '+tier+' / 5</h3><p class="desc">'+info+'</p><div class="actions">'+btn('enchant','Зачаровать · '+cost.gold+' зол. и '+cost.berries+' яг.',d.id,'cmd',tier>=limit||s.gold<cost.gold||s.berries<cost.berries)+btn('structure','Академия · ур. '+building.level,building.id,'cmd alt')+'</div>'];
  },
  build(){
-  return ['Мастерская острова','<p class="desc">Выбери постройку, затем свободную клетку. Для переноса или улучшения коснись готовой постройки на карте.</p><div class="cards">'+Object.entries(STRUCT).filter(([t])=>t!=='keep').map(([t,[name,desc,price,min]])=>{
+  const level=islandLevel(s),grid=islandGrid(s),next=gridAtLevel(level+1);
+  const growth=next.width===grid.width&&next.height===grid.height?'Открыты все '+grid.width*grid.height+' клеток.':'На '+(level+1)+'-м уровне откроется ещё '+(next.width*next.height-grid.width*grid.height)+' клеток.';
+  return ['Мастерская острова','<h3>Остров '+grid.width+' × '+grid.height+'</h3><p class="desc">'+growth+' До нового уровня профиля — '+num(35*level*level-s.xp)+' опыта.</p><p class="desc">Выбери постройку, затем свободную клетку. Для переноса или улучшения коснись готовой постройки на карте.</p><div class="cards">'+Object.entries(STRUCT).filter(([t])=>t!=='keep').map(([t,[name,desc,price,min]])=>{
    const allowed=canAdd(t),has=s.buildings.find(b=>b.type===t);
-   return '<article class="card">'+buildingArt(t)+'<h3>'+name+'</h3><p class="desc">'+desc+'</p>'+btn('construct',lev()<min?'Цитадель ур. '+min:!allowed?'Лимит построек':'Построить · '+price+' зол.',t,'cmd alt',!allowed||s.gold<price)+(has?' '+btn('structure','На острове',has.id,'linkbtn'):'')+'</article>'}).join('')+'</div>'];
+   return '<article class="card">'+buildingArt(t)+'<h3>'+name+'</h3><p class="desc">'+desc+'</p>'+btn('construct',t==='academy'&&islandLevel(s)<7?'Профиль острова · ур. 7':lev()<min?'Цитадель ур. '+min:!allowed?'Лимит построек':priceOf(t)?'Построить · '+priceOf(t)+' зол.':'Разместить бесплатно',t,'cmd alt',!allowed||s.gold<priceOf(t))+(has?' '+btn('structure','На острове',has.id,'linkbtn'):'')+'</article>'}).join('')+'</div>'];
  },
  structure(){
   const b=B(current);if(!b)return views.build();const data=STRUCT[b.type],n=stored(b);
-  return [data[0],'<div class="portrait">'+buildingArt(b.type)+'</div><span class="kicker">Уровень '+b.level+' · клетка '+(b.x+1)+', '+(b.y+1)+'</span><p class="desc">'+data[1]+'</p><div class="actions">'+btn('upgrade',b.level>=upLimit(b)?(b.type==='keep'?'Высший уровень':'Улучши цитадель'):'Улучшить · '+upCost(b)+' зол.',b.id,'cmd',b.level>=upLimit(b)||s.gold<upCost(b))+btn('move','Перенести',b.id,'cmd alt')+(n?btn('collect','Собрать '+n,b.id,'cmd gold'):'')+(b.type==='den'?btn('breed','Скрещивание'):'')+'</div>'];
+  let detail=b.type==='den'?'<p class="desc">Время инкубации · '+incubationSeconds()+' с.</p>':'';
+  if(['goldstore','foodstore'].includes(b.type)){
+   const resource=b.type==='goldstore'?'gold':'berries';
+   detail='<p class="desc">Вместимость здания — '+num(storeSpace(b.type,b.level))+'. '+(b.level<upLimit(b)?'После улучшения — '+num(storeSpace(b.type,b.level+1))+'. ':'')+'Всего запасено '+num(s[resource])+' из '+num(stockLimit(s,resource))+'.</p>';
+  }
+  return [data[0],'<div class="portrait">'+buildingArt(b.type)+'</div><span class="kicker">Уровень '+b.level+' · клетка '+(b.x+1)+', '+(b.y+1)+'</span><p class="desc">'+data[1]+'</p>'+detail+'<div class="actions">'+btn('upgrade',b.level>=upLimit(b)?(b.type==='keep'?'Высший уровень':'Улучши цитадель'):'Улучшить · '+upCost(b)+' зол.',b.id,'cmd',b.level>=upLimit(b)||s.gold<upCost(b))+btn('move','Перенести',b.id,'cmd alt')+(n?btn('collect','Собрать '+n,b.id,'cmd gold'):'')+(b.type==='den'?btn('breed','Скрещивание'):b.type==='academy'?btn('academy','Зачаровать дракона'):'')+'</div>'];
  },
  battle(){
   readyTeam();const n=planned==='arena'?3:4;
   const next=planned==='raid'?campaignStage:planned==='defense'?s.waves+1:planned==='boss'?s.bosses+1:s.arenas+1;
   const stageMenu=planned==='raid'?'<label>Крепость<select class="pick" id="stage">'+Battle.stages.map((name,i)=>'<option value="'+(i+1)+'"'+(i+1===campaignStage?' selected':'')+(i>0&&!s.campaign[i]?' disabled':'')+'>'+name+' · '+(s.campaign[i+1]?'★'.repeat(s.campaign[i+1]):i>0&&!s.campaign[i]?'закрыта':'доступна')+'</option>').join('')+'</select></label>':'<span class="kicker">'+(planned==='defense'?'Волна':planned==='boss'?'Испытание':'Лига')+' '+next+'</span>';
-  return ['Военный совет','<div class="actions">'+Object.entries(MODE_NAMES).map(([id,label])=>btn('mode',label,id,'choice '+(planned===id?'active':''))).join('')+'</div><div class="divider"></div><h3>'+MODE_NAMES[planned]+'</h3><p class="desc">'+MODE_TEXT[planned]+'</p>'+stageMenu+'<div class="divider"></div><h3>Твой отряд · '+team.length+'/'+n+'</h3><div class="actions">'+s.dragons.map((d,i)=>'<button class="choice" data-do="team" data-id="'+d.id+'" aria-pressed="'+team.includes(d.id)+'">'+(team.includes(d.id)?'✓ ':'')+title(d.species)+' · '+d.level+' ур. · №'+(i+1)+'</button>').join('')+'</div><div class="actions">'+btn('start','Начать сражение','','cmd gold',!team.length||(planned==='arena'&&team.length!==3))+'</div>'];
+  return ['Военный совет',(host?'<button type="button" class="linkbtn" data-night-open>Ночной дозор · записи обороны</button>':'')+'<div class="actions">'+Object.entries(MODE_NAMES).map(([id,label])=>btn('mode',label,id,'choice '+(planned===id?'active':''))).join('')+'</div><div class="divider"></div><h3>'+MODE_NAMES[planned]+'</h3><p class="desc">'+MODE_TEXT[planned]+'</p>'+stageMenu+'<div class="divider"></div><h3>Твой отряд · '+team.length+'/'+n+'</h3><div class="actions">'+s.dragons.map((d,i)=>'<button class="choice" data-do="team" data-id="'+d.id+'" aria-pressed="'+team.includes(d.id)+'">'+(team.includes(d.id)?'✓ ':'')+title(d.species)+' · '+d.level+' ур. · №'+(i+1)+'</button>').join('')+'</div><div class="actions">'+btn('start','Начать сражение','','cmd gold',!team.length||(planned==='arena'&&team.length!==3))+'</div>'];
  },
- result(){const r=lastResult;return [r.win?'Победа!':'Сражение окончено','<div class="stars">'+(r.stars?'★'.repeat(r.stars):'◇')+'</div><h3>'+MODE_NAMES[r.mode]+'</h3><p class="desc">'+(r.win?'Добыча доставлена на остров.':'Отряд вернулся на остров. Можно укрепить оборону или накормить драконов перед новой попыткой.')+'</p><div class="cost">+'+r.gold+' золота　+'+r.berries+' ягод</div><div class="actions">'+btn('close','На остров')+btn('tab','Военный совет','battle','cmd alt')+'</div>']},
+ result(){const r=lastResult;return [r.win?'Победа!':'Сражение окончено','<div class="stars">'+(r.stars?'★'.repeat(r.stars):'◇')+'</div><h3>'+MODE_NAMES[r.mode]+'</h3><p class="desc">'+(r.win?'Добыча доставлена на остров.':'Отряд вернулся на остров. Можно укрепить оборону или накормить драконов перед новой попыткой.')+'</p><div class="cost">+'+r.gold+' золота　+'+r.berries+' ягод</div>'+(r.full?'<p class="desc">Часть добычи осталась в крепости. Для следующего набега можно расширить склады.</p>':'')+'<div class="actions">'+btn('close','На остров')+btn('tab','Военный совет','battle','cmd alt')+'</div>']},
  retreat(){return ['Покинуть сражение?','<p class="desc">Отряд вернётся на остров без добычи.</p><div class="actions">'+btn('close','Продолжить бой')+btn('abandon','Вернуться без добычи','','cmd alt')+'</div>']},
  wallet(){
-  const items=Object.entries(catalog).map(([id,[label,cost]])=>'<div class="listline"><b>'+label+'</b>'+btn('purchase',cost+' ◆',id,'cmd alt',!wallet||wallet.balance<cost||busy||!!s.pending||(id==='incubate'&&(!s.egg||!secLeft())))+'</div>').join('');
+  const items=Object.entries(catalog).map(([id,[label,cost]])=>{
+   const full=(id==='gold'||id==='berries')&&!fitsStock(s,id,id==='gold'?150:75);
+   return '<div class="listline"><b>'+label+'</b>'+btn('purchase',full?'Недостаточно места':cost+' ◆',id,'cmd alt',full||!wallet||wallet.balance<cost||busy||!!s.pending||(id==='incubate'&&(!s.egg||!secLeft())))+'</div>'}).join('');
   return ['Алмазная казна',rewardsInfo+(host?'<h3>Баланс · '+walletText()+' ◆</h3>'+(wallet?'<p class="desc">Карточки: '+wallet.cards+' · Домашние работы: '+wallet.homework+' · Потрачено: '+wallet.spent+'</p>':'')+(walletError?'<p class="desc">'+escape(walletError)+'</p>':'')+'<div class="actions">'+btn('sync','Обновить баланс','','cmd alt',busy)+btn('learn','Карточки','cards','linkbtn')+btn('learn','Домашние работы','tasks','linkbtn')+'</div>':'<p class="desc">Открой игру из своего профиля «Фагов», чтобы пользоваться заработанными алмазами.</p>'+btn('exit','Открыть Фаги','','cmd alt'))+'<div class="divider"></div>'+items+(s.pending?'<p class="desc">Покупка ожидает подтверждения.</p>'+btn('recover','Проверить покупку','','cmd',busy):'')];
  },
- settings(){return ['Настройки острова','<div class="listline"><b>Сказочные звуки</b>'+btn('sound',s.settings.sound?'Включены':'Выключены','','cmd alt')+'</div><p class="desc">Остров сохраняется в этом браузере'+(host?' для твоего профиля «Фагов».':' в гостевом режиме.')+' Учебные алмазы хранятся в профиле на платформе.</p><div class="actions">'+btn('confirmreset','Сбросить остров','','cmd alt',!!s.pending||busy)+btn('exit','Вернуться в Фаги','','linkbtn')+'</div>']},
+ settings(){return ['Настройки острова','<div class="listline"><b>Сказочные звуки</b>'+btn('sound',s.settings.sound?'Включены':'Выключены','','cmd alt')+'</div><p class="desc">'+(host?'Остров сохраняется в твоём профиле «Фагов» и открывается на других устройствах.':'Гостевой остров сохраняется в этом браузере.')+' Учебные алмазы хранятся в профиле на платформе.</p><div class="actions">'+btn('confirmreset','Сбросить остров','','cmd alt',!!s.pending||busy)+btn('exit','Вернуться в Фаги','','linkbtn')+'</div>']},
  confirmreset(){return ['Начать остров заново?','<p class="desc">Здания, драконы, добыча и главы этого острова будут сброшены. Баланс учебных алмазов и история покупок сохранятся.</p><div class="actions">'+btn('settings','Отмена')+btn('reset','Сбросить остров','','cmd alt')+'</div>']}
 };
 function startFight(){
@@ -1562,47 +2112,27 @@ function startFight(){
  const stage=planned==='raid'?campaignStage:planned==='defense'?s.waves+1:planned==='boss'?s.bosses+1:s.arenas+1;
  if(planned==='raid'&&stage>1&&!s.campaign[stage-1])return;
  placement=cursor=null;close();battle=Battle.start(planned,stage,s,squad,{change:combatControls,sound:sounds,finish:r=>{
-  lastResult=r;battle=null;s.gold+=r.gold;s.berries+=r.berries;if(r.win){mark(r.mode);if(r.mode==='raid')s.campaign[r.stage]=Math.max(r.stars,s.campaign[r.stage]||0);else if(r.mode==='defense')s.waves++;else if(r.mode==='arena')s.arenas++;else if(r.mode==='boss')s.bosses++}
+  battle=null;const earnedGold=acceptStock(s,'gold',r.gold),earnedBerries=acceptStock(s,'berries',r.berries);
+  lastResult={...r,gold:earnedGold,berries:earnedBerries,full:earnedGold<r.gold||earnedBerries<r.berries};
+  if(r.win){s.xp+=15+5*r.stars+3*r.stage;mark(r.mode);if(r.mode==='raid')s.campaign[r.stage]=Math.max(r.stars,s.campaign[r.stage]||0);else if(r.mode==='defense')s.waves++;else if(r.mode==='arena')s.arenas++;else if(r.mode==='boss')s.bosses++}
   save();refreshIsland();show('result')
  }});refreshIsland();
 }
 async function syncWallet(){
  if(!host)return;
- try{wallet=await host.wallet();walletError=''}catch(e){wallet=null;walletError=e?.dbCode==='PGRST202'?'Казна ждёт подключения к платформе. При первом открытии она учтёт сохранённые карточки и проверенные работы.':'Не удалось загрузить баланс. Проверь связь с «Фагами» и обнови кошелёк.'}
+ try{wallet=await host.wallet();walletError=''}catch(e){wallet=null;walletError=e?.dbCode==='42501'?'Алмазы начисляются в ученическом профиле за карточки и домашние работы.':e?.dbCode==='PGRST202'?'Казна ждёт подключения к платформе. При первом открытии она учтёт сохранённые карточки и проверенные работы.':'Не удалось загрузить баланс. Проверь связь с «Фагами» и обнови кошелёк.'}
  counters();if(dlg.open&&panel==='wallet')show('wallet','',true);
 }
-async function deliver(){
- if(!host||busy||!s.pending)return;
- const pending=s.pending;busy=true;
- try{
-  const receipt=await host.buy(pending.item,pending.op);
-  if(receipt.op!==pending.op||receipt.item!==pending.item)throw Error('Не совпала квитанция');
-  // A second tab may have delivered this receipt while this request was in flight.
-  s=read();
-  if(s.pending?.op!==pending.op){wallet=receipt;return}
-  if(!s.deliveries.includes(pending.op)){
-   if(pending.item==='gold')s.gold+=150;
-   if(pending.item==='berries')s.berries+=75;
-   if(pending.item==='incubate'&&s.egg?.id===pending.egg)s.egg.end=Date.now();
-   s.deliveries.push(pending.op);
-  }
-  s.pending=null;wallet=receipt;walletError='';save();sounds('collect');toast('Покупка получена');
- }catch(e){
-  if(e?.code==='invalid_argument'){
-   s=read();if(s.pending?.op===pending.op){s.pending=null;save()}toast(e.message||'Покупка отклонена');
-  }else toast('Нет подтверждения. Покупку можно проверить в казне.');
- }finally{busy=false;const notice=dlg.open?$('#dnotice').textContent:'';refreshIsland();if(dlg.open&&panel){show(panel,current,true);if(notice)toast(notice)}}
-}
+function deliver(){return islandSync?.pump(true)}
 async function purchase(item){
- if(!catalog[item]||busy||s.pending||!wallet||wallet.balance<catalog[item][1]||!host)return;
+ if(!catalog[item]||!islandSync?.canPay()||!wallet||wallet.balance<catalog[item][1])return;
+ if((item==='gold'||item==='berries')&&!fitsStock(s,item,item==='gold'?150:75)){toast('В хранилище не хватает места.');return;}
  if(item==='incubate'&&(!s.egg||!secLeft()))return;
  s.pending={item,op:uid(),egg:s.egg?.id||null};
- if(!save()){s.pending=null;return}
- await deliver();
+ if(!save()){s.pending=null;islandSync.changed(s);return}
+ await islandSync.pump(true);
 }
-function refreshStudy(){
- syncWallet().then(()=>{if(s.pending&&!busy)deliver()});
-}
+function refreshStudy(){syncWallet();if(islandSync)islandSync.pump(true)}
 function tab(v){
  if(battle){if(v==='battle'){close();return}show('retreat');return}
  if(v==='island'){placement=null;close();refreshIsland();return}
@@ -1610,47 +2140,168 @@ function tab(v){
 }
 const acts={
  tab,close,settings:()=>show('settings'),confirmreset:()=>show('confirmreset'),
- reset:()=>{if(s.pending||busy)return;battle=placement=cursor=null;team=[];s=initialState();close();update();toast('Остров основан заново')},
+ reset:()=>{if(s.pending||busy)return;battle=placement=cursor=null;team=[];const deliveries=s.deliveries,purchaseCount=s.purchaseCount??deliveries.length,lastRaid=s.lastRaid??null,incubationCredits=s.incubationCredits||0;s=initialState();Object.assign(s,{deliveries,purchaseCount,lastRaid,incubationCredits});close();update();toast('Остров основан заново')},
  wallet:()=>{show('wallet');syncWallet()},sync:refreshStudy,recover:deliver,purchase,
- learn:v=>{if(host)host.leave(v)},exit:()=>{if(host)host.leave('home');else if(location.protocol.startsWith('http'))location.assign('./?oplot=1');else toast('Открой «Драконий Оплот» в меню платформы «Фаги естественных наук».')},
+ learn:v=>{if(islandSync)islandSync.leave(v)},exit:()=>{if(islandSync)islandSync.leave('home');else if(location.protocol.startsWith('http'))location.assign('./?oplot=1');else toast('Открой «Драконий Оплот» в меню платформы «Фаги естественных наук».')},
  sound:()=>{s.settings.sound=!s.settings.sound;sounds('collect');update()},
  pet:id=>show('pet',id),structure:id=>show('structure',id),nursery:()=>show('nursery'),breed:id=>{if(D(id)){parentA=id;parentB=s.dragons.find(d=>d.id!==id)?.id}show('breed')},
- feed,lay:eggChoice,hatch,adopt:i=>{i=Number(i);if(!Number.isInteger(i)||i<0||i>4||s.gold<65||s.dragons.length>=capacity(s)-(s.egg?1:0))return;s.gold-=65;const d={id:uid(),species:i,level:1};s.dragons.push(d);if(!s.book.includes(i))s.book.push(i);sounds('hatch');update();show('pet',d.id)},
+ bookfilter:id=>show('book',id,true),academy:id=>show('academy',id),enchant,feed,lay:eggChoice,hatch,adopt:i=>{i=Number(i);if(!Genetics.baseIds.includes(i)||s.gold<65||s.dragons.length>=capacity(s)-(s.egg?1:0))return;s.gold-=65;const d={id:uid(),species:i,level:1};s.dragons.push(d);if(!s.book.includes(i))s.book.push(i);sounds('hatch');update();show('pet',d.id)},
  collect:id=>{const b=B(id);if(b)collect([b])},collectall:()=>collect(s.buildings),
- construct:t=>{if(!STRUCT[t]||!canAdd(t)||s.gold<STRUCT[t][2])return;placement={kind:'add',type:t};cursor={x:4,y:4};close();refreshIsland()},
+ construct:t=>{if(!STRUCT[t]||!canAdd(t)||s.gold<priceOf(t))return;placement={kind:'add',type:t};cursor={x:4,y:4};close();refreshIsland()},
  move:id=>{if(!B(id))return;placement={kind:'move',id};cursor={x:B(id).x,y:B(id).y};close();refreshIsland()},
  edit:()=>{placement={kind:'select'};cursor=null;refreshIsland()},cancelplace:()=>{placement=cursor=null;refreshIsland()},
  upgrade:id=>{const b=B(id);if(!b||b.level>=upLimit(b)||s.gold<upCost(b))return;
-   const n=stored(b);s.gold-=upCost(b);b.level++;if(n&&['mine','farm','home'].includes(b.type)){if(b.type==='farm')s.berries+=n;else s.gold+=n}b.since=Date.now();if(b.type==='wall')mark('wall');sounds('build');update()},
- quest:()=>{const q=QUESTS[s.quest];if(!q||!s.marks[q[2]])return;s.gold+=q[3];s.berries+=q[4];s.quest++;sounds('victory');update();toast('Награда главы получена')},
+   const now=Date.now(),n=stored(b,now);s.gold-=upCost(b);b.level++;s.xp+=12*b.level;keepProduction(b,n,now);if(b.type==='wall')mark('wall');sounds('build');update()},
+ quest:()=>{const q=QUESTS[s.quest];if(!q||!s.marks[q[2]])return;if(!fitsStock(s,'gold',q[3])||!fitsStock(s,'berries',q[4]))return toast('Награда ждёт. Освободи место или расширь хранилища.');
+ s.gold+=q[3];s.berries+=q[4];s.xp+=35;s.quest++;sounds('victory');update();toast('Награда главы получена')},
  mode:m=>{if(!MODE_NAMES[m])return;planned=m;team=s.dragons.slice(0,m==='arena'?3:4).map(d=>d.id);show('battle','',true)},
  team:id=>{if(!D(id))return;const n=planned==='arena'?3:4;if(team.includes(id)){if(team.length===1)return toast('Нужен хотя бы один участник.');team=team.filter(x=>x!==id)}else if(team.length<n)team.push(id);else return toast('Сначала сними отметку с одного участника.');show('battle','',true)},
  start:startFight,retreat:()=>show('retreat'),abandon:()=>{battle=null;close();refreshIsland()},
  combat:value=>{if(!battle)return;const [id,arg]=value.split('|');battle.action(id,arg===''?undefined:Number(arg));if(battle)combatControls()}
 };
 document.addEventListener('click',e=>{const b=e.target.closest('button[data-do]');if(!b||b.disabled)return;const f=acts[b.dataset.do];if(f){if(!['combat','sound'].includes(b.dataset.do))sounds('click');f(b.dataset.id||'')}});
-document.addEventListener('change',e=>{if(e.target.id==='parentA')parentA=e.target.value;if(e.target.id==='parentB')parentB=e.target.value;if(e.target.id==='stage')campaignStage=Number(e.target.value)});
+document.addEventListener('change',e=>{if(e.target.id==='parentA'||e.target.id==='parentB'){
+ const id=e.target.id;if(id==='parentA')parentA=e.target.value;else parentB=e.target.value;
+ show('breed','',true);document.getElementById(id)?.focus({preventScroll:true});
+ }if(e.target.id==='academy-dragon')show('academy',e.target.value,true);if(e.target.id==='stage')campaignStage=Number(e.target.value)});
 let stateArt={buildings:[],dragons:[]};
-function sampleMap(){stateArt={buildings:s.buildings.map(b=>({...b,ready:stored(b)>=3})),dragons:s.dragons.slice(0,8),selected:placement?.id||null,grid:!!placement,hover:cursor}}
+function mapCell(px,py){
+ const grid=islandGrid(s),cell=Art.cell(px,py,W,H,grid.width);
+ return cell&&containsCell(grid,cell.x,cell.y)?cell:null;
+}
+function sampleMap(){const grid=islandGrid(s);stateArt={gridSize:grid.width,gridWidth:grid.width,gridHeight:grid.height,buildings:s.buildings.map(b=>({...b,ready:stored(b)>=3})),dragons:s.dragons.slice(0,8),selected:placement?.id||null,grid:!!placement,hover:cursor}}
 function tap(px,py){
  if(battle){battle.tap(px,py,W,H);if(battle)combatControls();return}
- sampleMap();const cell=Art.cell(px,py,W,H), hit=Art.hit(px,py,W,H,stateArt,moment);
+ sampleMap();const cell=mapCell(px,py), hit=Art.hit(px,py,W,H,stateArt,moment);
  if(hit?.kind==='bubble')hit.item=B(hit.id);
  useCell(cell,hit);
 }
 world.addEventListener('click',e=>{const r=world.getBoundingClientRect();tap(e.clientX-r.left,e.clientY-r.top)});
-world.addEventListener('pointermove',e=>{if(!placement||e.pointerType==='touch')return;const r=world.getBoundingClientRect();cursor=Art.cell(e.clientX-r.left,e.clientY-r.top,W,H)});
+world.addEventListener('pointermove',e=>{if(!placement||e.pointerType==='touch')return;const r=world.getBoundingClientRect();cursor=mapCell(e.clientX-r.left,e.clientY-r.top)});
 world.addEventListener('keydown',e=>{
  if(battle)return;if(e.key==='Escape'){acts.cancelplace();return}
  if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Enter',' '].includes(e.key))return;e.preventDefault();
  cursor??={x:4,y:4};if(e.key==='Enter'||e.key===' '){useCell(cursor,null);return}
  if(e.key==='ArrowLeft')cursor.x--;if(e.key==='ArrowRight')cursor.x++;if(e.key==='ArrowUp')cursor.y--;if(e.key==='ArrowDown')cursor.y++;
- cursor.x=Math.max(0,Math.min(9,cursor.x));cursor.y=Math.max(0,Math.min(9,cursor.y));
+ const grid=islandGrid(s);cursor.x=Math.max(0,Math.min(grid.width-1,cursor.x));cursor.y=Math.max(0,Math.min(grid.height-1,cursor.y));
 });
 function resize(){
  const r=world.getBoundingClientRect();W=r.width;H=r.height;const dpr=Math.min(devicePixelRatio||1,2);
  world.width=Math.round(W*dpr);world.height=Math.round(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);paintMini();
 }
+// Night reports replay the stored server events against the island as it looked at raid time.
+const nightDialog=document.createElement('dialog');nightDialog.id='night-report';nightDialog.setAttribute('aria-labelledby','night-title');
+nightDialog.innerHTML='<div class="dlghead"><h2 id="night-title">Ночной дозор</h2><button type="button" class="close" aria-label="Закрыть отчёты">×</button></div><div class="dlgbody night-body"></div>';
+document.body.append(nightDialog);
+const nightBody=nightDialog.querySelector('.night-body'), nightBanner=document.createElement('section');nightBanner.className='night-banner panel';nightBanner.hidden=true;
+const nightArchive=document.createElement('button');nightArchive.type='button';nightArchive.className='linkbtn';nightArchive.textContent='Отчёты о ночных набегах';nightArchive.hidden=!host;
+const attribution=document.querySelector('.attribution');if(attribution)attribution.insertBefore(nightArchive,attribution.lastElementChild);
+document.querySelector('.play')?.before(nightBanner);
+let raids=[],raidAt=0,raidClock=0,raidPlaying=false,raidFrame=0,raidPrevious=0,raidScene=null,raidRequest=0,nightSeen='';
+try{if(host)nightSeen=localStorage.getItem(key+'.seenRaid')||'';}catch{}
+function raidDate(day){const t=Date.parse(String(day).slice(0,10)+'T12:00:00Z');return Number.isFinite(t)?new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'Europe/Moscow'}).format(t):'Ночной набег';}
+function raidsLoss(r){return 'Золото −'+num(Math.max(0,Number(r.goldLost)||0))+' · ягоды −'+num(Math.max(0,Number(r.berriesLost)||0));}
+function refreshNightBanner(){
+ const r=s.lastRaid;nightBanner.hidden=!host||!r?.day||nightSeen===r.day;
+ if(nightBanner.hidden||nightBanner.dataset.day===r.day)return;
+ nightBanner.dataset.day=r.day;nightBanner.innerHTML='<div><h3>Ночной набег · '+escape(raidDate(r.day))+'</h3><p>'+escape(raidsLoss(r))+'</p></div><button class="cmd alt" type="button">Посмотреть отчёт</button>';
+}
+function resetRaidScene(r){
+ const rp=r.replay||{}, actors=new Map(), buildings=new Map();
+ for(const b of Array.isArray(rp.buildings)?rp.buildings:[])if(b?.id&&Object.hasOwn(STRUCT,b.type))buildings.set(b.id,{...b,maxHP:b.hp,alive:true});
+ for(const [side,list] of [['attacker',rp.attackers],['defender',rp.defenders]])for(const a of Array.isArray(list)?list:[]){
+  if(a?.id)actors.set(a.id,{...a,side,maxHP:a.hp,alive:true});
+ }
+ const events=(Array.isArray(rp.events)?rp.events:[]).filter(e=>e&&Number.isFinite(e.t)).map(e=>({...e})).sort((a,b)=>a.t-b.t);
+ // Events within the same server tick keep their order and can be reviewed one by one.
+ for(let start=0;start<events.length;){let end=start+1;while(end<events.length&&events[end].t===events[start].t)end++;
+  const span=Math.min(.8,Math.max(0,(events[end]?.t??events[start].t+1)-events[start].t));
+  for(let i=start;i<end;i++)events[i].at=events[i].t+span*(i-start)/(end-start);start=end;
+ }
+ const dimension=(n,fallback)=>Number.isInteger(n)&&n>=10&&n<=16?n:fallback;
+ const side=dimension(rp.gridSize,10),width=dimension(rp.gridWidth,side),height=dimension(rp.gridHeight,side);
+ raidScene={actors,buildings,events,side,width,height,index:0,last:-1,caption:'Налётчики приближаются к острову.',effects:[]};
+}
+function applyRaidEvents(t){
+ if(!raidScene||t<raidScene.last)resetRaidScene(raids[raidAt]);
+ const scene=raidScene;
+ while(scene.index<scene.events.length&&scene.events[scene.index].at<=t){
+  const e=scene.events[scene.index++],actor=scene.actors.get(e.id),target=scene.actors.get(e.target)||scene.buildings.get(e.target);
+  if(e.kind==='move'&&actor&&Array.isArray(e.to)){actor.x=e.to[0];actor.y=e.to[1];actor.step=e;}
+  if(['tower','guard','wall','trap','strike'].includes(e.kind)){
+   if(target&&Number.isFinite(e.hp))target.hp=e.hp;
+   scene.effects.push(e);
+   if(e.kind==='trap'&&scene.buildings.has(e.id))scene.buildings.get(e.id).spent=true;
+  }
+  if((e.kind==='destroy'||e.kind==='fall')&&target)target.alive=false;
+  if(e.text)scene.caption=e.text;
+ }
+ scene.effects=scene.effects.filter(e=>t-e.at<0.7);scene.last=t;
+}
+function raidTime(t){const n=Math.max(0,Math.floor(t));return Math.floor(n/60)+':'+String(n%60).padStart(2,'0')}
+function raidDuration(){const r=raids[raidAt]?.replay;if(!r)return 0;return Math.max(0,Number(r.duration)||0,raidScene?.events.at(-1)?.at||0);}
+function drawRaid(){
+ const canvas=nightBody.querySelector('canvas');if(!canvas||!raidScene)return;
+ applyRaidEvents(raidClock);
+ const rect=canvas.getBoundingClientRect(),w=Math.max(1,rect.width),h=Math.max(1,rect.height),dpr=Math.min(2,window.devicePixelRatio||1);
+ if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);}
+ const c=canvas.getContext('2d');if(!c)return;c.setTransform(dpr,0,0,dpr,0,0);
+ const activeTime=reduced?Math.floor(raidClock):raidClock,scene=raidScene, buildings=[...scene.buildings.values()].filter(b=>b.alive&&!b.spent);
+ const side=scene.side;canvas.setAttribute('aria-label','Запись обороны острова '+scene.width+'×'+scene.height);
+ Art.island(c,w,h,activeTime,{buildings,dragons:[],grid:false,gridSize:side,gridWidth:scene.width,gridHeight:scene.height,theme:'defense'});
+ const unit=Math.max(8,Math.min(w/18,h/11)*10/side),spot=(x,y)=>Art.point(x,y,w,h,side);
+ function health(entity,p,off){if(!entity.maxHP||entity.hp>=entity.maxHP)return;const bar=Math.min(34,unit*1.25);c.fillStyle='#28392e';c.fillRect(p.x-bar/2,p.y-off,bar,3);c.fillStyle=entity.side==='attacker'?'#fb9e79':'#aed785';c.fillRect(p.x-bar/2,p.y-off,bar*Math.max(0,entity.hp/entity.maxHP),3);}
+ for(const b of buildings)health(b,spot(b.x,b.y),unit*1.05);
+ for(const a of [...scene.actors.values()].filter(x=>x.alive).sort((p,q)=>p.x+p.y-q.x-q.y)){
+  let x=a.x,y=a.y;const step=a.step;
+  if(raidPlaying&&!reduced&&step&&Array.isArray(step.from)){const k=Math.min(1,Math.max(0,(raidClock-step.at)/.35));x=step.from[0]+(a.x-step.from[0])*k;y=step.from[1]+(a.y-step.from[1])*k;}
+  const p=spot(x,y),enemy=a.side==='attacker';c.beginPath();c.ellipse(p.x,p.y+2,unit*.55,unit*.22,0,0,Math.PI*2);c.fillStyle=enemy?'#a42e34bd':'#195d55c4';c.fill();
+  const altitude=a.flying?unit*.9:unit*.46;
+  Art.dragon(c,p.x,p.y-altitude,unit*1.4,Number(a.species)||0,Number(a.level)||1,activeTime,enemy);health(a,p,altitude+unit*.65);
+ }
+ if(!reduced)for(const e of scene.effects.slice(-15)){
+  if(!Array.isArray(e.from)||!Array.isArray(e.to))continue;
+  const src=spot(...e.from),dst=spot(...e.to);c.save();c.globalAlpha=.75*(1-Math.min(1,(raidClock-e.at)/.7));c.strokeStyle=['tower','guard','trap'].includes(e.kind)?'#f8df70':'#df735d';c.lineWidth=2;c.beginPath();c.moveTo(src.x,src.y-unit*.45);c.lineTo(dst.x,dst.y-unit*.35);c.stroke();c.restore();
+ }
+ const range=nightBody.querySelector('[data-night-seek]');if(range){range.value=String(raidClock);range.setAttribute('aria-valuetext',raidTime(raidClock));}
+ const duration=raidDuration();nightBody.querySelector('[data-night-time]').textContent=raidTime(raidClock)+' / '+raidTime(duration);
+ nightBody.querySelector('[data-night-event]').textContent=scene.caption;
+ const toggle=nightBody.querySelector('[data-night-play]');toggle.textContent=raidPlaying?'Пауза':raidClock>=duration?'Сначала':'Воспроизвести';toggle.setAttribute('aria-pressed',String(raidPlaying));
+}
+function pauseRaid(){raidPlaying=false;cancelAnimationFrame(raidFrame);raidFrame=0;}
+function stepRaid(now){
+ if(!raidPlaying||!nightDialog.open||document.hidden){pauseRaid();if(nightDialog.open)drawRaid();return;}
+ if(raidPrevious)raidClock=Math.min(raidDuration(),raidClock+Math.max(0,now-raidPrevious)/1000);raidPrevious=now;
+ if(raidClock>=raidDuration())pauseRaid();drawRaid();if(raidPlaying)raidFrame=requestAnimationFrame(stepRaid);
+}
+const raidRules='<details class="night-rules"><summary>Правила ночного дозора</summary><p>Набег начинается в 03:00 по Москве. Налётчики получают по звезде за разрушение половины целей, цитадели и всех целей. Стены и ловушки в число целей не входят.</p><p>За 0, 1, 2 и 3 звезды налётчики забирают соответственно 0%, 25%, 50% и 80% золота и ягод. В расчёт входят и несобранные запасы на острове.</p></details>';
+function displayRaid(index){
+ pauseRaid();raidAt=index;raidClock=0;const r=raids[index];if(!r)return;resetRaidScene(r);
+ const stars=Math.max(0,Math.min(3,Math.trunc(r.stars)||0)),list=raids.map((x,i)=>'<option value="'+i+'"'+(i===index?' selected':'')+'>'+escape(raidDate(x.day))+' · волна '+escape(x.wave??1)+'</option>').join('');
+ nightBody.innerHTML='<label>Запись набега<select class="pick" data-night-date>'+list+'</select></label><div class="night-summary"><div><h3>'+(stars===0?'Остров выстоял':'Налётчики заработали '+stars+' '+(stars===1?'звезду':'звезды'))+'</h3><p>'+escape(raidsLoss(r))+'</p></div><span aria-label="Звёзды налётчиков '+stars+' из трёх">'+'★'.repeat(stars)+'☆'.repeat(3-stars)+'</span></div>';
+ if(!r.replay||!raidScene.events.length){nightBody.insertAdjacentHTML('beforeend','<p>Для этого набега сохранилась только сводка.</p>'+raidRules);return;}
+ nightBody.insertAdjacentHTML('beforeend','<canvas class="night-map" role="img" aria-label="Запись обороны острова"></canvas><div class="night-legend"><span>● Защитники</span><span>● Налётчики</span><span data-night-time></span></div><input data-night-seek aria-label="Перемотка записи" type="range" min="0" step="0.1" max="'+raidDuration()+'" value="0"><div class="actions night-actions"><button type="button" class="cmd" data-night-play>Воспроизвести</button><button type="button" class="cmd alt" data-night-step>Следующее событие</button></div><p data-night-event></p>'+raidRules);
+ nightBody.querySelector('[data-night-seek]').addEventListener('input',e=>{pauseRaid();raidClock=Number(e.target.value);drawRaid();});
+ nightBody.querySelector('[data-night-play]').onclick=()=>{if(raidPlaying){pauseRaid();drawRaid();return;}if(raidClock>=raidDuration())raidClock=0;raidPrevious=0;raidPlaying=true;drawRaid();raidFrame=requestAnimationFrame(stepRaid);};
+ nightBody.querySelector('[data-night-step]').onclick=()=>{pauseRaid();raidClock=raidScene.events.find(e=>e.at>raidClock)?.at??raidDuration();drawRaid();};drawRaid();
+}
+async function openNight(){
+ if(!host)return;pauseRaid();const generation=++raidRequest;
+ nightBody.innerHTML='<p role="status">Загружаем записи ночных набегов…</p>';if(!nightDialog.open)nightDialog.showModal();
+ try{
+  const reports=await host.loadRaids();if(!nightDialog.open||generation!==raidRequest)return;
+  if(!Array.isArray(reports))throw Error('reports');raids=reports.filter(r=>r&&/^\d{4}-\d{2}-\d{2}$/.test(r.day));
+  if(!raids.length){nightBody.innerHTML='<h3>Ночных набегов пока не было</h3><p>Дозор проверяет остров в 03:00 по Москве. После первого налёта здесь появятся отчёт и запись боя.</p>'+raidRules;return;}
+  nightSeen=raids[0].day;try{localStorage.setItem(key+'.seenRaid',nightSeen)}catch{}refreshNightBanner();displayRaid(0);
+ }catch(e){if(!nightDialog.open||generation!==raidRequest)return;nightBody.innerHTML='<p role="status"></p><button class="cmd alt" type="button">Попробовать снова</button>';nightBody.querySelector('p').textContent=e?.dbCode==='PGRST202'?'Архив ночных набегов ждёт подключения к платформе.':'Не удалось загрузить отчёты. Проверь связь с «Фагами».';nightBody.querySelector('button').onclick=openNight;}
+}
+nightArchive.dataset.nightOpen='';nightBanner.dataset.nightOpen='';
+body.addEventListener('click',e=>{if(e.target.closest('[data-night-open]'))openNight()});
+nightArchive.onclick=openNight;nightBanner.onclick=openNight;nightDialog.querySelector('.close').onclick=()=>nightDialog.close();nightDialog.addEventListener('close',()=>{raidRequest++;pauseRaid();});
+nightBody.addEventListener('change',e=>{if(e.target.matches('[data-night-date]'))displayRaid(Number(e.target.value));});
+new ResizeObserver(()=>{if(nightDialog.open&&raidScene)drawRaid()}).observe(nightBody);
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&raidPlaying){pauseRaid();drawRaid();}});
+
 function frame(ms){
  requestAnimationFrame(frame);
  if(document.hidden||!W||!H){lastFrame=ms;return}
@@ -1659,7 +2310,7 @@ function frame(ms){
  else if(!dlg.open||panel==='hatched'){
   sampleMap();Art.island(ctx,W,H,moment,stateArt);
   flying=flying.filter(f=>sec-f.born<1.4);
-  for(const f of flying){const age=sec-f.born,p=Art.point(f.x,f.y,W,H);ctx.save();ctx.globalAlpha=Math.max(0,1-age*.67);ctx.font='bold 17px system-ui';ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='#3d553f';ctx.fillStyle=f.color;ctx.strokeText(f.txt,p.x,p.y-22-age*35);ctx.fillText(f.txt,p.x,p.y-22-age*35);ctx.restore()}
+  for(const f of flying){const age=sec-f.born,p=Art.point(f.x,f.y,W,H,islandSize(s));ctx.save();ctx.globalAlpha=Math.max(0,1-age*.67);ctx.font='bold 17px system-ui';ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='#3d553f';ctx.fillStyle=f.color;ctx.strokeText(f.txt,p.x,p.y-22-age*35);ctx.fillText(f.txt,p.x,p.y-22-age*35);ctx.restore()}
  }
  if(dlg.open&&panel==='hatched'&&!reduced&&sec-hatchAt<2.2){
    const el=body.querySelector('.portrait canvas');if(el){paintMini(body);const c=el.getContext('2d'),w=el.clientWidth,h=el.clientHeight,a=sec-hatchAt;c.save();c.fillStyle='#d39335';for(let i=0;i<18;i++){const r=a*(25+(i%4)*10);c.globalAlpha=Math.max(0,1-a/2.2);c.fillText('✦',w/2+Math.cos(i*2.4)*r,h*.48+Math.sin(i*2.4)*r)}c.restore()}
@@ -1668,10 +2319,19 @@ function frame(ms){
   if(panel==='breed'&&s.egg){const l=secLeft();if(!l&&$('#egg-status')?.textContent!=='Пора вылупляться!')show('breed','',true);else if(l&&$('#egg-timer'))$('#egg-timer').textContent='До вылупления: '+l+' с'}
  }
 }
-addEventListener('storage',e=>{if(e.key!==key)return;s=read();refreshIsland();if(dlg.open&&panel)show(panel,current,true)});
+addEventListener('storage',e=>{if(islandSync||e.key!==key)return;s=upgradeIsland(read());refreshIsland();if(dlg.open&&panel)show(panel,current,true)});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&host)refreshStudy()});
 // Establish the founding time on the first visit as well as after the first move.
-try{if(!localStorage.getItem(key))save()}catch{}
+if(host){
+ islandSync=createIslandSync(host,key,{
+  get:()=>s,
+  set:(value,refresh)=>{const interrupted=refresh&&battle&&!equalIslandData(value,s);s=typeof upgradeIsland==='function'?(upgradeIsland(value)||value):value;
+   if(interrupted){battle=null;placement=cursor=null;close();toast('Остров изменён на другом устройстве. Сражение завершено.');}
+   if(refresh){if(!battle)refreshIsland();if(dlg.open&&panel){if(panel==='pet'&&!D(current)||panel==='structure'&&!B(current)||panel==='hatched'&&!D(current))close();else show(panel,current,true)}}},
+  render:()=>{if(!battle)refreshIsland();if(dlg.open&&panel==='wallet')show(panel,current,true)},
+  receipt:value=>{wallet=value;walletError='';counters()},message:toast
+ });islandSync.begin();
+}else{try{if(!localStorage.getItem(key))save()}catch{}}
 new ResizeObserver(resize).observe(world);refreshIsland();resize();if(host)refreshStudy();requestAnimationFrame(frame);
 })();
 

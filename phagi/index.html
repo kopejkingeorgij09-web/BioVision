@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<script src="cloud.js?v=14"></script>
+<script src="cloud.js?v=15"></script>
 <script src="forest/progress.js?v=1"></script>
 <script src="forest/scene.js?v=1"></script>
 <link rel="stylesheet" href="forest/forest.css?v=1">
@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="lesson-workspace.css?v=1">
 <script src="lesson-files.js?v=2"></script>
 <meta charset="utf-8">
-<meta name="ph-ver" content="2026-11-19-oplot">
+<meta name="ph-ver" content="2026-11-19-oplot-island-2">
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Фаги естественных наук</title>
@@ -3258,10 +3258,14 @@ function peopleHTML(){
 }
 
 function oplotHTML(){
-  return '<section data-sig="oplot-game"><iframe id="oplot-game" src="oplot.html?v=1" title="Драконий Оплот" allow="autoplay"></iframe></section>';
+  return '<section data-sig="oplot-game"><iframe id="oplot-game" src="oplot.html?v=2" title="Драконий Оплот" allow="autoplay"></iframe></section>';
 }
 window.OplotHost=Object.freeze({
   identity(){return S.view==='oplot' && S.me?.id && (T()||S.joined)?{id:S.me.id}:null},
+  delivery(op,remember){return PHCLOUD.oplotDelivery(op,remember)},
+  loadRaids(){return PHCLOUD.oplotRaids()},
+  loadIsland(){return PHCLOUD.oplotLoad()},
+  storeIsland(rev,op,doc,keepalive=false){return PHCLOUD.oplotStore(rev,op,doc,keepalive)},
   wallet(){return PHCLOUD.oplotWallet()},
   buy(item,op){return PHCLOUD.oplotBuy(item,op)},
   leave(view){

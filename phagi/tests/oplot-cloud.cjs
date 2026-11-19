@@ -15,7 +15,7 @@ async function run(browser){
   const open=()=>page.goto(url.href,{waitUntil:'domcontentloaded'});
   const ready=()=>status.filter({hasText:'Остров в облаке'}).waitFor();
   async function feed(id){await f.locator(`[data-do="pet"][data-id="${id}"]`).first().click();await f.locator('[data-do="feed"]').click();await f.locator('#dialog [data-do="close"]').click();}
-  async function sync(){await status.click();await f.getByRole('button',{name:'Проверить связь'}).click();}
+  async function sync(){await status.click();await f.locator('#island-cloud-dialog').getByRole('button',{name:'Проверить связь'}).click();}
   return {ctx,page,f,status,open,ready,feed,sync};
  }
  try{

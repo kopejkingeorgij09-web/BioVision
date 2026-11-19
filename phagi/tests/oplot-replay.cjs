@@ -14,28 +14,49 @@ const largeReport={...report,day:'2026-11-19',wave:2,replay:{v:1,duration:2,grid
  attackers:[{id:'edge-raider',species:0,level:4,hp:50,x:15,y:9}],defenders:[],
  events:[{t:1,kind:'move',id:'edge-raider',target:'edge-raider',from:[15,9],to:[15,10],text:'Дракон у дальнего края'}]}};
 async function checkRecordedTerrain(map,record,y,time){
- const pixels=await map.evaluate((canvas,{record,y,time})=>{
-  const {width:w,height:h}=canvas.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);
-  const ref=document.createElement('canvas');ref.width=canvas.width;ref.height=canvas.height;
-  const c=ref.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);
-  Art.island(c,w,h,time,{buildings:record.buildings,dragons:[],grid:false,gridSize:16,gridWidth:16,gridHeight:15,theme:'defense'});
-  const a=c.getImageData(0,0,ref.width,ref.height).data,b=canvas.getContext('2d').getImageData(0,0,ref.width,ref.height).data;
-  const point=Art.point(15,y,w,h,16),radius=Math.max(8,Math.min(w/18,h/11)*10/16)*3;
-  let actor=0,elsewhere=0;
-  for(let j=0;j<b.length;j+=4){
-   if(a[j]===b[j]&&a[j+1]===b[j+1]&&a[j+2]===b[j+2]&&a[j+3]===b[j+3])continue;
-   const x=(j/4%ref.width)/dpr,py=Math.floor(j/4/ref.width)/dpr;
-   // A fractional CSS canvas height can leave one antialiased edge row in the backing store.
-   if(x<2||x>w-2||py<2||py>h-2)continue;
-   if(Math.hypot(x-point.x,py-point.y)<radius)actor++;else elsewhere++;
+ const pixels=await map.evaluate(async(canvas,{record,y,time})=>{
+  // A paused scene repaints when its SVG finishes decoding on the next animation frame.
+  function compare(){
+   const {width:w,height:h}=canvas.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);
+   const ref=document.createElement('canvas');ref.width=canvas.width;ref.height=canvas.height;
+   const c=ref.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);
+   Art.island(c,w,h,time,{buildings:record.buildings,dragons:[],grid:false,gridSize:16,gridWidth:16,gridHeight:15,theme:'defense'});
+   const a=c.getImageData(0,0,ref.width,ref.height).data,b=canvas.getContext('2d').getImageData(0,0,ref.width,ref.height).data;
+   const point=Art.point(15,y,w,h,16),radius=Math.max(8,Math.min(w/18,h/11)*10/16)*3;
+   let actor=0,elsewhere=0;
+   for(let j=0;j<b.length;j+=4){
+    // Chromium may migrate a frequently sampled canvas to software, changing gradient rounding and edge antialiasing.
+    if(Math.abs(a[j]-b[j])<=4&&Math.abs(a[j+1]-b[j+1])<=4&&Math.abs(a[j+2]-b[j+2])<=4&&a[j+3]===b[j+3])continue;
+    const x=(j/4%ref.width)/dpr,py=Math.floor(j/4/ref.width)/dpr;
+    // A fractional CSS canvas height can leave one antialiased edge row in the backing store.
+    if(x<2||x>w-2||py<2||py>h-2)continue;
+    if(Math.hypot(x-point.x,py-point.y)<radius)actor++;else elsewhere++;
+   }
+   return {actor,elsewhere,cell:Art.cell(point.x,point.y,w,h,16)};
   }
-  return {actor,elsewhere,cell:Art.cell(point.x,point.y,w,h,16)};
+  let result=compare();
+  for(let frame=0;result.elsewhere&&frame<30;frame++){
+    await new Promise(resolve=>requestAnimationFrame(resolve));
+    result=compare();
+  }
+  return result;
  },{record,y,time});
  assert.deepEqual(pixels.cell,{x:15,y});assert.ok(pixels.actor>15,'the attacker is visible at its recorded far-edge tile');
  assert.equal(pixels.elsewhere,0,'all terrain and the far-edge keep must match the archived 16×15 layout');
 }
 async function check(browser,width){const ctx=await browser.newContext({viewport:{width,height:800},reducedMotion:width<500?'reduce':'no-preference',serviceWorkers:'block'});
- try{await studyBackend(ctx,fixtures());const errors=[];let reports=[report,largeReport];
+ try{await studyBackend(ctx,fixtures());const errors=[];let reports=[report,largeReport],calls=0,failNext=true,delay=false,release,reached;
+ const training={day:report.day,wave:3,stars:0,originalStars:2,replay:{...largeReport.replay,
+  duration:5,events:report.replay.events,attackers:report.replay.attackers,gridWidth:11,gridHeight:10,gridSize:11}};
+ await ctx.route('**/rpc/ph_oplot_practice',async route=>{
+  const payload=route.request().postDataJSON();calls++;
+  assert.equal(payload.p_day,report.day);assert.equal(payload.p_code,profiles[0].code);
+  assert.deepEqual(Object.keys(payload.p_island).sort(),['buildings','dragons','xp']);
+  assert.ok(payload.p_island.buildings.some(b=>b.type==='keep'));
+  if(failNext){failNext=false;return route.fulfill({status:503,json:{message:'fixture unavailable'}})}
+  if(delay)await new Promise(resolve=>{release=resolve;reached()});
+  return route.fulfill({json:training});
+ });
  await ctx.route('**/rpc/ph_oplot_raids',r=>r.fulfill({json:reports}));
  await ctx.addInitScript(code=>localStorage.setItem('ph_code',code),profiles[0].code);
  const page=await ctx.newPage();page.on('pageerror',e=>errors.push(e.message));await page.goto(url.href,{waitUntil:'domcontentloaded'});
@@ -53,9 +74,20 @@ async function check(browser,width){const ctx=await browser.newContext({viewport
  await checkRecordedTerrain(map,largeReport.replay,10,1);
  assert.ok((await map.boundingBox()).width>250);
  await map.evaluate(c=>{const a=c.getContext('2d').getImageData(0,0,c.width,c.height).data;const samples=new Set();for(let i=0;i<a.length;i+=1024)samples.add((a[i]<<16)|(a[i+1]<<8)|a[i+2]);if(samples.size<12)throw Error('Map has no rendered terrain');});
+ await d.locator('select').selectOption('0');
+ const practice=d.getByRole('button',{name:'Испытать оборону'});
+ await practice.click();await d.getByText('Не удалось рассчитать тренировку.',{exact:false}).waitFor();assert.ok(await practice.isEnabled());
+ await practice.click();await d.getByRole('heading',{name:'Тренировка обороны'}).waitFor();
+ await d.getByText(/ночью — 2 из 3, сейчас — 0 из 3/).waitFor();await d.locator('canvas[aria-label*="11×10"]').waitFor();
+ await timeline.focus();await timeline.press('End');await d.getByText('Оборона завершена').waitFor();
+ await d.getByRole('button',{name:'К ночной записи'}).click();await d.getByText('Золото −45 · ягоды −9').waitFor();
+ delay=true;const pending=new Promise(resolve=>reached=resolve);await Promise.all([pending,practice.click()]);
+ await d.locator('select').selectOption('1');assert.equal(typeof release,'function');release();delay=false;
+ await d.locator('canvas[aria-label*="16×15"]').waitFor();assert.equal(await d.locator('[data-night-original]').count(),0);
+ assert.equal(calls,3);
  if(process.env.OPLOT_REPLAY_SCREEN)await d.screenshot({path:process.env.OPLOT_REPLAY_SCREEN+'-'+width+'.png'});
  await d.getByRole('button',{name:'Закрыть отчёты'}).click();reports=[];
  await f.getByRole('button',{name:'Отчёты о ночных набегах'}).click();await d.getByRole('heading',{name:'Ночных набегов пока не было'}).waitFor();await d.getByText('Правила ночного дозора').click();await d.getByText(/25%, 50% и 80%/).waitFor();assert.deepEqual(errors,[]);
- console.log('PASS archived 10×10 and 16×15 terrain, far-edge movement, play/pause, seek, recorded events, previous day and empty raid history',width);
+ console.log('PASS archived 10×10 and 16×15 terrain, far-edge movement, play/pause, seek, training, comparison with original stars, retry, stale training response and empty history',width);
  }finally{await ctx.close();}}
 (async()=>{const b=process.env.PHAGI_WEBKIT?await webkit.launch():await chromium.launch(process.env.PHAGI_CHROME?{executablePath:process.env.PHAGI_CHROME}:{});try{await check(b,1180);await check(b,390);}finally{await b.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

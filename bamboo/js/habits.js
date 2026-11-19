@@ -171,12 +171,18 @@ function todayList(hs, today){
   const count = daily.length ? daily.filter(h => B.habitDone(h, today)).length
     : hs.filter(h => weekCount(h, today) >= (h.target || 3)).length;
   const total = daily.length || hs.length;
+  const weekly = hs.filter(h => h.kind === 'weekly').map(h => {
+    const count=weekCount(h,today), target=h.target || 3;
+    const dots=Array.from({length:target},(_,i)=>`<i class="${i<count?'done':''}"></i>`).join('');
+    return `<div class="week-goal"><b>${esc(h.name)}</b><span class="goal-dots" aria-hidden="true">${dots}</span><span>${count} из ${target}</span></div>`;
+  }).join('');
   return `<section class="habit-overview" aria-label="Прогресс привычек">
     <div><p>${daily.length ? B.fmtW(today) : 'На этой неделе'}</p>
       <strong>${count}<small> / ${total}</small></strong>
       <span>${daily.length ? 'ежедневных привычек отмечено' : 'недельных целей достигнуто'}</span></div>
     ${B.bar(count / total)}
   </section>
+  ${weekly ? `<section class="habit-week-goals"><h2>Цели недели</h2>${weekly}</section>` : ''}
   <section class="habit-list" aria-label="Отметки за сегодня">${hs.map(h => todayRow(h, today, pins)).join('')}</section>`;
 }
 function habitHistory(hs){

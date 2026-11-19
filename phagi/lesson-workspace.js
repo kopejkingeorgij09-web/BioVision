@@ -137,3 +137,35 @@ function lessonHome(todo){
   return `<h2>Мои уроки</h2>${all.slice(0,3).map(card).join('')}${all.length>3?`<details><summary>Другие уроки · ${all.length-3}</summary>${all.slice(3).map(card).join('')}</details>`:''}
     ${others.length?`<h3>Другие задания</h3>${others.map(t=>taskRow(t)).join('')}`:''}${!all.length&&!others.length?'<p class="muted">Здесь появятся материалы и задания к урокам.</p>':''}`;
 }
+
+// Resolve attachments only after this student's subscriptions have loaded.
+let resumeOpened = false;
+const resumeNote = (new URLSearchParams(location.hash.slice(1)).get('at') || '').slice(0,180);
+function homeworkPdfPanel(n,tasks){
+  if (lessonRoute.get('resume')!=='pdf') return '';
+  const ready = routeReady.tasks && routeReady.people && routeReady.events && routeReady.assigners &&
+    ASG().every(id=>Object.hasOwn(S.atasks,id));
+  if (!ready) return '<p class="muted" role="status">Загружаю материалы ДЗ…</p>';
+  const isPdf = f => f && safeId(f.id) && (f.type==='application/pdf' || /\.pdf$/i.test(f.name || ''));
+  const active = tasks.filter(t=>!t.fix);
+  const attached = active.flatMap(t=>t.files || []).filter(isPdf);
+  const event = visEvents().find(e=>e.id==='shad-w'+n);
+  const materials = event ? active.flatMap(t=>evFiles(event,t.lesson.date)).concat(evFiles(event,event.date)).filter(isPdf) : [];
+  const files = [...new Map((attached.length?attached:materials).map(f=>[f.id,f])).values()];
+  const urls = [...new Set(active.flatMap(t=>t.links || []).filter(u=>okUrl(u) && /\.pdf(?:[?#]|$)/i.test(u)))];
+  const key='ph-hw-pdf:'+meId()+':'+n;
+  let previous; try { previous=localStorage.getItem(key); } catch {}
+  const pick=files.find(f=>f.id===previous) || (files.length===1 && !urls.length ? files[0] : null);
+  if (!resumeOpened && pick){
+    resumeOpened=true;
+    queueMicrotask(()=>{if(S.view==='tasks' && S.shadHw===n)openViewer(pick.id,pick.name,pick.type);});
+  }
+  const note=resumeNote?`<p>Остановился · <b>${esc(resumeNote)}</b></p>`:'';
+  const links=urls.map(u=>`<a class="btn" href="${esc(u)}" target="_blank" rel="noopener">Открыть PDF</a>`).join('');
+  return `<section class="sheet" data-resume-key="${esc(key)}">${note}${files.length?filesHTML(files):''}${links}
+    ${!files.length&&!urls.length?'<p class="muted">PDF пока не прикреплён. Задания к этому вебу перечислены ниже.</p>':''}</section>`;
+}
+document.addEventListener('click',e=>{
+  const link=e.target.closest?.('[data-resume-key] a[data-fid]');
+  if(link)try{localStorage.setItem(link.closest('[data-resume-key]').dataset.resumeKey,link.dataset.fid);}catch{}
+},true);

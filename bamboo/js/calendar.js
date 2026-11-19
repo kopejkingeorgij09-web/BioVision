@@ -57,12 +57,12 @@ function taskItem(t,d,ghost=false){
   return {kind:'task', id:t.id, proj:projectOf(t), title:t.title, start, on:d, done:t.done, ghost,
     end:t.time ? C.at(d,C.minuteOf(start) + Math.max(dragStep,t.est || 30)) : add(d,1)};
 }
-function itemsBetween(from,to){
-  const items = C.events().filter(e => visible(projectOf(e))).flatMap(e =>
+function itemsBetween(from,to, include = visible){
+  const items = C.events().filter(e => include(projectOf(e))).flatMap(e =>
     C.occurrences(e,from,to).map(x => ({...x,kind:'event',proj:projectOf(x)})));
   const inView = e => e.start<add(to,1)&&e.end>(e.end.length===10?from:from+'T00:00');
   B.tasks().forEach(t => {
-    if (!C.validDate(t.due) || t.due > to || !visible(projectOf(t)) || !visible('@tasks')) return;
+    if (!C.validDate(t.due) || t.due > to || !include(projectOf(t)) || !include('@tasks')) return;
     const item=taskItem(t,t.due);
     if (inView(item)) items.push(item);
     if (!t.rep || t.done) return;
@@ -70,7 +70,7 @@ function itemsBetween(from,to){
       if (d>=from) items.push(taskItem(t,d,true));
     }
   });
-  if (visible('@shad')) for (const p of B.shad.plan){
+  if (include('@shad')) for (const p of B.shad.plan){
     for(const [part,slot,placed,stage] of [['web',p.w,p.wp,2],['hw',p.h,p.hp,3]]){
       if(!placed||!C.validDate(slot?.date))continue;
       const d=slot.date, start=slot.from?d+'T'+slot.from:d;
@@ -81,7 +81,7 @@ function itemsBetween(from,to){
       if(inView(item))items.push(item);
     }
   }
-  if (visible('@phagi')) for (let d=from; d<=to; d=add(d,1)){
+  if (include('@phagi')) for (let d=from; d<=to; d=add(d,1)){
     for (const it of B.phxOn(d).filter(x=>!x.shad||x.fix)){
       items.push({kind:'phagi',id:it.id,title:it.t,start:d,end:add(d,1),on:d,proj:'@phagi',done:it.done});
     }
@@ -851,7 +851,7 @@ function openReminder(id,on){
   editor(x,e);
   return true;
 }
-B.calendarView={render,mount,openReminder,deferRender(){
+B.calendarView={render,mount,openReminder,daySchedule: day => itemsBetween(day,day,()=>true),deferRender(){
   if(!dragging&&!weekScrollTimer)return false;
   redrawAfterInteraction=true;
   return true;

@@ -326,6 +326,9 @@ function onShadX(snap){
 B.phx = {ev: {}, dl: {}, day: {}};
 B.PHAGI = !['appassets.androidplatform.net','127.0.0.1:49191'].includes(location.host) && /^https?:$/.test(location.protocol) ? '../phagi/' : 'https://kopejkingeorgij09-web.github.io/BioVision/phagi/';
 B.phagiLink = params => B.PHAGI + '?' + new URLSearchParams({...params, from:'forest', back:location.hash || '#/today'});
+B.hwBookmark = n => B.get('hwBookmark_' + n)?.note || '';
+B.hwResumeUrl = n => B.phagiLink({shadHw:n, role:'student', resume:'pdf'}) +
+  (B.hwBookmark(n) ? '#' + new URLSearchParams({at:B.hwBookmark(n)}) : '');
 B.phagiTask = (id,day) => B.phagiLink({task:id, role:'student', ...(day?{backDay:day}:{})});
 B.teaching = null;
 let loadingTeaching = false;

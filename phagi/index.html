@@ -5,7 +5,7 @@
 <script src="forest/progress.js?v=1"></script>
 <script src="forest/scene.js?v=1"></script>
 <link rel="stylesheet" href="forest/forest.css?v=1">
-<script src="lesson-workspace.js?v=1"></script>
+<script src="lesson-workspace.js?v=2"></script>
 <script src="prepare-lesson.js?v=1"></script>
 <link rel="stylesheet" href="lesson-workspace.css?v=1">
 <script src="lesson-files.js?v=2"></script>
@@ -2347,8 +2347,8 @@ function calHTML(){
 
 function tasksHTML(){
   if(!T()&&S.shadHw){
-    const ts=personalShadTasks(S.shadHw);
-    return `<div class="page-h"><h1>ДЗ к вебу ШАДа №${S.shadHw}</h1><button class="btn ghost" data-act="go" data-v="tasks">Все задания</button></div>${ts.length?`<div class="list cols">${ts.map(taskRow).join('')}</div>`:'<p class="muted">Задания к этому вебу пока не видны для этого аккаунта.</p>'}`;
+    const ts=personalShadTasks(S.shadHw), resume=homeworkPdfPanel(S.shadHw,ts);
+    return `<div class="page-h"><h1>ДЗ к вебу ШАДа №${S.shadHw}</h1><button class="btn ghost" data-act="go" data-v="tasks">Все задания</button></div>${resume}${ts.length?`<div class="list cols">${ts.map(taskRow).join('')}</div>`:'<p class="muted">Задания к этому вебу пока не видны для этого аккаунта.</p>'}`;
   }
   if(T())tfLoad();
   const all=myTasks().filter(t=>!inNb(t)),sk=t=>SUBJ[t.subject]?t.subject:'other';
@@ -3340,7 +3340,7 @@ function subscribe(){
   db.collection('arenacfg').onSnapshot(q=>{const d=q.docs.find(x=>x.id==='main');S.acfgDoc=d?d.data():{};render(true)},err);
   db.collection('tasks').orderBy('createdAt','desc').onSnapshot(q=>{routeReady.tasks=true;S.ttasks=listOf(q);rebuildTasks();render(true)},err);
   db.collection('nbooks').onSnapshot(q=>{S.nbooks=listOf(q);render(true)},err);
-  db.collection('cfg').onSnapshot(q=>{const d=q.docs.find(x=>x.id==='main');S.cfg=d?d.data():{};subAssign();render(true)},err);
+  db.collection('cfg').onSnapshot(q=>{const d=q.docs.find(x=>x.id==='main');S.cfg=d?d.data():{};routeReady.assigners=true;subAssign();render(true)},err);
   db.collection('posts').orderBy('createdAt','desc').limit(60).onSnapshot(q=>{S.posts=listOf(q);render(true)},err);
   db.collection('events').onSnapshot(q=>{routeReady.events=true;S.events=listOf(q);render(true);if(!occRecoveryStarted&&T()){occRecoveryStarted=true;resumeLessonFiles()}},err);
   db.collection('decks').orderBy('createdAt','desc').onSnapshot(q=>{S.tdecks=listOf(q);rebuildDecks();render(true)},err);
@@ -3482,7 +3482,7 @@ const VW={blob:null,name:'',doc:null,zoom:1,io:null,token:0};
 function vwMsg(t){$('#vwbody').innerHTML=`<p class="msg">${t}</p>`}
 async function openViewer(id,name,type){
   const tk=++VW.token;Object.assign(VW,{blob:null,name:name||'файл',doc:null,zoom:1});
-  $('#vwname').textContent=VW.name;$('#vwdl').hidden=!S.dl;vwMsg('Открываю…');
+  $('#vwname').textContent=VW.name+(S.shadHw && lessonRoute.get('resume')==='pdf' && resumeNote?' · '+resumeNote:'');$('#vwdl').hidden=!S.dl;vwMsg('Открываю…');
   const d=$('#vw');if(!d.open)d.showModal();
   let blob,ab;try{const r=await fetch('_blob/'+id);if(!r.ok)throw new Error(r.status);ab=await r.arrayBuffer();blob=new Blob([ab],{type:(r.headers.get('content-type')||type||'').split(';')[0]})}catch(e){if(tk===VW.token)vwMsg('Не получилось загрузить файл. Проверьте интернет и попробуйте ещё раз.');return}
   if(tk!==VW.token)return;VW.blob=blob;
@@ -5876,6 +5876,7 @@ $('#rolesw').addEventListener('click',e=>{const b=e.target.closest('button[data-
   if(!routePending && lessonRoute.get('bio')==='library')S.view='bio';
   if(!routePending && lessonRoute.get('bio')==='replication'){BVS.want='replication';S.view='bio'}
   const shadHw=new URLSearchParams(location.search).get('shadHw');
+  if(shadHw && lessonRoute.get('role')==='student' && S.me.isOwner) S.mode='student';
   if(!T()&&/^(?:[1-9][0-9]?|10[0-2])$/.test(shadHw||'')){S.shadHw=Number(shadHw);S.view='tasks'}
   subscribe();render();
   loadScript('https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js').then(()=>{KX=window.katex||null;render()}).catch(()=>{});

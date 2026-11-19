@@ -223,5 +223,5 @@ B.connect().then(() => {
 if (location.hostname !== 'appassets.androidplatform.net' && 'serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 /* новый день наступает в 4 утра: перерисовать, если вкладка висела открытой */
 let lastDay = B.today();
-setInterval(() => { if (B.today() !== lastDay){ lastDay = B.today(); B.render(); } }, 60000);
+setInterval(() => { if (B.today() !== lastDay){ lastDay = B.today(); B.render(); } else if (route().v === 'today' && !B.sheetOpen() && !document.hidden) B.render(); }, 60000);
 })();

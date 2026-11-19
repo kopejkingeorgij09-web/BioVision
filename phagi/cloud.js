@@ -150,9 +150,20 @@ function docRef(path){checkDoc(path);const id=split(path).id;
     async get(){const d=await rpc('ph_get',{p_code:getCode(),p_path:path});const e=cache.get(path);
       if(!e||e.t!==''||!e.data)cache.set(path,{data:d,t:(e&&e.t)||'',col:split(path).col});return dsnap(path)},
     async set(data){if(!data||typeof data!=='object'||Array.isArray(data))throw bad('Документ должен быть объектом');
-      const prev=cache.get(path);put(path,clone(data),'');notify([path]);
-      try{const t=await rpc('ph_set',{p_code:getCode(),p_path:path,p_data:data});put(path,clone(data),t)}
-      catch(e){prev?cache.set(path,prev):cache.delete(path);notify([path]);throw e}},
+      const prev=cache.get(path),optimistic=clone(data);put(path,optimistic,'');notify([path]);
+      try{
+        const t=await rpc('ph_set',{p_code:getCode(),p_path:path,p_data:data});
+        const changed=cache.get(path)?.data!==optimistic;
+        if(put(path,optimistic,t)&&changed)notify([path]);
+      }catch(e){
+        if(cache.get(path)?.data===optimistic){prev?cache.set(path,prev):cache.delete(path);notify([path])}
+        throw e
+      }},
+    async setIfCurrent(current,data){
+      const result=await rpc('ph_set_if',{p_code:getCode(),p_path:path,p_data:data,p_rev:current?(current.rev??0):null,p_op:current?.op??null});
+      if(result.ok&&put(path,clone(data),result.t))notify([path]);
+      return result;
+    },
     async update(data){const prev=cache.get(path);
       if(prev&&prev.data){put(path,mergeLocal(prev.data,data),'');notify([path])}
       try{const t=await rpc('ph_update',{p_code:getCode(),p_path:path,p_data:data});const e=cache.get(path);if(e)e.t=t;

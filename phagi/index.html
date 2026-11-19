@@ -1,13 +1,16 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<script src="cloud.js?v=12"></script>
+<script src="cloud.js?v=13"></script>
+<script src="forest/progress.js?v=1"></script>
+<script src="forest/scene.js?v=1"></script>
+<link rel="stylesheet" href="forest/forest.css?v=1">
 <script src="lesson-workspace.js?v=1"></script>
 <script src="prepare-lesson.js?v=1"></script>
 <link rel="stylesheet" href="lesson-workspace.css?v=1">
 <script src="lesson-files.js?v=2"></script>
 <meta charset="utf-8">
-<meta name="ph-ver" content="2026-11-18-platform">
+<meta name="ph-ver" content="2026-11-19-forest">
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Фаги естественных наук</title>
@@ -1624,6 +1627,10 @@ nav button{transition:background .15s,color .15s}
 <button id="owlfab" type="button" hidden aria-label="Сова: долги и сроки"></button>
 <div id="owl" hidden role="region" aria-live="polite" aria-label="Сова напоминает"></div>
 <div id="toast" role="status"></div>
+<div id="forest-corner" class="forest-corner" hidden>
+  <div class="forest-notice" role="status" aria-atomic="true"></div>
+  <button type="button" data-act="go" data-v="forest" aria-label="Мой лес"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4c-8 0-14 4-14 10a5 5 0 0 0 5 5c6 0 10-6 9-15ZM4 21c3-5 7-9 12-12"/></svg><b>…</b></button>
+</div>
 <button id="totop" type="button" hidden aria-label="Наверх" title="Наверх"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg></button>
 <script>
 /* ---------- helpers ---------- */
@@ -1692,10 +1699,48 @@ async function uploadFiles(fileList){
 const S={mode:'loading',db:null,user:null,me:null,people:[],nbooks:[],nbId:null,nbUid:null,tasks:[],posts:[],events:[],mine:[],todos:[],decks:[],
   subs:{},grades:{},srs:{},rsvp:{},fix:{},bverr:{},tdecks:[],dparts:{},ttasks:[],atasks:{},adecks:{},adparts:{},cfg:{},myDeck:null,streak:{},peek:{},peekIn:{},fixPos:0,fixState:null,view:'home',taskId:null,deckId:null,fv:{},watched:new Set(),
   calMonth:null,calDay:today(),calView:null,actRange:null,actSel:null,actAnim:'',cal3:null,rev:null,arena:{},acfgDoc:{},arenaLoaded:false,arUid:null,
-  track:{},trUid:null,trTab:'plan',trF:'all',trB:'',trS:''};
+  track:{},trUid:null,trTab:'plan',trF:'all',trB:'',trS:'',forest:null,forestGlade:0};
 const val=(id,d='')=>(id in S.fv?S.fv[id]:(d??''));
 const meId=()=>S.me&&S.me.id;
 const T=()=>S.mode==='teacher';
+const forestOn=()=>!T()&&S.forest?.mode==='forest';
+const forestModes=()=>S.forest?PhagiForest.controls(S.forest.mode):'';
+const forestView=()=>forestModes()+PhagiForest.render(S.forest,S.forestGlade);
+
+function forestRefresh(){
+  PhagiForest.corner(S.joined?S.forest:null);
+  if(['forest','cards','home','arena'].includes(S.view))render(true);
+}
+const forestSubmissions=new Map();
+const forestReceipt=data=>data?.forestCredit===true?{forestCredit:true}:{};
+function forestRecoverHomework(){
+  const uid=meId();
+  if(!S.forest?.ready||!S.subs[uid])return;
+  for(const [id,data] of Object.entries(S.subs[uid])){
+    if(data.forestCredit===true&&!forestSubmissions.has(id))S.forest.homework(id,null,false);
+  }
+}
+function writeSubmission(uid,id,data,source){
+  const ref=S.db.doc(`subs/${uid}/items/${id}`);
+  const forest=uid===meId()?S.forest:null;
+  const emptyQuiz=data.answers?.every(answer=>answer==null||!String(answer).trim());
+  const eligible=forest&&data.status==='submitted'&&!emptyQuiz&&myTasks().some(t=>t.id===id&&t.kind!=='material'&&(t.to||[]).includes(uid));
+  if(!eligible)return ref.set(data);
+  if(forestSubmissions.has(id))return forestSubmissions.get(id);
+  const origin=source?.getBoundingClientRect();
+  // The receipt survives a lost response or a closed tab between the two writes.
+  const saving=Promise.resolve().then(async()=>{
+    try{await ref.set({...data,forestCredit:true})}
+    catch(error){
+      const saved=(await ref.get().catch(()=>null))?.data();
+      if(saved?.forestCredit!==true||saved.status!=='submitted'||saved.updatedAt!==data.updatedAt)throw error;
+      S.subs[uid]={...S.subs[uid],[id]:saved};
+    }
+    forest.homework(id,origin);
+  }).finally(()=>forestSubmissions.delete(id));
+  forestSubmissions.set(id,saving);
+  return saving;
+}
 
 function toast(msg,ms=2600){const t=$('#toast'),host=[...document.querySelectorAll('dialog[open]')].pop()||document.body;if(t.parentNode!==host)host.appendChild(t);
   t.textContent=msg;t.classList.add('on');clearTimeout(toast.h);if(ms)toast.h=setTimeout(()=>t.classList.remove('on'),ms);else toast.h=setTimeout(()=>t.classList.remove('on'),120000)}
@@ -2071,6 +2116,7 @@ const IC={sum:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   post:'<path d="M3.5 10v4a1 1 0 0 0 1 1h2l5 4V5l-5 4h-2a1 1 0 0 0-1 1z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>',
   person:'<circle cx="12" cy="8" r="4"/><path d="M4 21c.8-4 4-6 8-6s7.2 2 8 6"/>'};
 IC.arena='<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20.5h7M10 17h4"/>';
+IC.forest=PhagiForest.TREES;
 IC.marks=IC.journal;
 IC.bio='<path d="M9.5 3h5M10.5 3v6.2L5 18.4A1.8 1.8 0 0 0 6.6 21h10.8a1.8 1.8 0 0 0 1.6-2.6l-5.5-9.2V3"/><path d="M7.6 15h8.8"/>';
 function navHTML(){
@@ -2078,7 +2124,7 @@ function navHTML(){
   const dueCards=T()?0:myDecks().reduce((s,d)=>{const st=deckStats(d,(S.srs[meId()]||{})[d.id]);return s+st.due+st.newToday},0);
   const items=T()
     ?[['home','Главная',pending().length],['sum','Сводка',sumAlerts()],['cal','Расписание'],['track','Трекер'],['tasks','Задания'],['cards','Карточки'],['nbs','Тетради'],['arena','Арена'],['bio','Биовиз'],['journal','Журнал'],['people','Ученицы']]
-    :[['home','Главная'],['cal','Расписание'],['track','Трекер',tkLate(meId())],['tasks','Задания',myTasks().filter(t=>!inNb(t)&&['todo','late'].includes(status(t,meId()).k)).length],['cards','Карточки',dueCards],['nbs','Тетради',nbBadge()],['arena','Арена'],['bio','Биовиз'],['marks','Журнал',errPile(meId()).length+bvPile(meId()).length]];
+    :[['home','Главная'],['cal','Расписание'],['track','Трекер',tkLate(meId())],['tasks','Задания',myTasks().filter(t=>!inNb(t)&&['todo','late'].includes(status(t,meId()).k)).length],['cards','Карточки',dueCards],['nbs','Тетради',nbBadge()],(forestOn()?['forest','Лес']:['arena','Арена']),['bio','Биовиз'],['marks','Журнал',errPile(meId()).length+bvPile(meId()).length]];
   const cur=S.view==='task'?'tasks':['deck','review','stview'].includes(S.view)?'cards':S.view==='fix'?'marks':S.view==='arview'?'arena':S.view==='nb'?'nbs':S.view;
   const kb=/Mac|iPhone|iPad/.test(navigator.platform||'')?'⌥':'Alt+';
   return items.map(([v,l,n],i)=>`<button data-act="go" data-v="${v}" aria-current="${cur===v}" aria-label="${l}${n?`, ${n}`:''}" title="${l}${i<9?` (${kb}${i+1})`:''}"><span class="ni" aria-hidden="true"><svg viewBox="0 0 24 24">${IC[v]}</svg></span><span class="nl">${l}</span>${n?`<span class="badge">${n}</span>`:''}</button>`).join('');
@@ -2161,7 +2207,7 @@ function homeHTML(){
   <section class="sheet">${lessonHome(todo)}</section>
   <section class="sheet"><h2>Ближайшие занятия</h2>${agendaList(soon,'На этой неделе занятий нет.')}</section>
   </div>
-  <section class="sheet" style="margin-top:16px"><div class="row" style="flex-wrap:wrap">${streakHTML(meId(),true)}<div class="grow"><h2 style="margin:0">Карточки на сегодня</h2><p class="muted small" style="margin:4px 0 0">${cards?`${cards} ${plural(cards,'карточка','карточки','карточек')} ждут повторения`:'На сегодня всё повторено'}</p></div>${cards?`<button class="btn" data-act="go" data-v="cards">Повторить</button>`:''}</div></section>
+  <section class="sheet" style="margin-top:16px"><div class="row" style="flex-wrap:wrap">${forestOn()?`<button type="button" class="forest-home-link" data-act="go" data-v="forest" aria-label="Мой лес"><svg viewBox="0 0 24 24" aria-hidden="true">${IC.forest}</svg></button>`:streakHTML(meId(),true)}<div class="grow"><h2 style="margin:0">Карточки на сегодня</h2><p class="muted small" style="margin:4px 0 0">${cards?`${cards} ${plural(cards,'карточка','карточки','карточек')} ждут повторения`:'На сегодня всё повторено'}</p></div>${cards?`<button class="btn" data-act="go" data-v="cards">Повторить</button>`:''}</div></section>
   <section class="sheet bvcard"><span class="bvi"><svg viewBox="0 0 24 24" aria-hidden="true">${IC.bio}</svg></span><div><h2>Биовиз</h2><p class="muted">Анимации биологических процессов и банк задач: тренажёр, задания ЕГЭ трёх уровней и олимпиадные задачи от школьного до заключительного этапа.</p>
   <div class="row"><button class="btn" data-act="bvopen" data-m="viz">Визуализации</button><button class="btn ghost" data-act="bvopen" data-m="ege">Задания ЕГЭ</button><button class="btn ghost" data-act="bvopen" data-m="ol">Олимпиады</button></div></div></section>
   <section class="sheet" style="margin-top:16px"><h2>Объявления</h2>${postsHTML()}</section>`;
@@ -2425,7 +2471,7 @@ function cardsHTML(){
   const ds=myDecks();
   const head=`<div class="page-h"><h1>Карточки</h1>${T()?`<button class="btn" data-act="newdeck">Новая колода</button>`:canAssign()?`<button class="btn" data-act="newdeck">Колода ученицам</button>`:''}</div>
   <p class="muted small" style="margin:-8px 0 16px">Интервальное повторение: карточка возвращается тогда, когда вы начинаете её забывать. Чем лучше помните, тем реже.</p>`;
-  const sHero=T()?(S.people.length?`<div class="st-strip">${S.people.map(p=>`<button class="st-chip" data-act="stview" data-uid="${p.id}" title="Открыть чашку подробно"><span class="nm">${esc(p.label)}</span>${streakHTML(p.id,true)}<span class="go" aria-hidden="true">›</span></button>`).join('')}</div>`:''):streakHTML(meId(),false)+peekStrip();
+  const sHero=T()?(S.people.length?`<div class="st-strip">${S.people.map(p=>`<button class="st-chip" data-act="stview" data-uid="${p.id}" title="Открыть чашку подробно"><span class="nm">${esc(p.label)}</span>${streakHTML(p.id,true)}<span class="go" aria-hidden="true">›</span></button>`).join('')}</div>`:''):forestModes()+(forestOn()?PhagiForest.render(S.forest,0,true):streakHTML(meId(),false)+peekStrip());
   const given=canAssign()?S.decks.filter(ownAsg):[];
   const gv=canAssign()?`<div class="cd-h"><h2>Вы дали ученицам</h2><span class="muted small">${given.length}</span></div>${given.length?`<div class="dgrid">${given.map(d=>{const n=(d.cards||[]).length;return `<button class="dk" data-act="deck" data-id="${d.id}" style="--c:${sc(d.subject)}"><span class="dk-h">${subj(d.subject)}<span class="dk-n">${n} ${plural(n,'карточка','карточки','карточек')}</span></span><span class="dk-t">${esc(d.title)}</span><span class="dk-s">Для: ${toNames(d)}</span></button>`}).join('')}</div>`:`<p class="muted small">Колоды, которые вы дадите ученицам кнопкой «Колода ученицам», появятся здесь. Прогресс учениц по ним видит учитель.</p>`}`:'';
   if(!ds.length)return head+sHero+`<div class="empty">${T()?'Колод пока нет. Создайте колоду и вставьте карточки из Anki или списком «вопрос ; ответ».':'Колод пока нет.'}</div>`+gv;
@@ -2481,11 +2527,11 @@ function reviewHTML(){
   const sti=streakInfo(S.streak[meId()]);
   const tm=!!d&&typeMode(d);
   const top=`<div class="rv-top"><button class="back" data-act="endreview">← Закончить</button><span class="ttl">${r.mix?(r.sub?'Всё '+SUBJ_PO[r.sub]:'Все колоды'):esc(d.title)}</span>${d?`<button class="rv-tm" data-act="typemode" data-id="${d.id}" aria-pressed="${tm}" title="${r.mix?'Писать ответ с клавиатуры в колоде «'+esc(d.title)+'»':'Писать ответ с клавиатуры'}">⌨<span class="l"> Ввод ответа</span></button>`:''}<span class="rv-dish" title="Чашка Петри">${dishSVG(meId(),{size:30,pulse:S.pulseAt&&Date.now()-S.pulseAt<700})}<small>${sti.done?'+'+spawnN(sti.todayN)+' кол.':sti.todayN+'/'+GOAL}</small></span><span class="cnt">${r.done} / ${total}</span></div><div class="rv-bar" aria-hidden="true"><i style="width:${total?r.done/total*100:0}%"></i></div>`;
-  if(!r.queue.length){const inf=streakInfo(S.streak[meId()]);return `<div class="rv" style="--c:${col}">${top}<section class="rv-card"><div class="rv-done${r.newDay?' party':''}">${r.newDay?`<div class="party-dish">${dishSVG(meId(),{size:150,ring:false})}<span class="plus">+1</span></div><div class="big">${inf.cur} ${plural(inf.cur,'день','дня','дней')}</div><p><b>Серия продлена!</b> В чашке выросла новая колония, а старые получили порцию питания. Каждые 5 карточек сверх ${GOAL} дают ещё одну колонию.</p>`:`<div class="big">${r.done}</div><p>${plural(r.done,'повторение','повторения','повторений')} на сегодня сделано. Карточки вернутся, когда начнут забываться.${inf.done?(inf.cur?` Серия: ${inf.cur} ${plural(inf.cur,'день','дня','дней')} подряд.`:''):` Для серии сегодня ${inf.todayN} из ${GOAL}: повторите ещё ${GOAL-inf.todayN}, можно через «Пройти всю колоду».`}</p>`}<button class="btn" data-act="endreview">${r.mix?'К колодам':'К колоде'}</button></div></section></div>`}
+  if(!r.queue.length){const inf=streakInfo(S.streak[meId()]),party=r.newDay&&!forestOn();return `<div class="rv" style="--c:${col}">${top}<section class="rv-card"><div class="rv-done${party?' party':''}">${party?`<div class="party-dish">${dishSVG(meId(),{size:150,ring:false})}<span class="plus">+1</span></div><div class="big">${inf.cur} ${plural(inf.cur,'день','дня','дней')}</div><p><b>Серия продлена!</b> В чашке выросла новая колония, а старые получили порцию питания. Каждые 5 карточек сверх ${GOAL} дают ещё одну колонию.</p>`:`<div class="big">${r.done}</div><p>${plural(r.done,'повторение','повторения','повторений')} на сегодня сделано. Карточки вернутся, когда начнут забываться.${inf.done?(inf.cur?` Серия: ${inf.cur} ${plural(inf.cur,'день','дня','дней')} подряд.`:''):` Для серии сегодня ${inf.todayN} из ${GOAL}: повторите ещё ${GOAL-inf.todayN}, можно через «Пройти всю колоду».`}</p>`}<button class="btn" data-act="endreview">${r.mix?'К колодам':'К колоде'}</button></div></section></div>`}
   const c=(d.cards||[]).find(x=>x.i===ci);
   if(!c){r.queue.shift();return reviewHTML()}
   const st=((S.srs[meId()]||{})[d.id]||{s:{}}).s[c.i];
-  const gp=S.growPop&&Date.now()-S.growPop.t<1900?S.growPop:null;
+  const gp=!forestOn()&&S.growPop&&Date.now()-S.growPop.t<1900?S.growPop:null;
   const pop=gp?`<div class="growpop${gp.first?' first':''}" style="animation-delay:${S.growPop.t-Date.now()}ms" aria-live="polite">${dishSVG(meId(),{size:84,ring:false})}<div><b>${gp.first?'День засчитан!':'Колонии растут'}</b><span>${gp.first?'В чашке выросла первая колония за сегодня':`${spawnN(gp.n)} ${plural(spawnN(gp.n),'новая колония','новые колонии','новых колоний')} · ${nextColAt(gp.n)?'до следующей '+(nextColAt(gp.n)-gp.n):'максимум за день'}`}</span></div></div>`:'';
   const vd=r.shown&&r.verdict,sug=vd?{ok:3,near:2,no:1,skip:1}[vd.k]:0;
   const you=vd?`<div class="rv-you ${vd.k}"><span class="rv-lbl">Ваш ответ</span>${vd.k==='skip'?'<div class="muted">без ответа</div>':`<div class="yt">${esc(vd.t)}</div>`}<b>${{ok:'✓ Верно',near:'≈ Почти верно, проверьте написание',no:'✗ Неверно',skip:'Посмотрите ответ и оцените себя'}[vd.k]}</b></div>`:'';
@@ -2907,7 +2953,7 @@ function fixHTML(){
   ${st&&st.res==='bad'&&st.key===k?'<div class="verdict bad">Неверно. Попробуйте ещё раз</div>':''}
   <div class="actions"><span style="margin-right:auto">${cardBtn(it.t,it.i)}</span>${pile.length>1?'<button class="btn ghost" data-act="fixskip">Пропустить</button>':''}<button class="btn" data-act="fixcheck">Проверить</button></div></section>`;
 }
-async function submitTest(id,force){
+async function submitTest(id,force,source){
   const t=S.tasks.find(x=>x.id===id);if(!t)return;
   const uid=meId(),old=(S.subs[uid]||{})[t.id];if(old&&old.status==='submitted')return;
   const pre='ta-'+t.id,answers=(t.q||[]).map((q,i)=>{const v=val(`${pre}-${i}`,'');return q.t==='text'?v:q.t==='single'?(v===''?null:Number(v)):(v?String(v).split(',').filter(Boolean).map(Number):[])});
@@ -2921,7 +2967,7 @@ async function submitTest(id,force){
   const d={answers,auto,total:testMax(t),status:'submitted',updatedAt:now()};if(old&&old.startedAt)d.startedAt=old.startedAt;
   if(draftTask&&draftTask.id===t.id){clearTimeout(draftT);draftTask=null}
   await finishDraft(t.id);
-  try{await S.db.doc(`subs/${uid}/items/${t.id}`).set(d)}catch(e){autoSub.delete(t.id);return fail(e)}
+  try{await writeSubmission(uid,t.id,d,source)}catch(e){autoSub.delete(t.id);return fail(e)}
   hwClear(t.id);
   S.resAnim=S.resAnim||{};S.resAnim[t.id]=Date.now();S.resSel=null;S.resTask=t.id;
   (t.q||[]).forEach((q,i)=>delete S.fv[`${pre}-${i}`]);if(S.view==='task')window.scrollTo(0,0);
@@ -2987,7 +3033,7 @@ function draftSave(){
   if(t.kind==='test')p=s?ref.update({draft:f}):ref.set({status:'draft',draft:f,updatedAt:now()});
   else if(s&&s.status==='submitted'){SV[t.id]=null;return} // already handed in (resubmitting after a mark): keep it local, «Сдать заново» saves it
   else{const text=val('ans-'+t.id,s?s.text||'':''),link=val('lnk-'+t.id,s?s.link||'':'');
-    p=ref.set({text,link,files:(s&&s.files)||[],status:'draft',updatedAt:now()})}
+    p=ref.set({text,link,files:(s&&s.files)||[],status:'draft',updatedAt:now(),...forestReceipt(s)})}
   const write=p.then(()=>{draftFail=0;svSet(t.id,'ok')}).catch(bad);
   draftWrites.set(t.id,Promise.all([draftWrites.get(t.id),write]));
 }
@@ -3207,7 +3253,7 @@ function mainHTML(){
     <p class="muted">Напиши, как тебя зовут, чтобы учитель понимал, чья работа.</p>
     <label>Имя<input id="joinname" maxlength="40" value="${esc(val('joinname'))}" autocomplete="given-name"></label>
     <button class="btn" data-act="join">Войти в класс</button></section>`;
-  const html=({home:homeHTML,cal:calHTML,tasks:tasksHTML,task:taskHTML,cards:cardsHTML,deck:deckHTML,review:reviewHTML,stview:stViewHTML,journal:journalHTML,marks:marksHTML,fix:fixHTML,people:peopleHTML,arena:arenaHTML,arview:arviewHTML,sum:sumHTML,bio:bioHTML,nbs:nbsHTML,nb:nbHTML,track:trackHTML}[S.view]||homeHTML)();
+  const html=({home:homeHTML,cal:calHTML,tasks:tasksHTML,task:taskHTML,cards:cardsHTML,deck:deckHTML,review:reviewHTML,forest:forestView,stview:stViewHTML,journal:journalHTML,marks:marksHTML,fix:fixHTML,people:peopleHTML,arena:arenaHTML,arview:arviewHTML,sum:sumHTML,bio:bioHTML,nbs:nbsHTML,nb:nbHTML,track:trackHTML}[S.view]||homeHTML)();
   const c=PHC[S.view];
   return c&&IC[S.view]?html.replace('<div class="page-h"><h1>',`<div class="page-h"><h1><span class="phi" style="--c:${c}" aria-hidden="true"><svg viewBox="0 0 24 24">${IC[S.view]}</svg></span>`):html;
 }
@@ -3253,7 +3299,7 @@ function draw(soft){
   const rs=$('#rolesw');rs.hidden=!S.dual;if(S.dual)rs.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.role===S.mode)));
   $('#srbtn').hidden=!(T()||(S.mode==='student'&&S.joined));
   document.body.classList.toggle('rvmode',S.view==='review');
-  bvSync();owlSync();
+  bvSync();owlSync();PhagiForest.corner(S.joined?S.forest:null);
   const nav=navHTML();if(nav!==lastNav){$('#nav').innerHTML=nav;lastNav=nav}
   const M=$('#main');let html;DISH.main=true;DISH.m=0;try{html=forestBack()+mainHTML()}finally{DISH.main=false}
   // nothing changed on the page: leave the DOM alone, so images do not reload and nothing jumps or closes
@@ -3307,7 +3353,10 @@ function subscribe(){
 function watch(uid){
   if(S.watched.has(uid))return;S.watched.add(uid);
   const db=S.db,map=q=>Object.fromEntries(q.docs.map(d=>[d.id,d.data()]));
-  db.collection('subs/'+uid+'/items').onSnapshot(q=>{S.subs[uid]=map(q);render(true)},err);
+  if(!T()&&uid===meId())S.forest=PhagiForestProgress.connect(db,uid,{
+    change:forestRefresh, reward:PhagiForest.reward, loaded:forestRecoverHomework
+  });
+  db.collection('subs/'+uid+'/items').onSnapshot(q=>{S.subs[uid]=map(q);if(uid===meId())forestRecoverHomework();render(true)},err);
   db.collection('srs/'+uid+'/meta').onSnapshot(q=>{const m=map(q),srv=m.streak||{days:{}};
     if(uid===meId()){mergeStreak(srv);markReady('streak',q)}else S.streak[uid]=srv;syncPeek();syncArena();render(true)},err);
   if(T())db.collection('petri/'+uid+'/from').onSnapshot(q=>{S.peek[uid]=map(q);syncPeek();render(true)},err);
@@ -3810,7 +3859,7 @@ function arenaHTML(){
     <div class="row"><button class="btn sm" data-act="arsave">Сохранить</button><button class="btn ${c.open?'':'ghost '}sm" data-act="aropen" aria-pressed="${!!c.open}">${c.open?'✓ Ученицы видят коллекции друг друга':'Коллекции соперниц скрыты'}</button></div></section>
     ${tableHTML()}<section class="sheet"><h2>Участницы</h2>${rivalsHTML(byPow,false)}</section>${RULES}`}
   const me=meId(),rivals=ids.filter(id=>id!==me).sort((a,b)=>armyPower(deckNow(b))-armyPower(deckNow(a))||arName(a).localeCompare(arName(b)));
-  return head+tourHero()+`<section class="sheet"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 style="margin:0">Моя армия</h2>${rsumHTML(me)}</div>${slotsHTML(me,true)}</section>
+  return head+forestModes()+tourHero()+`<section class="sheet"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 style="margin:0">Моя армия</h2>${rsumHTML(me)}</div>${slotsHTML(me,true)}</section>
   ${tableHTML()}
   <section class="sheet"><h2>Соперницы</h2>${c.open?rivalsHTML(rivals,true):'<p class="muted" style="margin:0">Учитель пока не открыл коллекции соперниц.</p>'}</section>
   <section class="sheet"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 style="margin:0">Моя коллекция</h2><span class="muted small">${Object.keys(armyNow(me)).length} из ${ALLSP().length}</span></div><p class="muted small" style="margin:4px 0 12px">Нажми на бактерию, чтобы узнать её способность и поставить в армию.</p>${collHTML(me)}</section>${RULES}`}
@@ -4563,7 +4612,7 @@ function checkAnswer(){
   const i=$('#rvin'),t=(i?i.value:val('rvin')).trim();
   r.verdict={k:checkTyped(t,c.b),t};r.shown=true;delete S.fv.rvin;if(i)i.blur();if(r.verdict.k==='no')setTimeout(()=>{if(document.getElementById('rvai'))aiStart()},0);
 }
-function rate(g){
+function rate(g,source){
   const r=S.rev;if(!r||!r.shown||!r.queue.length)return;
   const uid=meId();S.srs[uid]=S.srs[uid]||{};
   const ent=r.queue.shift(),[dk,cid]=rvSplit(r,ent);
@@ -4573,7 +4622,8 @@ function rate(g){
   if(!prev)state.nd={day:t,n:state.nd.n+1};
   state.s={...state.s,[cid]:nextState(prev,g)};
   if(g!==1){const first=bumpStreak();if(first)r.newDay=true;const n=(S.streak[uid].days||{})[t]||0;if(n>=GOAL)S.growPop={t:Date.now(),n,first}}
-  if(g===1)r.queue.splice(Math.min(r.queue.length,3),0,ent);else r.done++;
+  if(g===1)r.queue.splice(Math.min(r.queue.length,3),0,ent);
+  else{r.done++;S.forest?.card(t,dk,cid,(source||document.querySelector('.grades4 .g'+g))?.getBoundingClientRect())}
   rvCid(r);aiStop();r.shown=false;r.verdict=null;delete S.fv.rvin;queueSave(dk);render();focusTyped();
 }
 const focusTyped=()=>{const r=S.rev;if(r&&typeMode(S.decks.find(x=>x.id===r.deckId)))setTimeout(()=>{const i=$('#rvin');if(i&&document.activeElement!==i)i.focus({preventScroll:true})},80)};
@@ -4600,7 +4650,25 @@ const actions={
   quizflag:el=>{const id=S.taskId,i=Number(el.dataset.i),flags=new Set(quizMemo(id).flags||[]);if(flags.has(i))flags.delete(i);else flags.add(i);quizMemo(id,{flags:[...flags]});},
   quizresume:el=>{const t=myTasks().find(t=>t.id===el.dataset.id);if(!t)return;const i=quizProgress(t).indexOf(false);S.quizStart=Math.max(0,i);S.view='task';S.taskId=t.id;window.scrollTo(0,0);},
   quizerrors:el=>{S.fixTask=el.dataset.id;S.fixPos=0;S.fixState=null;S.view='fix';window.scrollTo(0,0);},
-  go:el=>{review=null;S.fixTask=null;S.shadHw=null;S.view=el.dataset.v;if(S.view==='fix'){S.fixState=null;S.fixPos=0}if(S.view==='cal')S.calMonth=null;window.scrollTo(0,0)},
+  motivation:el=>{
+    if(!S.forest||S.forest.mode===el.dataset.mode)return;
+    S.forest.setMode(el.dataset.mode);
+    S.forestGlade=0;
+    if(S.view==='arena'&&forestOn())S.view='forest';
+    else if(S.view==='forest'&&!forestOn())S.view='arena';
+  },
+  forestglade:el=>{
+    const next=Number(el.dataset.glade);
+    if(next>=1&&next<=PhagiForest.glades(S.forest.points))S.forestGlade=next;
+  },
+  go:el=>{
+    const view=el.dataset.v;
+    if(view==='forest'){
+      if(!forestOn())return;
+      if(S.view==='review')actions.endreview();
+      S.forestGlade=0;
+    }
+    review=null;S.fixTask=null;S.shadHw=null;S.view=view;if(S.view==='fix'){S.fixState=null;S.fixPos=0}if(S.view==='cal')S.calMonth=null;window.scrollTo(0,0)},
   open:el=>{review=null;S.view='task';S.taskId=el.dataset.id;window.scrollTo(0,0)},
   newtask:()=>openTaskDialog(null),
   edittask:el=>openTaskDialog(S.tasks.find(t=>t.id===el.dataset.id)),
@@ -4610,12 +4678,12 @@ const actions={
   delpost:async el=>{if(await askConfirm('Удалить объявление?'))await S.db.doc('posts/'+el.dataset.id).delete()},
   join:async()=>{const label=val('joinname').trim();if(!label)return toast('Напиши своё имя');await S.db.doc('people/'+meId()).set({label,joinedAt:now()});delete S.fv.joinname},
   draft:el=>saveSub(el.dataset.id,'draft'),
-  submit:el=>saveSub(el.dataset.id,'submitted'),
+  submit:el=>saveSub(el.dataset.id,'submitted',el),
   unsubmit:async el=>{const id=el.dataset.id,s=(S.subs[meId()]||{})[id]||{};
-    await S.db.doc(`subs/${meId()}/items/${id}`).set({text:s.text||'',link:s.link||'',files:s.files||[],status:'draft',updatedAt:now()});toast('Сдача отменена, можно исправить')},
+    await S.db.doc(`subs/${meId()}/items/${id}`).set({text:s.text||'',link:s.link||'',files:s.files||[],status:'draft',updatedAt:now(),...forestReceipt(s)});toast('Сдача отменена, можно исправить')},
   rmfile:async el=>{const id=el.dataset.id,s=(S.subs[meId()]||{})[id]||{};const files=(s.files||[]).slice();files.splice(Number(el.dataset.i),1);
-    await S.db.doc(`subs/${meId()}/items/${id}`).set({text:val('ans-'+id,s.text||''),link:val('lnk-'+id,s.link||''),files,status:'draft',updatedAt:now()})},
-  submittest:el=>submitTest(el.dataset.id,false),
+    await S.db.doc(`subs/${meId()}/items/${id}`).set({text:val('ans-'+id,s.text||''),link:val('lnk-'+id,s.link||''),files,status:'draft',updatedAt:now(),...forestReceipt(s)})},
+  submittest:el=>submitTest(el.dataset.id,false,el),
   starttest:async el=>{const id=el.dataset.id;await S.db.doc(`subs/${meId()}/items/${id}`).set({status:'draft',startedAt:now(),updatedAt:now(),draft:{}});toast('Время пошло')},
   fixcheck:async()=>{
     const uid=meId(),pile=errPile(uid),it=pile[Math.min(S.fixPos,pile.length-1)];if(!it)return;
@@ -4700,17 +4768,17 @@ const actions={
   check:()=>checkAnswer(),
   typemode:el=>{const d=S.decks.find(x=>x.id===el.dataset.id);if(!d)return;const on=!typeMode(d);setTypeMode(d,on);
     if(on)focusTyped()},
-  rate:el=>rate(Number(el.dataset.g)),
+  rate:el=>rate(Number(el.dataset.g),el),
   endreview:()=>{aiStop();flush();if(S.rev&&S.rev.mix){S.view='cards';window.scrollTo(0,0)}else{S.view='deck';S.deckId=S.rev?S.rev.deckId:S.deckId}S.rev=null}
 };
-async function saveSub(id,status){
+async function saveSub(id,status,source){
   const uid=meId(),s=(S.subs[uid]||{})[id]||{};
   const text=val('ans-'+id,s.text||'').trim(),link=val('lnk-'+id,s.link||'').trim();
   if(link&&!okUrl(link))return toast('Ссылка должна начинаться с https://');
   const files=s.files||[];
   if(status==='submitted'&&!text&&!link&&!files.length)return toast('Добавь ответ, фото или ссылку');
   await finishDraft(id);
-  await S.db.doc(`subs/${uid}/items/${id}`).set({text,link,files,status,updatedAt:now()});
+  await writeSubmission(uid,id,{text,link,files,status,updatedAt:now(),...forestReceipt(s)},source);
   if(draftTask&&draftTask.id===id){clearTimeout(draftT);draftTask=null}if(status==='submitted')hwClear(id);
   delete S.fv['ans-'+id];delete S.fv['lnk-'+id];toast(status==='submitted'?'Работа сдана':'Черновик сохранён');
 }
@@ -5240,7 +5308,7 @@ document.addEventListener('change',async e=>{const el=e.target;
     const id=el.dataset.upload,uid=meId();toast('Загружаю…');
     const added=await uploadFiles([...el.files]);el.value='';if(!added.length)return;
     const s=(S.subs[uid]||{})[id]||{};
-    try{await S.db.doc(`subs/${uid}/items/${id}`).set({text:val('ans-'+id,s.text||''),link:val('lnk-'+id,s.link||''),files:[...(s.files||[]),...added],status:'draft',updatedAt:now()});toast('Файл прикреплён. Не забудь нажать «Сдать работу»')}catch(x){fail(x)}
+    try{await S.db.doc(`subs/${uid}/items/${id}`).set({text:val('ans-'+id,s.text||''),link:val('lnk-'+id,s.link||''),files:[...(s.files||[]),...added],status:'draft',updatedAt:now(),...forestReceipt(s)});toast('Файл прикреплён. Не забудь нажать «Сдать работу»')}catch(x){fail(x)}
     return}
   if(el.closest('dialog'))return;if(el.dataset.q)el.dispatchEvent(new Event('input',{bubbles:true}));else if(el.id&&el.tagName==='SELECT')S.fv[el.id]=el.value});
 document.addEventListener('keydown',e=>{

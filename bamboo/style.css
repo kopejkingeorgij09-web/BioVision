@@ -1484,6 +1484,7 @@ kbd{font:600 12px var(--f-mono);background:var(--paper-2);border:1px solid var(-
 .habit-copy small{font-size:14px;color:var(--ink-2)}
 .habit-edit{justify-content:center;width:44px;height:44px;color:var(--ink-2);border-radius:10px}
 .habit-edit .ic{width:17px;height:17px}
+.habit-pin[aria-pressed="true"] .ic{fill:currentColor}
 .habit-edit:hover,.habit-mark:hover .habit-box:not(.is-done){background:var(--paper-2)}
 .habit-history-item{display:grid;gap:10px;border-top:1px solid var(--rule);padding-top:14px}
 .habit-history-item+.habit-history-item{margin-top:8px}

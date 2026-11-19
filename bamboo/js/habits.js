@@ -136,7 +136,8 @@ function weekCount(h, today){
   }
   return count;
 }
-function todayRow(h, date){
+function todayRow(h, date, pins){
+  const pinned = pins.includes(h.id);
   const value = B.habitVal(h, date), weekly = h.kind === 'weekly';
   const detail = [];
   if (h.auto === 'molbio') detail.push((B.alberts?.pagesOn(date) || 0) + ' стр. сегодня');
@@ -152,10 +153,20 @@ function todayRow(h, date){
       <span class="habit-box ${value ? 'is-done' : ''} ${value === 0.5 ? 'is-mini' : ''}">${value ? icon('check') : ''}</span>
       <span class="habit-copy"><b>${name}</b><small>${detail.join(' · ')}</small></span>
     </button>
+    <button class="habit-edit habit-pin" data-act="habitPin" data-id="${esc(h.id)}" aria-pressed="${pinned}" aria-label="Закрепить привычку «${name}»" title="${pinned ? 'Открепить' : 'Закрепить'}">${icon('star')}</button>
     <button class="habit-edit" data-act="habitEdit" data-id="${esc(h.id)}" aria-label="Изменить привычку «${name}»">${icon('pen')}</button>
   </div>`;
 }
+B.acts.habitPin = el => {
+  const id = el.dataset.id, pins = B.habitPins();
+  const habit = B.get('h_' + id);
+  if (!habit || habit.arch) return;
+  if (pins.includes(id)) B.put('habitPins', {ids: pins.filter(pin => pin !== id)});
+  else if (pins.length < 2) B.put('habitPins', {ids: [...pins, id]});
+  else B.toast('Уже закреплены две привычки. Сними звезду с одной из них.');
+};
 function todayList(hs, today){
+  const pins = B.habitPins();
   const daily = hs.filter(h => h.kind !== 'weekly');
   const count = daily.length ? daily.filter(h => B.habitDone(h, today)).length
     : hs.filter(h => weekCount(h, today) >= (h.target || 3)).length;
@@ -166,7 +177,7 @@ function todayList(hs, today){
       <span>${daily.length ? 'ежедневных привычек отмечено' : 'недельных целей достигнуто'}</span></div>
     ${B.bar(count / total)}
   </section>
-  <section class="habit-list" aria-label="Отметки за сегодня">${hs.map(h => todayRow(h, today)).join('')}</section>`;
+  <section class="habit-list" aria-label="Отметки за сегодня">${hs.map(h => todayRow(h, today, pins)).join('')}</section>`;
 }
 function habitHistory(hs){
   const tips = B.insights();
@@ -186,8 +197,8 @@ function habitHistory(hs){
 B.views.habits = {
   title: 'Привычки',
   render(){
-    const today = B.today(), hs = B.habits().filter(h => !h.created || h.created <= today);
-    const history = location.hash.split('/')[2] === 'history';
+    const today = B.today(), history = location.hash.split('/')[2] === 'history';
+    const hs = (history ? B.habits() : B.trackerHabits()).filter(h => !h.created || h.created <= today);
     return `<div class="page habits-page">
       <header class="page-h"><h1>Привычки</h1><button class="btn" data-act="habitNew">${icon('plus')} Добавить</button></header>
       <nav class="habit-tabs" aria-label="Вид привычек"><a href="#/habits" ${history ? '' : 'aria-current="page"'}>Сегодня</a><a href="#/habits/history" ${history ? 'aria-current="page"' : ''}>История</a></nav>

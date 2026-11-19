@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const widgetSource=fs.readFileSync('bamboo/android/web/widget-data.js','utf8');
 function widgets(tasks,events=[],plan=[]){
  const messages=[];
- const B={today:()=>new Date().toISOString().slice(0,10),habits:()=>[],tasks:()=>tasks,shad:{plan},shadStage:()=>0,on:()=>{},ymd:d=>d.toISOString().slice(0,10),add:(s,n)=>new Date(Date.parse(s)+n*86400000).toISOString().slice(0,10),nextRep:(d,r)=>B.add(d,1),calData:{validDate:d=>/^\d{4}-\d\d-\d\d$/.test(d||''),events:()=>events,occurrences:e=>e.occ||[e],dateOf:d=>d.slice(0,10)}};
+ const B={today:()=>new Date().toISOString().slice(0,10),habitPins:()=>[],trackerHabits:()=>[],tasks:()=>tasks,shad:{plan},shadStage:()=>0,on:()=>{},ymd:d=>d.toISOString().slice(0,10),add:(s,n)=>new Date(Date.parse(s)+n*86400000).toISOString().slice(0,10),nextRep:(d,r)=>B.add(d,1),calData:{validDate:d=>/^\d{4}-\d\d-\d\d$/.test(d||''),events:()=>events,occurrences:e=>e.occ||[e],dateOf:d=>d.slice(0,10)}};
  vm.runInNewContext(widgetSource,{window:{B,ZovReminder:{postMessage:s=>messages.push(JSON.parse(s))},addEventListener:()=>{}},B,document:{addEventListener:()=>{}},setTimeout,clearTimeout});
  return messages.at(-1).items;
 }
@@ -54,7 +54,7 @@ test('a pending habit action sets the recorded day once and acknowledges only du
    {id:'old',name:'Архив',arch:true}
  ];
  let saved=false;
- const B={today:()=>today,habits:()=>habits.filter(h=>!h.arch),get:key=>habits.find(h=>'h_'+h.id===key),
+ const B={today:()=>today,habitPins:()=>[],trackerHabits:()=>habits.filter(h=>!h.arch),get:key=>habits.find(h=>'h_'+h.id===key),
    habitVal:(h,d)=>days[d]?.h?.[h.id]||0,editDay:(d,fn)=>{edits.push(d);fn(days[d] ||= {});},
    persistLocal:()=>saved, tasks:()=>[],shad:{plan:[]},on:()=>{},ymd:d=>d.toISOString().slice(0,10),
    add:(s,n)=>new Date(Date.parse(s)+n*86400000).toISOString().slice(0,10),calData:{events:()=>[],validDate:d=>/^\d{4}-\d\d-\d\d$/.test(d)}};

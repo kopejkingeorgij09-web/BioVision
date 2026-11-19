@@ -16,7 +16,8 @@ assert.ok(combatModule,'Missing shipped Battle module');
 const combat = combatModule[0];
 const battleAPI = 'return {draw,tick,tap,action,controls};';
 assert.ok(combat.includes(battleAPI));
-const context = {window: {}, Art: {point: (x,y) => ({x,y})}};
+const layout = require('../oplot-layout.js');
+const context = {window: {OplotLayout:layout}, Art: {point: (x,y) => ({x,y})}};
 vm.runInNewContext(genetics + '\n' + combat.replace(battleAPI,
   'return {draw,tick,tap,action,controls, inspect:()=>({party,enemy,structures,objectives,fury,gridWidth,gridHeight,rally,sparks,time,displayHp})};'), context);
 const {Battle, GAME_SPECIES} = context.window;
@@ -266,4 +267,95 @@ for(const [cols,rows] of [[11,10],[16,16]]){
   assert.equal(sides.size,4,'All four actual edges should launch invaders');
   assert.equal(defense.inspect().structures[0].hp,defense.inspect().structures[0].maxHp);
 }
-console.log('PASS six forts, starter and endgame raids, walls and flight, enchantments, 11×10 and 16×16 corner hits and defense');
+// A tap belongs to the occupied ground tile, including the far corner of a
+// large keep right next to another building. Stored and moving originals vanish.
+for(const [cols,rows] of [[35,35],[38,35],[55,55]]){
+  const buildings=[
+    {id:'keep',type:'keep',x:2,y:3,level:8},
+    {id:'vault',type:'goldstore',x:7,y:3,level:4},
+    {id:'school',type:'academy',x:2,y:8,level:7},
+    {id:'stored',type:'cannon',x:null,y:null,level:2,stowed:true}
+  ];
+  const layoutState={layoutVersion:2,gridSize:cols,gridWidth:cols,gridHeight:rows,buildings,dragons:[]};
+  for(const [w,h] of [[366,437],[827,573]]){
+    const picked=(x,y,state=layoutState)=>{
+      const p=art.point(x,y,w,h,cols);
+      return art.hit(p.x,p.y,w,h,state)?.id??null;
+    };
+    for(const b of buildings)for(const cell of layout.cells(b)){
+      assert.equal(picked(cell.x,cell.y),b.id,'Incorrect footprint hit on '+b.id);
+    }
+    assert.equal(picked(0,0,{...layoutState,buildings:[buildings[3]]}),null);
+    const ghost={...buildings[0],x:13,y:13,valid:true};
+    const moving={...layoutState,buildings:[buildings[0]],placementPreview:ghost};
+    assert.equal(picked(2,3,moving),null);
+    assert.equal(picked(13,13,moving),null,'The ghost cannot intercept the next placement');
+    assert.equal(picked(13,13,{...layoutState,buildings:[ghost,...buildings.slice(1)]}),'keep');
+  }
+  const actual=Battle.start('defense',1,layoutState,[],{}).inspect();
+  assert.equal(actual.gridWidth,cols);assert.equal(actual.gridHeight,rows);
+  assert.deepEqual(Array.from(actual.structures,b=>[b.id,b.x,b.y,b.span]),
+    [['keep',4,5,5],['vault',8.5,4.5,4],['school',3.5,9.5,4]]);
+  for(const mode of ['raid','boss','arena']){
+    const authored=Battle.start(mode,1,layoutState,[],{}).inspect();
+    assert.equal(authored.gridWidth,10);assert.equal(authored.gridHeight,10);
+    assert.ok(authored.structures.every(b=>b.span===1));
+  }
+}
+
+function newDefense(wave,buildings,squad=[]){
+  return Battle.start('defense',wave,{layoutVersion:2,gridSize:35,buildings},squad,{});
+}
+const citadel={id:'castle',type:'keep',level:10000,x:15,y:15};
+const siege=newDefense(1,[citadel]),exposedFaces=new Set();
+for(let frame=0;frame<50*30;frame++){
+  siege.tick(1/30);
+  const {enemy,sparks,structures}=siege.inspect(),building=structures[0];
+  for(const u of living(enemy)){
+    assert.ok(!(Math.abs(u.x-building.x)<2.5&&Math.abs(u.y-building.y)<2.5),
+      'Ground attacker walked through the keep');
+  }
+  for(const shot of sparks.filter(e=>e.kind==='attack'&&e.target===building)){
+    const dx=shot.tx-building.x,dy=shot.ty-building.y;
+    assert.ok(Math.abs(dx)<=2&&Math.abs(dy)<=2);
+    if(Math.abs(dx)===2)exposedFaces.add(dx<0?'west':'east');
+    if(Math.abs(dy)===2)exposedFaces.add(dy<0?'north':'south');
+  }
+}
+assert.ok(exposedFaces.size>=3,'Hits should land on the approached sides of the keep');
+
+const ramparts=[];
+for(let x=11;x<=23;x++)for(let y=11;y<=23;y++){
+  if(x===11||x===23||y===11||y===23)ramparts.push({type:'wall',id:x+','+y,x,y,level:10000});
+}
+for(const wave of [28,29]){
+  const run=newDefense(wave,[citadel,...ramparts]);
+  const walls=run.inspect().structures.filter(b=>b.type==='wall');
+  let dragonCrossed=false,hitWall=false;
+  for(let i=0;i<28*30;i++){
+    run.tick(1/30);
+    const {enemy,sparks}=run.inspect();
+    for(const u of living(enemy)){
+      const crosses=walls.some(b=>inside(u,b));
+      if(u.kind==='goblin'||u.level<=20)assert.ok(!crosses,'A ground attacker crossed a standing wall');
+      else if(crosses)dragonCrossed=true;
+    }
+    hitWall||=sparks.some(e=>e.target?.type==='wall'&&e.kind==='attack');
+  }
+  assert.ok(walls.every(b=>b.hp>0));assert.equal(hitWall,true);
+  assert.equal(dragonCrossed,wave===29);
+}
+const guards=newDefense(8,[citadel,
+  {id:'vault',type:'goldstore',x:20,y:16,level:10000},
+  {id:'farm',type:'farm',x:12,y:17,level:10000}
+],[{species:1,level:12},{species:2,level:8}]);
+guards.tap(17,17,10,10);
+const occupying=(b,p)=>Math.abs(b.x-p.x)<b.half+.499&&Math.abs(b.y-p.y)<b.half+.499;
+assert.ok(!guards.inspect().structures.some(b=>occupying(b,guards.inspect().rally)),
+  'An order on the keep should guide guards to an accessible tile');
+for(let i=0;i<25*30;i++){
+  guards.tick(1/30);
+  const {party,structures}=guards.inspect();
+  for(const u of living(party))assert.ok(!structures.some(b=>b.hp>0&&occupying(b,u)),'A guard phased through a foundation');
+}
+console.log('PASS campaign, arena, flight, enchantments, legacy 10–16 and new 35–55 grids, footprint picking, moving, four-sided defense and pathfinding');

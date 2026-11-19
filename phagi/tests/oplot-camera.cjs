@@ -96,7 +96,7 @@ async function check(browser,mobile){
   // transformed screen position. A mismatched hit-test opens a different panel.
   await plus.click();
   const box=await world.boundingBox();
-  const spot=await world.evaluate(c=>Art.point(4,4,c.clientWidth,c.clientHeight,10));
+  const spot=await world.evaluate(c=>Art.point(17,17,c.clientWidth,c.clientHeight,35));
   const x=box.x+box.width/2,y=box.y+box.height/2,dx=mobile?38:90,dy=mobile?23:40;
   if(mobile){
    await touches('touchStart',[[x,y]]);await touches('touchMove',[[x+dx,y+dy]]);await touches('touchEnd',[]);

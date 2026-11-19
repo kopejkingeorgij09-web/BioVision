@@ -58,8 +58,38 @@ async function check(browser,width,reduced){
       return {species:signatures.size,hardware:hardware.size,distinct,visible,turning,moving,levels,walls,lunges};
     },reduced);
     assert.deepEqual(results,{species:63,hardware:5,distinct:true,visible:true,turning:true,moving:true,levels:true,walls:16,lunges:!reduced});
+    const placement=await page.evaluate(width=>{
+      const canvas=document.createElement('canvas');
+      const w=canvas.width=Math.min(width,810),h=canvas.height=width<500?430:614;
+      const c=canvas.getContext('2d',{willReadFrequently:true});
+      const keep={type:'keep',id:'keep',x:11,y:11,level:3};
+      const vault={type:'goldstore',id:'gold',x:16,y:11,level:3,fill:.5};
+      const base={layoutVersion:2,gridSize:35,grid:true,buildings:[keep,vault]};
+      const delta=(a,b)=>a.reduce((sum,v,i)=>sum+(Math.abs(v-b[i])>10),0);
+      const draw=state=>{
+        Art.island(c,w,h,0,state);
+        return c.getImageData(0,0,w,h).data;
+      };
+      const hit=(x,y,state)=>{
+        const p=Art.point(x,y,w,h,35);return Art.hit(p.x,p.y,w,h,state)?.id??null;
+      };
+      const bounds=draw({...base,buildings:[]}),store=draw({...base,buildings:[vault]}),built=draw(base);
+      const ghost={...keep,x:24,y:22,valid:true};
+      const green=draw({...base,placementPreview:ghost});
+      const red=draw({...base,placementPreview:{...ghost,valid:false}});
+      const source=Art.point(12,12,w,h,35),oldPixel=(Math.round(source.y)*w+Math.round(source.x))*4;
+      const restored=Array.from(green.slice(oldPixel,oldPixel+4)).join()===Array.from(store.slice(oldPixel,oldPixel+4)).join();
+      const adjacent=[hit(15,11,base),hit(16,11,base),hit(15,15,base),hit(19,14,base)];
+      const demo=Battle.start('defense',4,base,[{species:0,level:20}],{});
+      for(let i=0;i<8*24;i++)demo.tick(1/24);
+      demo.draw(c,w,h,8);
+      const fighting=c.getImageData(0,0,w,h).data;
+      return {drawn:delta(bounds,built)>1000,moved:delta(built,green)>1000,
+        validity:delta(red,green)>200,restored,adjacent,battle:delta(fighting,built)>1000};
+    },width);
+    assert.deepEqual(placement,{drawn:true,moved:true,validity:true,restored:true,adjacent:['keep','gold','keep','gold'],battle:true});
     assert.deepEqual(errors,[]);
-    console.log('PASS 63 signature impacts, regular shots, SVG defenses, five upgrades, 16 wall joints, moving weapons and dragon poses',width,reduced?'reduced motion':'full motion');
+    console.log('PASS 63 signature impacts, regular shots, SVG defenses, five upgrades, 16 wall joints, moving weapons, dragon poses and multi-cell placement/defense',width,reduced?'reduced motion':'full motion');
   }finally{await context.close();}
 }
 (async()=>{

@@ -44,6 +44,12 @@ body.island-wide .wide-resources{display:flex;gap:10px;align-items:center;margin
 .keep-evolution{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:0 0 13px}.keep-evolution figure{margin:0;text-align:center;border:1px solid #c8b88e;background:radial-gradient(ellipse at center,#fff9dc,#eee2bd);border-radius:10px;overflow:hidden}
 .keep-evolution canvas{width:100%;height:clamp(95px,20vh,180px);display:block}.keep-evolution figcaption{padding:4px 6px 8px;font-weight:650;font-size:13px;color:#44583f}
 .store-meter{width:100%;accent-color:#a77735;height:10px}.store-meter.foodstore{accent-color:#9d4a62}
+#layout-editor[hidden]{display:none}#layout-editor{border:1px solid #a89565;border-radius:10px;margin:5px 0 0;padding:10px 13px;background:#f7efd8;color:#344436}
+.layout-title,.layout-actions,.layout-stock{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.layout-title{justify-content:space-between}.layout-title h3{font:600 19px var(--display)}
+.layout-actions{margin-top:7px}.layout-actions button{min-height:37px}#layout-selection{margin-top:4px;font-size:13px}.layout-stock{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin}
+.layout-stock button{flex:none;display:flex;align-items:center;gap:5px;margin:6px 0 2px;padding:3px 8px;background:#fff9e8;border:1px solid #b6a478;color:#374d3f;text-align:left}.layout-stock button[aria-pressed=true]{background:#dbeace;border-color:#477b53;box-shadow:inset 0 0 0 1px #477b53}.layout-stock canvas{width:39px;height:37px}.layout-stock b,.layout-stock small{display:block;font-size:11px}.layout-stock small{color:#615d48}.layout-stock:empty{display:none}
+body.arranging #world{touch-action:none;cursor:grab}body.arranging #world.panning{cursor:grabbing}body.island-wide #layout-editor{margin:0;border-radius:0;max-height:38dvh;overflow:auto;padding-bottom:max(8px,env(safe-area-inset-bottom))}
+@media(max-width:540px){#layout-editor{padding:7px}.layout-actions{gap:4px}.layout-actions button{font-size:11px;padding:5px 8px;min-height:40px}.layout-title h3{font-size:17px}}
 .mini-overview{display:none;position:absolute;z-index:1;right:max(12px,env(safe-area-inset-right));top:calc(max(12px,env(safe-area-inset-top)) + 50px);padding:3px;background:#183e36e8;border:1px solid #acc19b9c;border-radius:9px;box-shadow:0 2px 6px #142b284d}
 body.island-wide .mini-overview:not([hidden]){display:block}.mini-overview canvas{display:block;width:112px;height:78px;border-radius:6px;pointer-events:none}
 @media(max-width:540px){.mini-overview canvas{width:90px;height:65px}}
@@ -129,7 +135,7 @@ body.island-wide .mapfoot #mapaction{display:flex;align-items:center;gap:5px}
  <p>Протяни стену или отметь начало и конец. Каждое следующее касание продлевает линию.</p>
  <strong id="wall-summary" aria-live="polite"></strong><p id="wall-budget"></p><p id="wall-issue" role="status"></p>
  <div class="actions"><button type="button" class="cmd gold" data-do="confirmwalls" disabled>Построить</button><button type="button" class="cmd alt" data-do="wallundo" disabled>Шаг назад</button></div>
-</section></section><div class="island-sidebar">
+</section><section id="layout-editor" aria-labelledby="layout-heading" hidden><div class="layout-title"><h3 id="layout-heading">Расстановка</h3><span class="tag" id="layout-count"></span></div><p id="layout-selection" role="status"></p><div class="layout-stock" id="layout-stock" aria-label="Постройки в запасе"></div><div class="layout-actions"><button class="cmd" type="button" data-do="layoutapply">Сохранить</button><button class="cmd alt" type="button" data-do="layoutstash">В запас</button><button class="cmd alt" type="button" data-do="layoutundo">Шаг назад</button><button class="cmd alt" type="button" data-do="layoutclear">Снять всё</button><button class="linkbtn" type="button" data-do="layoutcancel">Отменить изменения</button></div></section></section><div class="island-sidebar">
 <section class="panel" id="island-progress" aria-labelledby="xp-title">
  <span class="kicker" id="xp-title">Опыт профиля</span>
  <h2 id="xp-expansion"></h2><p id="xp-target"></p>
@@ -142,7 +148,7 @@ body.island-wide .mapfoot #mapaction{display:flex;align-items:center;gap:5px}
 </section>
 <aside class="aside" id="aside"></aside></div></div><div class="attribution"><span id="caption"></span><button class="linkbtn" data-do="exit">Вернуться в Фаги</button></div></main>
 <dialog id="dialog" aria-labelledby="dt"><div class="dlghead"><h2 id="dt"></h2><button class="close" data-do="close" aria-label="Закрыть">×</button></div><div class="dlgbody"><div id="dbody"></div><div class="dlgnotice" role="status" id="dnotice"></div></div></dialog><div class="toast" role="status" id="toast"></div>
-<script src="oplot-art/village.js?v=1"></script><script src="oplot-art/stores.js?v=1"></script><script src="oplot-art/defenses.js?v=1"></script>
+<script src="oplot-layout.js?v=1"></script><script src="oplot-editor.js?v=1"></script><script src="oplot-art/village.js?v=1"></script><script src="oplot-art/stores.js?v=1"></script><script src="oplot-art/defenses.js?v=1"></script>
 <script>
 'use strict';
 const GAME_ELEMENTS = window.GAME_ELEMENTS = ['Огонь','Вода','Природа','Молния','Земля','Свет'];
@@ -288,17 +294,10 @@ const uid=()=>globalThis.crypto?.randomUUID?.() || 'id-'+Date.now().toString(36)
 const num=n=>new Intl.NumberFormat('ru').format(n);
 function initialState() {
  const now=Date.now();
- const layout=[['keep',4,4]];
- return {version:1,xp:0,gold:235,berries:120,buildings:layout.map(([type,x,y],i)=>({id:'b'+i,type,x,y,level:1,since:now-40000})),dragons:[0,1,2].map((species,i)=>({id:'d'+i,species,level:1})),book:[0,1,2],egg:null,quest:0,marks:{},campaign:{},waves:0,bosses:0,arenas:0,settings:{sound:false},pending:null,deliveries:[]};
+ const layout=[['keep',15,15]];
+ return {version:1,layoutVersion:2,xp:0,gold:235,berries:120,buildings:layout.map(([type,x,y],i)=>({id:'b'+i,type,x,y,level:1,since:now-40000})),dragons:[0,1,2].map((species,i)=>({id:'d'+i,species,level:1})),book:[0,1,2],egg:null,quest:0,marks:{},campaign:{},waves:0,bosses:0,arenas:0,settings:{sound:false},pending:null,deliveries:[]};
 }
-function upgradeIsland(state){
- if(!Number.isFinite(state.xp)){
-  const trained=state.dragons.reduce((sum,d)=>sum+10*(d.level-1),0);
-  const built=state.buildings.reduce((sum,b)=>sum+12*(b.level-1),0);
-  state.xp=trained+built+35*(state.quest||0)+25*Object.values(state.campaign||{}).reduce((n,v)=>n+v,0);
- }
- return state;
-}
+function upgradeIsland(state){return OplotLayout.migrate(state)}
 const LEVEL_XP_BASE=35;
 const PROFILE_XP={
  build:18, upgradePerLevel:12, feedBase:8, hatch:35, chapter:35,
@@ -306,11 +305,8 @@ const PROFILE_XP={
 };
 function islandLevel(state){return 1+Math.floor(Math.sqrt(Math.max(0,state.xp||0)/LEVEL_XP_BASE))}
 function xpAtLevel(level){return LEVEL_XP_BASE*(level-1)**2}
-function gridAtLevel(level){
- const strips=Math.min(12,Math.max(0,level-1));
- return {width:10+Math.ceil(strips/2),height:10+Math.floor(strips/2)};
-}
-function islandGrid(state){return gridAtLevel(islandLevel(state))}
+function gridAtLevel(level){return OplotLayout.gridAtLevel(level)}
+function islandGrid(state){return OplotLayout.gridAtLevel(islandLevel(state),state.layoutVersion??1)}
 function islandSize(state){return islandGrid(state).width}
 function containsCell(grid,x,y){
  return Number.isInteger(x)&&Number.isInteger(y)&&x>=0&&y>=0&&x<grid.width&&y<grid.height;
@@ -350,16 +346,21 @@ function acceptStock(state,resource,amount){
  return taken;
 }
 const rates={mine:4,farm:3,home:0.85};
-function keepProduction(b,units,stamp){if(rates[b.type])b.since=stamp-Math.ceil(units*5000/(rates[b.type]*b.level))}
+function keepProduction(b,units,stamp){
+ if(!rates[b.type])return;
+ if(b.stowed){b.pausedStock=Math.min(b.level*90,Math.max(0,Math.floor(units)));return}
+ b.since=stamp-Math.ceil(units*5000/(rates[b.type]*b.level));
+}
 function capacity(s){return 3+s.buildings.filter(b=>b.type==='home').reduce((n,b)=>n+3*b.level,0)}
 function stored(b,now=Date.now()){
  if(!rates[b.type])return 0;
+ if(b.stowed)return b.pausedStock||0;
  return Math.max(0,Math.min(b.level*90,Math.floor((now-b.since)/1000*rates[b.type]*b.level/5)));
 }
 // The nightly server checks the primary target by orthogonal tile distance before it moves.
-function nightTowerReach(type,level=1){
+function nightTowerReach(type,level=1,layoutVersion=1){
   if(type!=='archer'&&type!=='cannon'&&type!=='spire')return 0;
-  return Math.min(7,(type==='archer'?4:3)+Math.floor(Math.max(1,level)/3));
+  return (layoutVersion===2?2:1)*Math.min(7,(type==='archer'?4:3)+Math.floor(Math.max(1,level)/3));
 }
 /* All island art is painted locally. Board geometry is shared by the renderer and pointer input. */
 window.Art = (() => {
@@ -1071,7 +1072,9 @@ window.Art = (() => {
     c.drawImage(img,-144/2.55*s,-166/2.55*s,286/2.55*s,246/2.55*s);c.restore();
   }
   function inBounds(item,state) {
-    return item.x>=0&&item.x<(state.gridWidth||state.gridSize||10)&&item.y>=0&&item.y<(state.gridHeight||state.gridSize||10);
+    const span=item.type?footSpan(item,state.layoutVersion):1;
+    return !item.stowed&&Number.isFinite(item.x)&&Number.isFinite(item.y)&&item.x>=0&&item.y>=0&&
+      item.x+span<=((state.gridWidth||state.gridSize||10))&&item.y+span<=(state.gridHeight||state.gridSize||10);
   }
   const backgroundCache=new Map();
   let waterTexture;
@@ -1242,29 +1245,30 @@ window.Art = (() => {
     }
     if(backgroundCache.size>=3)backgroundCache.delete(backgroundCache.keys().next().value);
     const ripples=[[cols*.21,-2.35,.62],[cols*.47,rows+1.55,.46]].map(([a,b,scale])=>({...project(a,b),size:u*scale}));
-    const layer={image,pad,ripples,grid:plotGrid(w,h,n,cols,rows)};backgroundCache.set(key,layer);return layer;
+    const layer={image,pad,ripples,grid:plotGrid(w,h,n,cols,rows),blocks:n>=20?plotGrid(w,h,n,cols,rows,2):null};backgroundCache.set(key,layer);return layer;
   }
-  function plotGrid(w,h,n,cols,rows){
+  function plotGrid(w,h,n,cols,rows,step=1){
     const grid=new Path2D(),right=cols-.5,bottom=rows-.5;
     function segment(x,y,xx,yy){
       const a=point(x,y,w,h,n),b=point(xx,yy,w,h,n);
       grid.moveTo(a.x,a.y);grid.lineTo(b.x,b.y);
     }
-    for(let i=-.5;i<=right;i++)segment(i,-.5,i,bottom);
-    for(let j=-.5;j<=bottom;j++)segment(-.5,j,right,j);
+    for(let i=-.5;i<=right;i+=step)segment(i,-.5,i,bottom);
+    for(let j=-.5;j<=bottom;j+=step)segment(-.5,j,right,j);
     return grid;
   }
   let lastCoverage;
   function drawNightCoverage(c,w,h,n,cols,rows,origin) {
-    const {x,y,reach}=origin,key=[w,h,n,cols,rows,x,y,reach].join('/');
+    const {x,y,span=1,reach}=origin,key=[w,h,n,cols,rows,x,y,span,reach].join('/');
     if(lastCoverage?.key!==key){
       const fill=new Path2D(),border=new Path2D();
       const project=(x,y)=>point(x,y,w,h,n);
       function line(path,a,b){path.moveTo(a.x,a.y);path.lineTo(b.x,b.y)}
-      const inside=(cx,cy)=>Math.abs(cx-x)+Math.abs(cy-y)<=reach;
-      for(let cy=Math.max(0,y-reach);cy<=Math.min(rows-1,y+reach);cy++){
-        const width=reach-Math.abs(cy-y);
-        const left=Math.max(0,x-width),right=Math.min(cols-1,x+width);
+      const sideDistance=(value,start)=>Math.max(0,start-value,value-start-span+1);
+      const inside=(cx,cy)=>sideDistance(cx,x)+sideDistance(cy,y)<=reach;
+      for(let cy=Math.max(0,y-reach);cy<=Math.min(rows-1,y+span-1+reach);cy++){
+        const width=reach-sideDistance(cy,y);
+        const left=Math.max(0,x-width),right=Math.min(cols-1,x+span-1+width);
         const a=project(left-.5,cy-.5),b=project(right+.5,cy-.5);
         const d=project(left-.5,cy+.5),e=project(right+.5,cy+.5);
         line(fill,a,b);fill.lineTo(e.x,e.y);fill.lineTo(d.x,d.y);fill.closePath();
@@ -1283,13 +1287,24 @@ window.Art = (() => {
   }
   const sizes={wall:.81};
   const heights={keep:.61,home:.47,mine:.34,farm:.37,den:.31,goldstore:.47,foodstore:.49,academy:.55,cannon:.38,archer:.46,spire:.49,wall:.28,firetrap:.17,icetrap:.18};
-  function buildingWidth(b,w,h,n) { return (sizes[b.type]||1)*unit(w,h,n); }
-  function bubblePoint(b,w,h,t=0,n=10) {
-    const a=point(b.x,b.y,w,h,n),u=unit(w,h,n),radius=Math.max(4.7,Math.min(15,u*.18));
+  function footSpan(b,version){
+    return version===2?(Number.isInteger(b.span)&&b.span>0?b.span:window.OplotLayout.size(b.type)):1;
+  }
+  function groundCenter(b,span){
+    const half=(span-1)/2;return {x:b.x+half,y:b.y+half};
+  }
+  function footprint(c,b,span,w,h,n,fill,stroke,width,inset=0){
+    const x=b.x-.5+inset,y=b.y-.5+inset,r=b.x+span-.5-inset,f=b.y+span-.5-inset;
+    const corners=[[x,y],[r,y],[r,f],[x,f]].map(([a,d])=>{const p=point(a,d,w,h,n);return [p.x,p.y];});
+    poly(c,corners,fill,stroke,width);
+  }
+  function bubblePoint(b,w,h,t=0,n=10,version=1) {
+    const span=footSpan(b,version),centre=groundCenter(b,span);
+    const a=point(centre.x,centre.y,w,h,n),u=unit(w,h,n)*span,radius=Math.max(4.7,Math.min(15,u*.18));
     return {x:a.x+u*.25,y:a.y-u*Math.min(.42,(heights[b.type]||.6)*.8)+Math.sin(t*2+b.x)*radius*.10,r:radius};
   }
-  function resourceBubble(c,b,w,h,t,n) {
-    const a=bubblePoint(b,w,h,t,n),s=a.r;
+  function resourceBubble(c,b,w,h,t,n,version) {
+    const a=bubblePoint(b,w,h,t,n,version),s=a.r;
     c.save();c.translate(a.x,a.y);c.scale(s/15,s/15);c.lineJoin='round';
     shape(c,'M-3 12 Q-5 12 -7 11 C-19 6 -16 -10 -6 -14 C6 -19 18 -10 15 2 Q13 11 4 13 L0 17Z','rgba(95,88,66,.26)');
     shape(c,'M-3 10 Q-9 10 -12 4 C-18 -6 -9 -16 0 -16 C13 -16 18 -6 14 3 Q11 10 4 11 L0 15Z',grad(c,-2,-16,3,13,['#fff5cc','#f3e1a5']),'#a58a59',1.4);
@@ -1308,12 +1323,18 @@ window.Art = (() => {
   function same(b,selected) {return selected!=null&&(selected===b||selected===b.id||(typeof selected==='object'&&(selected.id!=null?selected.id===b.id:selected.x===b.x&&selected.y===b.y)));}
   const roosts=[[6,7],[7,3],[1,6],[3,1],[5,8],[8,3],[1,4],[3,7],[7,7],[2,1],[4,9],[8,6]];
   function dragonPoints(state,w,h,t) {
-    const n=state.gridSize||10,cols=state.gridWidth||n,rows=state.gridHeight||n,u=unit(w,h,n),list=(state.dragons||[]).slice(0,12),occupied=new Set((state.buildings||[]).map(b=>b.x+','+b.y));
+    const n=state.gridSize||10,cols=state.gridWidth||n,rows=state.gridHeight||n,u=unit(w,h,n)*(state.layoutVersion===2?2:1),list=(state.dragons||[]).slice(0,12),occupied=new Set();
+    if(!list.length)return [];
+    for(const b of state.buildings||[]){
+      if(!inBounds(b,state)||state.placementPreview?.id===b.id&&b.id!=null)continue;
+      const span=footSpan(b,state.layoutVersion);
+      for(let x=b.x;x<b.x+span;x++)for(let y=b.y;y<b.y+span;y++)occupied.add(x+','+y);
+    }
     const result=[],roost=([x,y])=>[Math.round(x*(cols-1)/9),Math.round(y*(rows-1)/9)];
     for(let i=0;i<list.length;i++){
       const d=list[i],flying=d.level>=21;
       let x=d.x,y=d.y;
-      if(!inBounds({x,y},state)){
+      if(!inBounds({x,y},state)||!flying&&occupied.has(x+','+y)){
         let spot;
         for(let j=0;j<roosts.length;j++){
           const candidate=roost(roosts[(i+j)%roosts.length]);
@@ -1345,8 +1366,14 @@ window.Art = (() => {
     return result;
   }
   function objectList(state,w,h,t,preview=[]){
-    const n=state.gridSize||10, buildings=(state.buildings||[]).filter(b=>inBounds(b,state));
-    const things=buildings.map(b=>({kind:'building',item:b,...point(b.x,b.y,w,h,n),size:buildingWidth(b,w,h,n)}));
+    const n=state.gridSize||10,u=unit(w,h,n),ghost=state.placementPreview;
+    const buildings=(state.buildings||[]).filter(b=>inBounds(b,state)&&!(ghost?.id!=null&&b.id===ghost.id));
+    function object(b,kind){
+      const span=footSpan(b,state.layoutVersion),centre=groundCenter(b,span),p=point(centre.x,centre.y,w,h,n);
+      return {kind,item:b,...p,ground:p.y+(span-1)*u*axisY,span,size:(sizes[b.type]||1)*u*span};
+    }
+    const things=buildings.map(b=>object(b,'building'));
+    if(ghost&&Number.isFinite(ghost.x)&&Number.isFinite(ghost.y))things.push(object(ghost,'placementPreview'));
     const positions=new Set(buildings.filter(b=>b.type==='wall').map(b=>b.x+','+b.y));
     for(const cell of preview){
       const key=cell.x+','+cell.y;
@@ -1360,17 +1387,26 @@ window.Art = (() => {
       obj.wallMask=wallDirections.reduce((mask,[dx,dy],i)=>positions.has((b.x+dx)+','+(b.y+dy))?mask|(1<<i):mask,0);
     }
     for(const a of dragonPoints(state,w,h,t))things.push({kind:'dragon',...a});
-    const layer=a=>a.kind==='dragon'&&a.item.level>=21?1:0;
+    for(const actor of state.figures||[])things.push({kind:'figure',item:actor,...point(actor.x,actor.y,w,h,n)});
+    const layer=a=>a.kind==='figure'?Number(!!a.item.above):Number(a.kind==='dragon'&&a.item.level>=21);
     return things.sort((a,b)=>layer(a)-layer(b)||(a.ground??a.y)-(b.ground??b.y)||a.x-b.x);
   }
   function hit(px,py,w,h,state,t=0) {
     const bs=state.buildings||[];
-    for(let i=bs.length-1;i>=0;i--){if(!bs[i].ready||!inBounds(bs[i],state))continue;const p=bubblePoint(bs[i],w,h,t,state.gridSize||10);
+    for(let i=bs.length-1;i>=0;i--){if(!bs[i].ready||!inBounds(bs[i],state)||state.placementPreview?.id!=null&&bs[i].id===state.placementPreview.id)continue;const p=bubblePoint(bs[i],w,h,t,state.gridSize||10,state.layoutVersion);
       if(Math.hypot(px-p.x,py-p.y)<=p.r*1.26)return {kind:'bubble',id:bs[i].id,item:bs[i]};}
     const preview=(state.wallPreview||[]).filter(b=>inBounds(b,state));
+    if(state.layoutVersion===2){
+      const q=cell(px,py,w,h,state.gridSize||10);
+      if(q){
+        const b=bs.find(b=>inBounds(b,state)&&!(state.placementPreview?.id!=null&&b.id===state.placementPreview.id)&&
+          q.x>=b.x&&q.y>=b.y&&q.x<b.x+footSpan(b,2)&&q.y<b.y+footSpan(b,2));
+        if(b)return {kind:'building',id:b.id,item:b};
+      }
+    }
     const objects=objectList(state,w,h,t,preview);
     for(let i=objects.length-1;i>=0;i--){const a=objects[i];
-      if(a.kind==='wallPreview')continue;
+      if(a.kind==='wallPreview'||a.kind==='placementPreview'||a.kind==='figure')continue;
       const dx=(px-a.x)/a.size,dy=(py-a.y)/a.size;
       if(a.item.type==='wall'){
         if(wallHit(dx*.81,dy*.81,a.wallMask))return {kind:'building',id:a.item.id,item:a.item};
@@ -1389,7 +1425,7 @@ window.Art = (() => {
     // Keep one overview and one detail raster across a pinch gesture, within a 2400px texture budget.
     const detail=Math.abs(matrix.a)>screenScale*1.12?2.5:1;
     const dpr=Math.min(screenScale*detail,3,2400/(Math.max(w,h)+4*u));
-    const {image,pad,grid,ripples}=backdrop(w,h,dpr,state.theme||state.mode,n,cols,rows);
+    const {image,pad,grid,blocks,ripples}=backdrop(w,h,dpr,state.theme||state.mode,n,cols,rows);
     c.save();c.lineCap='round';c.lineJoin='round';drawSea(c,w,h,matrix);
     c.drawImage(image,-pad,-pad,w+2*pad,h+2*pad);
     if(state.waves){
@@ -1400,11 +1436,20 @@ window.Art = (() => {
       }
     }
     c.strokeStyle=state.grid?'rgba(53,91,61,.68)':'rgba(55,99,56,.16)';
-    c.lineWidth=state.grid?Math.max(.95,u*.023):Math.max(.6,u*.012);c.stroke(grid);
+    if(state.layoutVersion===2&&blocks){
+      c.strokeStyle=state.grid?'rgba(59,99,57,.42)':'rgba(66,108,62,.10)';
+      c.lineWidth=state.grid?Math.max(.53,u*.020):Math.max(.38,u*.009);c.stroke(grid);
+      c.strokeStyle=state.grid?'rgba(63,99,57,.40)':'rgba(71,106,62,.10)';
+      c.lineWidth=state.grid?Math.max(.85,u*.032):Math.max(.55,u*.016);c.stroke(blocks);
+    }else{c.lineWidth=state.grid?Math.max(.95,u*.023):Math.max(.6,u*.012);c.stroke(grid);}
     if(state.nightCoverage)drawNightCoverage(c,w,h,n,cols,rows,state.nightCoverage);
     const preview=(state.wallPreview||[]).filter(b=>inBounds(b,state));
-    if(state.hover&&!preview.length&&inBounds(state.hover,state)){
-      const q=state.hover,occupied=(state.buildings||[]).some(b=>b.x===q.x&&b.y===q.y&&!same(b,state.selected));
+    if(state.hover&&!preview.length&&!state.placementPreview&&inBounds(state.hover,state)){
+      const q=state.hover,occupied=(state.buildings||[]).some(b=>{
+        if(!inBounds(b,state)||same(b,state.selected))return false;
+        const span=footSpan(b,state.layoutVersion);
+        return q.x>=b.x&&q.y>=b.y&&q.x<b.x+span&&q.y<b.y+span;
+      });
       tile(c,q.x,q.y,w,h,occupied?'rgba(215,118,94,.61)':'rgba(255,235,150,.81)',occupied?'#a94d40':'#8a672c',Math.max(1.8,u*.045),n);
       tile(c,q.x,q.y,w,h,null,occupied?'#f6b8a9':'#fff4b8',Math.max(.8,u*.018),n);
     }
@@ -1414,10 +1459,29 @@ window.Art = (() => {
       for(const q of preview)tile(c,q.x,q.y,w,h,ok?'rgba(98,218,154,.22)':'rgba(231,116,100,.31)',ok?'#258265':'#aa4c49',Math.max(1.35,u*.025),n);
       c.restore();
     }
+    // Debris sits at ground level so a passing guard stays visible over a breach.
+    for(const b of state.ruins||[]){
+      const span=footSpan(b,state.layoutVersion),mid=groundCenter(b,span),p=point(mid.x,mid.y,w,h,n);
+      const r=u*span,count=Math.max(4,Math.min(17,span*3));
+      const earth=b.type==='wall'?'#9b987062':'#997d537e';
+      footprint(c,b,span,w,h,n,earth,null,0,.15);
+      for(let i=0;i<count;i++){
+        const angle=i*2.399+b.x,offset=i?Math.sqrt(i/count)*.42:0;
+        const rx=p.x+Math.cos(angle)*r*offset,ry=p.y+Math.sin(angle)*r*offset*.58;
+        const shard=r*(.068+(i%3)*.019)/Math.sqrt(span);
+        poly(c,[[rx-shard,ry],[rx-shard*.3,ry-shard*.7],[rx+shard*.66,ry-shard*.5],[rx+shard,ry+shard*.3],[rx,ry+shard*.55]],i%2?'#827b61':'#97896d');
+        poly(c,[[rx-shard,ry],[rx-shard*.3,ry-shard*.7],[rx+shard*.66,ry-shard*.5],[rx+shard*.14,ry]],i%2?'#c4b38c':'#cdbd98');
+      }
+    }
     const things=objectList(state,w,h,t,preview);
     for(const a of things){
+      if(a.kind==='building'&&state.layoutVersion===2&&a.span>1){
+        const warm=a.item.type==='farm'||a.item.type==='mine'||a.item.type==='den';
+        footprint(c,a.item,a.span,w,h,n,warm?'#a68a5e50':'#b9ad864f','#7a865d7a',Math.max(.6,u*.024),.035);
+        footprint(c,a.item,a.span,w,h,n,null,warm?'#e2c49480':'#ddd9b186',Math.max(.5,u*.032),.12);
+      }
       if(a.kind==='building'&&same(a.item,state.selected)){
-        tile(c,a.item.x,a.item.y,w,h,'rgba(255,227,127,.65)','#fff0af',2.4,n);
+        footprint(c,a.item,a.span,w,h,n,'rgba(255,227,127,.48)','#fff0af',2.4);
       }
       if(a.kind==='dragon'){
         ell(c,a.x,a.ground,a.size*.23,a.size*.067,'rgba(52,82,58,.20)');
@@ -1425,6 +1489,8 @@ window.Art = (() => {
     }
     for(const a of things){
       const b=a.item;
+      if(a.kind==='placementPreview')continue;
+      if(a.kind==='figure'){b.draw(c,a);continue;}
       if(a.kind==='wallPreview'){
         c.save();c.globalAlpha*=.63;wallSprite(c,a.x,a.y,u,1,a.wallMask,state.wallPreviewValid?'ok':'bad');c.restore();
       }else if(a.kind==='building'){
@@ -1433,12 +1499,12 @@ window.Art = (() => {
           let aim=null;
           if(b.weaponAim){
             const target=point(b.weaponAim.x,b.weaponAim.y,w,h,n),phase=b.weaponAim.phase;
-            const headY=a.y-a.size*mountHeight(b.type)/66;
-            let angle=Math.atan2(target.y-u*.38-headY,target.x-a.x);
+            const headY=a.y-a.size*mountHeight(b.type)/66,lift=u*(b.weaponAim.lift??(state.layoutVersion===2?.76:.38));
+            let angle=Math.atan2(target.y-lift-headY,target.x-a.x);
             if(phase<.18){
               const previous=b.weaponAim.previous;
               const old=previous?point(previous.x,previous.y,w,h,n):null;
-              const bearing=old?Math.atan2(old.y-u*.38-headY,old.x-a.x):-.51;
+              const bearing=old?Math.atan2(old.y-lift-headY,old.x-a.x):-.51;
               const delta=Math.atan2(Math.sin(angle-bearing),Math.cos(angle-bearing));
               angle=bearing+delta*between(phase,0,.18);
             }
@@ -1454,7 +1520,17 @@ window.Art = (() => {
         dragon(c,a.x,a.y,a.size,b.species,b.level,t+a.x*.013,a.flip);
       }
     }
-    for(const b of state.buildings||[])if(b.ready&&inBounds(b,state))resourceBubble(c,b,w,h,t,n);
+    // Draw the complete foundation above existing structures even when an invalid preview overlaps them.
+    const ghost=things.find(a=>a.kind==='placementPreview');
+    if(ghost){
+      const b=ghost.item,ok=b.valid!==false,ink=ok?'#34735c':'#a84137',rim=ok?'#d9f5bb':'#ffd3b5';
+      footprint(c,b,ghost.span,w,h,n,ok?'#48b58155':'#df695b63',ink,Math.max(1.6,u*.085));
+      c.save();c.globalAlpha=.64;
+      building(c,ghost.x,ghost.y,ghost.size,b.type,b.level||1,t,null,b.fill);c.restore();
+      c.save();c.setLineDash([Math.max(3,u*.17),Math.max(2,u*.11)]);
+      footprint(c,b,ghost.span,w,h,n,null,rim,Math.max(.95,u*.042),.042);c.restore();
+    }
+    for(const b of state.buildings||[])if(b.ready&&inBounds(b,state)&&!(state.placementPreview?.id!=null&&b.id===state.placementPreview.id))resourceBubble(c,b,w,h,t,n,state.layoutVersion);
     c.restore();
   }
   // Attack effects use screen coordinates so archives can render the same shot at any playhead.
@@ -1720,8 +1796,8 @@ window.Art = (() => {
   }
 
   function mountHeight(type){return type==='archer'?20:type==='spire'?26:13}
-  function towerMuzzle(type,origin,target,w,h,n=10){
-    const u=unit(w,h,n),scale=u*(sizes[type]||1)/66;
+  function towerMuzzle(type,origin,target,w,h,n=10,span=1){
+    const u=unit(w,h,n),scale=u*span*(sizes[type]||1)/66;
     const baseY=origin.y-mountHeight(type)*scale,angle=Math.atan2(target.y-baseY,target.x-origin.x);
     const length=(type==='archer'?13:type==='cannon'?20:0)*scale;
     return {x:origin.x+length*Math.cos(angle),y:baseY+length*Math.sin(angle)};
@@ -1760,7 +1836,15 @@ window.Art = (() => {
   const buildingNames = {goldstore:'Золотое хранилище',foodstore:'Амбар ягод',academy:'Академия чар',keep:'Цитадель',mine:'Шахта',farm:'Ферма',home:'Жилище',archer:'Башня лучников',cannon:'Бастион',spire:'Шпиль стихий',wall:'Магическая стена',den:'Логово',firetrap:'Огненная руна',icetrap:'Ледяная ловушка'};
   const towerType = {archer:{range:3.25,damage:5.2,delay:1.1,color:'#edce85'},cannon:{range:2.7,damage:9,delay:1.85,color:'#e68c51'},spire:{range:3.3,damage:6.5,delay:1.45,color:'#ae8dcf'}};
   const health = {goldstore:70,foodstore:62,academy:84,keep:112,mine:31,farm:28,home:35,den:38,archer:40,cannon:45,spire:48,wall:35,firetrap:7,icetrap:7};
-  const distance = (a,b) => Math.hypot(a.x-b.x,a.y-b.y);
+  function distance(a,b){
+    const edge=(a.half||0)+(b.half||0);
+    return Math.hypot(Math.max(0,Math.abs(a.x-b.x)-edge),Math.max(0,Math.abs(a.y-b.y)-edge));
+  }
+  function contactPoint(target,from){
+    if(!target.half)return target;
+    return {x:clamp(from.x,target.x-target.half,target.x+target.half),
+      y:clamp(from.y,target.y-target.half,target.y+target.half)};
+  }
   const alive = a => a.hp>0;
   const clamp = (x,a,b) => Math.min(b,Math.max(a,x));
   const spec = i => window.GAME_SPECIES?.[i] || {name:'Дракон',element:0};
@@ -1836,10 +1920,11 @@ window.Art = (() => {
     for(const wall of walls){
       if(!alive(wall))continue;
       let t0=0,t1=1;
+      const extent=(wall.half||0)+.505;
       for(const axis of ['x','y']){
         const step=to[axis]-from[axis],offset=wall[axis]-from[axis];
-        if(Math.abs(step)<1e-8){if(Math.abs(offset)>.505){t1=-1;break;}continue;}
-        const a=(offset-.505)/step,b=(offset+.505)/step;
+        if(Math.abs(step)<1e-8){if(Math.abs(offset)>extent){t1=-1;break;}continue;}
+        const a=(offset-extent)/step,b=(offset+extent)/step;
         t0=Math.max(t0,Math.min(a,b));t1=Math.min(t1,Math.max(a,b));
         if(t0>t1)break;
       }
@@ -1852,7 +1937,7 @@ window.Art = (() => {
     let best=null,d=Infinity;
     for(let y=0;y<bounds.height;y++)for(let x=0;x<bounds.width;x++){
       const cell={x,y},offset=distance(position,cell);
-      if(offset<d&&!firstWall(cell,cell,walls)){d=offset;best=cell;}
+      if(offset<d&&!(bounds.blockedAt?bounds.blockedAt(x,y):firstWall(cell,cell,walls))){d=offset;best=cell;}
     }
     return best || {x:-1,y:position.y};
   }
@@ -1866,7 +1951,7 @@ window.Art = (() => {
         const cell=queue[i];if(cell.x===target.x&&cell.y===target.y){reached=cell;break;}
         for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
           const next={x:cell.x+dx,y:cell.y+dy}, id=next.x+','+next.y;
-          if(next.x< -1||next.y< -1||next.x>bounds.width||next.y>bounds.height||previous.has(id)||firstWall(cell,next,walls))continue;
+          if(next.x< -1||next.y< -1||next.x>bounds.width||next.y>bounds.height||previous.has(id)||(bounds.blockedAt?bounds.blockedAt(next.x,next.y):firstWall(cell,next,walls)))continue;
           previous.set(id,cell);queue.push(next);
         }
       }
@@ -1877,15 +1962,18 @@ window.Art = (() => {
     return unit.path[0];
   }
   function advance(unit,goal,speed,dt,range,walls,friendly,revision,bounds) {
-    const barrier=clearsWalls(unit)?null:firstWall(unit,goal,walls);
-    if(!barrier){unit.pathKey=null;walk(unit,goal,speed,dt,range);return distance(unit,goal)<=range+.021?goal:null;}
+    const approach=contactPoint(goal,unit),barrier=clearsWalls(unit)?null:firstWall(unit,approach,walls);
+    if(!barrier||bounds.blockedAt&&barrier.wall===goal){
+      unit.pathKey=null;walk(unit,approach,speed,dt,range);
+      return distance(unit,goal)<=range+.021?goal:null;
+    }
     if(friendly){
-      const next=friendlyRoute(unit,goal,walls,revision,bounds);
+      const next=friendlyRoute(unit,approach,walls,revision,bounds);
       if(next&&!firstWall(unit,next,walls))walk(unit,next,speed,dt);
       return null;
     }
-    const length=distance(unit,goal),remaining=Math.max(0,length*barrier.entry-.32);
-    walk(unit,goal,speed,dt,length-remaining);
+    const length=distance(unit,approach),remaining=Math.max(0,length*barrier.entry-.32);
+    walk(unit,approach,speed,dt,length-remaining);
     return remaining<=.03?barrier.wall:null;
   }
   function edgePosition(x,y,lastX,lastY) {
@@ -1900,10 +1988,12 @@ window.Art = (() => {
     return {...d,...stats,level,maxHp:stats.hp,kind:'dragon',cd:0.25+i*0.13,speed:1.55,range:1.48,
       side:'ally',joined:false,air:0,strikes:0,shield:0,mark:0,inspired:0};
   }
-  function makeBuilding(b,i,scale=1) {
+  function makeBuilding(b,i,scale=1,version=1) {
     const level=Number(b.level)||1, hp=Math.ceil((health[b.type]||30)*(0.76+level*0.24)*scale);
     const element=elementalBuildings[b.type];
-    return {...b,id:b.id??('tower-'+i),level,maxHp:hp,hp,elements:element==null?[]:[element],
+    const span=version===2?window.OplotLayout.size(b.type):1,half=(span-1)/2;
+    return {...b,id:b.id??('tower-'+i),span,half,anchorX:b.x,anchorY:b.y,x:b.x+half,y:b.y+half,
+      level,maxHp:hp,hp,elements:element==null?[]:[element],
       kind:'building',cd:0.6+(i%3)*0.26,spent:false};
   }
   // Campaign and boss forts keep their authored ten-by-ten layouts.
@@ -1959,14 +2049,18 @@ window.Art = (() => {
   function start(mode,stage,state,squad,events={}) {
     stage=Math.max(1,Math.floor(Number(stage)||1));
     const defense=mode==='defense', arena=mode==='arena', boss=mode==='boss';
+    const layoutVersion=defense&&state.layoutVersion===2?2:1,fieldScale=layoutVersion===2?2:1;
     const ownedGrid=defense&&typeof islandGrid==='function'?islandGrid(state):{};
-    const gridWidth=defense?clamp(Math.floor(state.gridWidth||ownedGrid.width||state.gridSize)||10,10,16):10;
-    const gridHeight=defense?clamp(Math.floor(state.gridHeight||ownedGrid.height||state.gridSize)||10,10,16):10;
+    const minSide=layoutVersion===2?window.OplotLayout.gridAtLevel(1).width:10;
+    const maxSide=layoutVersion===2?window.OplotLayout.gridAtLevel(100).width:16;
+    const gridWidth=defense?clamp(Math.floor(state.gridWidth||state.gridSize||ownedGrid.width)||minSide,minSide,maxSide):10;
+    const gridHeight=defense?clamp(Math.floor(state.gridHeight||ownedGrid.height||state.gridSize)||minSide,minSide,maxSide):10;
     const gridSize=Math.max(gridWidth,gridHeight),lastX=gridWidth-1,lastY=gridHeight-1;
     const bounds={width:gridWidth,height:gridHeight};
     const entrances=[{x:0,y:Math.floor(lastY/2)},{x:Math.floor(lastX/2),y:0},{x:lastX,y:Math.ceil(lastY/2)},{x:Math.ceil(lastX/2),y:lastY}];
     const party=(squad||[]).slice(0,arena?3:4).map(makeDragon);
-    const structures=arena?[]:defense?(state.buildings||[]).map((b,i)=>makeBuilding(b,i)):fortress(stage,boss);
+    const structures=arena?[]:defense?(state.buildings||[]).filter(b=>!b.stowed&&Number.isFinite(b.x)&&Number.isFinite(b.y))
+      .map((b,i)=>makeBuilding(b,i,1,layoutVersion)):fortress(stage,boss);
     const keep=structures.find(b=>b.type==='keep');
     const enemy=[],sparks=[],zones=[],rubble=[];
     const lowMotion=!!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -1989,13 +2083,14 @@ window.Art = (() => {
     function launch(a,b,kind){
       const ultimate=kind==='ultimate';
       const max=lowMotion?.22:ultimate?1.03:kind==='cannon'?.62:kind.endsWith('trap')?.69:.48;
-      const direction=arena?b.x-a.x:(b.x-b.y)-(a.x-a.y),facing=direction===0?(a.flip?-1:1):Math.sign(direction);
-      const effect={kind:'attack',attack:{kind,species:a.species,specialty:a.ability?.specialty||''},x:a.x,y:a.y,tx:b.x,ty:b.y,
+      const contact=contactPoint(b,a);
+      const direction=arena?contact.x-a.x:(contact.x-contact.y)-(a.x-a.y),facing=direction===0?(a.flip?-1:1):Math.sign(direction);
+      const effect={kind:'attack',attack:{kind,species:a.species,specialty:a.ability?.specialty||''},x:a.x,y:a.y,tx:contact.x,ty:contact.y,
         source:a,target:b,sourceAir:a.air>0,targetAir:b.air>0,facing,t:0,max};
       sparks.push(effect);
       if(a.ability){a.motion=effect;a.flip=facing<0;}
       if(towerType[a.type]){
-        a.weaponAim={x:b.x,y:b.y,phase:0,previous:a.weaponAim?{x:a.weaponAim.x,y:a.weaponAim.y}:null};
+        a.weaponAim={x:b.x,y:b.y,lift:(b.kind==='goblin'?.24:.53+(b.air>0?.72:0))*fieldScale,phase:0,previous:a.weaponAim?{x:a.weaponAim.x,y:a.weaponAim.y}:null};
         a.shot=effect;
       }
       return time+max*(kind.endsWith('trap')?.12:.55);
@@ -2005,7 +2100,7 @@ window.Art = (() => {
       return e&&e.t<e.max?{phase:e.t/e.max,ultimate:e.attack.kind==='ultimate',reduced:lowMotion}:null;
     }
     const kill=(target,at=time)=>{
-      if(target.type==='wall')wallRevision++;
+      if(target.type==='wall'||layoutVersion===2&&target.kind==='building')wallRevision++;
       if(target.kind==='building') {rubble.push(target);impact(target,target,'#ddba83','nova','',at);}
       if(target===focus) focus=null;
       dirty=true;
@@ -2030,14 +2125,14 @@ window.Art = (() => {
     }
     function canReach(actor,target){
       if(arena||clearsWalls(actor))return true;
-      const blocker=firstWall(actor,target,walls);
+      const blocker=firstWall(actor,contactPoint(target,actor),walls);
       return !blocker||blocker.wall===target;
     }
     function specializedStrike(actor,primary,enemies,at){
       const spell=actor.ability;
       if(spell.specialty==='focus'&&canReach(actor,primary))return hit(actor,primary,spell.focusDamage,color(actor),null,actor,at);
       if(spell.specialty!=='area')return 0;
-      const adjacent=enemies.filter(other=>other!==primary&&alive(other)&&canReach(actor,other)&&distance(other,primary)<=spell.splashRadius)
+      const adjacent=enemies.filter(other=>other!==primary&&alive(other)&&canReach(actor,other)&&distance(other,primary)<=spell.splashRadius*fieldScale)
         .sort((left,right)=>distance(left,primary)-distance(right,primary)).slice(0,2);
       for(const other of adjacent){
         hit(actor,other,spell.splashDamage,color(actor),null,actor,at);
@@ -2048,9 +2143,9 @@ window.Art = (() => {
     function unleash(actor,primary,enemies,friends,at) {
       const spell=actor.ability;
       const visible=d=>alive(d)&&canReach(actor,d);
-      const nextTarget=()=>visible(primary)?primary:nearest(primary,enemies,d=>visible(d)&&distance(primary,d)<=2.65);
+      const nextTarget=()=>visible(primary)?primary:nearest(primary,enemies,d=>visible(d)&&distance(primary,d)<=2.65*fieldScale);
       const liveFriends=friends.filter(d=>alive(d)&&d.joined);
-      const extraTarget=()=>nearest(primary,enemies,d=>d!==primary&&visible(d)&&(arena||distance(primary,d)<=2.65))||nextTarget();
+      const extraTarget=()=>nearest(primary,enemies,d=>d!==primary&&visible(d)&&(arena||distance(primary,d)<=2.65*fieldScale))||nextTarget();
       function elementalHit(target,element){
         if(!target)return;
         hit(actor,target,spell.extra,colors[element],null,actor,at);
@@ -2088,6 +2183,14 @@ window.Art = (() => {
     const gain=v=>{const old=fury;fury=Math.min(100,fury+v);if(old<100&&fury===100)dirty=true;};
     const objectives=structures.filter(b=>!['wall','firetrap','icetrap'].includes(b.type));
     const walls=structures.filter(b=>b.type==='wall');
+    // Ground guards route around occupied foundations. Invaders can breach a structure
+    // which blocks their route to the keep. Runes have no collision until they spring.
+    const solids=layoutVersion===2?structures.filter(b=>b.type!=='firetrap'&&b.type!=='icetrap'):walls;
+    if(layoutVersion===2){
+      const occupied=new Map();
+      for(const b of solids)for(let x=b.anchorX;x<b.anchorX+b.span;x++)for(let y=b.anchorY;y<b.anchorY+b.span;y++)occupied.set(x+','+y,b);
+      bounds.blockedAt=(x,y)=>(occupied.get(x+','+y)?.hp||0)>0;
+    }
     const destroyed=()=>objectives.reduce((n,u)=>n+(!alive(u)?1:0),0);
     const raidStars=()=>{
       const half=destroyed()>=Math.ceil(objectives.length/2), fallen=keep&&!alive(keep);
@@ -2105,8 +2208,9 @@ window.Art = (() => {
     if(defense){
       const anchor=keep||{x:lastX*.5,y:lastY*.5};
       party.forEach((u,i)=>{
-        const position={x:clamp(anchor.x+Math.cos(i*Math.PI/2)*1.4,0,lastX),y:clamp(anchor.y+Math.sin(i*Math.PI/2)*1.4,0,lastY)};
-        Object.assign(u,clearsWalls(u)?position:clearPosition(position,walls,bounds),{joined:true});
+        const radius=(anchor.half||0)+1.4*fieldScale;
+        const position={x:clamp(anchor.x+Math.cos(i*Math.PI/2)*radius,0,lastX),y:clamp(anchor.y+Math.sin(i*Math.PI/2)*radius,0,lastY)};
+        Object.assign(u,clearsWalls(u)?position:clearPosition(position,solids,bounds),{joined:true});
       });
     }
     if(boss){
@@ -2137,17 +2241,18 @@ window.Art = (() => {
     function issueOrder(p) {
       const units=defense?enemy:structures.concat(enemy);
       const target=nearest(p,units);
-      const reach=defense?1.4:1.07;
+      const reach=defense?1.4*fieldScale:1.07;
       if(target&&distance(p,target)<reach) {
         focus=target;rally=null;tell('Цель отряда — '+(target.kind==='building'?buildingNames[target.type]:target.kind==='guardian'?'Хранитель':target.kind==='goblin'?'гоблин':name(target))+(target.elements?.length?' · '+elementName(target):'')+'.');
       }else{
-        focus=null;rally={x:clamp(p.x,0,lastX),y:clamp(p.y,0,lastY),life:2.4};tell('Отряд направляется к метке.');
+        const goal={x:clamp(p.x,0,lastX),y:clamp(p.y,0,lastY)};
+        focus=null;rally={...(layoutVersion===2?clearPosition(goal,solids,bounds):goal),life:2.4};tell('Отряд направляется к метке.');
       }
       fxSound('click');
     }
     function spawn() {
       const side=(Math.floor((spawned+stage-1)/2))%4;
-      const edge=entrances[side], drift=((spawned*3+stage)%5-2)*.48;
+      const edge=entrances[side], drift=((spawned*3+stage)%5-2)*.48*fieldScale;
       const flying=spawned%4===3;
       let u;
       if(flying){
@@ -2177,7 +2282,7 @@ window.Art = (() => {
         const front=nearest(target,casters),barrier=firstWall(front,target,walls);
         if(barrier)centre=barrier.wall;
       }
-      const affected=targets.filter(u=>distance(centre,u)<=2.20);
+      const affected=targets.filter(u=>distance(centre,u)<=2.20*fieldScale);
       const deliveries=affected.map(u=>{
         const visible=casters.filter(d=>{if(clearsWalls(d))return true;const b=firstWall(d,u,walls);return !b||b.wall===u;});
         const amount=visible.length?Math.round(12*visible.length/casters.length)+visible.reduce((v,d)=>v+d.ability.furyPower,0):0;
@@ -2200,13 +2305,13 @@ window.Art = (() => {
       for(const u of party) {
         if(!u.joined||!alive(u))continue;
         u.air=Math.max(0,u.air-dt);u.cd-=dt;
-        const moving=rally&&distance(u,rally)>.52;
+        const moving=rally&&distance(u,rally)>.52*fieldScale;
         const objective=moving?rally:focus&&alive(focus)?focus:nearest(u,enemies,d=>alive(d)&&d.type!=='wall');
         if(!objective)continue;
-        const target=advance(u,objective,u.speed*(moving?1.7:1),dt,moving?.35:u.range,walls,defense,wallRevision,bounds);
+        const target=advance(u,objective,u.speed*fieldScale*(moving?1.7:1),dt,(moving?.35:u.range)*fieldScale,solids,defense,wallRevision,bounds);
         if(!target||(moving&&target===rally)||u.cd>0)continue;
         u.cd=1.05;
-        const boost=defense&&structures.some(s=>s.type==='spire'&&alive(s)&&distance(s,u)<3.25);
+        const boost=defense&&structures.some(s=>s.type==='spire'&&alive(s)&&distance(s,u)<3.25*fieldScale);
         dragonStrike(u,target,enemies,party,boost?1.3:1);gain(6);
       }
     }
@@ -2215,12 +2320,12 @@ window.Art = (() => {
       for(const s of structures) {
         const cfg=towerType[s.type];if(!cfg||!alive(s))continue;
         s.cd-=dt;if(s.cd>0)continue;
-        const target=nearest(s,list);if(!target||distance(s,target)>cfg.range)continue;
+        const target=nearest(s,list);if(!target||distance(s,target)>cfg.range*fieldScale)continue;
         const at=launch(s,target,s.type);
         s.cd=cfg.delay;hit(s,target,cfg.damage*(1+0.22*(s.level-1))*(s.attackScale||1),cfg.color,null,s,at);
         if(s.type==='cannon'){
           for(const nearby of list){
-            if(nearby!==target&&alive(nearby)&&distance(target,nearby)<1.05)hit(s,nearby,cfg.damage*.45*(1+0.22*(s.level-1))*(s.attackScale||1),cfg.color,null,target,at);
+            if(nearby!==target&&alive(nearby)&&distance(target,nearby)<1.05*fieldScale)hit(s,nearby,cfg.damage*.45*(1+0.22*(s.level-1))*(s.attackScale||1),cfg.color,null,target,at);
           }
         }
         if(defense)gain(s.type==='cannon'?5:3);
@@ -2235,14 +2340,14 @@ window.Art = (() => {
         u.cd-=dt;u.slow=Math.max(0,u.slow-dt);
         const defenders=party.filter(d=>d.joined&&alive(d)&&d.air<=0);
         const dragon=u.kind==='shadow'?nearest(u,defenders):null;
-        const objective=dragon&&distance(u,dragon)<1.6?dragon:keep;
-        const target=advance(u,objective,u.speed*(u.slow>0?.36:1),dt,.70,walls,false,wallRevision,bounds);
+        const objective=dragon&&distance(u,dragon)<1.6*fieldScale?dragon:keep;
+        const target=advance(u,objective,u.speed*fieldScale*(u.slow>0?.36:1),dt,.70*fieldScale,solids,false,wallRevision,bounds);
         for(const trap of structures) {
-          if(trap.spent||!alive(trap)||!['firetrap','icetrap'].includes(trap.type)||distance(trap,u)>1.1)continue;
+          if(trap.spent||!alive(trap)||!['firetrap','icetrap'].includes(trap.type)||distance(trap,u)>1.1*fieldScale)continue;
           trap.spent=true;trap.hp=0;
           const ice=trap.type==='icetrap',ink=ice?'#91d7ee':'#f5a06b';
           const at=launch(trap,trap,trap.type);
-          for(const near of enemy.filter(e=>alive(e)&&distance(trap,e)<=2.0)){
+          for(const near of enemy.filter(e=>alive(e)&&distance(trap,e)<=2.0*fieldScale)){
             if(ice)near.slow=4+trap.level*.5;
             hit(trap,near,(ice?4:21)*trap.level,ink,null,trap,at);
           }
@@ -2335,7 +2440,7 @@ window.Art = (() => {
           const phase=e.t/e.max;
           if(phase<.18){e.x=e.source.x;e.y=e.source.y;e.sourceAir=e.source.air>0;}
           // Follow moving targets in flight, then leave the impact at its landing point.
-          if(phase<.55){e.tx=e.target.x;e.ty=e.target.y;e.targetAir=e.target.air>0;}
+          if(phase<.55){const p=contactPoint(e.target,e.source);e.tx=p.x;e.ty=p.y;e.targetAir=e.target.air>0;}
         }else if(e.anchor&&e.t<0){e.tx=e.anchor.x;e.ty=e.anchor.y;}
         if((e.t+=dt)>=e.max){
           if(e.source?.motion===e)e.source.motion=null;
@@ -2421,7 +2526,7 @@ window.Art = (() => {
       }else if(p.x>=-.5&&p.x<=lastX+.5&&p.y>=-.5&&p.y<=lastY+.5)issueOrder(p);
       else if(defense){
         const outside=nearest(p,enemy);
-        if(outside&&distance(p,outside)<.75)issueOrder(outside);
+        if(outside&&distance(p,outside)<.75*fieldScale)issueOrder(outside);
       }
       if(dirty)pending();
     }
@@ -2494,7 +2599,7 @@ window.Art = (() => {
           const height=(u,air)=>u.kind==='building'?.31:u.kind==='guardian'?1.26:u.kind==='goblin'?.24:.53+(air?.72:0);
           const to={x:q.x,y:q.y-unit*(arena?.18:height(b,e.targetAir))};
           let from={x:p.x,y:p.y-unit*(arena?.38:height(a,e.sourceAir))};
-          if(towerType[e.attack.kind])from=Art.towerMuzzle(e.attack.kind,p,to,w,h,gridSize);
+          if(towerType[e.attack.kind])from=Art.towerMuzzle(e.attack.kind,p,to,w,h,gridSize,a.span||1);
           else if(e.attack.kind.endsWith('trap'))from={x:p.x,y:p.y};
           else if(a.ability){
             const offset=arena?.77:a.kind==='guardian'?1:.44;
@@ -2522,15 +2627,33 @@ window.Art = (() => {
       }
       ctx.restore();
     }
+    const fieldUnits=()=>party.filter(u=>u.joined&&displayed(u)).concat(enemy.filter(displayed));
+    function paintFighter(ctx,u,p,unit,t){
+        const large=u.kind==='guardian', foe=u.side==='enemy';
+        const size=unit*(large?2.75:u.kind==='goblin'?.87:1.22);
+        const off=u.kind==='goblin'?.20:.32;
+        const lift=(u.air>0?.72:.0)*unit;
+        if(large||u.air>0)ring(ctx,p,unit*(large?.75:.40),large?'#a96977':'#e8edc4',t);
+        if(u.kind==='goblin')goblin(ctx,p.x,p.y-size*off,size,t+u.maxHp*.03,u.flip);
+        else{
+          ctx.save();if(u.kind==='shadow')ctx.globalAlpha=.9;
+          Art.dragon(ctx,p.x,p.y-size*off-lift,size,u.species,u.visualLevel||u.level,t+u.maxHp*.03,!!u.flip,poseFor(u));ctx.restore();
+        }
+        if(!large)bar(ctx,p.x-size*.25,p.y+size*.11-lift*.3,size*.5,4,displayedRatio(u),foe?'#d17e6d':'#6bc1a0');
+        if(u.shield>0)ring(ctx,p,unit*.53,'#ebc87d',t);
+        if(u.mark>0)ring(ctx,p,unit*.40,'#88a660',t);
+        if(u.inspired>0)label(ctx,'✦',p.x+size*.2,p.y-size*.58-lift,12,'#ffe8a2');
+        if(u.slow>0)ring(ctx,p,unit*.33,'#81daee',t);
+    }
     function paintField(ctx,w,h,t) {
       const point=(x,y)=>Art.point(x,y,w,h,gridSize);
-      const unit=Art.unit(w,h,gridSize);
+      const unit=Art.unit(w,h,gridSize)*fieldScale;
       if(!defense&&reserve<party.length)paintEdges(ctx,w,h,t,unit);
       if(defense&&spawned<waveSize){
         const edge=entrances[Math.floor((spawned+stage-1)/2)%4],p=point(edge.x,edge.y);
         ring(ctx,p,unit*.56,'#b06a66',t);label(ctx,'↓',p.x,p.y-unit*.38,clamp(unit*.54,12,19),'#ffd1af');
       }
-      for(const b of rubble.filter(x=>!displayed(x))){
+      for(const b of layoutVersion===2?[]:rubble.filter(x=>!displayed(x))){
         const p=point(b.x,b.y);ctx.fillStyle='#99866a';ctx.beginPath();
         ctx.ellipse(p.x,p.y,unit*.32,unit*.12,.22,0,Math.PI*2);ctx.fill();
         for(let i=0;i<5;i++){
@@ -2550,25 +2673,12 @@ window.Art = (() => {
       if(rally)ring(ctx,point(rally.x,rally.y),unit*.48,'#f0de91',t);
       if(focus&&alive(focus))ring(ctx,point(focus.x,focus.y),unit*.71,'#d57862',t);
       for(const b of structures.filter(s=>displayed(s)&&displayHp(s)<s.maxHp)){
-        const p=point(b.x,b.y);bar(ctx,p.x-unit*.29,p.y+unit*.13,unit*.58,4,displayedRatio(b),defense?'#68ba9e':'#d58274');
+        const p=point(b.x,b.y),micro=unit/fieldScale,width=layoutVersion===2?Math.max(unit*.58,micro*b.span*.46):unit*.58;
+        bar(ctx,p.x-width/2,p.y+unit*.13+micro*(b.span-1)*.29,width,4,displayedRatio(b),defense?'#68ba9e':'#d58274');
       }
-      const units=party.filter(u=>u.joined&&displayed(u)).concat(enemy.filter(displayed)).sort((a,b)=>a.x+a.y-b.x-b.y);
-      for(const u of units){
-        const p=point(u.x,u.y),large=u.kind==='guardian', foe=u.side==='enemy';
-        const size=unit*(large?2.75:u.kind==='goblin'?.87:1.22);
-        const off=u.kind==='goblin'?.20:.32;
-        const lift=(u.air>0?.72:.0)*unit;
-        if(large||u.air>0)ring(ctx,p,unit*(large?.75:.40),large?'#a96977':'#e8edc4',t);
-        if(u.kind==='goblin')goblin(ctx,p.x,p.y-size*off,size,t+u.maxHp*.03,u.flip);
-        else{
-          ctx.save();if(u.kind==='shadow')ctx.globalAlpha=.9;
-          Art.dragon(ctx,p.x,p.y-size*off-lift,size,u.species,u.visualLevel||u.level,t+u.maxHp*.03,!!u.flip,poseFor(u));ctx.restore();
-        }
-        if(!large)bar(ctx,p.x-size*.25,p.y+size*.11-lift*.3,size*.5,4,displayedRatio(u),foe?'#d17e6d':'#6bc1a0');
-        if(u.shield>0)ring(ctx,p,unit*.53,'#ebc87d',t);
-        if(u.mark>0)ring(ctx,p,unit*.40,'#88a660',t);
-        if(u.inspired>0)label(ctx,'✦',p.x+size*.2,p.y-size*.58-lift,12,'#ffe8a2');
-        if(u.slow>0)ring(ctx,p,unit*.33,'#81daee',t);
+      if(layoutVersion!==2){
+        const units=fieldUnits().sort((a,b)=>a.x+a.y-b.x-b.y);
+        for(const u of units)paintFighter(ctx,u,point(u.x,u.y),unit,t);
       }
       drawEffects(ctx,point,unit,w,h);
     }
@@ -2577,7 +2687,12 @@ window.Art = (() => {
       t=Number.isFinite(t)?t:time;
       ctx.save();
       if(stress>0&&!lowMotion){ctx.translate(Math.sin(t*84)*stress*8,Math.cos(t*72)*stress*5);}
-      Art.island(ctx,w,h,t,{buildings:structures.filter(displayed),dragons:[],gridSize,gridWidth,gridHeight,grid:false,theme:mode,mode,hover:null});
+      const visible=structures.filter(displayed);
+      const placed=layoutVersion===2?visible.map(b=>({type:b.type,id:b.id,x:b.anchorX,y:b.anchorY,span:b.span,level:b.level,fill:b.fill,weaponAim:b.weaponAim})):visible;
+      const fighterSize=layoutVersion===2?Art.unit(w,h,gridSize)*fieldScale:0;
+      const figures=layoutVersion===2?fieldUnits().map(u=>({x:u.x,y:u.y,above:clearsWalls(u),draw:(c,p)=>paintFighter(c,u,p,fighterSize,t)})):[];
+      const ruins=layoutVersion===2?rubble.filter(b=>!displayed(b)).map(b=>({type:b.type,x:b.anchorX,y:b.anchorY,span:b.span})):[];
+      Art.island(ctx,w,h,t,{buildings:placed,dragons:[],figures,ruins,layoutVersion,gridSize,gridWidth,gridHeight,grid:false,theme:mode,mode,hover:null});
       if(arena){
         paintArena(ctx,w,h,t);
         drawEffects(ctx,(x,y)=>formation({y,side:x===0?'ally':'enemy'},w,h),Math.min(w,h)*.095,w,h);
@@ -2661,14 +2776,14 @@ function validIslandState(s){
  const species=n=>integer(n,0,GAME_SPECIES.length-1);
  const dictionary=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
  const unique=(items,fn)=>new Set(items.map(fn)).size===items.length;
- if(!dictionary(s)||(s.xp!==undefined&&!integer(s.xp)))return false;
- const {width,height}=islandGrid(s);
+ if(!dictionary(s)||(s.xp!==undefined&&!integer(s.xp))||
+   (s.layoutVersion!==undefined&&s.layoutVersion!==1&&s.layoutVersion!==2)||(s.layoutVersion===2&&!integer(s.xp)))return false;
  return s.version===1&&['gold','berries','waves','arenas','bosses'].every(k=>integer(s[k]))
   &&(s.incubationCredits===undefined||integer(s.incubationCredits))&&(s.lastRaid==null||dictionary(s.lastRaid)&&/^\d{4}-\d{2}-\d{2}$/.test(s.lastRaid.day))
   &&integer(s.quest,0,QUESTS.length)&&dictionary(s.settings)&&typeof s.settings.sound==='boolean'
-  &&Array.isArray(s.buildings)&&s.buildings.length<=width*height&&s.buildings.filter(b=>b?.type==='keep').length===1
-  &&s.buildings.every(b=>b&&id(b.id)&&Object.hasOwn(STRUCT,b.type)&&integer(b.x,0,width-1)&&integer(b.y,0,height-1)&&integer(b.level,1,9)&&integer(b.since))
-  &&unique(s.buildings,b=>b.id)&&unique(s.buildings,b=>b.x+width*b.y)
+  &&OplotLayout.valid(s.buildings,islandGrid(s),s.layoutVersion??1)
+  &&s.buildings.every(b=>id(b.id)&&integer(b.level,1,9)&&integer(b.since)&&
+    (!b.stowed||!Object.hasOwn(rates,b.type)||integer(b.pausedStock,0,b.level*90)))
   &&Array.isArray(s.dragons)&&s.dragons.length>0&&s.dragons.every(d=>d&&id(d.id)&&species(d.species)&&integer(d.level,1,30)&&(d.enchant===undefined||integer(d.enchant,0,5))&&(d.specialty===undefined||Object.hasOwn(ULTIMATE_PATHS,d.specialty)))&&unique(s.dragons,d=>d.id)
   &&Array.isArray(s.book)&&s.book.every(species)&&s.dragons.every(d=>s.book.includes(d.species))
   &&(s.egg===null||s.egg&&id(s.egg.id)&&species(s.egg.species)&&integer(s.egg.end))
@@ -2697,7 +2812,16 @@ function createIslandSync(host,key,game){
   hadLocal=!!record||valid(JSON.parse(localStorage.getItem(key)));
  }catch{localIssue=true;}
  if(!record)record={base:null,state:clone(game.get()),dirty:true,out:null,legacyIntent:game.get().pending||null};
- else game.set(clone(record.state),false);
+ else{
+  const upgraded=upgradeIsland(record.state);
+  if(upgraded!==record.state){
+   if(!record.dirty)record.layoutOnly=true;
+   record.state=upgraded;record.dirty=true;
+  }
+  // A journal can contain a previously sent CAS whose answer was lost. Leave
+  // its payload and UUID intact until the server confirms the original write.
+  game.set(clone(record.state),false);
+ }
  const status=document.createElement('button');status.type='button';status.id='island-cloud-status';status.className='linkbtn';status.setAttribute('aria-live','polite');
  const hostBox=document.querySelector('.header-inner')||document.querySelector('header')||document.body;hostBox.append(status);
  const modal=document.createElement('dialog');modal.id='island-cloud-dialog';modal.style.cssText='color:#243c36;background:#fbefcf;border:2px solid #ac8650;border-radius:16px;padding:20px;width:min(420px,90vw);max-height:78vh;overflow:auto';document.body.append(modal);
@@ -2713,7 +2837,10 @@ function createIslandSync(host,key,game){
  }
  function present(value){record.state=clone(value);game.set(clone(value),true);}
  function snapshot(){return {base:record.base,state:clone(record.state)};}
- function updateHead(doc){remote=doc;record.base=tag(doc);record.dirty=false;record.out=null;present(doc.state);persist();}
+ function updateHead(doc){
+  const upgraded=upgradeIsland(doc.state);
+  remote=doc;record.base=tag(doc);record.dirty=upgraded!==doc.state;record.layoutOnly=record.dirty;record.out=null;present(upgraded);persist();
+ }
  function walletHistory(s){return [s.purchaseCount??s.deliveries?.length??0,s.deliveries?.slice(-1)[0]||null];}
  function canUseLocal(){return (conflict?.state.lastRaid?.day??null)===(record.state.lastRaid?.day??null)&&!conflict?.state.pending&&!record.state.pending&&same(walletHistory(conflict.state),walletHistory(record.state));}
  function backupLink(state,label){
@@ -2744,15 +2871,17 @@ function createIslandSync(host,key,game){
   if(!conflict)return;
   try{archive(local?conflict:snapshot())}catch{report('Не удалось сохранить копию. Скачай её и освободи место.');return;}
   const current=conflict;conflict=null;dismiss();loaded=true;
-  if(local){record.base=tag(current);record.out=null;record.dirty=true;persist();}else updateHead(current);
+  if(local){record.base=tag(current);record.out=null;record.dirty=true;record.layoutOnly=false;persist();}else updateHead(current);
   schedule(0);
  }
  function clash(doc){conflict=doc;report('Две версии острова');details();}
  function validate(doc){if(doc!==null&&(!Number.isSafeInteger(doc.rev)||doc.rev<1||typeof doc.op!=='string'||!valid(doc.state))){const e=Error('Облачное сохранение содержит неизвестные данные. Сохранили текущую копию.');e.code='bad_island';throw e;}}
  function schedule(ms=260){clearTimeout(timer);timer=setTimeout(()=>pump(false),ms);}
- function changed(state){record.state=clone(state);record.dirty=true;const ok=persist();if(ok){report('Сохраняем остров…');schedule();}return ok;}
+ function changed(state){record.state=clone(state);record.dirty=true;record.layoutOnly=false;const ok=persist();if(ok){report('Сохраняем остров…');schedule();}return ok;}
  function acknowledge(doc){
-  remote=doc;record.base=tag(doc);record.out=null;record.dirty=!same(record.state,doc.state);persist();
+  remote=doc;record.base=tag(doc);record.out=null;record.dirty=!same(record.state,doc.state);
+  if(!record.dirty)record.layoutOnly=false;
+  persist();
  }
  function reconcile(doc){
   validate(doc);remote=doc;
@@ -2760,9 +2889,9 @@ function createIslandSync(host,key,game){
   if(matches(record.base,doc))return;
   if(!doc&&record.base){throw Error('Облачный остров недоступен');}
   if(!doc)return;
-  if(!record.dirty||!hadLocal||same(record.state,doc.state)){updateHead(doc);return;}
+  if(!record.dirty||record.layoutOnly||!hadLocal||same(record.state,upgradeIsland(doc.state))){updateHead(doc);return;}
   // A second device can finish the very purchase this copy was awaiting.
-  if(record.state.pending&&doc.state.deliveries?.includes(record.state.pending.op)&&(!record.out||same(record.out.state,record.state))){updateHead(doc);return;}
+  if(record.state.pending&&doc.state.deliveries?.includes(record.state.pending.op)&&(!record.out||same(upgradeIsland(record.out.state),record.state))){updateHead(doc);return;}
   clash(doc);
  }
  async function flush(){
@@ -2870,12 +2999,92 @@ const host=(()=>{try{return parent!==window&&parent.OplotHost?.identity()?parent
 const profile=host?.identity()||{id:'standalone',name:'Гость'};
 const key='phagi.oplot.v1.'+(host?'user.':'local.')+profile.id;
 function read(){
- try {const raw=JSON.parse(localStorage.getItem(key));if(validIslandState(raw))return raw}catch{}
+ try {const raw=JSON.parse(localStorage.getItem(key));if(validIslandState(raw)){
+   const upgraded=upgradeIsland(raw);
+   if(!host&&upgraded!==raw)try{localStorage.setItem(key,JSON.stringify(upgraded))}catch{}
+   return upgraded;
+ }}catch{}
  return initialState();
 }
 let s=upgradeIsland(read()), wallet=null, walletError='', busy=false;
 let storesOnMap=warehouseStocks(s);
 let panel='', current='', placement=null, cursor=null, battle=null, lastResult=null;
+let editor=null,editId=null,editDrag=null,editMessage='';
+const draftKey=key+'.layout-draft-v2';
+function layoutBuildings(){return editor?.buildings||s.buildings}
+const editBuilding=()=>editor?.buildings.find(b=>b.id===editId);
+function draftLocal(remove=false){
+ try{if(remove||!editor?.dirty)localStorage.removeItem(draftKey);else localStorage.setItem(draftKey,JSON.stringify(editor.serialize()))}catch{}
+}
+function openEditor(){
+ if(battle||islandSync?.locked())return;
+ if(editor){leaveEditor();return}
+ let previous=null;try{previous=JSON.parse(localStorage.getItem(draftKey))}catch{}
+ editor=OplotEditor.create(s.buildings,islandGrid(s),previous);
+ editId=editDrag=placement=cursor=null;editMessage=editor.dirty?'Открыт черновик расстановки.':'';
+ close();refreshIsland();world.focus({preventScroll:true});
+}
+function leaveEditor(discard=false){
+ draftLocal(discard);editor=editId=editDrag=cursor=null;editMessage='';refreshIsland();
+}
+function renderEditor(){
+ const box=$('#layout-editor');if(editor&&!editor.matches(s.buildings)){
+   editor=editId=editDrag=cursor=null;toast('Расстановка изменилась на другом устройстве. Открыта актуальная база.');
+ }
+ box.hidden=!editor;document.body.classList.toggle('arranging',!!editor);if(!editor)return;
+ const spare=editor.buildings.filter(b=>b.stowed),groups=new Map(),selected=editBuilding();
+ for(const b of spare){const groupKey=b.type+'-'+b.level;let group=groups.get(groupKey);
+   if(!group){group={item:b,n:0};groups.set(groupKey,group)}group.n++;if(b.id===editId)group.item=b;
+ }
+ $('#layout-count').textContent='На острове · '+(editor.buildings.length-spare.length)+'　В запасе · '+spare.length;
+ $('#layout-selection').textContent=editMessage||(selected?STRUCT[selected.type][0]+' · '+OplotLayout.size(selected.type)+'×'+OplotLayout.size(selected.type)+' · укажи место на поле.':
+   !editor.ready?'Начни с ратуши. Выбери её в запасе и коснись места на острове.':'Перетащи постройку или коснись её, а затем нового места.');
+ const shelf=$('#layout-stock'),previousScroll=shelf.scrollLeft;
+ const html=[...groups.values()].map(({item:b,n})=>'<button type="button" data-do="layoutreserve" data-id="'+escape(b.id)+'" aria-pressed="'+(b.id===editId)+'">'+buildingArt(b.type,b.level)+'<span><b>'+STRUCT[b.type][0]+'</b><small>ур. '+b.level+' · '+OplotLayout.size(b.type)+'×'+OplotLayout.size(b.type)+' · '+n+' шт.</small></span></button>').join('');
+ if(shelf.innerHTML!==html){shelf.innerHTML=html;shelf.scrollLeft=previousScroll;paintMini(shelf)}
+ box.querySelector('[data-do="layoutapply"]').disabled=!editor.ready;
+ box.querySelector('[data-do="layoutstash"]').disabled=!selected||!!selected.stowed;
+ box.querySelector('[data-do="layoutundo"]').disabled=!editor.canUndo;
+ box.querySelector('[data-do="layoutclear"]').disabled=!editor.buildings.some(b=>!b.stowed);
+}
+function changeDraft(action){
+ if(!editor)return;
+ editMessage='';if(action==='clear'){editor.clear();editId=null}
+ else if(action==='take'){editor.take(editId);editId=null}
+ else{editor.undo();editId=null}
+ editDrag=cursor=null;draftLocal();refreshIsland();
+}
+function draftSelect(id){
+ if(!editor)return;
+ editId=id;editMessage='';cursor=null;refreshIsland();
+}
+function centeredOrigin(cell,type,offset=null){
+ if(!cell)return null;
+ const side=OplotLayout.size(type),half=Math.floor((side-1)/2),g=islandGrid(s);
+ return {x:Math.max(0,Math.min(g.width-side,cell.x-(offset?.x??half))),y:Math.max(0,Math.min(g.height-side,cell.y-(offset?.y??half)))};
+}
+function draftDrop(cell,offset=null){
+ const b=editBuilding();if(!b)return;
+ const p=centeredOrigin(cell,b.type,offset),fromStock=b.stowed;
+ if(!p||!editor.put(b.id,p.x,p.y)){editMessage='Основание не помещается. Выбери свободный участок.';renderEditor();return}
+ const next=fromStock&&editor.buildings.find(other=>other.stowed&&other.type===b.type&&other.level===b.level);
+ editId=next?.id||null;cursor=null;editMessage=next?'Следующая секция или постройка уже выбрана.':'';
+ draftLocal();refreshIsland();
+}
+function applyEditor(){
+ if(!editor||!editor.ready||islandSync?.locked())return;
+ if(!editor.matches(s.buildings)){refreshIsland();return}
+ const before=s,stamp=Date.now(),positions=new Map(editor.buildings.map(b=>[b.id,b]));
+ const buildings=s.buildings.map(b=>{
+   const p=positions.get(b.id),item={...b,x:p.x,y:p.y};
+   if(p.stowed){item.stowed=true;if(rates[b.type]&&!b.stowed)item.pausedStock=stored(b,stamp)}
+   else {delete item.stowed;if(b.stowed&&rates[b.type])keepProduction(item,b.pausedStock||0,stamp);delete item.pausedStock}
+   return item;
+ });
+ if(!OplotLayout.valid(buildings,islandGrid(s),2))return toast('Проверь положение ратуши и занятые клетки.');
+ s={...s,buildings};if(!save()){s=before;islandSync?.changed(s);return toast('Не удалось сохранить расстановку. Черновик доступен на устройстве.')}
+ leaveEditor(true);toast('Расстановка сохранена.');
+}
 let saleOffer=null;
 let planned='raid', campaignStage=1, team=[], parentA='',parentB='', soundCtx;
 let W=0,H=0, lastFrame=0, lastSecond=0, flying=[], moment=0, hatchAt=0;
@@ -2962,7 +3171,7 @@ function forecast(a,b){
  const children=outcomes.map(item=>'<div class="offspring"><span>'+title(item.species)+'</span><b>'+percent(item.chance)+'</b></div>').join('');
  return '<section class="forecast" id="breed-forecast" aria-live="polite"><h3>Кто может вылупиться</h3>'+rows+'<details><summary>Виды и шансы</summary>'+children+'</details></section>';
 }
-function academyBuilding(){return s.buildings.find(b=>b.type==='academy')}
+function academyBuilding(){return s.buildings.find(b=>b.type==='academy'&&!b.stowed)}
 function specialtyName(d){return ULTIMATE_PATHS[d.specialty]||'Не выбрана'}
 function specialize(value){
  const [id,path]=value.split('|'),d=D(id);
@@ -3017,18 +3226,19 @@ function refreshXpPanel(level,grid){
 }
 function refreshIsland(){
  storesOnMap=warehouseStocks(s);
+ renderEditor();
  refreshNightBanner();renderWallPlan();
  drawOverview();
  counters();tabsHTML();document.body.classList.toggle('battle',!!battle);
  if(battle){$('#maptools').innerHTML='';$('#mapaction').innerHTML='';$('#mapnote').textContent='';$('#caption').textContent='';combatControls();return}
- $('#maptools').innerHTML=btn(placement?'cancelplace':'edit',wallPlan()?(placement.corners.length?'Отменить':'Готово'):placement?'Отмена':'✥ Расстановка','','glass');
- const tower=buildingToPlace(),range=tower&&nightTowerReach(tower.type,tower.level);
+ $('#maptools').innerHTML=btn(placement?'cancelplace':'edit',editor?'К острову':wallPlan()?(placement.corners.length?'Отменить':'Готово'):placement?'Отмена':'✥ Расстановка','','glass');
+ const tower=buildingToPlace(),range=tower&&nightTowerReach(tower.type,tower.level,s.layoutVersion);
  if(range){
    const targets=tower.type==='cannon'?'только наземные цели':'земля и воздух';
    const cells=range===3||range===4?'клетки':'клеток';
    $('#mapnote').textContent='Выбери свободную клетку. Ночная зона огня — '+range+' '+cells+' · '+targets+'.';
  }else $('#mapnote').textContent=wallPlan()?'':placement?(placement.kind==='add'?'Строительство · выбери пустую клетку':placement.kind==='move'?'Перенос · выбери свободную клетку':'Выбери постройку для переноса'):'';
- $('#mapaction').innerHTML=placement?'':btn('tab','Строить','build','cmd wide-build')+btn('collectall','Собрать всё','','cmd gold');
+ $('#mapaction').innerHTML=placement||editor?'':btn('tab','Строить','build','cmd wide-build')+btn('collectall','Собрать всё','','cmd gold');
  const level=islandLevel(s),grid=islandGrid(s);
  refreshXpPanel(level,grid);
  $('#island-area').textContent='Уровень '+level+' · '+grid.width+' × '+grid.height+' клеток';
@@ -3070,7 +3280,8 @@ function wallCells(corners){
  return Array.from(route.values());
 }
 function quoteWalls(corners){
- const occupied=new Map(s.buildings.map(b=>[wallKey(b),b]));
+ const occupied=new Map();
+ for(const b of s.buildings)for(const cell of OplotLayout.cells(b))occupied.set(wallKey(cell),b);
  const grid=islandGrid(s),unit=priceOf('wall');
  const route=wallCells(corners),preview=[],fresh=[];
  let blocked=false;
@@ -3138,10 +3349,11 @@ function pop(x,y,txt,color='#ffdd75'){flying.push({x,y,txt,color,born:performanc
 function collect(list){
  const stamp=Date.now(),taken={gold:0,berries:0};let full=false;
  for(const b of list){
+  if(b.stowed)continue;
   const produced=stored(b,stamp);if(!produced)continue;
   const resource=b.type==='farm'?'berries':'gold',n=acceptStock(s,resource,produced);
   if(n<produced)full=true;
-  if(n){keepProduction(b,produced-n,stamp);taken[resource]+=n;pop(b.x,b.y,'+'+n+' '+symbols[resource],resource==='gold'?'#ffe199':'#ffd5dc')}
+  if(n){keepProduction(b,produced-n,stamp);taken[resource]+=n;const centre=OplotLayout.center(b);pop(centre.x,centre.y,'+'+n+' '+symbols[resource],resource==='gold'?'#ffe199':'#ffd5dc')}
  }
  if(taken.gold||taken.berries){mark('collect');sounds('collect');update()}
  const summary=[taken.gold?'+'+taken.gold+' золота':'',taken.berries?'+'+taken.berries+' ягод':''].filter(Boolean);
@@ -3150,23 +3362,32 @@ function collect(list){
 }
 function update(){save();refreshIsland();if(dlg.open&&panel)show(panel,current,true)}
 function buyStructure(t,x,y){
- if(!STRUCT[t]||!canAdd(t)||s.gold<priceOf(t)||!containsCell(islandGrid(s),x,y)||s.buildings.some(b=>b.x===x&&b.y===y)){placement=null;refreshIsland();toast('Эта постройка сейчас недоступна.');return}
+ if(!STRUCT[t]||!canAdd(t)||s.gold<priceOf(t)||!OplotLayout.fits(s.buildings,t,x,y,islandGrid(s))){toast('Для этой постройки нужен свободный участок.');return}
  s.gold-=priceOf(t);s.xp+=PROFILE_XP.build;s.buildings.push({id:uid(),type:t,x,y,level:1,since:Date.now()});if(t==='wall')mark('wall');
  placement=null;cursor=null;sounds('build');pop(x,y,'Построено','#fff3b5');update();
 }
 function useCell(cell,hit){
+ if(editor){
+   const b=cell&&OplotLayout.at(editor.buildings,cell.x,cell.y);
+   if(editId){
+     if(b?.id===editId){draftSelect(null);return}
+     draftDrop(cell);return;
+   }
+   if(b)draftSelect(b.id);return;
+ }
  const plan=wallPlan();
  if(plan){addWallCorner(plan,cell);renderWallPlan();return}
  if(placement){
-  if(placement.kind==='select'){const b=hit?.kind==='building'||hit?.kind==='bubble'?hit.item:s.buildings.find(b=>cell&&b.x===cell.x&&b.y===cell.y);if(!b)return toast('Выбери постройку на острове.');placement={kind:'move',id:b.id};cursor={x:b.x,y:b.y};refreshIsland();return}
   if(!cell||!containsCell(islandGrid(s),cell.x,cell.y))return toast('Выбери клетку внутри острова.');
-  if(s.buildings.some(b=>b.x===cell.x&&b.y===cell.y))return toast('Эта клетка уже занята.');
-  if(placement.kind==='add')return buyStructure(placement.type,cell.x,cell.y);
-  const b=B(placement.id);if(b){b.x=cell.x;b.y=cell.y}placement=null;cursor=null;sounds('build');update();return
+  const type=placement.type||B(placement.id)?.type;if(!type)return;
+  const p=centeredOrigin(cell,type);
+  if(!OplotLayout.fits(s.buildings,type,p.x,p.y,islandGrid(s),placement.id))return toast('Основание пересекает другую постройку.');
+  if(placement.kind==='add')return buyStructure(type,p.x,p.y);
+  const b=B(placement.id);if(b){b.x=p.x;b.y=p.y}placement=null;cursor=null;sounds('build');update();return
  }
  if(hit?.kind==='bubble')return collect([hit.item]);
  if(hit?.kind==='dragon')return show('pet',hit.item.id);
- const b=hit?.kind==='building'?hit.item:s.buildings.find(b=>cell&&b.x===cell.x&&b.y===cell.y);
+ const b=hit?.kind==='building'?hit.item:cell&&OplotLayout.at(s.buildings,cell.x,cell.y);
  if(b)show('structure',b.id);
 }
 function feed(id){
@@ -3174,11 +3395,11 @@ function feed(id){
  s.berries-=feedCost(d);d.level++;s.xp+=PROFILE_XP.feedBase+d.level;mark('feed');if(d.level>=5)mark('evolve');sounds(d.level===5||d.level===10?'hatch':'feed');
  update();toast(d.level===5||d.level===10?'Эволюция! '+title(d.species)+' · '+stageName(d.level):title(d.species)+' достиг уровня '+d.level);
 }
-function incubationSeconds(){const den=s.buildings.find(b=>b.type==='den');return Math.max(4,13-(den?.level||1))}
+function incubationSeconds(){const den=s.buildings.find(b=>b.type==='den'&&!b.stowed);return Math.max(4,13-(den?.level||1))}
 function eggChoice(){
  if(s.egg||s.dragons.length>=capacity(s))return toast('Освободи место, улучшив жилище.');
  const a=D(parentA),b=D(parentB);if(!a||!b||a===b)return toast('Выбери двух разных родителей.');
- if(!s.buildings.some(x=>x.type==='den'))return toast('Сначала построй логово скрещивания.');
+ if(!s.buildings.some(x=>x.type==='den'&&!x.stowed))return toast('Сначала построй логово скрещивания.');
  if(Math.min(a.level,b.level)<4)return toast('Каждому из родителей нужен 4-й уровень.');
  if(s.berries<15)return toast('Нужно 15 ягод.');
  s.berries-=15;s.egg={id:uid(),species:Genetics.roll(a,b),end:Date.now()+(s.incubationCredits?0:incubationSeconds()*1000)};if(s.incubationCredits)s.incubationCredits--;sounds('spell');update();
@@ -3250,7 +3471,7 @@ const views={
   if(s.egg){const left=secLeft();return ['Логово скрещивания','<canvas class="egg-art" data-egg="'+s.egg.species+'"></canvas><h3 id="egg-status">'+(left?'Скорлупа светится…':'Пора вылупляться!')+'</h3><p class="desc" id="egg-timer">'+(left?'До вылупления: '+left+' с':'Дракон уже стучит изнутри.')+'</p><div class="actions">'+btn('hatch','Вылупить дракона','','cmd',!!left||!!s.pending)+btn('purchase','Ускорить · 1 алмаз','incubate','cmd alt',!left||!wallet||wallet.balance<1||busy||!!s.pending)+'</div>']}
   if(!D(parentA))parentA=s.dragons.find(d=>d.id!==parentB)?.id||s.dragons[0]?.id;
   if(!D(parentB))parentB=s.dragons.find(d=>d.id!==parentA)?.id;
-  const a=D(parentA),b=D(parentB),hasDen=s.buildings.some(x=>x.type==='den');
+  const a=D(parentA),b=D(parentB),hasDen=s.buildings.some(x=>x.type==='den'&&!x.stowed);
   const parent=(d,id,label)=>'<div class="parent-card">'+(d?portrait(d):'')+'<label>'+label+'<select class="pick" id="'+id+'">'+s.dragons.map((v,i)=>'<option value="'+escape(v.id)+'"'+(v.id===d?.id?' selected':'')+'>'+GAME_SPECIES[v.species].shortName+' · ур. '+v.level+' · №'+(i+1)+'</option>').join('')+'</select></label>'+(d?seals(GAME_SPECIES[d.species]):'')+'</div>';
   const reasons=[];
   if(!hasDen)reasons.push('Построй логово скрещивания в мастерской.');
@@ -3284,8 +3505,8 @@ const views={
   const level=islandLevel(s),grid=islandGrid(s),next=gridAtLevel(level+1);
   const growth=next.width===grid.width&&next.height===grid.height?'Открыты все '+grid.width*grid.height+' клеток.':'На '+(level+1)+'-м уровне откроется ещё '+(next.width*next.height-grid.width*grid.height)+' клеток.';
   return ['Мастерская острова','<h3>Остров '+grid.width+' × '+grid.height+'</h3><p class="desc">'+growth+' До нового уровня профиля — '+num(xpAtLevel(level+1)-s.xp)+' опыта.</p><p class="desc">Выбери постройку, затем свободную клетку. Для переноса или улучшения коснись готовой постройки на карте.</p><div class="cards">'+Object.entries(STRUCT).filter(([t])=>t!=='keep').map(([t,[name,desc,price,min]])=>{
-   const allowed=canAdd(t),has=s.buildings.find(b=>b.type===t);
-   return '<article class="card">'+buildingArt(t)+'<h3>'+name+'</h3><p class="desc">'+desc+'</p>'+btn('construct',t==='academy'&&islandLevel(s)<7?'Профиль острова · ур. 7':lev()<min?'Цитадель ур. '+min:!allowed?'Лимит построек':t==='wall'?'Разметить · '+priceOf(t)+' зол. за секцию':priceOf(t)?'Построить · '+priceOf(t)+' зол.':'Разместить бесплатно',t,'cmd alt',!allowed||s.gold<priceOf(t))+(has?' '+btn('structure','На острове',has.id,'linkbtn'):'')+'</article>'}).join('')+'</div>'];
+   const allowed=canAdd(t),has=s.buildings.find(b=>b.type===t&&!b.stowed)||s.buildings.find(b=>b.type===t),side=OplotLayout.size(t);
+   return '<article class="card">'+buildingArt(t)+'<h3>'+name+'</h3><span class="tag">'+side+' × '+side+' клеток</span><p class="desc">'+desc+'</p>'+btn('construct',t==='academy'&&islandLevel(s)<7?'Профиль острова · ур. 7':lev()<min?'Цитадель ур. '+min:!allowed?'Лимит построек':t==='wall'?'Разметить · '+priceOf(t)+' зол. за секцию':priceOf(t)?'Построить · '+priceOf(t)+' зол.':'Разместить бесплатно',t,'cmd alt',!allowed||s.gold<priceOf(t))+(has?' '+btn('structure',has.stowed?'В запасе':'На острове',has.id,'linkbtn'):'')+'</article>'}).join('')+'</div>'];
  },
  structure(){
   const b=B(current);if(!b)return views.build();const data=STRUCT[b.type],n=stored(b),stock=storesOnMap.get(b.id);
@@ -3298,7 +3519,7 @@ const views={
    const resource=b.type==='goldstore'?'gold':'berries';
    detail='<p class="desc">В этом хранилище · <strong>'+num(stock.amount)+' из '+num(stock.capacity)+'</strong></p><progress class="store-meter '+b.type+'" aria-label="Заполненность хранилища" value="'+stock.amount+'" max="'+stock.capacity+'"></progress><p class="desc">Вместимость здания — '+num(stock.capacity)+'. '+(b.level<upLimit(b)?'После улучшения — '+num(storeSpace(b.type,b.level+1))+'. ':'')+'Всего на острове '+num(s[resource])+' из '+num(stockLimit(s,resource))+'.</p>';
   }
-  return [data[0],illustration+'<span class="kicker">Уровень '+b.level+' · клетка '+(b.x+1)+', '+(b.y+1)+'</span><p class="desc">'+data[1]+'</p>'+detail+'<div class="actions">'+btn('upgrade',b.level>=upLimit(b)?(b.type==='keep'?'Высший уровень':'Улучши цитадель'):'Улучшить · '+upCost(b)+' зол.',b.id,'cmd',b.level>=upLimit(b)||s.gold<upCost(b))+btn('move','Перенести',b.id,'cmd alt')+(n?btn('collect','Собрать '+n,b.id,'cmd gold'):'')+(b.type==='den'?btn('breed','Скрещивание'):b.type==='academy'?btn('academy','Зачаровать дракона'):'')+'</div>'];
+  return [data[0],illustration+'<span class="kicker">Уровень '+b.level+' · '+(b.stowed?'В запасе':'Клетка '+(b.x+1)+', '+(b.y+1))+' · '+OplotLayout.size(b.type)+'×'+OplotLayout.size(b.type)+'</span><p class="desc">'+data[1]+'</p>'+detail+'<div class="actions">'+btn('upgrade',b.level>=upLimit(b)?(b.type==='keep'?'Высший уровень':'Улучши цитадель'):'Улучшить · '+upCost(b)+' зол.',b.id,'cmd',b.level>=upLimit(b)||s.gold<upCost(b))+btn('move',b.stowed?'Поставить на остров':'Перенести',b.id,'cmd alt')+(n&&!b.stowed?btn('collect','Собрать '+n,b.id,'cmd gold'):'')+(b.type==='den'?btn('breed','Скрещивание'):b.type==='academy'?btn('academy','Зачаровать дракона'):'')+'</div>'];
  },
  battle(){
   readyTeam();const n=planned==='arena'?3:4;
@@ -3346,6 +3567,7 @@ async function purchase(item){
 }
 function refreshStudy(){syncWallet();if(islandSync)islandSync.pump(true)}
 function tab(v){
+ if(editor)leaveEditor();
  if(battle){if(v==='battle'){close();return}show('retreat');return}
  if(v==='island'){placement=null;close();refreshIsland();return}
  placement=null;refreshIsland();show(v);
@@ -3362,8 +3584,9 @@ const acts={
  construct:t=>{if(!STRUCT[t]||!canAdd(t)||s.gold<priceOf(t))return;placement=t==='wall'?newWallPlan():{kind:'add',type:t};cursor={x:4,y:4};close();refreshIsland();
   if(t==='wall'){world.focus({preventScroll:true});world.closest('.mapframe').scrollIntoView({block:'nearest'})}},
  confirmwalls:confirmWalls,wallundo:()=>{const plan=wallPlan();if(plan&&!plan.drag){plan.corners.pop();renderWallPlan()}},
- move:id=>{if(!B(id))return;placement={kind:'move',id};cursor={x:B(id).x,y:B(id).y};close();refreshIsland()},
- edit:()=>{placement={kind:'select'};cursor=null;refreshIsland()},cancelplace:()=>{placement=cursor=null;refreshIsland()},
+ move:id=>{const b=B(id);if(!b)return;if(b.stowed){openEditor();draftSelect(id);return}placement={kind:'move',id};const center=OplotLayout.center(b);cursor={x:Math.floor(center.x),y:Math.floor(center.y)};close();refreshIsland()},
+ edit:openEditor,cancelplace:()=>{placement=cursor=null;refreshIsland()},
+ layoutapply:applyEditor,layoutcancel:()=>leaveEditor(true),layoutclear:()=>changeDraft('clear'),layoutstash:()=>changeDraft('take'),layoutundo:()=>changeDraft('undo'),layoutreserve:draftSelect,
  upgrade:id=>{const b=B(id);if(!b||b.level>=upLimit(b)||s.gold<upCost(b))return;
    const now=Date.now(),n=stored(b,now);s.gold-=upCost(b);b.level++;s.xp+=PROFILE_XP.upgradePerLevel*b.level;keepProduction(b,n,now);if(b.type==='wall')mark('wall');sounds('build');update()},
  quest:()=>{const q=QUESTS[s.quest];if(!q||!s.marks[q[2]])return;if(!fitsStock(s,'gold',q[3])||!fitsStock(s,'berries',q[4]))return toast('Награда ждёт. Освободи место или расширь хранилища.');
@@ -3409,9 +3632,12 @@ function drawOverview(){
  c.fillStyle='#20534b';c.fillRect(0,0,mini.width,mini.height);
  c.beginPath();for(const [i,p] of [v.top,v.right,v.bottom,v.left].entries()){if(i)c.lineTo(px(p.x),py(p.y));else c.moveTo(px(p.x),py(p.y))}c.closePath();
  c.fillStyle='#83aa66';c.fill();c.strokeStyle='#c3cd8d';c.lineWidth=2;c.stroke();
- for(const b of s.buildings){
-   const p=Art.point(b.x,b.y,W,H,v.n),r=b.type==='wall'?1.4:b.type==='keep'?3.8:2.4;
-   c.fillStyle=b.type==='wall'?'#42614a':b.type==='keep'?'#ffe082':'#274c3e';c.fillRect(px(p.x)-r,py(p.y)-r,2*r,2*r);
+ for(const b of layoutBuildings()){
+   if(b.stowed)continue;
+   const n=OplotLayout.size(b.type),x=b.x-.5,y=b.y-.5;
+   c.beginPath();
+   [[x,y],[x+n,y],[x+n,y+n],[x,y+n]].forEach(([a,d],i)=>{const p=Art.point(a,d,W,H,v.n);if(i)c.lineTo(px(p.x),py(p.y));else c.moveTo(px(p.x),py(p.y))});
+   c.closePath();c.fillStyle=b.type==='wall'?'#42614a':b.type==='keep'?'#ffe082':'#274c3e';c.fill();
  }
  const a=unprojectView({x:0,y:0}),b=unprojectView({x:W,y:H});
  const x=Math.max(1,px(a.x)),y=Math.max(1,py(a.y)),width=Math.min(mini.width-1,px(b.x))-x,height=Math.min(mini.height-1,py(b.y))-y;
@@ -3490,15 +3716,16 @@ function mapCell(px,py){
  return cell&&containsCell(grid,cell.x,cell.y)?cell:null;
 }
 function buildingToPlace(){
- return placement?.kind==='move'?B(placement.id):placement?.kind==='add'?placement:null;
+ return editor?editBuilding():placement?.kind==='move'?B(placement.id):placement?.kind==='add'?placement:null;
 }
 function sampleMap(){
- const grid=islandGrid(s),tower=buildingToPlace(),reach=tower&&nightTowerReach(tower.type,tower.level);
- const location=cursor||(placement?.kind==='move'?tower:null);
- const preview=reach&&location&&containsCell(grid,location.x,location.y)?{x:location.x,y:location.y,reach}:null;
+ const grid=islandGrid(s),tower=buildingToPlace(),reach=tower&&nightTowerReach(tower.type,tower.level,s.layoutVersion);
+ const list=layoutBuildings(),location=tower&&(cursor?centeredOrigin(cursor,tower.type,editDrag?.moved?editDrag.offset:null):Number.isInteger(tower.x)?tower:null);
+ const ghost=location&&tower?{type:tower.type,id:tower.id,x:location.x,y:location.y,level:tower.level||1,valid:OplotLayout.fits(list,tower.type,location.x,location.y,grid,tower.id)}:null;
+ const preview=reach&&location&&containsCell(grid,location.x,location.y)?{x:location.x,y:location.y,span:s.layoutVersion===2?OplotLayout.size(tower.type):1,reach}:null;
  const walls=wallPlan();
- stateArt={gridSize:grid.width,gridWidth:grid.width,gridHeight:grid.height,buildings:s.buildings.map(b=>({...b,ready:stored(b)>=3,fill:storesOnMap.get(b.id)?.fill||0})),
-   dragons:s.dragons.slice(0,8),selected:placement?.id||null,grid:!!placement,hover:cursor,
+ stateArt={layoutVersion:s.layoutVersion,gridSize:grid.width,gridWidth:grid.width,gridHeight:grid.height,buildings:list.filter(b=>!b.stowed).map(b=>({...b,ready:!editor&&!placement&&stored(b)>=3,fill:storesOnMap.get(b.id)?.fill||0})),
+   dragons:editor?[]:s.dragons.slice(0,8),selected:editor?editId:placement?.id||null,grid:!!editor||!!placement,hover:ghost?null:cursor,placementPreview:ghost,
    wallPreview:walls?.preview,wallPreviewValid:walls?.valid,nightCoverage:preview,waves:!reduced};
 }
 function tap(px,py){
@@ -3518,10 +3745,15 @@ world.addEventListener('pointerdown',e=>{
  mapPointers.set(e.pointerId,{...pos,startX:pos.x,startY:pos.y});
  const plan=wallPlan();
  if(mapPointers.size>1){
-   mapGesture=true;if(plan?.drag){plan.drag=null;renderWallPlan()}
+   mapGesture=true;editDrag=null;if(plan?.drag){plan.drag=null;renderWallPlan()}
    world.setPointerCapture(e.pointerId);return;
  }
  world.setPointerCapture(e.pointerId);
+ if(editor){
+   const cell=worldCell(e),item=cell&&OplotLayout.at(editor.buildings,cell.x,cell.y);
+   if(item)editDrag={id:e.pointerId,item:item.id,offset:{x:cell.x-item.x,y:cell.y-item.y},moved:false};
+   return;
+ }
  if(!plan||plan.drag||!e.isPrimary)return;
  const cell=worldCell(e);if(!cell)return;
  world.focus({preventScroll:true});
@@ -3538,11 +3770,16 @@ world.addEventListener('pointermove',e=>{
      if(before>2&&after>2)setViewZoom(camera.zoom*after/before,{x:(next.x+other.x)/2,y:(next.y+other.y)/2},{x:(point.x+other.x)/2,y:(point.y+other.y)/2});
      Object.assign(point,next);return;
    }
+   if(editor&&editDrag?.id===e.pointerId&&(editDrag.moved||Math.hypot(next.x-point.startX,next.y-point.startY)>5)){
+     if(!editDrag.moved){editId=editDrag.item;editMessage='';editDrag.moved=true;renderEditor()}
+     cursor=worldCell(e);mapGesture=true;Object.assign(point,next);return;
+   }
    if(!wallPlan()&&(wide||camera.zoom>1)&&(mapGesture||Math.hypot(next.x-point.startX,next.y-point.startY)>5)){
      mapGesture=true;world.classList.add('panning');camera.x+=dx;camera.y+=dy;clampView();drawOverview();Object.assign(point,next);return;
    }
    Object.assign(point,next);
  }
+ if(editor){if(e.pointerType!=='touch'&&!mapGesture&&editId)cursor=worldCell(e);return}
  if(!placement)return;
  if(placement.kind==='walls'){
   const drag=placement.drag,cell=worldCell(e);
@@ -3553,6 +3790,7 @@ world.addEventListener('pointermove',e=>{
 });
 world.addEventListener('pointerup',e=>{
  mapPointers.delete(e.pointerId);if(!mapPointers.size)world.classList.remove('panning');
+ if(editDrag?.id===e.pointerId){const drag=editDrag;editDrag=null;if(drag.moved){mapGesture=true;draftDrop(worldCell(e),drag.offset)}}
  const plan=wallPlan(),drag=plan?.drag;
  if(!drag||drag.id!==e.pointerId)return;
  const cell=worldCell(e);
@@ -3561,6 +3799,7 @@ world.addEventListener('pointerup',e=>{
  plan.drag=null;renderWallPlan();
 });
 function cancelWallGesture(e){
+ if(editDrag?.id===e.pointerId)editDrag=null;
  mapPointers.delete(e.pointerId);if(!mapPointers.size)world.classList.remove('panning');
  const plan=wallPlan();
  if(plan?.drag?.id===e.pointerId){plan.drag=null;renderWallPlan()}
@@ -3572,7 +3811,7 @@ world.addEventListener('click',e=>{
  const r=world.getBoundingClientRect();tap(e.clientX-r.left,e.clientY-r.top);
 });
 world.addEventListener('keydown',e=>{
- if(battle)return;if(e.key==='Escape'){if(!wide)acts.cancelplace();return}
+ if(battle)return;if(e.key==='Escape'){if(!wide){if(editor){if(editId)draftSelect(null);else leaveEditor()}else acts.cancelplace()}return}
  if(['+','=','-','0'].includes(e.key)){e.preventDefault();changeZoom(e.key==='0'?'fit':e.key==='-'?'out':'in');return}
  if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Enter',' '].includes(e.key))return;e.preventDefault();
  cursor??={x:4,y:4};if(e.key==='Enter'||e.key===' '){useCell(cursor,null);return}
@@ -3617,9 +3856,10 @@ function resetRaidScene(r){
   const span=Math.min(.8,Math.max(0,(events[end]?.t??events[start].t+1)-events[start].t));
   for(let i=start;i<end;i++)events[i].at=events[i].t+span*(i-start)/(end-start);start=end;
  }
- const dimension=(n,fallback)=>Number.isInteger(n)&&n>=10&&n<=16?n:fallback;
- const side=dimension(rp.gridSize,10),width=dimension(rp.gridWidth,side),height=dimension(rp.gridHeight,side);
- raidScene={actors,buildings,events,side,width,height,index:0,last:-1,caption:'Налётчики приближаются к острову.',effects:[]};
+ const layoutVersion=rp.layoutVersion===2?2:1,scale=layoutVersion===2?2:1;
+ const dimension=(n,fallback)=>Number.isInteger(n)&&n>=10*scale&&n<=(layoutVersion===2?55:16)?n:fallback;
+ const side=dimension(rp.gridSize,layoutVersion===2?35:10),width=dimension(rp.gridWidth,side),height=dimension(rp.gridHeight,side);
+ raidScene={layoutVersion,scale,actors,buildings,events,side,width,height,index:0,last:-1,caption:'Налётчики приближаются к острову.',effects:[]};
 }
 function applyRaidEvents(t){
  if(!raidScene||t<raidScene.last)resetRaidScene(activeRaid());
@@ -3676,23 +3916,29 @@ function drawRaid(){
    {...b,weaponAim:{x:frame.e.to[0],y:frame.e.to[1],phase:frame.phase}}:b;
  });
  const side=scene.side;canvas.setAttribute('aria-label','Запись обороны острова '+scene.width+'×'+scene.height);
- Art.island(c,w,h,activeTime,{buildings,dragons:[],grid:false,gridSize:side,gridWidth:scene.width,gridHeight:scene.height,theme:'defense'});
- const unit=Art.unit(w,h,side),spot=(x,y)=>Art.point(x,y,w,h,side);
+ const unit=Art.unit(w,h,side)*scene.scale,spot=(x,y)=>Art.point(x,y,w,h,side);
  function health(entity,p,off){if(!entity.maxHP||entity.hp>=entity.maxHP)return;const bar=Math.min(34,unit*1.25);c.fillStyle='#28392e';c.fillRect(p.x-bar/2,p.y-off,bar,3);c.fillStyle=entity.side==='attacker'?'#fb9e79':'#aed785';c.fillRect(p.x-bar/2,p.y-off,bar*Math.max(0,entity.hp/entity.maxHP),3);}
- for(const b of buildings)health(b,spot(b.x,b.y),unit*1.05);
- for(const a of [...scene.actors.values()].filter(x=>x.alive).sort((p,q)=>p.x+p.y-q.x-q.y)){
+ const figures=[...scene.actors.values()].filter(a=>a.alive).map(a=>{
   let x=a.x,y=a.y;const step=a.step;
   if(raidPlaying&&!reduced&&step&&Array.isArray(step.from)){const k=Math.min(1,Math.max(0,(raidClock-step.at)/.35));x=step.from[0]+(a.x-step.from[0])*k;y=step.from[1]+(a.y-step.from[1])*k;}
-  const p=spot(x,y),enemy=a.side==='attacker';c.beginPath();c.ellipse(p.x,p.y+2,unit*.55,unit*.22,0,0,Math.PI*2);c.fillStyle=enemy?'#a42e34bd':'#195d55c4';c.fill();
-  const altitude=a.flying?unit*.9:unit*.46;
-  const move=poses.get(a.id);
-  Art.dragon(c,p.x,p.y-altitude,unit*1.4,Number(a.species)||0,Number(a.level)||1,activeTime,enemy,
-   move?{phase:move.phase,ultimate:move.ultimate,reduced}:undefined);health(a,p,altitude+unit*.65);
+  return {x,y,above:a.flying,draw:(ctx,p)=>{
+   const enemy=a.side==='attacker';ctx.beginPath();ctx.ellipse(p.x,p.y+2,unit*.55,unit*.22,0,0,Math.PI*2);ctx.fillStyle=enemy?'#a42e34bd':'#195d55c4';ctx.fill();
+   const altitude=a.flying?unit*.9:unit*.46,move=poses.get(a.id);
+   Art.dragon(ctx,p.x,p.y-altitude,unit*1.4,Number(a.species)||0,Number(a.level)||1,activeTime,enemy,
+     move?{phase:move.phase,ultimate:move.ultimate,reduced}:undefined);health(a,p,altitude+unit*.65);
+  }};
+ });
+ Art.island(c,w,h,activeTime,{layoutVersion:scene.layoutVersion,buildings,dragons:[],figures:scene.scale===2?figures:[],
+   grid:false,gridSize:side,gridWidth:scene.width,gridHeight:scene.height,theme:'defense'});
+ for(const b of buildings){
+  const half=scene.scale===2?((b.span||1)-1)/2:0;
+  health(b,spot(b.x+half,b.y+half),unit*1.05*Math.max(1,(b.span||1)/scene.scale));
  }
+ if(scene.scale===1)for(const f of figures.sort((a,b)=>a.x+a.y-b.x-b.y))f.draw(c,spot(f.x,f.y));
  for(const {e,source,kind,phase} of attacks){
   const origin=spot(...e.from),dst=spot(...e.to),target=scene.actors.get(e.target);
   dst.y-=unit*(target?.flying?.98:.42);
-  const src=e.kind==='tower'?Art.towerMuzzle(kind,origin,dst,w,h,side):
+  const src=e.kind==='tower'?Art.towerMuzzle(kind,origin,dst,w,h,side,scene.layoutVersion===2?source.span:1):
    {x:origin.x,y:origin.y-unit*(e.kind==='trap'?.12:source.flying?.98:.55)};
   Art.combatEffect(c,src,dst,unit,{kind,species:source.species,specialty:source.specialty},phase,reduced);
  }
@@ -3741,7 +3987,7 @@ async function attemptRaidPractice(index){
  pauseRaid();const generation=++raidRequest;
  button.disabled=true;message.textContent='Налётчики занимают исходные позиции…';
  try{
-  const result=await host.practiceRaid(raid.day,{xp:s.xp,buildings:s.buildings,dragons:s.dragons});
+  const result=await host.practiceRaid(raid.day,{layoutVersion:s.layoutVersion||1,xp:s.xp,buildings:s.buildings,dragons:s.dragons});
   if(generation!==raidRequest||!nightDialog.open)return;
   if(result?.day!==raid.day||result?.wave!==raid.wave||!Array.isArray(result.replay?.events)||!Number.isInteger(result.stars))throw Error('practice');
   displayRaid(index,result);

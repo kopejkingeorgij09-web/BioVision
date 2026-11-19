@@ -24,6 +24,8 @@ function fixtures() {
 }
 async function studyBackend(context,server=fixtures()) {
   const {docs,accounts}=server;
+  // No third-party stylesheet should delay a synthetic pupil's offline test.
+  await context.route('https://fonts.googleapis.com/**',route=>route.fulfill({contentType:'text/css',body:''}));
   function wallet(acct) {
     const spent=[...acct.receipts.values()].reduce((sum,r)=>sum+r.price,0);
     return {cards:acct.cards.size,homework:acct.homework,spent,balance:acct.cards.size+acct.homework-spent};

@@ -313,6 +313,7 @@
 .forest-notice-visible { opacity: 1; transform: translateY(0); }
 body:has(.forest-corner:not([hidden])) #totop { bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
 @media (max-width: 820px) {
+  .forest-links { margin-bottom: 62px; }
   body:has(nav:not(:empty)):not(.rvmode,.kb) .forest-corner { bottom: calc(68px + env(safe-area-inset-bottom, 0px)); right: 10px; }
   body:has(nav:not(:empty)):has(.forest-corner:not([hidden])) #totop { bottom: calc(120px + env(safe-area-inset-bottom, 0px)); }
 }

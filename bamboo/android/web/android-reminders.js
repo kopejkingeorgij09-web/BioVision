@@ -55,9 +55,22 @@
   }
   B.on('change', tryPending);
   function open({kind, id, date}){
-    const hash = kind === 'page' ? '#/' + id : kind === 'event' ? '#/tasks/calendar' : '#/tasks/week';
+    const hash = kind === 'page' ? '#/' + id : kind === 'habit' ? '#/habits' : kind === 'albertsLog' ? '#/tasks/alberts' : kind === 'event' ? '#/tasks/calendar' : kind === 'shad' ? '#/tasks/shad' : '#/tasks/week';
     const show = () => {
       if (kind === 'page') return true;
+      if (kind === 'albertsLog'){
+        if (!B.alberts?.book) return false;
+        B.acts.albertsLog({dataset:{d:B.today()}}); return true;
+      }
+      if (kind === 'habit'){
+        const h=B.get('h_'+id);
+        if (!h || h.arch) return false;
+        const actions={molbio:'albertsLog',read:'readDay',sport:'sportDay',cards:'hcDay'};
+        const act=actions[h.auto];
+        if (act === 'albertsLog' && !B.alberts?.book) return false;
+        if (act) B.acts[act]({dataset:{d:B.today(),id}});
+        return true;
+      }
       if (kind === 'shad') { if (!B.shad.plan.some(p=>p.n===+id)) return false; B.acts.shadOpen({dataset:{n:id}}); return true; }
       if (kind === 'event') return B.calendarView.openReminder(id, date);
       const t = B.task(id);
@@ -79,6 +92,7 @@
     const changed = status?.enabled !== next.enabled || status?.exact !== next.exact;
     status = next;
     if (changed && location.hash.startsWith('#/settings')) B.render();
+    if (next.habitChanges?.length) B.applyWidgetHabits?.(next.habitChanges);
     if (next.open) open(next.open);
   };
 
@@ -96,8 +110,8 @@
       ${status?.enabled && !status.exact ? '<p class="hint">Без разрешения на точное время Android может задерживать напоминания.</p>' : ''}
       <p class="hint">Для проверки закрой приложение и дождись уведомления.</p>
       <h2>Виджеты рабочего стола</h2>
-      <div class="row wrap"><button class="btn" data-act="androidPinToday">Дела на сегодня</button><button class="btn" data-act="androidPinAgenda">Ближайшие события</button><button class="btn" data-act="androidPinShadToday">ШАД сегодня</button><button class="btn" data-act="androidPinShadProgress">Прогресс ШАДа</button><button class="btn" data-act="androidPinAlberts">Альбертс</button></div>
-      <p class="hint">Нажатие на запись открывает её в приложении. Виджеты обновляются после синхронизации; без сети показывают сохранённые данные. Их также можно добавить через меню виджетов Android.</p>
+      <div class="row wrap"><button class="btn" data-act="androidPinToday">Дела на сегодня</button><button class="btn" data-act="androidPinAgenda">Ближайшие события</button><button class="btn" data-act="androidPinShadToday">ШАД сегодня</button><button class="btn" data-act="androidPinShadProgress">Прогресс ШАДа</button><button class="btn" data-act="androidPinShadWeek">ШАД на неделю</button><button class="btn" data-act="androidPinAlberts">Альбертс</button><button class="btn" data-act="androidPinBookmark">Закладка Альбертса</button><button class="btn" data-act="androidPinHabits">Привычки</button></div>
+      <p class="hint">Обычные привычки отмечаются на рабочем столе. Чтение и тренировки открывают форму записи. Отметки без сети сохраняются и переносятся в дневник при открытии приложения.</p>
     </section>`;
   }
 
@@ -123,6 +137,9 @@
   B.acts.androidPinAgenda = () => send('pinAgenda');
   B.acts.androidPinShadToday = () => send('pinShadToday');
   B.acts.androidPinShadProgress = () => send('pinShadProgress');
+  B.acts.androidPinHabits = () => send('pinHabits');
+  B.acts.androidPinShadWeek = () => send('pinShadWeek');
+  B.acts.androidPinBookmark = () => send('pinBookmark');
   B.acts.androidPinAlberts = () => send('pinAlberts');
   B.acts.androidClearPrivate = () => send('clear');
   B.on('change', queue);

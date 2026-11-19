@@ -150,11 +150,16 @@ public final class MainActivity extends Activity {
                 case "widgets":
                     ZovWidget.replace(this, packet.getJSONArray("items"));
                     StudyWidget.replace(this,packet.optJSONObject("study"));
+                    HabitWidget.replace(this,packet.optJSONObject("habits"),packet.optJSONArray("habitAcks"));
+                    ZovWidget.refresh(this);
                     break;
                 case "pinToday": ZovWidget.pin(this, false); break;
                 case "pinAgenda": ZovWidget.pin(this, true); break;
                 case "pinShadToday": StudyWidget.pin(this,ShadTodayWidget.class); break;
                 case "pinShadProgress": StudyWidget.pin(this,ShadProgressWidget.class); break;
+                case "pinHabits": StudyWidget.pin(this,HabitWidget.class); break;
+                case "pinShadWeek": StudyWidget.pin(this,ShadWeekWidget.class); break;
+                case "pinBookmark": StudyWidget.pin(this,BookmarkWidget.class); break;
                 case "pinAlberts": StudyWidget.pin(this,AlbertsWidget.class); break;
                 case "clear":
                     ZovWidget.clear(this);
@@ -162,6 +167,7 @@ public final class MainActivity extends Activity {
                     break;
                 case "status":
                     JSONObject status = new JSONObject()
+                            .put("habitChanges", HabitWidget.pending(this))
                             .put("enabled", ReminderScheduler.enabled(this))
                             .put("exact", ReminderScheduler.exact(this));
                     Intent intent = getIntent();

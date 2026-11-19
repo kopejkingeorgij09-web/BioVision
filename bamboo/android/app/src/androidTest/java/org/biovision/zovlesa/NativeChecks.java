@@ -93,17 +93,44 @@ public final class NativeChecks extends Instrumentation {
             android.content.res.Configuration config=new android.content.res.Configuration(c.getResources().getConfiguration());config.fontScale=1.3f;
             preview(c.createConfigurationContext(config),true,320,440,"large-text");
             js("B.setShadOver(5,{w:{date:'"+date+"',from:'18:00'},h:{date:'"+date+"'}});true");Thread.sleep(500);
-            for(int mode=0;mode<3;mode++){
+            for(int mode=0;mode<StudyWidget.TYPES.length;mode++){
                 final int kind=mode;AtomicReference<View> study=new AtomicReference<>();
                 runOnMainSync(()->{View w=StudyWidget.buildViews(c,kind,320,440).apply(c,null);int width=Math.round(320*c.getResources().getDisplayMetrics().density),height=Math.round(440*c.getResources().getDisplayMetrics().density);w.measure(View.MeasureSpec.makeMeasureSpec(width,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(height,View.MeasureSpec.EXACTLY));w.layout(0,0,width,height);study.set(w);
                     try{android.graphics.Bitmap b=android.graphics.Bitmap.createBitmap(width,height,android.graphics.Bitmap.Config.ARGB_8888);w.draw(new android.graphics.Canvas(b));try(java.io.FileOutputStream out=new java.io.FileOutputStream(new java.io.File(c.getExternalFilesDir(null),"study-"+kind+".png"))){b.compress(android.graphics.Bitmap.CompressFormat.PNG,100,out);}b.recycle();}catch(Exception e){throw new RuntimeException(e);}});
-                check(visibleText(study.get()).contains(mode==2?"Альбертс":"ШАД"),"Study widget title missing");
+                check(visibleText(study.get()).contains((mode==StudyWidget.ALBERTS||mode==StudyWidget.BOOKMARK)?"Альбертс":"ШАД"),"Study widget title missing");
                 check(!((TextView)study.get().findViewById(R.id.study_label)).getText().toString().isEmpty(),"Study widget snapshot not loaded");
             }
+            js("B.put('h_widgettest',{id:'widgettest',order:-100,name:'Прогулка',created:B.today()});true");
+            Thread.sleep(600);
+            String habitDate=HabitWidget.day().toString();
+            AtomicReference<View> habit=new AtomicReference<>();
+            runOnMainSync(()->habit.set(HabitWidget.buildViews(c,17,320,310).apply(c,null)));
+            check(visibleText(habit.get()).contains("Прогулка"),"Habit row missing");
+            // Invoke the actual RemoteViews action while the WebView has no foreground activity.
+            c.startActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            Thread.sleep(400);
+            runOnMainSync(()->((ViewGroup)habit.get().findViewById(R.id.widget_rows)).getChildAt(0).performClick());
+            Thread.sleep(350);
+            check(HabitWidget.pending(c).length()==1 && HabitWidget.pending(c).getJSONObject(0).getBoolean("checked"),"Home screen tap was not queued");
+            String token=HabitWidget.pending(c).getJSONObject(0).getString("token");
+            HabitWidget.mark(c,"widgettest",habitDate,true).send();Thread.sleep(200);
+            check(token.equals(HabitWidget.pending(c).getJSONObject(0).getString("token")),"Duplicate tap created a second change");
+            HabitWidget.mark(c,"widgettest",habitDate,false).send();Thread.sleep(200);
+            check(!HabitWidget.pending(c).getJSONObject(0).getBoolean("checked"),"Could not undo an offline mark");
+            HabitWidget.mark(c,"widgettest",habitDate,true).send();Thread.sleep(200);
+            ZovWidget.open(c,"page","habits","").send();
+            for(int i=0;i<60 && HabitWidget.pending(c).length()>0;i++)Thread.sleep(100);
+            check(HabitWidget.pending(c).length()==0,"Habit changes not acknowledged");
+            check("true".equals(js("!!B.day(B.today()).h.widgettest && !!JSON.parse(localStorage.getItem('bamboo-docs'))['d_'+B.today()].h.widgettest && location.hash==='#/habits'")),"Widget mark not persisted by normal diary");
+            ZovWidget.open(c,"albertsLog","book",habitDate).send();
+            for(int i=0;i<30 && !"true".equals(js("!!document.querySelector('#albertsPage')"));i++)Thread.sleep(100);
+            check("true".equals(js("!!document.querySelector('#albertsPage')")),"Widget could not open the reading log");
+            check(c.getPackageManager().getApplicationIcon(c.getPackageName()) instanceof android.graphics.drawable.AdaptiveIconDrawable,"Launcher icon is not adaptive");
             java.io.File installed=new java.io.File(c.getApplicationInfo().sourceDir);
             AppUpdater.validate(activity,installed,AppUpdater.hash(installed),c.getPackageManager().getPackageInfo(c.getPackageName(),0).versionCode);
             boolean rejected=false;try{AppUpdater.validate(activity,installed,"0".repeat(64),5);}catch(Exception expected){rejected=true;}check(rejected,"Wrong update digest accepted");
             js("window.ZovReminder.postMessage(JSON.stringify({op:'clear'}));true");Thread.sleep(300);
+            check(!c.getSharedPreferences("widgets",Context.MODE_PRIVATE).contains("habits") && HabitWidget.pending(c).length()==0,"Habit snapshot not cleared");
             check(!c.getSharedPreferences("widgets",Context.MODE_PRIVATE).contains("study"),"Study snapshot not cleared");
             check(c.getSharedPreferences("widgets",Context.MODE_PRIVATE).getString("items","[]").equals("[]"),"Widget private snapshot not cleared");
             check(new JSONArray(c.getSharedPreferences("reminders",Context.MODE_PRIVATE).getString("schedule","[]")).length()==0,"Reminder schedule not cleared");
@@ -125,7 +152,7 @@ public final class NativeChecks extends Instrumentation {
             ZovWidget.clear(c);ReminderScheduler.replace(c,new JSONArray());
             check(!ReminderScheduler.validTarget("page","bad/page",""),"Invalid navigation accepted");
             check(!ReminderScheduler.validTarget("shad","../5",date),"Invalid SHAD id accepted");
-            result.putString("stream","PASS: WebView bridge, task/event background notifications, two native widget layouts, private snapshot cleanup\n");
+            result.putString("stream","PASS: WebView bridge, task/event background notifications, eight native widget types and offline habit actions, private snapshot cleanup\n");
             finish(Activity.RESULT_OK,result);
         } catch(Throwable e) {result.putString("stream","FAIL: "+e+"\n");finish(Activity.RESULT_CANCELED,result);}
     }

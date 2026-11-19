@@ -1,0 +1,7 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_background" android:orientation="vertical" android:padding="14dp">
+    <TextView style="@style/WidgetPreviewTitle" android:text="ШАД на неделю"/>
+    <TextView style="@style/WidgetPreviewSubtitle" android:text="Выполнено за неделю"/>
+    <TextView style="@style/WidgetPreviewFocus" android:text="3 / 8"/>
+    <TextView style="@style/WidgetPreviewSubtitle" android:text="Вебы 2/4 · ДЗ 1/4"/>
+</LinearLayout>

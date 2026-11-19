@@ -77,6 +77,29 @@ async function run(browser){
   const journal=()=>secondFrame.evaluate(id=>JSON.parse(localStorage.getItem('phagi.oplot.v1.user.'+id+'.sync2')),secondary.id);
   await until(async()=>(await journal()).base?.rev===server.docs.get(otherPath).rev,'other device acknowledged the expanded island revision');
   assert.deepEqual((await journal()).state.buildings,wide.state.buildings);
+  // Both devices have quoted the same dragon. Only the seller can receive its gold.
+  const beforeSale=structuredClone(server.docs.get(otherPath).state),sold=beforeSale.dragons.find(d=>d.id==='d0');
+  const price=await secondFrame.evaluate(d=>dragonSalePrice(d),sold);
+  assert.equal(price,26,'a level-two common dragon is worth 26 gold');
+  for(const device of [other,visitor]){
+    await device.f.locator(`[data-do="pet"][data-id="${sold.id}"]`).first().click();
+    await device.f.locator('#dialog [data-do="sell"]').click();
+    await device.f.locator('#dialog [data-do="confirmsale"]').waitFor();
+  }
+  await visitor.f.locator('#dialog [data-do="confirmsale"]').click();
+  await until(()=>!server.docs.get(otherPath).state.dragons.some(d=>d.id===sold.id),'sale saved on the first device');
+  const soldRev=server.docs.get(otherPath).rev;
+  await secondFrame.evaluate(()=>window.dispatchEvent(new Event('online')));
+  await until(async()=>(await journal()).base?.rev===soldRev,'other device receives the sale while confirmation is open');
+  await other.f.locator('#dialog [data-do="confirmsale"]').waitFor({state:'hidden'});
+  await other.open();await other.ready();
+  assert.equal(await other.f.locator('#gold').innerText(),String(beforeSale.gold+price));
+  await other.f.locator('.tabs [data-do="tab"][data-id="collection"]').click();
+  assert.equal(await other.f.locator(`#dialog [data-do="pet"][data-id="${sold.id}"]`).count(),0);
+  const afterSale=server.docs.get(otherPath).state;
+  assert.deepEqual(afterSale.dragons,beforeSale.dragons.filter(d=>d.id!==sold.id));
+  assert.equal(afterSale.gold,beforeSale.gold+price);
+  assert.deepEqual(afterSale.book,beforeSale.book);
   assert.equal(head().state.berries,before+70,'the expanded island belongs only to its profile');
   const frame=await a.page.locator('#oplot-game').elementHandle().then(el=>el.contentFrame());
   const sameJSON=await frame.evaluate(()=>equalIslandData({rev:4,state:{berries:1,gold:2}},{state:{gold:2,berries:1},rev:4}));assert.equal(sameJSON,true);

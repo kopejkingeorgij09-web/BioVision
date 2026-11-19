@@ -35,6 +35,13 @@ dialog{padding:0;border:1px solid #958451;box-shadow:0 18px 80px #142a2980;backg
 #xp-rewards dt{font-weight:650;font-size:13px}#xp-rewards dd{margin:2px 0 0;color:#4d5942;font-size:12px}
 .battle #island-progress{display:none}
 @media(max-width:760px){.island-sidebar{display:contents}#island-progress{order:-1;width:100%}#island-progress h2{font-size:20px}#xp-rewards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:14px}}
+#world.drawing-walls{touch-action:none;cursor:crosshair}
+.wall-builder{margin:6px 1px 1px;padding:10px 13px;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:10px}
+.wall-builder[hidden],#wall-issue:empty{display:none}
+.wall-builder h3{font:600 18px var(--display);color:var(--pine)}
+.wall-builder p,.wall-builder strong{font-size:13px}.wall-builder p{margin:3px 0}.wall-builder .actions{margin-top:7px}
+#wall-issue{color:#923f31;font-weight:650}
+@media(max-width:540px){.wall-builder{padding:8px 10px}.wall-builder .cmd{flex:1}}
 /* The field guide and the hatchery use the same elemental seals and rarity key. */
 .element-seals{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center}
 .element-seal{display:inline-flex;align-items:center;gap:4px;color:#414936;font-size:11px;line-height:1.5}
@@ -64,7 +71,13 @@ dialog{padding:0;border:1px solid #958451;box-shadow:0 18px 80px #142a2980;backg
 <header><div class="header-inner"><button class="logo" data-do="exit" title="Вернуться в Фаги" aria-label="Вернуться в Фаги"><canvas data-icon="crest"></canvas></button><div class="brand"><small>Фаги естественных наук</small><h1>Драконий Оплот</h1></div>
 <div class="wallets"><span class="res"><canvas data-icon="gold"></canvas><b id="gold">0</b><small>Золото</small></span><span class="res"><canvas data-icon="berries"></canvas><b id="berries">0</b><small>Ягоды</small></span><button class="res" data-do="wallet"><canvas data-icon="gem"></canvas><b id="balance">—</b><small>Алмазы</small></button></div><button class="topbtn" data-do="settings" aria-label="Настройки" title="Настройки">⚙</button></div></header>
 <main class="layout"><nav class="tabs" aria-label="Разделы игры"></nav>
-<div class="play"><section class="mapframe" aria-label="Игровое поле"><div class="map"><canvas id="world" tabindex="0" aria-label="Карта острова. Стрелки выбирают клетку, Enter открывает её."></canvas><div class="maplabel"><small>Облачный архипелаг</small><h2>Остров Рассвета</h2><span id="island-area"></span></div><div class="maptools" id="maptools"></div><div class="mapfoot"><span class="note" id="mapnote"></span><span id="mapaction"></span></div></div></section><div class="island-sidebar">
+<div class="play"><section class="mapframe" aria-label="Игровое поле"><div class="map"><canvas id="world" tabindex="0" aria-label="Карта острова. Стрелки выбирают клетку, Enter открывает её."></canvas><div class="maplabel"><small>Облачный архипелаг</small><h2>Остров Рассвета</h2><span id="island-area"></span></div><div class="maptools" id="maptools"></div><div class="mapfoot"><span class="note" id="mapnote"></span><span id="mapaction"></span></div></div>
+<section id="wall-builder" class="wall-builder" aria-labelledby="wall-heading" hidden>
+ <h3 id="wall-heading">Укладка стен</h3>
+ <p>Протяни стену или отметь начало и конец. Каждое следующее касание продлевает линию.</p>
+ <strong id="wall-summary" aria-live="polite"></strong><p id="wall-budget"></p><p id="wall-issue" role="status"></p>
+ <div class="actions"><button type="button" class="cmd gold" data-do="confirmwalls" disabled>Построить</button><button type="button" class="cmd alt" data-do="wallundo" disabled>Шаг назад</button></div>
+</section></section><div class="island-sidebar">
 <section class="panel" id="island-progress" aria-labelledby="xp-title">
  <span class="kicker" id="xp-title">Опыт профиля</span>
  <h2 id="xp-expansion"></h2><p id="xp-target"></p>
@@ -244,6 +257,11 @@ function islandGrid(state){return gridAtLevel(islandLevel(state))}
 function islandSize(state){return islandGrid(state).width}
 function containsCell(grid,x,y){
  return Number.isInteger(x)&&Number.isInteger(y)&&x>=0&&y>=0&&x<grid.width&&y<grid.height;
+}
+function dragonSalePrice(d){
+ const rank=GAME_SPECIES[d.species].rank;
+ const base=[0,20,55,110,180][rank];
+ return base+6*rank*(d.level-1)+20*(d.enchant||0);
 }
 function storeSpace(type,level){return (type==='goldstore'?450:320)*level*level}
 function stockLimit(state,resource){
@@ -526,13 +544,6 @@ window.Art = (() => {
       ell(c,0,-36,11,3.8,'#be995e',-.13,'#96774d',1);gem(c,0,-46,1,['#649fa8','#beefdd','#5e898a']);
       star(c,-8,-51,2.3,'#fff6c9');return;
     }
-    if(type==='wall'){
-      shape(c,'M-24 -9 L8 -18 L23 -12 L21 1 L-10 11 L-24 4Z','#b8b59f','#878679',1.2);
-      shape(c,'M-23 -9 L8 -19 L23 -13 L-10 -3Z','#e4d9ac','#8f8d78',.85);
-      shape(c,'M-9 -2 L-10 10 M3 -6 L2 0 L14 -3 M-8 3 L2 0 M-18 -6 L-18 1',null,'#928b76',1);
-      for(let q=0;q<3;q++)boulder(c,-13+q*10,-7-q*3,.33,['#bbc4a3','#e3dcaf','#9d9d88']);
-      shape(c,'M6 -6 L8 -9 L9 -6 L7 -2Z','#8dd8ca','#669791',.6);return;
-    }
     const ice=type==='icetrap',col=ice?'#80dbde':'#f4a15e';
     ell(c,0,0,18,8,'#c5ba92',0,'#92957d',1.1);ell(c,0,-1,14,5.8,'#82988e',0,'#ebd49e',1.2);
     if(ice){gem(c,0,-6,.65,['#77becb','#d6f8e2','#6c9ca6']);gem(c,8,-3,.35,['#83d2db','#eff6d2','#6b9ba1']);}
@@ -550,6 +561,85 @@ window.Art = (() => {
   function newLayer(w,h) {
     const el=document.createElement('canvas');el.width=Math.max(1,Math.ceil(w));el.height=Math.max(1,Math.ceil(h));return el;
   }
+  // A half-span reaches the shared edge of its cell. Both adjoining cells
+  // supply their own masonry, so removing or upgrading either section updates the joint.
+  const wallDirections=[[-1,0],[0,-1],[1,0],[0,1]];
+  const wallSprites=new Map();
+  function wallRuns(mask) {
+    const runs=[];
+    wallDirections.forEach(([dx,dy],i)=>{
+      if(mask?!(mask&(1<<i)):dy!==0)return;
+      const end=mask ? .503 : .36;
+      runs.push({dx,dy,end});
+    });
+    return runs;
+  }
+  function wallRect(dx,dy,start,end,r) {
+    return dx?[Math.min(dx*start,dx*end),-r,Math.max(dx*start,dx*end),r]:
+      [-r,Math.min(dy*start,dy*end),r,Math.max(dy*start,dy*end)];
+  }
+  function wallHit(x,y,mask) {
+    const a=(x/axisX+y/axisY)/2,b=(y/axisY-x/axisX)/2;
+    function intersects(rect,bottom,top){
+      return Math.max(rect[0]-a,rect[1]-b,bottom/(2*axisY))<=Math.min(rect[2]-a,rect[3]-b,top/(2*axisY));
+    }
+    if(intersects([-.19,-.19,.19,.19],0,.38))return true;
+    return wallRuns(mask).some(({dx,dy,end})=>intersects(wallRect(dx,dy,.12,end,.124),0,.27)||
+      intersects(wallRect(dx,dy,end*.62,end*.89,.099),.27,.323));
+  }
+  function wallSprite(c,x,y,u,level,mask,preview='') {
+    const tier=Math.max(1,Math.min(5,Math.floor(Number(level)||1))),key=[tier,mask,preview].join('/');
+    let img=wallSprites.get(key);
+    if(!img){
+      const stones=[
+        ['#a4aa94','#b8b99d','#e8dab0','#88bbac'],
+        ['#959f90','#b0b69d','#e5d7a9','#7cc9c0'],
+        ['#8c9a93','#a7b1a0','#e6c986','#76c9c2'],
+        ['#7c9293','#9ca9a1','#eace87','#65c4c8'],
+        ['#738994','#96a6a5','#f2d08b','#70d3db']
+      ];
+      const stone=preview==='ok'?['#248e75','#54b398','#c3f3bb','#e2ffdf']:
+        preview==='bad'?['#a75453','#c5736a','#ffceab','#ffe0cf']:stones[tier-1];
+      const edge=preview==='bad'?'#8f454a':preview==='ok'?'#267b68':'#667268';
+      img=newLayer(180,180);
+      const g=img.getContext('2d');g.translate(90,116);g.scale(152,152);g.lineJoin='round';g.lineCap='round';
+      const project=(a,b,z)=>[(a-b)*axisX,(a+b)*axisY-z];
+      function box(rect,bottom,top,cap=stone[2]){
+        const [x0,y0,x1,y1]=rect;
+        const topFace=[project(x0,y0,top),project(x1,y0,top),project(x1,y1,top),project(x0,y1,top)];
+        poly(g,[topFace[3],topFace[2],project(x1,y1,bottom),project(x0,y1,bottom)],stone[0],edge,.011);
+        poly(g,[topFace[2],topFace[1],project(x1,y0,bottom),project(x1,y1,bottom)],stone[1],edge,.011);
+        poly(g,topFace,cap,edge,.009);
+      }
+      function courses(rect){
+        const [x0,y0,x1,y1]=rect;
+        poly(g,[project(x0,y1,.105),project(x1,y1,.105),project(x1,y0,.105)],null,edge,.009,false);
+        poly(g,[project((x0+x1)/2,y1,.105),project((x0+x1)/2,y1,.204)],null,edge,.008,false);
+        poly(g,[project(x1,(y0+y1)/2,.014),project(x1,(y0+y1)/2,.105)],null,edge,.008,false);
+      }
+      const runs=wallRuns(mask);
+      function arm({dx,dy,end}){
+        const shaft=wallRect(dx,dy,.12,end,.108);
+        box(shaft,0,.218);courses(shaft);
+        box(wallRect(dx,dy,.12,end,.124),.218,.264);
+        box(wallRect(dx,dy,end*.62,end*.89,.099),.264,.323);
+      }
+      for(const run of runs)if(run.dx+run.dy<0)arm(run);
+      box([-.185,-.185,.185,.185],0,.084);
+      box([-.153,-.153,.153,.153],.066,.322);
+      courses([-.153,-.153,.153,.153]);
+      box([-.185,-.185,.185,.185],.303,.372);
+      poly(g,[project(.055,-.055,.377),project(.055,.055,.377),project(-.055,.055,.377),project(-.055,-.055,.377)],stone[3],edge,.008);
+      for(let i=0;i<tier-1;i++){
+        const stripe=.16+(i%2)*.053,shift=i<2?'#e8d495':stone[3];
+        if(i<2)poly(g,[project(-.135,.153,stripe),project(.13,.153,stripe)],null,shift,.018,false);
+        else poly(g,[project(.153,.13,stripe),project(.153,-.135,stripe)],null,shift,.018,false);
+      }
+      for(const run of runs)if(run.dx+run.dy>0)arm(run);
+      wallSprites.set(key,img);
+    }
+    c.drawImage(img,x-90*u/152,y-116*u/152,180*u/152,180*u/152);
+  }
   function makeBuilding(type,level) {
     const img=newLayer(256,320), c=img.getContext('2d');c.translate(128,260);c.scale(2.6,2.6);c.lineCap='round';c.lineJoin='round';
     if(type==='keep')keep(c);else if(type==='farm')farm(c);else if(type==='mine')mine(c);
@@ -561,6 +651,7 @@ window.Art = (() => {
     }return img;
   }
   function building(c,x,y,size,type,level=1,time=0) {
+    if(type==='wall'){wallSprite(c,x,y,size/.81,level,0);return;}
     const key=type+'-'+Math.min(level,5);
     if(!sprites.has(key))sprites.set(key,makeBuilding(type,level));
     const s=size/66;
@@ -779,9 +870,21 @@ window.Art = (() => {
     }
     return result;
   }
-  function objectList(state,w,h,t){
-    const n=state.gridSize||10;
-    const things=(state.buildings||[]).filter(b=>inBounds(b,state)).map(b=>({kind:'building',item:b,...point(b.x,b.y,w,h,n),size:buildingWidth(b,w,h,n)}));
+  function objectList(state,w,h,t,preview=[]){
+    const n=state.gridSize||10, buildings=(state.buildings||[]).filter(b=>inBounds(b,state));
+    const things=buildings.map(b=>({kind:'building',item:b,...point(b.x,b.y,w,h,n),size:buildingWidth(b,w,h,n)}));
+    const positions=new Set(buildings.filter(b=>b.type==='wall').map(b=>b.x+','+b.y));
+    for(const cell of preview){
+      const key=cell.x+','+cell.y;
+      if(positions.has(key))continue;
+      positions.add(key);
+      things.push({kind:'wallPreview',item:cell,...point(cell.x,cell.y,w,h,n)});
+    }
+    for(const obj of things){
+      if(obj.item.type!=='wall'&&obj.kind!=='wallPreview')continue;
+      const b=obj.item;
+      obj.wallMask=wallDirections.reduce((mask,[dx,dy],i)=>positions.has((b.x+dx)+','+(b.y+dy))?mask|(1<<i):mask,0);
+    }
     for(const a of dragonPoints(state,w,h,t))things.push({kind:'dragon',...a});
     return things.sort((a,b)=>(a.ground??a.y)-(b.ground??b.y));
   }
@@ -789,8 +892,15 @@ window.Art = (() => {
     const bs=state.buildings||[];
     for(let i=bs.length-1;i>=0;i--){if(!bs[i].ready||!inBounds(bs[i],state))continue;const p=bubblePoint(bs[i],w,h,t,state.gridSize||10);
       if(Math.hypot(px-p.x,py-p.y)<=p.r*1.26)return {kind:'bubble',id:bs[i].id,item:bs[i]};}
-    const objects=objectList(state,w,h,t);
-    for(let i=objects.length-1;i>=0;i--){const a=objects[i],dx=(px-a.x)/a.size,dy=(py-a.y)/a.size;
+    const preview=(state.wallPreview||[]).filter(b=>inBounds(b,state));
+    const objects=objectList(state,w,h,t,preview);
+    for(let i=objects.length-1;i>=0;i--){const a=objects[i];
+      if(a.kind==='wallPreview')continue;
+      const dx=(px-a.x)/a.size,dy=(py-a.y)/a.size;
+      if(a.item.type==='wall'){
+        if(wallHit(dx*.81,dy*.81,a.wallMask))return {kind:'building',id:a.item.id,item:a.item};
+        continue;
+      }
       if(a.kind==='dragon'?((dx/.50)**2+((dy+.075)/.31)**2<=1):
         (Math.abs(dx)<.50 && dy>-(heights[a.item.type]||.67) && dy<.13)){
         return {kind:a.kind,id:a.item.id,item:a.item};
@@ -801,19 +911,29 @@ window.Art = (() => {
     if(!(w>0&&h>0))return;
     const n=state.gridSize||10,u=unit(w,h,n),transform=c.getTransform(),dpr=Math.max(1,Math.min(2,Math.hypot(transform.a,transform.b)||1));
     c.save();c.lineCap='round';c.lineJoin='round';c.drawImage(backdrop(w,h,dpr,state.theme||state.mode,n,state.gridWidth||n,state.gridHeight||n),0,0,w,h);
-    if(state.hover&&inBounds(state.hover,state)){
+    const preview=(state.wallPreview||[]).filter(b=>inBounds(b,state));
+    if(state.hover&&!preview.length&&inBounds(state.hover,state)){
       const q=state.hover,occupied=(state.buildings||[]).some(b=>b.x===q.x&&b.y===q.y&&!same(b,state.selected));
       tile(c,q.x,q.y,w,h,occupied?'rgba(215,118,94,.61)':'rgba(255,235,150,.81)',occupied?'#a94d40':'#8a672c',Math.max(1.8,u*.045),n);
       tile(c,q.x,q.y,w,h,null,occupied?'#f6b8a9':'#fff4b8',Math.max(.8,u*.018),n);
     }
-    const things=objectList(state,w,h,t);
+    if(preview.length){
+      const ok=state.wallPreviewValid;
+      c.save();c.setLineDash([Math.max(2,u*.08),Math.max(1.5,u*.048)]);
+      for(const q of preview)tile(c,q.x,q.y,w,h,ok?'rgba(98,218,154,.22)':'rgba(231,116,100,.31)',ok?'#258265':'#aa4c49',Math.max(1.35,u*.025),n);
+      c.restore();
+    }
+    const things=objectList(state,w,h,t,preview);
     for(const a of things){
       const b=a.item;
-      if(a.kind==='building'){
+      if(a.kind==='wallPreview'){
+        c.save();c.globalAlpha*=.63;wallSprite(c,a.x,a.y,u,1,a.wallMask,state.wallPreviewValid?'ok':'bad');c.restore();
+      }else if(a.kind==='building'){
         if(same(b,state.selected))tile(c,b.x,b.y,w,h,'rgba(255,227,127,.65)','#fff0af',2.4,n);
         ell(c,a.x+a.size*.03,a.y+a.size*.032,a.size*.46,a.size*.13,'rgba(66,88,62,.19)');
         ell(c,a.x,a.y+a.size*.022,a.size*.30,a.size*.075,'rgba(76,84,58,.13)');
-        building(c,a.x,a.y,a.size,b.type,b.level||1,t);
+        if(b.type==='wall')wallSprite(c,a.x,a.y,u,b.level||1,a.wallMask);
+        else building(c,a.x,a.y,a.size,b.type,b.level||1,t);
         if(b.type==='spire'||b.type==='den'){
           for(let k=0;k<3;k++){const p=(t*.34+k*.333+b.x*.16)%1;
             c.globalAlpha=Math.sin(p*Math.PI)*.75;star(c,a.x+(Math.sin(k*3.8+t)*.20)*a.size,a.y-a.size*(.26+p*.48),Math.max(.8,a.size*.03),'#fff4ae');}c.globalAlpha=1;
@@ -1868,6 +1988,7 @@ function read(){
 }
 let s=upgradeIsland(read()), wallet=null, walletError='', busy=false;
 let panel='', current='', placement=null, cursor=null, battle=null, lastResult=null;
+let saleOffer=null;
 let planned='raid', campaignStage=1, team=[], parentA='',parentB='', soundCtx;
 let W=0,H=0, lastFrame=0, lastSecond=0, flying=[], moment=0, hatchAt=0;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1923,7 +2044,7 @@ function paintMini(root=document){
  });
 }
 const tabs=[['island','Остров'],['collection','Драконы'],['build','Постройки'],['book','Книга рецептов'],['battle','Сражения']];
-function tabsHTML(){const active=['collection','pet','nursery','breed','hatched'].includes(panel)?'collection':tabs.some(x=>x[0]===panel)?panel:battle?'battle':'island';$('.tabs').innerHTML=tabs.map(([id,name])=>'<button data-do="tab" data-id="'+id+'" aria-current="'+(active===id)+'">'+icon(id)+(id==='book'?'<span class="fullnav">Книга рецептов</span><span class="shortnav">Рецепты</span>':name)+'</button>').join('');paintMini($('.tabs'))}
+function tabsHTML(){const active=['collection','pet','sale','nursery','breed','hatched'].includes(panel)?'collection':tabs.some(x=>x[0]===panel)?panel:battle?'battle':'island';$('.tabs').innerHTML=tabs.map(([id,name])=>'<button data-do="tab" data-id="'+id+'" aria-current="'+(active===id)+'">'+icon(id)+(id==='book'?'<span class="fullnav">Книга рецептов</span><span class="shortnav">Рецепты</span>':name)+'</button>').join('');paintMini($('.tabs'))}
 function walletText(){return host?(wallet?num(wallet.balance):'—'):'—'}
 function counters(){ for(const resource of ['gold','berries']){
  const counter=$('#'+resource);counter.textContent=num(s[resource]);
@@ -1989,11 +2110,11 @@ function refreshXpPanel(level,grid){
  bar.setAttribute('aria-valuetext',num(bar.value)+' из '+num(bar.max)+' опыта на этом уровне');
 }
 function refreshIsland(){
- refreshNightBanner();
+ refreshNightBanner();renderWallPlan();
  counters();tabsHTML();document.body.classList.toggle('battle',!!battle);
  if(battle){$('#maptools').innerHTML='';$('#mapaction').innerHTML='';$('#mapnote').textContent='';$('#caption').textContent='';combatControls();return}
- $('#maptools').innerHTML=btn(placement?'cancelplace':'edit',placement?'Отмена':'✥ Расстановка','','glass');
- $('#mapnote').textContent=placement?(placement.kind==='add'?'Строительство · выбери пустую клетку':placement.kind==='move'?'Перенос · выбери свободную клетку':'Выбери постройку для переноса'):'';
+ $('#maptools').innerHTML=btn(placement?'cancelplace':'edit',wallPlan()?(placement.corners.length?'Отменить':'Готово'):placement?'Отмена':'✥ Расстановка','','glass');
+ $('#mapnote').textContent=wallPlan()?'':placement?(placement.kind==='add'?'Строительство · выбери пустую клетку':placement.kind==='move'?'Перенос · выбери свободную клетку':'Выбери постройку для переноса'):'';
  $('#mapaction').innerHTML=placement?'':btn('collectall','Собрать всё','','cmd gold');
  const level=islandLevel(s),grid=islandGrid(s);
  refreshXpPanel(level,grid);
@@ -2015,7 +2136,85 @@ function show(view,arg='',preserve=false){
 function close(){if(dlg.open)dlg.close();panel='';current='';tabsHTML()}
 dlg.addEventListener('cancel',()=>{panel='';current='';tabsHTML()});
 dlg.addEventListener('click',e=>{if(e.target===dlg){const r=dlg.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)close()}});
-function capFor(type){if(['keep','den','academy'].includes(type))return 1;return STRUCT[type][4]*lev()+(type==='wall'?3:1)}
+function wallCapacity(){
+ const {width,height}=islandGrid(s);
+ return 2*(width+height)-4+4*(lev()-1);
+}
+function wallPlan(){return placement?.kind==='walls'?placement:null}
+function newWallPlan(){return {kind:'walls',corners:[],drag:null,preview:[],valid:false}}
+const wallKey=cell=>cell.x+','+cell.y;
+function wallCells(corners){
+ const route=new Map();
+ if(!corners.length)return [];
+ let {x,y}=corners[0];
+ const visit=()=>{const cell={x,y};route.set(wallKey(cell),cell)};
+ visit();
+ for(const target of corners.slice(1)){
+  const across=()=>{while(x!==target.x){x+=Math.sign(target.x-x);visit()}};
+  const along=()=>{while(y!==target.y){y+=Math.sign(target.y-y);visit()}};
+  if(Math.abs(target.x-x)>=Math.abs(target.y-y)){across();along()}else{along();across()}
+ }
+ return Array.from(route.values());
+}
+function quoteWalls(corners){
+ const occupied=new Map(s.buildings.map(b=>[wallKey(b),b]));
+ const grid=islandGrid(s),unit=priceOf('wall');
+ const route=wallCells(corners),preview=[],fresh=[];
+ let blocked=false;
+ for(const cell of route){
+  const b=occupied.get(wallKey(cell));
+  if(b?.type==='wall')continue;
+  preview.push(cell);
+  if(b||!containsCell(grid,cell.x,cell.y)){blocked=true;continue}
+  fresh.push(cell);
+ }
+ const room=wallCapacity()-s.buildings.filter(b=>b.type==='wall').length;
+ const available=Math.max(0,Math.min(room,grid.width*grid.height-occupied.size,Math.floor(s.gold/unit)));
+ const total=fresh.length*unit;
+ let issue='';
+ if(blocked)issue='Линия пересекает постройку или край острова.';
+ else if(fresh.length>room)issue='Достигнут лимит секций. Укороти линию.';
+ else if(total>s.gold)issue='Для всей линии нужно ещё '+num(total-s.gold)+' золота.';
+ else if(route.length&&!fresh.length)issue='На этих клетках стены уже стоят.';
+ return {fresh,preview,available,total,issue,valid:fresh.length>0&&!issue};
+}
+function renderWallPlan(){
+ const plan=wallPlan(),box=$('#wall-builder');
+ box.hidden=!plan;world.classList.toggle('drawing-walls',!!plan);
+ if(!plan)return;
+ const corners=plan.drag?plan.corners.concat(plan.drag.from,plan.drag.to):plan.corners;
+ const quote=quoteWalls(corners);
+ plan.preview=quote.preview;plan.valid=quote.valid;
+ const exitButton=$('#maptools [data-do="cancelplace"]');
+ if(exitButton)exitButton.textContent=corners.length?'Отменить':'Готово';
+ $('#wall-summary').textContent='Секций в заказе — '+quote.fresh.length+' · '+num(quote.total)+' золота';
+ $('#wall-budget').textContent='Можно поставить сейчас — '+quote.available+' · '+num(priceOf('wall'))+' золота за секцию';
+ $('#wall-issue').textContent=quote.issue;
+ box.querySelector('[data-do="confirmwalls"]').disabled=!quote.valid||!!plan.drag;
+ box.querySelector('[data-do="wallundo"]').disabled=!plan.corners.length||!!plan.drag;
+}
+function addWallCorner(plan,cell){
+ if(!cell)return;
+ const last=plan.corners.at(-1);
+ if(!last||last.x!==cell.x||last.y!==cell.y)plan.corners.push({x:cell.x,y:cell.y});
+}
+function confirmWalls(){
+ const plan=wallPlan();
+ if(!plan||plan.drag||islandSync?.locked())return;
+ const {fresh,total,issue,valid}=quoteWalls(plan.corners);
+ if(!valid){renderWallPlan();if(issue)toast(issue);return}
+ const since=Date.now(),before=s;
+ const sections=fresh.map(cell=>({id:uid(),type:'wall',...cell,level:1,since}));
+ s={...s,buildings:s.buildings.concat(sections),gold:s.gold-total,xp:s.xp+PROFILE_XP.build*fresh.length,
+  marks:{...s.marks,wall:(s.marks.wall||0)+fresh.length}};
+ if(!save()){
+  s=before;if(islandSync)islandSync.changed(s);
+  toast('Не удалось сохранить стену. Можно повторить покупку.');return;
+ }
+ placement=newWallPlan();sounds('build');refreshIsland();
+ toast('Построено секций — '+fresh.length+' · −'+num(total)+' золота');
+}
+function capFor(type){if(type==='wall')return wallCapacity();if(['keep','den','academy'].includes(type))return 1;return STRUCT[type][4]*lev()+1}
 function upCost(b){return b.type==='keep'?Math.round(175*1.65**(b.level-1)):Math.round((STRUCT[b.type][2]*.72+12)*b.level)}
 function upLimit(b){return b.type==='keep'?8:lev()+1}
 function priceOf(t){return (t==='mine'||t==='farm')&&!s.buildings.some(b=>b.type===t)?0:STRUCT[t][2]}
@@ -2043,6 +2242,8 @@ function buyStructure(t,x,y){
  placement=null;cursor=null;sounds('build');pop(x,y,'Построено','#fff3b5');update();
 }
 function useCell(cell,hit){
+ const plan=wallPlan();
+ if(plan){addWallCorner(plan,cell);renderWallPlan();return}
  if(placement){
   if(placement.kind==='select'){const b=hit?.kind==='building'||hit?.kind==='bubble'?hit.item:s.buildings.find(b=>cell&&b.x===cell.x&&b.y===cell.y);if(!b)return toast('Выбери постройку на острове.');placement={kind:'move',id:b.id};refreshIsland();return}
   if(!cell||!containsCell(islandGrid(s),cell.x,cell.y))return toast('Выбери клетку внутри острова.');
@@ -2075,6 +2276,34 @@ function hatch(){
  const d={id:uid(),species:s.egg.species,level:1};s.dragons.push(d);if(!s.book.includes(d.species))s.book.push(d.species);s.egg=null;s.xp+=PROFILE_XP.hatch;mark('hatch');sounds('hatch');hatchAt=performance.now()/1000;
  panel='';save();refreshIsland();show('hatched',d.id);
 }
+function saleBlocked(price){
+ if(s.dragons.length<=1)return 'На острове должен остаться хотя бы один дракон.';
+ const free=Math.max(0,stockLimit(s,'gold')-s.gold);
+ if(!fitsStock(s,'gold',price))return 'В хранилище свободно '+num(free)+' золота. Для продажи нужно '+num(price)+'.';
+ return '';
+}
+function offerSale(id){
+ const d=D(id);if(!d||battle)return;
+ const price=dragonSalePrice(d),blocked=saleBlocked(price);
+ if(blocked)return toast(blocked);
+ saleOffer={id,price,species:d.species};show('sale',id);
+}
+function confirmSale(id){
+ if(panel!=='sale'||current!==id||saleOffer?.id!==id||battle)return;
+ const d=D(id);
+ if(!d){saleOffer=null;show('collection');return;}
+ if(saleOffer.price!==dragonSalePrice(d)||saleOffer.species!==d.species){
+  saleOffer=null;show('pet',id);return toast('Дракон изменился. Проверь новую цену.');
+ }
+ const price=saleOffer.price,blocked=saleBlocked(price);if(blocked)return toast(blocked);
+ const previous=s;s={...s,gold:s.gold+price,dragons:s.dragons.filter(resident=>resident.id!==id)};
+ if(!save()){
+  s=previous;if(islandSync)islandSync.changed(s);
+  return toast('Не удалось сохранить продажу. Дракон остался на острове.');
+ }
+ saleOffer=null;team=team.filter(member=>member!==id);
+ sounds('collect');refreshIsland();show('collection');toast(GAME_SPECIES[d.species].shortName+' продан · +'+num(price)+' золота');
+}
 function readyTeam(){
  const n=planned==='arena'?3:4;team=team.filter(id=>D(id)).slice(0,n);if(!team.length)team=s.dragons.slice(0,n).map(d=>d.id);
 }
@@ -2091,8 +2320,14 @@ const views={
  pet(){
   const d=D(current);if(!d)return views.collection();
   const sp=GAME_SPECIES[d.species],p=Battle.profile(d.species,d.level,d.enchant),a=p.ability;
+  const price=dragonSalePrice(d),blocked=saleBlocked(price);
   const travel=d.level>20?'Летает над стенами.':'Ходит по земле и ломает стены на пути. Полёт откроется на 21-м уровне.';
-  return [sp.name,'<div class="portrait">'+portrait(d)+'</div>'+rankBadge(sp)+seals(sp)+'<h3>'+stageName(d.level)+' · уровень '+d.level+'</h3><p class="desc">'+sp.lore+' '+stageHint(d)+'</p><dl class="pet-stats"><div><dt>Здоровье</dt><dd>'+p.hp+'</dd></div><div><dt>Урон удара</dt><dd>'+p.damage+'</dd></div></dl><p class="desc">'+travel+' Стихийное преимущество ×1,5 против '+p.advantageElements.map(e=>GAME_ELEMENTS[e]).join(', ')+'.</p><section class="ability rank-'+sp.rank+'"><h3>'+a.name+'</h3><p class="desc">'+a.passive+'</p><p class="desc">'+a.active+' Вклад в ярость отряда — '+a.furyPower+'.</p><small>Зачарование '+p.enchant+' / 5</small></section><div class="actions">'+btn('feed',d.level>=30?'Высший уровень':'Накормить · '+num(feedCost(d))+' ягод',d.id,'cmd',d.level>=30||s.berries<feedCost(d))+btn('breed','В логово скрещивания',d.id,'cmd alt')+(academyBuilding()?btn('academy','В академию',d.id,'cmd alt'):'')+'</div>'];
+  return [sp.name,'<div class="portrait">'+portrait(d)+'</div>'+rankBadge(sp)+seals(sp)+'<h3>'+stageName(d.level)+' · уровень '+d.level+'</h3><p class="desc">'+sp.lore+' '+stageHint(d)+'</p><dl class="pet-stats"><div><dt>Здоровье</dt><dd>'+p.hp+'</dd></div><div><dt>Урон удара</dt><dd>'+p.damage+'</dd></div></dl><p class="desc">'+travel+' Стихийное преимущество ×1,5 против '+p.advantageElements.map(e=>GAME_ELEMENTS[e]).join(', ')+'.</p><section class="ability rank-'+sp.rank+'"><h3>'+a.name+'</h3><p class="desc">'+a.passive+'</p><p class="desc">'+a.active+' Вклад в ярость отряда — '+a.furyPower+'.</p><small>Зачарование '+p.enchant+' / 5</small></section><div class="actions">'+btn('feed',d.level>=30?'Высший уровень':'Накормить · '+num(feedCost(d))+' ягод',d.id,'cmd',d.level>=30||s.berries<feedCost(d))+btn('breed','В логово скрещивания',d.id,'cmd alt')+(academyBuilding()?btn('academy','В академию',d.id,'cmd alt'):'')+'</div><div class="divider"></div>'+btn('sell','Продать за '+num(price)+' золота',d.id,'cmd alt',!!blocked)+(blocked?'<p class="desc">'+blocked+'</p>':'')];
+ },
+ sale(){
+  const d=D(current);if(!d||saleOffer?.id!==d.id)return views.collection();
+  const sp=GAME_SPECIES[d.species],blocked=saleBlocked(saleOffer.price);
+  return ['Продать дракона?','<div class="portrait">'+portrait(d)+'</div><h3>'+sp.name+'</h3>'+rankBadge(sp)+'<p class="desc">Уровень '+d.level+' · зачарование '+(d.enchant||0)+' / 5</p><p class="desc">Дракон покинет остров, и в жилище освободится одно место. Запись о виде останется в книге.</p><div class="cost">Цена продажи · '+num(saleOffer.price)+' золота</div>'+(blocked?'<p class="desc">'+blocked+'</p>':'')+'<div class="actions">'+btn('pet','Оставить на острове',d.id,'cmd alt')+btn('confirmsale','Продать за '+num(saleOffer.price)+' золота',d.id,'cmd gold',!!blocked)+'</div>'];
  },
  nursery(){
   const free=capacity(s)-s.dragons.length-(s.egg?1:0);
@@ -2100,7 +2335,7 @@ const views={
  },
  breed(){
   if(s.egg){const left=secLeft();return ['Логово скрещивания','<canvas class="egg-art" data-egg="'+s.egg.species+'"></canvas><h3 id="egg-status">'+(left?'Скорлупа светится…':'Пора вылупляться!')+'</h3><p class="desc" id="egg-timer">'+(left?'До вылупления: '+left+' с':'Дракон уже стучит изнутри.')+'</p><div class="actions">'+btn('hatch','Вылупить дракона','','cmd',!!left||!!s.pending)+btn('purchase','Ускорить · 1 алмаз','incubate','cmd alt',!left||!wallet||wallet.balance<1||busy||!!s.pending)+'</div>']}
-  if(!D(parentA))parentA=s.dragons[0]?.id;
+  if(!D(parentA))parentA=s.dragons.find(d=>d.id!==parentB)?.id||s.dragons[0]?.id;
   if(!D(parentB))parentB=s.dragons.find(d=>d.id!==parentA)?.id;
   const a=D(parentA),b=D(parentB),hasDen=s.buildings.some(x=>x.type==='den');
   const parent=(d,id,label)=>'<div class="parent-card">'+(d?portrait(d):'')+'<label>'+label+'<select class="pick" id="'+id+'">'+s.dragons.map((v,i)=>'<option value="'+escape(v.id)+'"'+(v.id===d?.id?' selected':'')+'>'+GAME_SPECIES[v.species].shortName+' · ур. '+v.level+' · №'+(i+1)+'</option>').join('')+'</select></label>'+(d?seals(GAME_SPECIES[d.species]):'')+'</div>';
@@ -2137,7 +2372,7 @@ const views={
   const growth=next.width===grid.width&&next.height===grid.height?'Открыты все '+grid.width*grid.height+' клеток.':'На '+(level+1)+'-м уровне откроется ещё '+(next.width*next.height-grid.width*grid.height)+' клеток.';
   return ['Мастерская острова','<h3>Остров '+grid.width+' × '+grid.height+'</h3><p class="desc">'+growth+' До нового уровня профиля — '+num(xpAtLevel(level+1)-s.xp)+' опыта.</p><p class="desc">Выбери постройку, затем свободную клетку. Для переноса или улучшения коснись готовой постройки на карте.</p><div class="cards">'+Object.entries(STRUCT).filter(([t])=>t!=='keep').map(([t,[name,desc,price,min]])=>{
    const allowed=canAdd(t),has=s.buildings.find(b=>b.type===t);
-   return '<article class="card">'+buildingArt(t)+'<h3>'+name+'</h3><p class="desc">'+desc+'</p>'+btn('construct',t==='academy'&&islandLevel(s)<7?'Профиль острова · ур. 7':lev()<min?'Цитадель ур. '+min:!allowed?'Лимит построек':priceOf(t)?'Построить · '+priceOf(t)+' зол.':'Разместить бесплатно',t,'cmd alt',!allowed||s.gold<priceOf(t))+(has?' '+btn('structure','На острове',has.id,'linkbtn'):'')+'</article>'}).join('')+'</div>'];
+   return '<article class="card">'+buildingArt(t)+'<h3>'+name+'</h3><p class="desc">'+desc+'</p>'+btn('construct',t==='academy'&&islandLevel(s)<7?'Профиль острова · ур. 7':lev()<min?'Цитадель ур. '+min:!allowed?'Лимит построек':t==='wall'?'Разметить · '+priceOf(t)+' зол. за секцию':priceOf(t)?'Построить · '+priceOf(t)+' зол.':'Разместить бесплатно',t,'cmd alt',!allowed||s.gold<priceOf(t))+(has?' '+btn('structure','На острове',has.id,'linkbtn'):'')+'</article>'}).join('')+'</div>'];
  },
  structure(){
   const b=B(current);if(!b)return views.build();const data=STRUCT[b.type],n=stored(b);
@@ -2202,10 +2437,12 @@ const acts={
  wallet:()=>{show('wallet');syncWallet()},sync:refreshStudy,recover:deliver,purchase,
  learn:v=>{if(islandSync)islandSync.leave(v)},exit:()=>{if(islandSync)islandSync.leave('home');else if(location.protocol.startsWith('http'))location.assign('./?oplot=1');else toast('Открой «Драконий Оплот» в меню платформы «Фаги естественных наук».')},
  sound:()=>{s.settings.sound=!s.settings.sound;sounds('collect');update()},
- pet:id=>show('pet',id),structure:id=>show('structure',id),nursery:()=>show('nursery'),breed:id=>{if(D(id)){parentA=id;parentB=s.dragons.find(d=>d.id!==id)?.id}show('breed')},
+ sell:offerSale,confirmsale:confirmSale,pet:id=>show('pet',id),structure:id=>show('structure',id),nursery:()=>show('nursery'),breed:id=>{if(D(id)){parentA=id;parentB=s.dragons.find(d=>d.id!==id)?.id}show('breed')},
  bookfilter:id=>show('book',id,true),academy:id=>show('academy',id),enchant,feed,lay:eggChoice,hatch,adopt:i=>{i=Number(i);if(!Genetics.baseIds.includes(i)||s.gold<65||s.dragons.length>=capacity(s)-(s.egg?1:0))return;s.gold-=65;const d={id:uid(),species:i,level:1};s.dragons.push(d);if(!s.book.includes(i))s.book.push(i);sounds('hatch');update();show('pet',d.id)},
  collect:id=>{const b=B(id);if(b)collect([b])},collectall:()=>collect(s.buildings),
- construct:t=>{if(!STRUCT[t]||!canAdd(t)||s.gold<priceOf(t))return;placement={kind:'add',type:t};cursor={x:4,y:4};close();refreshIsland()},
+ construct:t=>{if(!STRUCT[t]||!canAdd(t)||s.gold<priceOf(t))return;placement=t==='wall'?newWallPlan():{kind:'add',type:t};cursor={x:4,y:4};close();refreshIsland();
+  if(t==='wall'){world.focus({preventScroll:true});world.closest('.mapframe').scrollIntoView({block:'nearest'})}},
+ confirmwalls:confirmWalls,wallundo:()=>{const plan=wallPlan();if(plan&&!plan.drag){plan.corners.pop();renderWallPlan()}},
  move:id=>{if(!B(id))return;placement={kind:'move',id};cursor={x:B(id).x,y:B(id).y};close();refreshIsland()},
  edit:()=>{placement={kind:'select'};cursor=null;refreshIsland()},cancelplace:()=>{placement=cursor=null;refreshIsland()},
  upgrade:id=>{const b=B(id);if(!b||b.level>=upLimit(b)||s.gold<upCost(b))return;
@@ -2227,15 +2464,52 @@ function mapCell(px,py){
  const grid=islandGrid(s),cell=Art.cell(px,py,W,H,grid.width);
  return cell&&containsCell(grid,cell.x,cell.y)?cell:null;
 }
-function sampleMap(){const grid=islandGrid(s);stateArt={gridSize:grid.width,gridWidth:grid.width,gridHeight:grid.height,buildings:s.buildings.map(b=>({...b,ready:stored(b)>=3})),dragons:s.dragons.slice(0,8),selected:placement?.id||null,grid:!!placement,hover:cursor}}
+function sampleMap(){const grid=islandGrid(s);stateArt={gridSize:grid.width,gridWidth:grid.width,gridHeight:grid.height,buildings:s.buildings.map(b=>({...b,ready:stored(b)>=3})),dragons:s.dragons.slice(0,8),selected:placement?.id||null,grid:!!placement,hover:cursor,wallPreview:wallPlan()?.preview,wallPreviewValid:wallPlan()?.valid}}
 function tap(px,py){
  if(battle){battle.tap(px,py,W,H);if(battle)combatControls();return}
  sampleMap();const cell=mapCell(px,py), hit=Art.hit(px,py,W,H,stateArt,moment);
  if(hit?.kind==='bubble')hit.item=B(hit.id);
  useCell(cell,hit);
 }
-world.addEventListener('click',e=>{const r=world.getBoundingClientRect();tap(e.clientX-r.left,e.clientY-r.top)});
-world.addEventListener('pointermove',e=>{if(!placement||e.pointerType==='touch')return;const r=world.getBoundingClientRect();cursor=mapCell(e.clientX-r.left,e.clientY-r.top)});
+function worldCell(event){
+ const r=world.getBoundingClientRect();
+ return mapCell(event.clientX-r.left,event.clientY-r.top);
+}
+world.addEventListener('pointerdown',e=>{
+ const plan=wallPlan();
+ if(!plan||plan.drag||!e.isPrimary||e.button!==0||islandSync?.locked())return;
+ const cell=worldCell(e);if(!cell)return;
+ world.focus({preventScroll:true});
+ plan.drag={id:e.pointerId,from:cell,to:cell};
+ cursor=cell;world.setPointerCapture(e.pointerId);renderWallPlan();
+});
+world.addEventListener('pointermove',e=>{
+ if(!placement)return;
+ if(placement.kind==='walls'){
+  const drag=placement.drag,cell=worldCell(e);
+  if(drag&&drag.id!==e.pointerId)return;
+  cursor=cell;
+  if(drag&&cell&&(cell.x!==drag.to.x||cell.y!==drag.to.y)){drag.to=cell;renderWallPlan()}
+ }else if(e.pointerType!=='touch')cursor=worldCell(e);
+});
+world.addEventListener('pointerup',e=>{
+ const plan=wallPlan(),drag=plan?.drag;
+ if(!drag||drag.id!==e.pointerId)return;
+ const cell=worldCell(e);
+ if(cell){addWallCorner(plan,drag.from);addWallCorner(plan,cell)}
+ else toast('Конец стены должен быть на острове.');
+ plan.drag=null;renderWallPlan();
+});
+function cancelWallGesture(e){
+ const plan=wallPlan();
+ if(plan?.drag?.id===e.pointerId){plan.drag=null;renderWallPlan()}
+}
+world.addEventListener('pointercancel',cancelWallGesture);
+world.addEventListener('lostpointercapture',cancelWallGesture);
+world.addEventListener('click',e=>{
+ if(wallPlan())return;
+ const r=world.getBoundingClientRect();tap(e.clientX-r.left,e.clientY-r.top);
+});
 world.addEventListener('keydown',e=>{
  if(battle)return;if(e.key==='Escape'){acts.cancelplace();return}
  if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Enter',' '].includes(e.key))return;e.preventDefault();
@@ -2385,7 +2659,7 @@ if(host){
   get:()=>s,
   set:(value,refresh)=>{const interrupted=refresh&&battle&&!equalIslandData(value,s);s=typeof upgradeIsland==='function'?(upgradeIsland(value)||value):value;
    if(interrupted){battle=null;placement=cursor=null;close();toast('Остров изменён на другом устройстве. Сражение завершено.');}
-   if(refresh){if(!battle)refreshIsland();if(dlg.open&&panel){if(panel==='pet'&&!D(current)||panel==='structure'&&!B(current)||panel==='hatched'&&!D(current))close();else show(panel,current,true)}}},
+   if(refresh){if(!battle)refreshIsland();if(dlg.open&&panel){if(['pet','sale','hatched'].includes(panel)&&!D(current)||panel==='structure'&&!B(current))close();else show(panel,current,true)}}},
   render:()=>{if(!battle)refreshIsland();if(dlg.open&&panel==='wallet')show(panel,current,true)},
   receipt:value=>{wallet=value;walletError='';counters()},message:toast
  });islandSync.begin();

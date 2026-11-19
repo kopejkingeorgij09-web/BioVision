@@ -1,8 +1,8 @@
 // Service worker: нужен, чтобы сайт можно было установить как приложение.
 // Стратегия «сначала сеть»: всегда свежая версия, кеш только на случай отсутствия интернета.
 // Запросы к другим доменам (Supabase, шрифты) не трогаем.
-const CACHE = 'phagi-v25-oplot-xp';
-const SHELL = ['./', './cloud.js?v=15', './oplot.html?v=3', './lesson-workspace.js?v=1', './prepare-lesson.js?v=1',
+const CACHE = 'phagi-v26-oplot-market-walls';
+const SHELL = ['./', './cloud.js?v=15', './oplot.html?v=4', './lesson-workspace.js?v=1', './prepare-lesson.js?v=1',
   './lesson-files.js?v=2', './lesson-workspace.css?v=1', './forest/progress.js?v=1', './forest/scene.js?v=1', './forest/forest.css?v=1'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

@@ -169,6 +169,7 @@ function todayList(hs, today){
   <section class="habit-list" aria-label="Отметки за сегодня">${hs.map(h => todayRow(h, today)).join('')}</section>`;
 }
 function habitHistory(hs){
+  const tips = B.insights();
   return habitCal(hs) + `<section class="card habit-history"><h2>По привычкам</h2>
     ${hs.map(h => {
       const s = B.habitStreak(h);
@@ -176,7 +177,11 @@ function habitHistory(hs){
         <span class="muted">${h.kind === 'weekly' ? s.thisWeek + '/' + s.target + ' за неделю' : 'Серия ' + s.cur + ' ' + s.unit + '.'}</span></div>
         ${last7(h)}<div class="habit-stats"><span>За 30 дней <b>${Math.round(B.habitRate(h) * 100)}%</b></span><span>Рекорд <b>${s.best} ${s.unit}.</b></span></div>
         ${heat(h)}</div>`;
-    }).join('')}</section>`;
+    }).join('')}</section>
+    <details class="card habit-review"><summary>Разбор недели</summary>
+      ${tips.length ? `<ul>${tips.map(t => `<li>${t}</li>`).join('')}</ul>` : '<p class="muted">Пока мало записей для разбора.</p>'}
+      <button class="btn" data-act="aiWeek">Разобрать неделю в Claude</button>
+    </details>`;
 }
 B.views.habits = {
   title: 'Привычки',

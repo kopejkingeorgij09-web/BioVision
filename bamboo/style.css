@@ -1487,3 +1487,7 @@ kbd{font:600 12px var(--f-mono);background:var(--paper-2);border:1px solid var(-
 .habit-edit:hover,.habit-mark:hover .habit-box:not(.is-done){background:var(--paper-2)}
 .habit-history-item{display:grid;gap:10px;border-top:1px solid var(--rule);padding-top:14px}
 .habit-history-item+.habit-history-item{margin-top:8px}
+
+.habit-review{display:block;margin-top:14px}
+.habit-review summary{cursor:pointer;font-weight:600;line-height:1.5}
+.habit-review[open] summary{margin-bottom:12px}

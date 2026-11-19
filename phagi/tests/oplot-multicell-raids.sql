@@ -8,7 +8,7 @@ declare
   old_base jsonb:='{"xp":0,"gold":100,"berries":75,"dragons":[],"buildings":[{"id":"keep","type":"keep","x":4,"y":4,"level":1}]}';
   formation jsonb:='{"v":3,"layoutVersion":2,"entrySide":0,"attackers":[{"id":"a","type":"raider","species":0,"level":4,"x":0,"y":10,"hp":100,"damage":100,"flying":false,"enchant":0}]}';
   spare jsonb:='{"id":"spare","type":"farm","x":null,"y":null,"stowed":true,"level":1,"pausedStock":13,"since":0}';
-  sky jsonb; fort jsonb; s jsonb; f jsonb; orig jsonb; report jsonb; result jsonb; wallet jsonb; latest jsonb;
+  guard_base jsonb; guard_wave jsonb; sky jsonb; fort jsonb; s jsonb; f jsonb; orig jsonb; report jsonb; result jsonb; wallet jsonb; latest jsonb;
   events jsonb; failed boolean:=false; i int;
 begin
   if (select array_agg(oplot.raid_span(k) order by i0) from unnest(array['keep','goldstore','foodstore','den','academy','archer','cannon','home','farm','mine','spire','wall','firetrap','icetrap']) with ordinality t(k,i0))
@@ -60,6 +60,24 @@ begin
   if f->>'stars'<>'3' or (f#>>'{replay,duration}')::int not between 50 and 68 or
     not jsonb_path_exists(f,'$.replay.events[*] ? (@.kind == "destroy" && @.target == "keep" && @.t >= 50)') then
     raise exception 'The clock expired before the raider could cross 55×55';end if;
+  -- The ground guard starts north of this keep, directly opposite a grounded raider.
+  -- The unobstructed flank is short enough to intercept before the first hit on the keep.
+  guard_base:='{"layoutVersion":2,"xp":0,"buildings":[{"id":"fort","type":"keep","x":15,"y":15,"level":1}],
+    "dragons":[{"id":"guard","species":0,"level":10,"enchant":0}]}';
+  guard_wave:=formation||'{"entrySide":3,"gridWidth":35,"gridHeight":35,
+    "attackers":[{"id":"a","type":"raider","species":0,"level":4,"x":17,"y":34,"hp":20,"damage":112,"flying":false,"enchant":0}]}';
+  result:=oplot.simulate_raid(guard_base,1,day1,who,guard_wave);events:=result#>'{replay,events}';
+  if result->>'stars'<>'0' or not jsonb_path_exists(events,'$[*] ? (@.kind == "guard" && @.id == "guard" && @.target == "a")')
+    or jsonb_path_exists(events,'$[*] ? (@.kind == "strike" && @.target == "fort")')
+    or jsonb_path_exists(events,'$[*] ? (@.kind == "move" && @.id == "guard" && @.to[0] >= 15 && @.to[0] <= 19 && @.to[1] >= 15 && @.to[1] <= 19)')
+    then raise exception 'Ground guard failed to intercept via the open flank';end if;
+  -- Enclosing all four neighbors of the starting guard keeps it in place until a breach opens.
+  guard_base:=jsonb_set(guard_base,'{buildings}',(guard_base->'buildings')||'[{"id":"left","type":"wall","x":16,"y":14,"level":2},
+    {"id":"right","type":"wall","x":18,"y":14,"level":2},{"id":"back","type":"wall","x":17,"y":13,"level":2}]');
+  events:=oplot.simulate_raid(guard_base,1,day1,who,guard_wave)#>'{replay,events}';
+  if not jsonb_path_exists(events,'$[*] ? (@.kind == "strike" && @.target == "fort")')
+    or jsonb_path_exists(events,'$[*] ? (@.kind == "move" && @.id == "guard")')
+    then raise exception 'Ground guard escaped sealed perimeter';end if;
   -- Every single plot is occupied. The first wall is in the final array slot:
   -- the occupancy arrays and actor indices must survive more than 3,000 slots.
   fort:=jsonb_set(fort,'{buildings}',(fort->'buildings')||(select jsonb_agg(

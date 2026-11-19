@@ -157,6 +157,19 @@ async function run(browser){
   await returning.open();await returning.ready();
   assert.equal(Number((await returning.f.locator('#gold').textContent()).replace(/\s/g,'')),revised.state.gold);
   assert.deepEqual(migrationServer.docs.get(otherPath),revised);
+  // A mobile browser can freeze the document in its history and restore the
+  // very same iframe when the user comes back. Other devices keep playing.
+  const lifecycle=type=>returning.f.locator('#world').evaluate((_,name)=>
+    window.dispatchEvent(new PageTransitionEvent(name,{persisted:true})),type);
+  await lifecycle('pagehide');
+  const away={...revised,rev:revised.rev+1,op:'while-in-history',state:{...revised.state,gold:revised.state.gold+9}};
+  migrationServer.docs.set(otherPath,away);
+  await lifecycle('pageshow');
+  await until(async()=>Number((await returning.f.locator('#gold').innerText()).replace(/\s/g,''))===away.state.gold,
+    'Restoring a frozen page must fetch the other device’s change');
+  await returning.feed('d0');
+  await until(()=>migrationServer.docs.get(otherPath).state.dragons[0].level===away.state.dragons[0].level+1,
+    'A restored page must save subsequent actions to the cloud');
   assert.deepEqual(errors,[]);
   console.log('PASS independent devices: first-load gate, migration, cross-device progression, offline conflicting edits and backup, rectangular island edges on a fresh device, lost CAS ack, single delivery after lost debit response, isolated profiles.');
  }finally{await Promise.all(contexts.map(c=>c.close()));}

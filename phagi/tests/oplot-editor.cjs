@@ -1,7 +1,7 @@
 // Real mouse/touch gestures in the embedded game, with an isolated in-memory cloud save.
 // Set PHAGI_EDITOR_SCREENSHOT to save the desktop editor as a PNG.
 const assert=require('node:assert/strict');
-const {chromium}=(()=>{try{return require('playwright')}catch{return require('playwright-core')}})();
+const {chromium,webkit}=(()=>{try{return require('playwright')}catch{return require('playwright-core')}})();
 const {fixtures,profiles,studyBackend}=require('./oplot-game.cjs');
 const layout=require('../oplot-layout.js');
 const site=new URL(process.argv[2]||'http://127.0.0.1:18748/phagi/');
@@ -55,8 +55,9 @@ async function check(browser,mobile){
       const rect=await world.boundingBox();
       const pos=await world.evaluate((canvas,data)=>{
         const w=canvas.clientWidth,h=canvas.clientHeight,zoom=parseInt(document.querySelector('[data-camera=fit]').textContent)/100;
-        const p=Art.point(data.x,data.y,w,h,data.n);return {x:w/2+(p.x-w/2)*zoom,y:h/2+(p.y-h/2)*zoom};
-      },{x:x+shift,y:y+shift,n:grid.width});
+        const columns=Number(document.querySelector('#island-area').textContent.match(/(\d+) ×/)[1]);
+        const p=Art.point(data.x,data.y,w,h,columns);return {x:w/2+(p.x-w/2)*zoom,y:h/2+(p.y-h/2)*zoom};
+      },{x:x+shift,y:y+shift});
       return {x:rect.x+pos.x,y:rect.y+pos.y};
     }
     async function tile(x,y){
@@ -110,6 +111,14 @@ async function check(browser,mobile){
     const changed=await draft(),moved=coords(changed,'mine');
     assert.ok(Number.isInteger(moved[0])&&Number.isInteger(moved[1]));
     await tile(moved[0],moved[1]);
+    if(mobile){
+      for(const viewport of [{width:844,height:390},{width,height}]){
+        await page.setViewportSize(viewport);
+        await world.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+        assert.deepEqual(await draft(),changed,'Rotation retains the local draft');
+        assert.match(await game.locator('#layout-selection').innerText(),/Золотая шахта/,'Rotation retains the selected mine');
+      }
+    }
     await tile(9,9);
     assert.deepEqual(coords(await draft(),'mine'),moved,'Dropping the mine onto the keep must leave its prior position intact');
     await tile(18,4);
@@ -158,11 +167,40 @@ async function check(browser,mobile){
         assert.equal(await island.locator('[data-do="layoutreserve"][data-id="mine"]').count(),0);
       }finally{await phone.close();}
     }
+    // The building is on the map when the first device starts the move.
+    // Before it chooses a tile, another device puts that same mine in reserve.
+    await press('layoutcancel');await press('tab','build');await press('structure','mine');await press('move','mine');
+    const previous=head(),parkedRemotely={...previous,rev:previous.rev+1,op:'other-device-parked-mine',
+      state:{...previous.state,buildings:previous.state.buildings.map(b=>b.id==='mine'?{...b,stowed:true,x:null,y:null,pausedStock:11}:b)}};
+    server.docs.set(path,parkedRemotely);
+    const journal=()=>world.evaluate((_,id)=>JSON.parse(localStorage.getItem('phagi.oplot.v1.user.'+id+'.sync2')),p.id);
+    await world.evaluate(()=>window.dispatchEvent(new Event('online')));
+    await until(async()=>(await journal()).base.op===parkedRemotely.op,'Remote reserve move should reach the first device');
+    await tile(5,14);
+    assert.deepEqual((await journal()).state.buildings,parkedRemotely.state.buildings,
+      'An obsolete move must preserve the remote positions and paused production');
+    assert.ok(layout.valid((await journal()).state.buildings,grid));
+    assert.ok(await button('edit').isVisible(),'Remote relocation cancelled the pending map move');
+    await start();await press('layoutreserve','farm');await tile(12,16);
+    const earlierDraft=await draft();assert.ok(Number.isInteger(coords(earlierDraft,'farm')[0]));
+    await press('layoutreserve','cannon');
+    const expanded={...parkedRemotely,rev:parkedRemotely.rev+1,op:'other-device-profile-xp',
+      state:{...parkedRemotely.state,xp:35*3**2}};
+    server.docs.set(path,expanded);await world.evaluate(()=>window.dispatchEvent(new Event('online')));
+    await game.locator('#island-area').filter({hasText:'42 × 38'}).waitFor();
+    await tile(40-shift,14-shift);
+    assert.deepEqual(coords(await draft(),'cannon'),[39-shift,13-shift],'The tower fits in the strip unlocked by the other device');
+    await press('layoutundo');assert.deepEqual(await draft(),earlierDraft,'Expansion must retain earlier edits and their undo history');
+    await press('layoutreserve','cannon');await tile(40-shift,14-shift);
+    await press('layoutapply');await until(()=>head().rev>expanded.rev,'The live expanded layout should reach the cloud');
+    assert.equal(head().state.xp,expanded.state.xp);
+    assert.ok(layout.valid(head().state.buildings,layout.gridAtLevel(4)));
+    assert.equal(head().state.buildings.find(b=>b.id==='cannon').x,39);
     assert.deepEqual(errors,[]);
     console.log('PASS editor, cloud isolation, full-footprint picking, repeated moves, clear, undo, cancel, local recovery and production',mobile?'390px touch':'1366px drag');
   }finally{await context.close();}
 }
 (async()=>{
-  const browser=await chromium.launch(process.env.PHAGI_CHROME?{executablePath:process.env.PHAGI_CHROME}:{});
+  const browser=process.env.PHAGI_WEBKIT?await webkit.launch():await chromium.launch(process.env.PHAGI_CHROME?{executablePath:process.env.PHAGI_CHROME}:{});
   try{await check(browser,true);await check(browser,false);}finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

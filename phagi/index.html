@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="lesson-workspace.css?v=1">
 <script src="lesson-files.js?v=2"></script>
 <meta charset="utf-8">
-<meta name="ph-ver" content="2026-11-19-oplot-layout-6">
+<meta name="ph-ver" content="2026-11-19-oplot-orientation-7">
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Фаги естественных наук</title>
@@ -1607,6 +1607,10 @@ body.oplot-open .top,body.oplot-open nav,body.oplot-open #totop,body.oplot-open 
 body.oplot-open .wrap{display:block;max-width:none;padding:0;margin:0}
 body.oplot-open #main{margin:0;padding:0}body.oplot-open #main.vin>*{animation:none}
 #oplot-game{display:block;width:100%;height:100vh;height:100dvh;border:0;background:#f3e8c8}
+body.oplot-open [data-sig="oplot-game"]{position:fixed;inset:0;overflow:hidden;scroll-padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+body.oplot-open [data-turn] #oplot-game{position:absolute;left:0;top:0;width:100vh;width:100dvh;height:100vw;height:100dvw;transform-origin:0 0}
+body.oplot-open [data-turn="right"] #oplot-game{transform:translateX(100vw) rotate(90deg)}
+body.oplot-open [data-turn="left"] #oplot-game{transform:translateY(100vh) rotate(-90deg);transform:translateY(100dvh) rotate(-90deg)}
 </style>
 </head>
 <body>
@@ -3258,9 +3262,40 @@ function peopleHTML(){
 }
 
 function oplotHTML(){
-  return '<section data-sig="oplot-game"><iframe id="oplot-game" src="oplot.html?v=6" title="Драконий Оплот" allow="autoplay; fullscreen" allowfullscreen></iframe></section>';
+  return '<section data-sig="oplot-game"><iframe id="oplot-game" src="oplot.html?v=7" title="Драконий Оплот" allow="autoplay; fullscreen" allowfullscreen></iframe></section>';
 }
+const orientationKey='phagi.oplot.orientation',touchGame=matchMedia('(any-pointer: coarse)');
+let savedOrientation='auto';
+try{const value=localStorage.getItem(orientationKey);if(['portrait','landscape'].includes(value))savedOrientation=value}catch{}
+function applyGameOrientation(){
+  const frame=document.getElementById('oplot-game');if(!frame)return;
+  const holder=frame.parentElement,physical=matchMedia('(orientation: portrait)').matches?'portrait':'landscape';
+  const mode=touchGame.matches?savedOrientation:'auto';
+  const turn=mode==='auto'||mode===physical?'':mode==='landscape'?'right':'left';
+  if(turn)holder.dataset.turn=turn;else delete holder.dataset.turn;
+  // The safe area belongs to the outer display. Its four edges turn with the iframe.
+  const css=getComputedStyle(holder),sides=['top','right','bottom','left'];
+  const shift=turn==='right'?1:turn==='left'?3:0;
+  const inner=frame.contentDocument?.documentElement;if(!inner)return;
+  sides.forEach((side,i)=>{
+    const value=css.getPropertyValue('scroll-padding-'+sides[(i+shift)%4]);
+    if(value&&value!=='auto')inner.style.setProperty('--safe-'+side,value);
+  });
+}
+let orientationFrame=0;
+function scheduleGameOrientation(){
+  if(!orientationFrame)orientationFrame=requestAnimationFrame(()=>{orientationFrame=0;applyGameOrientation()});
+}
+window.addEventListener('resize',scheduleGameOrientation);
+touchGame.addEventListener('change',scheduleGameOrientation);
+document.addEventListener('load',e=>{if(e.target.id==='oplot-game')applyGameOrientation()},true);
 window.OplotHost=Object.freeze({
+  orientationMode(){return touchGame.matches?savedOrientation:null},
+  setOrientation(mode){
+    if(!touchGame.matches||!['auto','portrait','landscape'].includes(mode))return;
+    savedOrientation=mode;try{localStorage.setItem(orientationKey,mode)}catch{}
+    applyGameOrientation();
+  },
   identity(){return S.view==='oplot' && S.me?.id && (T()||S.joined)?{id:S.me.id}:null},
   delivery(op,remember){return PHCLOUD.oplotDelivery(op,remember)},
   loadRaids(){return PHCLOUD.oplotRaids()},
@@ -3346,6 +3381,7 @@ function draw(soft){
   held=false;lastMain=html;dSave(M);
   if(S.view!==lastView){lastView=S.view;M.classList.remove('vin');void M.offsetWidth;M.classList.add('vin');setTimeout(()=>M.classList.remove('vin'),320)}
   patchMain(M,html);
+  if(S.view==='oplot')applyGameOrientation();
   mountQuizNav();
   dRestore(M);
   if(aid){const e=document.getElementById(aid);if(e&&e!==document.activeElement&&!$('#dlg').open){e.focus({preventScroll:true});try{if(ss!=null)e.setSelectionRange(ss,se)}catch{}}}

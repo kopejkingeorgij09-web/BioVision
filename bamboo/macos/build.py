@@ -25,5 +25,5 @@ for arch in ['arm64','x86_64']:
 subprocess.run(['lipo','-create','/private/tmp/ZovLesa-arm64','/private/tmp/ZovLesa-x86_64','-output',str(exe/'ZovLesa')],check=True)
 subprocess.run(['codesign','--force','--deep','--sign','-',str(out)],check=True)
 subprocess.run(['codesign','--verify','--deep','--strict',str(out)],check=True)
-subprocess.run(['ditto','-c','-k','--sequesterRsrc','--keepParent',str(out),str(args.output/'Zov-Lesa-macOS-1.1.1.zip')],check=True)
+subprocess.run(['ditto','-c','-k','--sequesterRsrc','--keepParent',str(out),str(args.output/f"Zov-Lesa-macOS-{info['CFBundleShortVersionString']}.zip")],check=True)
 print(out)

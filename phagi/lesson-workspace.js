@@ -151,14 +151,18 @@ function homeworkPdfPanel(n,tasks){
   const attached = active.flatMap(t=>t.files || []).filter(isPdf);
   const event = visEvents().find(e=>e.id==='shad-w'+n);
   const materials = event ? active.flatMap(t=>evFiles(event,t.lesson.date)).concat(evFiles(event,event.date)).filter(isPdf) : [];
-  const files = [...new Map((attached.length?attached:materials).map(f=>[f.id,f])).values()];
   const urls = [...new Set(active.flatMap(t=>t.links || []).filter(u=>okUrl(u) && /\.pdf(?:[?#]|$)/i.test(u)))];
+  const files = [...new Map((attached.length || urls.length ? attached : materials).map(f=>[f.id,f])).values()];
   const key='ph-hw-pdf:'+meId()+':'+n;
   let previous; try { previous=localStorage.getItem(key); } catch {}
   const pick=files.find(f=>f.id===previous) || (files.length===1 && !urls.length ? files[0] : null);
   if (!resumeOpened && pick){
     resumeOpened=true;
     queueMicrotask(()=>{if(S.view==='tasks' && S.shadHw===n)openViewer(pick.id,pick.name,pick.type);});
+  }
+  if (!resumeOpened && !files.length && urls.length===1){
+    resumeOpened=true;
+    queueMicrotask(()=>{if(S.view==='tasks' && S.shadHw===n)location.assign(urls[0]);});
   }
   const note=resumeNote?`<p>Остановился · <b>${esc(resumeNote)}</b></p>`:'';
   const links=urls.map(u=>`<a class="btn" href="${esc(u)}" target="_blank" rel="noopener">Открыть PDF</a>`).join('');

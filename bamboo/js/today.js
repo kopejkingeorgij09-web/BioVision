@@ -61,8 +61,10 @@ function studyWindows(day){
   if (day !== current) return [];
   const busy = B.calendarView.daySchedule(day).filter(x => x.start.includes('T') && !x.done);
   for (const l of B.teaching?.lessons || []) {
-    if (l.day === day && !l.cancel && /^\d{2}:\d{2}$/.test(l.start) && /^\d{2}:\d{2}$/.test(l.end))
-      busy.push({start:day+'T'+l.start,end:day+'T'+l.end,title:l.title});
+    if (l.day !== day || l.cancel || !/^\d{2}:\d{2}$/.test(l.start)) continue;
+    // Some teaching records only have a start. Don't promise free time after an unknown end.
+    const end=/^\d{2}:\d{2}$/.test(l.end) ? day+'T'+l.end : C.at(day,1440);
+    busy.push({start:day+'T'+l.start,end,title:l.title});
   }
   const minute = value => C.span(day+'T00:00',value);
   const blocks = busy.map(x => ({from:Math.max(0,minute(x.start)-(x.travel || 0)),

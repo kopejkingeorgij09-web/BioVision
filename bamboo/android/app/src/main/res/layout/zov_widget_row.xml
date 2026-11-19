@@ -13,6 +13,6 @@
         android:textColor="@color/widget_ink" android:textSize="14sp" android:textStyle="bold"
         android:includeFontPadding="false" android:maxLines="2" android:ellipsize="end" android:layout_marginTop="3dp"/>
     <TextView android:id="@+id/widget_teacher" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:textColor="@color/widget_ink" android:textSize="14sp" android:textStyle="bold"
+        android:textColor="@color/widget_sub" android:textSize="14sp"
         android:includeFontPadding="false" android:maxLines="2" android:ellipsize="end" android:layout_marginTop="2dp"/>
 </LinearLayout>

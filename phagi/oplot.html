@@ -122,6 +122,94 @@ body.island-wide .mapfoot #mapaction{display:flex;align-items:center;gap:5px}
 @media(max-width:540px){.parent-card{padding:7px}.hatch-parents{gap:6px}.parent-card>canvas{height:56px}.parent-card select{max-width:100%}.petrow b{overflow-wrap:anywhere}}
 
 .night-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 10px;padding:10px 14px}.night-banner[hidden]{display:none}.night-banner h3,.night-banner p{margin:0}.night-banner p,.night-summary p{font-size:13px;color:#5e5d46}.night-summary{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0}.night-summary h3,.night-summary p{margin:0}.night-summary>span{color:#91621a;font-size:20px;letter-spacing:.07em;white-space:nowrap}.night-map{display:block;width:100%;height:clamp(220px,42vh,400px);border:1px solid var(--line);border-radius:12px;background:#b9d5bb}.night-legend{display:flex;align-items:center;gap:12px;font-size:12px;margin:7px 0}.night-legend span:first-child{color:#216756}.night-legend span:nth-child(2){color:#983a39}.night-legend [data-night-time]{margin-left:auto;font-variant-numeric:tabular-nums}.night-body [data-night-seek]{width:100%;min-height:30px;accent-color:#35694f}.night-body [data-night-event]{min-height:2em;margin:9px 0 0}.night-rules{margin-top:10px;font-size:13px;color:#50533e}.night-rules summary{cursor:pointer;font-weight:700}.night-rules p{margin:8px 0}.night-actions{display:flex;flex-wrap:wrap;gap:8px}.night-actions button{min-height:40px}#night-report{max-height:90dvh;overflow-y:auto}#night-report label{display:block;color:#575a44;font-size:13px}#night-report select{display:block;width:100%;margin-top:4px}#night-report .night-body{overflow:visible;max-height:none}.attribution{flex-wrap:wrap}
+/* Keep controls inside the visible screen in both the browser and the installed app. */
+.header-inner #island-cloud-status{color:#efe5bd;line-height:1.2;text-underline-offset:3px}
+:root{
+ --safe-top:env(safe-area-inset-top,0px);--safe-right:env(safe-area-inset-right,0px);
+ --safe-bottom:env(safe-area-inset-bottom,0px);--safe-left:env(safe-area-inset-left,0px);
+}
+@media(pointer:coarse){
+ .header-inner{padding-top:max(6px,var(--safe-top));padding-left:max(9px,var(--safe-left));padding-right:max(9px,var(--safe-right))}
+ .layout{padding-left:max(7px,var(--safe-left));padding-right:max(7px,var(--safe-right));padding-bottom:max(10px,var(--safe-bottom))}
+ .tabs button,.close,.topbtn,.wallets button,.combat button,.layout-actions button,.wall-builder button,.night-actions button,dialog .cmd,dialog .choice{min-height:44px}
+ .close,.topbtn{min-width:44px}.mapframe,.map,.aside,.combat,.layout-stock,.night-stage,.night-meta,.night-extra{min-width:0}
+ body.island-wide .map-panel-tools{right:max(7px,var(--safe-right));top:max(7px,var(--safe-top))}
+ body.island-wide .maplabel{padding-top:max(9px,var(--safe-top));padding-left:max(9px,var(--safe-left))}
+ body.island-wide .map-view{right:max(7px,var(--safe-right));bottom:max(7px,var(--safe-bottom))}
+ body.island-wide .mapfoot{left:max(7px,var(--safe-left));bottom:max(7px,var(--safe-bottom))}
+ body.island-wide .mini-overview{right:max(7px,var(--safe-right));top:calc(max(7px,var(--safe-top)) + 49px)}
+ body.island-wide #layout-editor,body.island-wide .wall-builder{padding-bottom:max(8px,var(--safe-bottom))}
+ .map-view button,.maptools button,#island-full{min-width:44px;min-height:44px}
+ .combat .actions{gap:5px}.combat .actions button{white-space:normal;overflow-wrap:anywhere;text-wrap:pretty}
+ dialog{inset:var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);margin:auto;width:min(850px,calc(100vw - var(--safe-left) - var(--safe-right) - 12px));max-width:none;max-height:calc(100dvh - var(--safe-top) - var(--safe-bottom) - 12px);overscroll-behavior:contain}
+ #night-report,#island-cloud-dialog{max-height:calc(100dvh - var(--safe-top) - var(--safe-bottom) - 12px)}
+ .dlghead{min-height:48px;padding:3px 10px}.dlghead h2{font-size:clamp(20px,3.6vw,26px)}
+ #layout-editor .layout-stock button{min-height:44px}
+ body.island-wide .layout-actions{padding-right:var(--safe-right);padding-left:var(--safe-left)}
+}
+@media(pointer:coarse) and (orientation:portrait) and (max-width:540px){
+ .header-inner{grid-template-columns:auto minmax(0,1fr) auto auto;column-gap:5px}
+ .header-inner .logo{grid-area:1/1}.header-inner .brand{grid-area:1/2}.header-inner .topbtn{grid-area:1/4}
+ .header-inner #island-cloud-status{grid-area:1/3;max-width:76px;min-height:44px;font-size:11px;padding:3px 2px}
+}
+@media(pointer:coarse) and (orientation:portrait) and (max-width:820px){
+ .play{display:flex;flex-direction:column;gap:9px}.mapframe{order:0;width:100%}
+ .island-sidebar{display:contents}#island-progress{order:1;width:100%}#scout-post{order:2;width:100%}.aside{order:3;width:100%}
+ .map{height:clamp(265px,52dvh,590px)}body.island-wide .map{height:auto}
+ .battle .map{height:clamp(198px,calc(46dvh - 35px),475px)}
+ .combat{display:flex;flex-direction:column}.combat .stats{order:1}.combat .actions{order:2;margin:5px 0}.combat .desc{order:3}.combat .divider,.combat .linkbtn{order:4}
+ .combat .linkbtn{align-self:flex-start}.combat .kicker{display:none}
+ body.island-wide #layout-editor,body.island-wide .wall-builder{max-height:45dvh;overflow:auto;overscroll-behavior:contain}
+}
+@media(pointer:coarse) and (orientation:landscape) and (max-height:540px){
+ :root{--field-h:calc(100dvh - var(--safe-top) - var(--safe-bottom) - 102px);--tool-rail:clamp(174px,26vw,253px)}
+ .header-inner{display:flex;flex-wrap:nowrap;gap:7px;padding:var(--safe-top) max(7px,var(--safe-right)) 0 max(7px,var(--safe-left));min-height:44px}
+ .header-inner .logo{width:41px;height:41px}.logo canvas{width:27px;height:27px}.brand h1{font-size:22px}.brand small{display:none}
+ .wallets{margin-left:auto;gap:3px;flex-wrap:nowrap}.wallets .res{padding:3px 7px;min-height:33px}.wallets button.res{min-height:44px}.wallets .res canvas{width:18px;height:18px}.wallets .res b{font-size:14px}.wallets .res small{display:none}
+ .layout{padding-top:0}.tabs{display:flex;gap:0;margin:0 0 5px}.tabs button{flex:1;flex-direction:row;justify-content:center;gap:4px;padding:4px;font-size:12px}.tabs .fullnav{display:none}.tabs .shortnav{display:inline}.tabs canvas{width:17px;height:17px}
+ .play{display:grid;grid-template-columns:minmax(0,1fr) var(--tool-rail);align-items:start;gap:7px}.mapframe{order:0;width:100%;padding:3px;border-radius:12px}
+ .island-sidebar{display:grid;min-height:0;max-height:var(--field-h);overflow:auto;overscroll-behavior-y:contain;gap:7px}
+ #island-progress{order:0}#scout-post{order:1}.aside{display:grid;grid-template-columns:minmax(0,1fr);order:2}
+ .map{height:var(--field-h);min-height:150px;border-radius:8px}.maplabel{padding:5px 22px 13px 7px}.maplabel h2{font-size:18px}#island-area{font-size:10px}
+ .map-panel-tools{top:4px;right:4px;gap:3px}.maptools .glass{font-size:12px;padding:3px 7px}.map-view{right:4px;bottom:4px}
+ .mapfoot{left:4px;right:150px;bottom:4px}.mapfoot .note{font-size:11px;padding:4px 6px}
+ .battle .play{grid-template-columns:minmax(0,1fr) var(--tool-rail)}.battle .combat{padding:8px}
+ .combat .kicker{display:none}.combat h2{font-size:17px}.combat .desc,.combat .stats{font-size:12px;line-height:1.3}.combat .actions{margin:5px 0}
+ .combat .actions .cmd{flex:1 1 43%;min-width:0;font-size:12px;padding:4px 5px}.combat .divider{margin:4px 0}
+ .play:has(#layout-editor:not([hidden]),#wall-builder:not([hidden])){grid-template-columns:minmax(0,1fr)}
+ .mapframe:has(#layout-editor:not([hidden]),#wall-builder:not([hidden])){display:grid;grid-template-columns:minmax(0,1fr) var(--tool-rail);align-items:stretch;gap:4px}
+ .mapframe:has(#layout-editor:not([hidden]),#wall-builder:not([hidden]))+.island-sidebar{display:block;max-height:none;overflow:visible}
+ .mapframe #layout-editor,.mapframe #wall-builder{margin:0;max-height:var(--field-h);overflow:auto;padding:7px;overscroll-behavior:contain}
+ .layout-title{align-items:start;gap:2px}.layout-title h3,.wall-builder h3{font-size:17px}.layout-title .tag,#layout-selection,.wall-builder p,.wall-builder strong{font-size:12px}
+ .layout-actions{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:5px}.layout-actions button{padding:3px 4px;font-size:12px;line-height:1.16}.layout-actions .linkbtn{grid-column:1/-1}.layout-stock button{margin:4px 0}
+ body.island-wide .mapframe{padding:var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left)}
+ body.island-wide .mapframe:has(#layout-editor:not([hidden]),#wall-builder:not([hidden])){gap:0}
+ body.island-wide .mapframe .map{height:auto;min-height:0}
+ body.island-wide #layout-editor,body.island-wide #wall-builder{min-height:0;max-height:calc(100dvh - var(--safe-top) - var(--safe-bottom));padding:8px}
+ body.island-wide .layout-actions{padding:0}body.island-wide .maplabel{padding:5px 28px 18px 7px}
+ body.island-wide .map-panel-tools{top:4px;right:4px}body.island-wide .map-view{right:4px;bottom:4px}body.island-wide .mapfoot{left:4px;bottom:4px}
+ body.island-wide .wide-resources{margin-top:3px}body.island-wide .mini-overview{top:51px;right:4px}.mini-overview canvas{width:66px;height:45px}
+ .night-banner{padding:5px 9px;margin-bottom:4px}.night-banner h3,.night-banner p{font-size:12px}
+ .dlghead{padding:1px 10px;min-height:45px}.dlghead h2{font-size:20px}.dlgbody{padding:7px 10px}
+ #dialog[data-panel=build] .cards{grid-template-columns:repeat(auto-fit,minmax(216px,1fr));gap:6px}
+ #dialog[data-panel=build] .card{display:grid;grid-template-columns:48px minmax(0,1fr);gap:2px 6px;padding:6px;align-items:center}
+ #dialog[data-panel=build] .card canvas{grid-column:1;grid-row:1/3;height:44px}
+ #dialog[data-panel=build] .card h3{margin:0;font-size:16px}#dialog[data-panel=build] .card .tag{font-size:11px}
+ #dialog[data-panel=build] .card .desc,#dialog[data-panel=build] .card button{grid-column:1/-1;margin:0}
+ #dialog[data-panel=build] .card .desc,#dialog[data-panel=build] #dbody>.desc{font-size:12px;line-height:1.3}
+ #night-report:has(.night-stage){overflow:hidden}
+ #night-report .night-body:has(.night-stage){height:calc(100dvh - var(--safe-top) - var(--safe-bottom) - 65px);display:grid;grid-template-columns:minmax(0,1.58fr) minmax(165px,1fr);grid-template-rows:auto minmax(0,1fr);gap:6px 10px}
+ .night-stage{grid-column:1;grid-row:1/3;display:grid;grid-template-rows:minmax(70px,1fr) auto auto auto;min-height:0}
+ .night-stage .night-map{height:100%;min-height:0}.night-stage .night-legend{margin:2px 0}.night-stage [data-night-seek]{min-height:26px;margin:0}
+ .night-stage .night-actions{margin:0;gap:4px}.night-actions button{padding:4px 7px;font-size:12px}.night-meta{grid-column:2;grid-row:1}.night-extra{grid-column:2;grid-row:2;overflow:auto;overscroll-behavior:contain}
+ .night-meta .night-summary{margin:4px 0}.night-summary h3,.night-extra h3{font-size:16px}
+ #night-report .night-meta select{margin:0;padding:4px;min-height:36px}.night-extra [data-night-event]{margin:0}
+}
+@media(pointer:coarse) and (orientation:landscape) and (max-height:540px) and (max-width:650px){
+ body:not(.battle) .play{grid-template-columns:minmax(0,1fr)}
+ body:not(.battle) .play>.island-sidebar{max-height:none;overflow:visible}
+}
+
 </style></head><body>
 <header><div class="header-inner"><button class="logo" data-do="exit" title="Вернуться в Фаги" aria-label="Вернуться в Фаги"><canvas data-icon="crest"></canvas></button><div class="brand"><small>Фаги естественных наук</small><h1>Драконий Оплот</h1></div>
 <div class="wallets"><span class="res"><canvas data-icon="gold"></canvas><b id="gold">0</b><small>Золото</small></span><span class="res"><canvas data-icon="berries"></canvas><b id="berries">0</b><small>Ягоды</small></span><button class="res" data-do="wallet"><canvas data-icon="gem"></canvas><b id="balance">—</b><small>Алмазы</small></button></div><button class="topbtn" data-do="settings" aria-label="Настройки" title="Настройки">⚙</button></div></header>
@@ -148,7 +236,7 @@ body.island-wide .mapfoot #mapaction{display:flex;align-items:center;gap:5px}
 </section>
 <aside class="aside" id="aside"></aside></div></div><div class="attribution"><span id="caption"></span><button class="linkbtn" data-do="exit">Вернуться в Фаги</button></div></main>
 <dialog id="dialog" aria-labelledby="dt"><div class="dlghead"><h2 id="dt"></h2><button class="close" data-do="close" aria-label="Закрыть">×</button></div><div class="dlgbody"><div id="dbody"></div><div class="dlgnotice" role="status" id="dnotice"></div></div></dialog><div class="toast" role="status" id="toast"></div>
-<script src="oplot-layout.js?v=1"></script><script src="oplot-editor.js?v=1"></script><script src="oplot-art/village.js?v=1"></script><script src="oplot-art/stores.js?v=1"></script><script src="oplot-art/defenses.js?v=1"></script>
+<script src="oplot-layout.js?v=1"></script><script src="oplot-editor.js?v=2"></script><script src="oplot-art/village.js?v=1"></script><script src="oplot-art/stores.js?v=1"></script><script src="oplot-art/defenses.js?v=1"></script>
 <script>
 'use strict';
 const GAME_ELEMENTS = window.GAME_ELEMENTS = ['Огонь','Вода','Природа','Молния','Земля','Свет'];
@@ -2824,7 +2912,7 @@ function createIslandSync(host,key,game){
  }
  const status=document.createElement('button');status.type='button';status.id='island-cloud-status';status.className='linkbtn';status.setAttribute('aria-live','polite');
  const hostBox=document.querySelector('.header-inner')||document.querySelector('header')||document.body;hostBox.append(status);
- const modal=document.createElement('dialog');modal.id='island-cloud-dialog';modal.style.cssText='color:#243c36;background:#fbefcf;border:2px solid #ac8650;border-radius:16px;padding:20px;width:min(420px,90vw);max-height:78vh;overflow:auto';document.body.append(modal);
+ const modal=document.createElement('dialog');modal.id='island-cloud-dialog';modal.style.cssText='color:#243c36;background:#fbefcf;border:2px solid #ac8650;border-radius:16px;padding:20px;width:min(420px,90vw);overflow:auto';document.body.append(modal);
  let label='Открываем остров…';
  function report(message){label=message;status.textContent=message;status.title='Сохранение острова';}
  function archive(r){if(!r?.state)return;localStorage.setItem(journalKey+'.copy.'+copyId(),JSON.stringify({at:Date.now(),state:r.state}));}
@@ -2986,6 +3074,13 @@ function createIslandSync(host,key,game){
   record.out=d;
   if(persist() && new Blob([JSON.stringify(d)]).size<55000)host.storeIsland(record.base.rev,record.base.op,d,true).catch(()=>{});
  });
+ addEventListener('pageshow',event=>{
+  if(!event.persisted)return;
+  ended=false;
+  // A read that began before the page froze may still be settling. Read
+  // again afterwards to include changes made while this device was away.
+  if(running)running.then(()=>pump(true));else pump(true);
+ });
  function begin(){report('Открываем остров…');pump(true);}
  return {begin,changed,locked,pump,leave,canPay:()=>loaded&&!conflict&&!record.state.pending&&!localIssue};
 }
@@ -3032,6 +3127,7 @@ function renderEditor(){
    editor=editId=editDrag=cursor=null;toast('Расстановка изменилась на другом устройстве. Открыта актуальная база.');
  }
  box.hidden=!editor;document.body.classList.toggle('arranging',!!editor);if(!editor)return;
+ editor.setGrid?.(islandGrid(s));
  const spare=editor.buildings.filter(b=>b.stowed),groups=new Map(),selected=editBuilding();
  for(const b of spare){const groupKey=b.type+'-'+b.level;let group=groups.get(groupKey);
    if(!group){group={item:b,n:0};groups.set(groupKey,group)}group.n++;if(b.id===editId)group.item=b;
@@ -3097,6 +3193,13 @@ const btn=(action,label,arg='',cls='cmd',disabled=false)=>'<button type="button"
 const icon=(id)=>'<canvas data-icon="'+id+'" aria-hidden="true"></canvas>';
 const portrait=(d)=>'<canvas data-dragon="'+d.species+'" data-level="'+d.level+'" aria-hidden="true"></canvas>';
 const buildingArt=(type,level=1,fill=0)=>'<canvas data-building="'+type+'" data-level="'+level+'" data-fill="'+fill+'" aria-hidden="true"></canvas>';
+function screenChoices(){
+ const mode=host?.orientationMode?.();if(!mode)return '';
+ const labels={auto:'Авто',portrait:'Вертикально',landscape:'Горизонтально'};
+ return '<section class="screen-choice" role="group" aria-labelledby="screen-choice-title"><h3 id="screen-choice-title">Ориентация игры</h3><div class="actions">'+
+   Object.entries(labels).map(([key,label])=>'<button type="button" class="choice" data-do="orientation" data-id="'+key+'" aria-pressed="'+(key===mode)+'">'+label+'</button>').join('')+
+   '</div><p class="desc">В режиме «Авто» игра поворачивается вместе с телефоном.</p></section>';
+}
 const title=sp=>GAME_SPECIES[sp].name;
 function toast(msg){const el=dlg.open?$('#dnotice'):$('#toast');el.textContent=msg;clearTimeout(el._timer);el._timer=setTimeout(()=>{el.textContent=''},3700)}
 let islandSync=null;
@@ -3252,7 +3355,7 @@ function combatControls(){
 }
 function show(view,arg='',preserve=false){
  const was=dlg.open;const previousScroll=was&&preserve?dlg.scrollTop:0;
- panel=view;current=String(arg);const render=views[view];if(!render)return;
+ panel=view;dlg.dataset.panel=view;current=String(arg);const render=views[view];if(!render)return;
  const [heading,html]=render();$('#dt').textContent=heading;body.innerHTML=html;$('#dnotice').textContent='';
  if(!was)dlg.showModal();dlg.scrollTop=previousScroll;paintMini(body);tabsHTML();
 }
@@ -3535,7 +3638,7 @@ const views={
    return '<div class="listline"><b>'+label+'</b>'+btn('purchase',full?'Недостаточно места':cost+' ◆',id,'cmd alt',full||!wallet||wallet.balance<cost||busy||!!s.pending||(id==='incubate'&&(!s.egg||!secLeft())))+'</div>'}).join('');
   return ['Алмазная казна',rewardsInfo+(host?'<h3>Баланс · '+walletText()+' ◆</h3>'+(wallet?'<p class="desc">Карточки: '+wallet.cards+' · Домашние работы: '+wallet.homework+' · Потрачено: '+wallet.spent+'</p>':'')+(walletError?'<p class="desc">'+escape(walletError)+'</p>':'')+'<div class="actions">'+btn('sync','Обновить баланс','','cmd alt',busy)+btn('learn','Карточки','cards','linkbtn')+btn('learn','Домашние работы','tasks','linkbtn')+'</div>':'<p class="desc">Открой игру из своего профиля «Фагов», чтобы пользоваться заработанными алмазами.</p>'+btn('exit','Открыть Фаги','','cmd alt'))+'<div class="divider"></div>'+items+(s.pending?'<p class="desc">Покупка ожидает подтверждения.</p>'+btn('recover','Проверить покупку','','cmd',busy):'')];
  },
- settings(){return ['Настройки острова','<div class="listline"><b>Сказочные звуки</b>'+btn('sound',s.settings.sound?'Включены':'Выключены','','cmd alt')+'</div><p class="desc">'+(host?'Остров сохраняется в твоём профиле «Фагов» и открывается на других устройствах.':'Гостевой остров сохраняется в этом браузере.')+' Учебные алмазы хранятся в профиле на платформе.</p><div class="actions">'+btn('confirmreset','Сбросить остров','','cmd alt',!!s.pending||busy)+btn('exit','Вернуться в Фаги','','linkbtn')+'</div>']},
+ settings(){return ['Настройки острова',screenChoices()+'<div class="listline"><b>Сказочные звуки</b>'+btn('sound',s.settings.sound?'Включены':'Выключены','','cmd alt')+'</div><p class="desc">'+(host?'Остров сохраняется в твоём профиле «Фагов» и открывается на других устройствах.':'Гостевой остров сохраняется в этом браузере.')+' Учебные алмазы хранятся в профиле на платформе.</p><div class="actions">'+btn('confirmreset','Сбросить остров','','cmd alt',!!s.pending||busy)+btn('exit','Вернуться в Фаги','','linkbtn')+'</div>']},
  confirmreset(){return ['Начать остров заново?','<p class="desc">Здания, драконы, добыча и главы этого острова будут сброшены. Баланс учебных алмазов и история покупок сохранятся.</p><div class="actions">'+btn('settings','Отмена')+btn('reset','Сбросить остров','','cmd alt')+'</div>']}
 };
 function startFight(){
@@ -3573,6 +3676,7 @@ function tab(v){
  placement=null;refreshIsland();show(v);
 }
 const acts={
+ orientation:mode=>{host?.setOrientation?.(mode);show('settings','',true);body.querySelector('[data-do="orientation"][aria-pressed="true"]')?.focus({preventScroll:true})},
  tab,close,settings:()=>show('settings'),confirmreset:()=>show('confirmreset'),
  reset:()=>{if(s.pending||busy)return;battle=placement=cursor=null;team=[];const deliveries=s.deliveries,purchaseCount=s.purchaseCount??deliveries.length,lastRaid=s.lastRaid??null,incubationCredits=s.incubationCredits||0;s=initialState();Object.assign(s,{deliveries,purchaseCount,lastRaid,incubationCredits});close();update();toast('Остров основан заново')},
  wallet:()=>{show('wallet');syncWallet()},sync:refreshStudy,recover:deliver,purchase,
@@ -3693,7 +3797,8 @@ async function toggleWide(){
    ownsFullscreen=false;return;
  }
  setWide(true);
- if(!document.fullscreenElement&&document.fullscreenEnabled&&document.documentElement.requestFullscreen){
+ const orientation=host?.orientationMode?.();
+ if((!orientation||orientation==='auto')&&!document.fullscreenElement&&document.fullscreenEnabled&&document.documentElement.requestFullscreen){
    try{await document.documentElement.requestFullscreen();ownsFullscreen=true;
     if(!wide&&document.fullscreenElement)await document.exitFullscreen();
    }catch{/* The island still fills the viewport in embedded apps and mobile browsers. */}
@@ -3820,7 +3925,8 @@ world.addEventListener('keydown',e=>{
 });
 function resize(){
  const r=world.getBoundingClientRect();
- if(W&&H){camera.x*=r.width/W;camera.y*=r.height/H}
+ if(!r.width||!r.height)return;
+ if(W&&H){const n=islandSize(s),scale=Art.unit(r.width,r.height,n)/Art.unit(W,H,n);camera.x*=scale;camera.y*=scale}
  W=r.width;H=r.height;clampView();drawOverview();const dpr=Math.min(devicePixelRatio||1,2);
  world.width=Math.round(W*dpr);world.height=Math.round(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);paintMini();
 }
@@ -3881,7 +3987,12 @@ function applyRaidEvents(t){
  scene.effects=scene.effects.filter(e=>t-e.at<0.7);scene.last=t;
 }
 function raidTime(t){const n=Math.max(0,Math.floor(t));return Math.floor(n/60)+':'+String(n%60).padStart(2,'0')}
-function raidDuration(){const r=activeRaid()?.replay;if(!r)return 0;return Math.max(0,Number(r.duration)||0,raidScene?.events.at(-1)?.at||0);}
+function raidDuration(){
+ const r=activeRaid()?.replay;if(!r)return 0;
+ const end=Math.max(0,Number(r.duration)||0,raidScene?.events.at(-1)?.at||0);
+ // The slider snaps to tenths. Its last stop must include every event of the final tick.
+ return Math.ceil(end*10)/10;
+}
 function raidAttackFrames(scene,t){
  // The event timestamp is the recorded hit. Begin the wind-up before it so
  // the impact frame and HP change occur together, also when seeking backwards.
@@ -3957,7 +4068,7 @@ const raidRules='<details class="night-rules"><summary>Правила ночно
 function displayRaid(index,practice=null){
  pauseRaid();raidRequest++;practiceReport=practice;raidAt=index;raidClock=0;const r=activeRaid();if(!r)return;resetRaidScene(r);
  const stars=Math.max(0,Math.min(3,Math.trunc(r.stars)||0)),list=raids.map((x,i)=>'<option value="'+i+'"'+(i===index?' selected':'')+'>'+escape(raidDate(x.day))+' · волна '+escape(x.wave??1)+'</option>').join('');
- nightBody.innerHTML='<label>Запись набега<select class="pick" data-night-date>'+list+'</select></label><div class="night-summary"><div><h3>'+(stars===0?'Остров выстоял':'Налётчики заработали '+stars+' '+(stars===1?'звезду':'звезды'))+'</h3><p>'+escape(raidsLoss(r))+'</p></div><span aria-label="Звёзды налётчиков '+stars+' из трёх">'+'★'.repeat(stars)+'☆'.repeat(3-stars)+'</span></div>';
+ nightBody.innerHTML='<div class="night-meta"><label>Запись набега<select class="pick" data-night-date>'+list+'</select></label><div class="night-summary"><div><h3>'+(stars===0?'Остров выстоял':'Налётчики заработали '+stars+' '+(stars===1?'звезду':'звезды'))+'</h3><p>'+escape(raidsLoss(r))+'</p></div><span aria-label="Звёзды налётчиков '+stars+' из трёх">'+'★'.repeat(stars)+'☆'.repeat(3-stars)+'</span></div></div>';
  if(practice){
   const nightStars=raids[index].stars;
   nightBody.querySelector('.night-summary h3').textContent='Тренировка обороны';
@@ -3965,7 +4076,7 @@ function displayRaid(index,practice=null){
    (stars<nightStars?'Новая оборона сдержала налёт лучше.':stars>nightStars?'Ночью остров защищался лучше.':'Результат по звёздам совпал.');
  }
  if(!r.replay||!raidScene.events.length){nightBody.insertAdjacentHTML('beforeend','<p>Для этого набега сохранилась только сводка.</p>'+raidRules);return;}
- nightBody.insertAdjacentHTML('beforeend','<canvas class="night-map" role="img" aria-label="Запись обороны острова"></canvas><div class="night-legend"><span>● Защитники</span><span>● Налётчики</span><span data-night-time></span></div><input data-night-seek aria-label="Перемотка записи" type="range" min="0" step="0.1" max="'+raidDuration()+'" value="0"><div class="actions night-actions"><button type="button" class="cmd" data-night-play>Воспроизвести</button><button type="button" class="cmd alt" data-night-step>Следующее событие</button></div><p data-night-event></p>'+raidRules);
+ nightBody.insertAdjacentHTML('beforeend','<div class="night-stage"><canvas class="night-map" role="img" aria-label="Запись обороны острова"></canvas><div class="night-legend"><span>● Защитники</span><span>● Налётчики</span><span data-night-time></span></div><input data-night-seek aria-label="Перемотка записи" type="range" min="0" step="0.1" max="'+raidDuration()+'" value="0"><div class="actions night-actions"><button type="button" class="cmd" data-night-play>Воспроизвести</button><button type="button" class="cmd alt" data-night-step>Следующее событие</button></div></div><div class="night-extra"><p data-night-event></p>'+raidRules+'</div>');
  const testControls=practice?
   '<div class="actions"><button type="button" class="cmd alt" data-night-original>К ночной записи</button><button type="button" class="cmd alt" data-night-edit>Изменить расстановку</button></div>':
   '<div class="divider"></div><h3>Тренировка обороны</h3><p class="desc">Та же волна атакует сегодняшний остров. Ресурсы сохраняются, результат можно сравнить с ночным.</p><div class="actions"><button type="button" class="cmd" data-night-practice>Испытать оборону</button><button type="button" class="cmd alt" data-night-edit>Изменить расстановку</button></div><p class="desc" role="status" data-night-training-status></p>';
@@ -4039,7 +4150,15 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&host)refr
 if(host){
  islandSync=createIslandSync(host,key,{
   get:()=>s,
-  set:(value,refresh)=>{const interrupted=refresh&&battle&&!equalIslandData(value,s);s=typeof upgradeIsland==='function'?(upgradeIsland(value)||value):value;
+  set:(value,refresh)=>{const interrupted=refresh&&battle&&!equalIslandData(value,s);
+   const moving=refresh&&placement?.kind==='move'?B(placement.id):null;
+   s=typeof upgradeIsland==='function'?(upgradeIsland(value)||value):value;
+   if(moving){
+    const next=B(moving.id);
+    if(!next||next.stowed||next.type!==moving.type||next.x!==moving.x||next.y!==moving.y){
+     placement=cursor=null;toast('Положение постройки изменилось на другом устройстве. Перенос отменён.');
+    }
+   }
    if(interrupted){battle=null;placement=cursor=null;close();toast('Остров изменён на другом устройстве. Сражение завершено.');}
    if(refresh){if(!battle)refreshIsland();if(dlg.open&&panel){if(['pet','sale','hatched'].includes(panel)&&!D(current)||panel==='structure'&&!B(current))close();else show(panel,current,true)}}},
   render:()=>{if(!battle)refreshIsland();if(dlg.open&&panel==='wallet')show(panel,current,true)},

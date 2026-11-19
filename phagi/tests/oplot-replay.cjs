@@ -7,7 +7,8 @@ const report={day:'2026-11-20',wave:3,stars:2,percent:50,goldLost:45,berriesLost
  attackers:[{id:'a1',species:3,level:6,x:0,y:4,hp:30,flying:false}],defenders:[{id:'d1',species:0,level:6,x:3,y:4,hp:30}],
  events:[{t:1,kind:'move',id:'a1',target:'a1',from:[0,4],to:[1,4],text:'Налётчик наступает'},
  {t:2,kind:'tower',id:'arch',target:'a1',from:[4,2],to:[1,4],amount:20,hp:10,text:'Лучники попадают в цель'},
- {t:4,kind:'fall',id:'d1',target:'a1',from:[3,4],to:[1,4],hp:0,text:'Дракон выбыл'},
+ {t:5,kind:'guard',id:'d1',target:'a1',from:[3,4],to:[1,4],amount:10,hp:0,text:'Последний удар защитника'},
+ {t:5,kind:'fall',id:'d1',target:'a1',from:[3,4],to:[1,4],hp:0,text:'Дракон выбыл'},
  {t:5,kind:'end',amount:2,text:'Оборона завершена'}]}};
 const largeReport={...report,day:'2026-11-19',wave:2,replay:{v:1,duration:2,gridSize:16,gridWidth:16,gridHeight:15,
  buildings:[{id:'edge-keep',type:'keep',level:3,hp:200,x:15,y:14}],
@@ -74,7 +75,7 @@ async function check(browser,width){const ctx=await browser.newContext({viewport
  const map=d.locator('canvas');await d.locator('canvas[aria-label*="10×10"]').waitFor();
  const timeline=d.locator('[data-night-seek]');assert.equal(await timeline.inputValue(),'0');
  await d.getByRole('button',{name:'Следующее событие'}).click();assert.equal(await timeline.inputValue(),'1');await d.getByText('Налётчик наступает').waitFor();
- await timeline.focus();await timeline.press('End');await d.getByText('Оборона завершена').waitFor();
+ await timeline.focus();await timeline.press('End');assert.equal(await d.locator('[data-night-event]').textContent(),'Оборона завершена','End must reach the last event of a grouped server tick');
  await d.getByRole('button',{name:'Сначала'}).click();await d.getByRole('button',{name:'Пауза'}).click();
  await d.locator('select').selectOption('1');assert.equal(await timeline.inputValue(),'0');
  await d.locator('canvas[aria-label*="16×15"]').waitFor();
@@ -96,7 +97,7 @@ async function check(browser,width){const ctx=await browser.newContext({viewport
  await practice.click();await d.getByText('Не удалось рассчитать тренировку.',{exact:false}).waitFor();assert.ok(await practice.isEnabled());
  await practice.click();await d.getByRole('heading',{name:'Тренировка обороны'}).waitFor();
  await d.getByText(/ночью — 2 из 3, сейчас — 0 из 3/).waitFor();await d.locator('canvas[aria-label*="11×10"]').waitFor();
- await timeline.focus();await timeline.press('End');await d.getByText('Оборона завершена').waitFor();
+ await timeline.focus();await timeline.press('End');assert.equal(await d.locator('[data-night-event]').textContent(),'Оборона завершена','End must reach the last event of a grouped server tick');
  await d.getByRole('button',{name:'К ночной записи'}).click();await d.getByText('Золото −45 · ягоды −9').waitFor();
  delay=true;const pending=new Promise(resolve=>reached=resolve);await Promise.all([pending,practice.click()]);
  await d.locator('select').selectOption('1');assert.equal(typeof release,'function');release();delay=false;

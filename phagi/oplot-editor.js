@@ -24,6 +24,7 @@ window.OplotEditor=(()=>{
      base,get buildings(){return buildings},get canUndo(){return !!history.length},
      get dirty(){return key(buildings)!==base},get ready(){return buildings.some(b=>b.type==='keep'&&!b.stowed)},
      matches:live=>key(live)===base,serialize:()=>({base,rows:snapshot(buildings)}),
+     setGrid(bounds){grid=bounds},
      put(id,x,y){
        const b=buildings.find(b=>b.id===id);
        if(!b||!OplotLayout.fits(buildings,b.type,x,y,grid,id))return false;

@@ -153,6 +153,11 @@ function docRef(path){checkDoc(path);const id=split(path).id;
       const prev=cache.get(path);put(path,clone(data),'');notify([path]);
       try{const t=await rpc('ph_set',{p_code:getCode(),p_path:path,p_data:data});put(path,clone(data),t)}
       catch(e){prev?cache.set(path,prev):cache.delete(path);notify([path]);throw e}},
+    async setIfCurrent(current,data){
+      const result=await rpc('ph_set_if',{p_code:getCode(),p_path:path,p_data:data,p_rev:current?(current.rev??0):null,p_op:current?.op??null});
+      if(result.ok&&put(path,clone(data),result.t))notify([path]);
+      return result;
+    },
     async update(data){const prev=cache.get(path);
       if(prev&&prev.data){put(path,mergeLocal(prev.data,data),'');notify([path])}
       try{const t=await rpc('ph_update',{p_code:getCode(),p_path:path,p_data:data});const e=cache.get(path);if(e)e.t=t;

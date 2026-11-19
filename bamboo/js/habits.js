@@ -128,47 +128,70 @@ let sheetDay = null;
 B.acts.hcDay = el => { sheetDay = el.dataset.d; B.sheet(daySheet(sheetDay), () => { sheetDay = null; }); };
 B.on('change', () => { if (sheetDay && B.sheetOpen()) B.sheet(daySheet(sheetDay), () => { sheetDay = null; }); });
 
+function weekCount(h, today){
+  const monday = B.weekStart(today);
+  let count = 0;
+  for (let day = monday; day <= today; day = B.add(day, 1)){
+    if (day >= (h.created || '') && B.habitDone(h, day)) count++;
+  }
+  return count;
+}
+function todayRow(h, date){
+  const value = B.habitVal(h, date), weekly = h.kind === 'weekly';
+  const detail = [];
+  if (h.auto === 'molbio') detail.push((B.alberts?.pagesOn(date) || 0) + ' стр. сегодня');
+  if (h.auto === 'read') detail.push(B.readMin(date) + '/' + (h.min || 30) + ' мин');
+  if (h.auto === 'cards') detail.push((B.phxDay(date)?.cards || 0) + '/' + (h.min || 10) + ' карточек');
+  if (weekly) detail.push(weekCount(h, date) + '/' + (h.target || 3) + ' за неделю');
+  if (value === 0.5) detail.push('минимум');
+  if (!detail.length) detail.push('Каждый день');
+  const name = esc(h.name), manual = !h.auto || h.auto === 'cards';
+  const state = value === 0.5 ? 'Минимум' : value ? 'Выполнено' : 'Без отметки';
+  return `<div class="habit-line">
+    <button class="habit-mark" ${dayAct(h, date)} ${manual ? 'aria-pressed="' + !!value + '"' : ''} aria-label="${name}. ${state}. ${manual ? 'Изменить отметку' : 'Открыть запись'}">
+      <span class="habit-box ${value ? 'is-done' : ''} ${value === 0.5 ? 'is-mini' : ''}">${value ? icon('check') : ''}</span>
+      <span class="habit-copy"><b>${name}</b><small>${detail.join(' · ')}</small></span>
+    </button>
+    <button class="habit-edit" data-act="habitEdit" data-id="${esc(h.id)}" aria-label="Изменить привычку «${name}»">${icon('pen')}</button>
+  </div>`;
+}
+function todayList(hs, today){
+  const daily = hs.filter(h => h.kind !== 'weekly');
+  const count = daily.length ? daily.filter(h => B.habitDone(h, today)).length
+    : hs.filter(h => weekCount(h, today) >= (h.target || 3)).length;
+  const total = daily.length || hs.length;
+  return `<section class="habit-overview" aria-label="Прогресс привычек">
+    <div><p>${daily.length ? B.fmtW(today) : 'На этой неделе'}</p>
+      <strong>${count}<small> / ${total}</small></strong>
+      <span>${daily.length ? 'ежедневных привычек отмечено' : 'недельных целей достигнуто'}</span></div>
+    ${B.bar(count / total)}
+  </section>
+  <section class="habit-list" aria-label="Отметки за сегодня">${hs.map(h => todayRow(h, today)).join('')}</section>`;
+}
+function habitHistory(hs){
+  const tips = B.insights();
+  return habitCal(hs) + `<section class="card habit-history"><h2>По привычкам</h2>
+    ${hs.map(h => {
+      const s = B.habitStreak(h);
+      return `<div class="habit-history-item"><div class="row between wrap"><b>${esc(h.name)}</b>
+        <span class="muted">${h.kind === 'weekly' ? s.thisWeek + '/' + s.target + ' за неделю' : 'Серия ' + s.cur + ' ' + s.unit + '.'}</span></div>
+        ${last7(h)}<div class="habit-stats"><span>За 30 дней <b>${Math.round(B.habitRate(h) * 100)}%</b></span><span>Рекорд <b>${s.best} ${s.unit}.</b></span></div>
+        ${heat(h)}</div>`;
+    }).join('')}</section>
+    <details class="card habit-review"><summary>Разбор недели</summary>
+      ${tips.length ? `<ul>${tips.map(t => `<li>${t}</li>`).join('')}</ul>` : '<p class="muted">Пока мало записей для разбора.</p>'}
+      <button class="btn" data-act="aiWeek">Разобрать неделю в Claude</button>
+    </details>`;
+}
 B.views.habits = {
   title: 'Привычки',
   render(){
-    const hs = B.habits();
+    const today = B.today(), hs = B.habits().filter(h => !h.created || h.created <= today);
+    const history = location.hash.split('/')[2] === 'history';
     return `<div class="page habits-page">
-      <header class="page-h"><div><div class="eyebrow">Привычки</div><h1>Режим складывается из мелочей</h1></div>
-        <button class="btn primary" data-act="habitNew">${icon('plus')} Привычка</button></header>
-      ${hs.length ? habitCal(hs) : ''}
-      <div class="cols">
-        <div class="col">
-          ${hs.map(h => {
-            const s = B.habitStreak(h), rate = B.habitRate(h);
-            return `<section class="card habit" style="--hc:var(--c-${B.habitColor(h)})">
-              <div class="row between">
-                <button class="habit-name" data-act="habitEdit" data-id="${h.id}"><i class="hic">${icon(h.icon || 'habit')}</i><span><b>${esc(h.name)}</b><small>${h.kind === 'weekly' ? `${h.target || 3} раза в неделю` : 'каждый день'}${h.auto === 'molbio' ? ' · по страницам Альбертса, свободные дни' : h.auto === 'read' ? ` · от ${h.min || 30} мин чтения, отмечается само` : h.auto === 'sport' ? ' · по записи тренировки' : h.auto === 'cards' ? ` · от ${h.min || 10} карточек на Фагах, отмечается само` : ''}</small></span></button>
-                <div class="streak ${s.cur ? 'on' : ''}">${icon('flame')}<b>${s.cur}</b><small>${s.unit}</small></div>
-              </div>
-              ${last7(h)}
-              ${h.auto === 'molbio' ? `<div class="row wrap h-quick"><button class="btn sm" data-act="albertsLog">Дочитал до…</button><a class="btn sm ghost" href="#/tasks/alberts">План Альбертса</a></div>` : h.auto === 'read' ? `<div class="row wrap h-quick"><span class="muted">Сегодня ${B.mins(B.readMin(B.today()))} из ${h.min || 30} мин</span><button class="btn sm" data-act="readDay" data-d="${B.today()}">${icon('book')} Указать время</button><a class="btn sm ghost" href="#/read">Книги и таймер</a></div>`
-                : h.auto === 'sport' ? `<div class="row wrap h-quick"><button class="btn sm ${B.habitDone(h, B.today()) ? '' : 'primary'}" data-act="sportDay" data-d="${B.today()}">${icon('run')} ${B.habitDone(h, B.today()) ? 'Тренировка есть · заметка' : 'Отметить тренировку'}</button></div>` : ''}
-              <div class="habit-stats"><span>за 30 дней <b>${Math.round(rate * 100)}%</b></span><span>рекорд <b>${s.best} ${s.unit}</b></span>${h.kind === 'weekly' ? `<span>на этой неделе <b>${s.thisWeek}/${s.target}</b></span>` : ''}</div>
-              ${B.bar(rate)}
-              ${heat(h)}
-            </section>`;
-          }).join('') || '<p class="empty">Привычек пока нет.</p>'}
-        </div>
-        <div class="col">
-          <section class="card insights"><h2>${icon('sparkle')}Что видно по записям</h2>
-            ${(() => { const tips = B.insights(); return tips.length ? `<ul>${tips.map(t => `<li>${t}</li>`).join('')}</ul>` : '<p class="muted">Записей пока мало. Через неделю здесь появятся закономерности.</p>'; })()}
-            <button class="btn" data-act="aiWeek">${icon('sparkle')} Разобрать неделю в Claude</button>
-            <p class="hint">Откроется claude.ai в твоём аккаунте с готовым запросом: итоги семи дней, причины переносов и разборы.</p>
-          </section>
-          <section class="card"><h2>${icon('leaf')}Как это работает</h2>
-            <ul class="plain dots">
-              <li>Отметить можно сегодня и два прошлых дня. Дальше история не правится, чтобы статистика была честной.</li>
-              <li>Чтение засчитывается, когда за день набралось нужное число минут: нажми на день и укажи, сколько читал, или запиши время в «Чтении». Тренировку отмечаешь нажатием на день, повторное нажатие открывает заметку. Остальные, в том числе сон, отмечаешь сам.</li>
-              <li>Каждая выполненная привычка даёт ${B.XP.habit} XP, минимальная версия вдвое меньше. Для недельной считаются только первые N раз.</li>
-            </ul>
-          </section>
-        </div>
-      </div>
+      <header class="page-h"><h1>Привычки</h1><button class="btn" data-act="habitNew">${icon('plus')} Добавить</button></header>
+      <nav class="habit-tabs" aria-label="Вид привычек"><a href="#/habits" ${history ? '' : 'aria-current="page"'}>Сегодня</a><a href="#/habits/history" ${history ? 'aria-current="page"' : ''}>История</a></nav>
+      ${hs.length ? (history ? habitHistory(hs) : todayList(hs, today)) : '<p class="empty">Привычек пока нет. Добавь первую, чтобы отмечать её здесь.</p>'}
     </div>`;
   }
 };

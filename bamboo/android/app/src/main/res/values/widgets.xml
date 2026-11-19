@@ -1,0 +1,31 @@
+<resources>
+    <color name="launcher_forest">#091613</color>
+    <dimen name="widget_radius">26dp</dimen>
+    <color name="widget_bg">#0B0B0B</color>
+    <color name="widget_ink">#FFFFFF</color>
+    <color name="widget_sub">#E2E2E2</color>
+    <color name="widget_line">#747474</color>
+    <color name="widget_surface">#171717</color>
+    <color name="widget_inverse_ink">#090909</color>
+    <color name="widget_inverse_sub">#282828</color>
+    <string name="widget_desc_today">Ближайшие дела и задачи на сегодня</string>
+    <string name="widget_desc_agenda">Расписание, аудитория и преподаватель</string>
+    <string name="widget_desc_shad_today">Назначенные на сегодня вебинары и домашние работы</string>
+    <string name="widget_desc_shad_progress">Прогресс курса и ближайшая работа</string>
+    <string name="widget_desc_shad_week">Недельный план, отдельные счётчики вебинаров и домашних работ</string>
+    <string name="widget_desc_alberts">Прогресс недели и запись прочитанной страницы</string>
+    <string name="widget_desc_bookmark">Книга открывается на следующей непрочитанной странице</string>
+    <string name="widget_desc_habits">Отметить привычку прямо на рабочем столе</string>
+    <style name="WidgetPreviewTitle">
+        <item name="android:layout_width">match_parent</item><item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/widget_ink</item><item name="android:textStyle">bold</item><item name="android:textSize">20sp</item>
+        <item name="android:maxLines">1</item><item name="android:ellipsize">end</item>
+    </style>
+    <style name="WidgetPreviewSubtitle" parent="WidgetPreviewTitle">
+        <item name="android:textStyle">normal</item><item name="android:textColor">@color/widget_sub</item><item name="android:textSize">14sp</item>
+    </style>
+    <style name="WidgetPreviewFocus" parent="WidgetPreviewTitle">
+        <item name="android:layout_marginTop">8dp</item><item name="android:background">@drawable/widget_card_active</item>
+        <item name="android:padding">7dp</item><item name="android:textColor">@color/widget_inverse_ink</item>
+    </style>
+</resources>

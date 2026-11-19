@@ -4,6 +4,7 @@
   if (!bridge || !window.B) return;
   const C = B.calData;
   let timer, last = '';
+  let habitAcks = [];
   const text = (value, max = 220) => typeof value === 'string' ? value.trim().slice(0, max) : '';
   function details(e){
     let teacher = text(e.teacher || e.instructor), location = text(e.location);
@@ -59,12 +60,35 @@
     todayShad.sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
     const study={date:today,shad:{total:B.shad.plan.length,closed:stages[4],watched:stages[2]+stages[3]+stages[4],homework:stages[3]+stages[4],
       schedule:schedule.slice(0,300),today:todayShad.slice(0,30),week:weekShad.slice(0,100),weekDone:weekShad.filter(x=>x.done).length,unplaced:weekShad.filter(x=>!x.placed&&!x.done).length},alberts:B.alberts?.widget()||null};
-    const packet = JSON.stringify({op:'widgets',items:items.slice(0,300),study});
-    if(packet!==last){bridge.postMessage(packet);last=packet;}
+    const day = B.today();
+    const habits = {date:day, rows:B.habits().filter(h => !h.created || h.created <= day).map(h =>
+      ({id:h.id, name:text(h.name,160), auto:h.auto || '', value:B.habitVal(h,day)}))};
+    const packet = JSON.stringify({op:'widgets',items:items.slice(0,300),study,habits,habitAcks});
+    if(habitAcks.length || packet!==last){bridge.postMessage(packet);last=packet;}
+    habitAcks=[];
   }
+  // Commands carry the requested final state. A replay after a process restart is idempotent.
+  B.applyWidgetHabits = changes => {
+    const ack=[];
+    for (const change of changes){
+      const {id,date,checked,token}=change;
+      if (!C.validDate(date) || date>B.today() || typeof checked!=='boolean' || !token) continue;
+      const h=B.get('h_'+id);
+      if (!h) continue;
+      if (!h.arch && !h.auto && (!h.created || date>=h.created) && !!B.habitVal(h,date)!==checked){
+        B.editDay(date,d => {
+          d.h={...d.h};
+          if (checked) d.h[id]=1; else delete d.h[id];
+        });
+      }
+      ack.push({id,date,token});
+    }
+    if (ack.length && B.persistLocal()){habitAcks=ack;sync();}
+  };
   function queue(){clearTimeout(timer);timer=setTimeout(sync,180);}
   B.on('change',queue);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync();});
   window.addEventListener('pageshow',sync);
   sync();
+  B.androidReminders?.refresh();
 })();

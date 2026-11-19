@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const widgetSource=fs.readFileSync('bamboo/android/web/widget-data.js','utf8');
 function widgets(tasks,events=[],plan=[]){
  const messages=[];
- const B={tasks:()=>tasks,shad:{plan},shadStage:()=>0,on:()=>{},ymd:d=>d.toISOString().slice(0,10),add:(s,n)=>new Date(Date.parse(s)+n*86400000).toISOString().slice(0,10),nextRep:(d,r)=>B.add(d,1),calData:{validDate:d=>/^\d{4}-\d\d-\d\d$/.test(d||''),events:()=>events,occurrences:e=>e.occ||[e],dateOf:d=>d.slice(0,10)}};
+ const B={today:()=>new Date().toISOString().slice(0,10),habits:()=>[],tasks:()=>tasks,shad:{plan},shadStage:()=>0,on:()=>{},ymd:d=>d.toISOString().slice(0,10),add:(s,n)=>new Date(Date.parse(s)+n*86400000).toISOString().slice(0,10),nextRep:(d,r)=>B.add(d,1),calData:{validDate:d=>/^\d{4}-\d\d-\d\d$/.test(d||''),events:()=>events,occurrences:e=>e.occ||[e],dateOf:d=>d.slice(0,10)}};
  vm.runInNewContext(widgetSource,{window:{B,ZovReminder:{postMessage:s=>messages.push(JSON.parse(s))},addEventListener:()=>{}},B,document:{addEventListener:()=>{}},setTimeout,clearTimeout});
  return messages.at(-1).items;
 }
@@ -45,4 +45,24 @@ test('one-off lesson retains homework on move; weekly occurrences stay separate'
  assert.equal(match({id:'shad-w5',repeat:'none'},'2026-11-22')[0].id,'own');
  assert.equal(match({id:'shad-w5',repeat:'weekly'},'2026-11-22').length,0);
  assert.equal(match({id:'shad-w5',repeat:'weekly'},'2026-11-17').length,1);
+});
+
+test('a pending habit action sets the recorded day once and acknowledges only durable changes',()=>{
+ const messages=[],edits=[],days={}, habits=[
+   {id:'walk',name:'Прогулка',created:'2020-01-01'},
+   {id:'book',name:'Молбио',auto:'molbio'},
+   {id:'old',name:'Архив',arch:true}
+ ];
+ let saved=false;
+ const B={today:()=>today,habits:()=>habits.filter(h=>!h.arch),get:key=>habits.find(h=>'h_'+h.id===key),
+   habitVal:(h,d)=>days[d]?.h?.[h.id]||0,editDay:(d,fn)=>{edits.push(d);fn(days[d] ||= {});},
+   persistLocal:()=>saved, tasks:()=>[],shad:{plan:[]},on:()=>{},ymd:d=>d.toISOString().slice(0,10),
+   add:(s,n)=>new Date(Date.parse(s)+n*86400000).toISOString().slice(0,10),calData:{events:()=>[],validDate:d=>/^\d{4}-\d\d-\d\d$/.test(d)}};
+ vm.runInNewContext(widgetSource,{window:{B,ZovReminder:{postMessage:s=>messages.push(JSON.parse(s))},addEventListener(){}},B,document:{addEventListener(){}},setTimeout,clearTimeout});
+ const yesterday=B.add(today,-1), mark={id:'walk',date:yesterday,checked:true,token:'operation'};
+ B.applyWidgetHabits([mark]);assert.deepEqual(edits,[yesterday]);assert.deepEqual(messages.at(-1).habitAcks,[]);
+ saved=true;B.applyWidgetHabits([mark]);assert.deepEqual(edits,[yesterday]);assert.equal(messages.at(-1).habitAcks[0].token,'operation');
+ B.applyWidgetHabits([{...mark,checked:false,token:'undo'},{...mark,id:'book'},{...mark,id:'old'}]);
+ assert.deepEqual(edits,[yesterday,yesterday]);assert.deepEqual(Object.keys(days[yesterday].h),[]);
+ assert.equal(messages.at(-1).habits.rows.length,2);assert.equal(messages.at(-1).habitAcks.length,3);
 });

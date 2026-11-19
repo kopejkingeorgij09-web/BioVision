@@ -29,7 +29,8 @@ async function check(browser,width) {
  }
  async function place(type,x,y){
   await tab('build');await act(dialog,'construct',type);
-  await selectCell(x,y);
+  const offset=await page.evaluate(type=>Math.floor((OplotLayout.size(type)-1)/2),type);
+  await selectCell(x+offset,y+offset);
   if(type==='wall'){
    await act(page.locator('#wall-builder'),'confirmwalls');await act(page,'cancelplace');
   }
@@ -70,7 +71,7 @@ async function check(browser,width) {
   assert.deepEqual(built.buildings.find(b=>b.id===existing.id),existing);
   assert.equal(built.gold,original.gold-80);assert.equal(built.xp,original.xp+72);
   await quote(0);assert.ok(await confirm.isDisabled(),'Confirmed line cannot be charged again');
-  await selectCell(4,3);await selectCell(4,5);assert.ok(await confirm.isDisabled(),'Occupied citadel blocks the entire line');
+  await selectCell(16,13);await selectCell(16,17);assert.ok(await confirm.isDisabled(),'Occupied citadel blocks the entire line');
   await act(page,'cancelplace');assert.deepEqual(await read(),built);
   await begin();await selectCell(1,5);await quote(1);await act(page,'cancelplace');
   await page.reload();assert.deepEqual(await read(),built,'Confirmed walls persist, cancelled preview does not');
@@ -80,7 +81,7 @@ async function check(browser,width) {
    await act(page,'cancelplace');assert.deepEqual(await read(),island);
   }
   await blocked({...start,gold:39},7,/золот/i);
-  const nearlyFull=Array.from({length:35},(_,i)=>wall('section-'+i,i%10,Math.floor(i/10)));
+  const nearlyFull=Array.from({length:135},(_,i)=>wall('section-'+i,i%35,Math.floor(i/35)));
   await blocked({...start,buildings:[...start.buildings,...nearlyFull]},7,/лимит/i);
  }
  async function checkSale(start){
@@ -118,7 +119,7 @@ async function check(browser,width) {
  try {
   await page.goto(url);
   const start=await read();assert.deepEqual(start.buildings.map(b=>b.type),['keep']);
-  await expectExpansion(35,'11×10');
+  await expectExpansion(35,'38×35');
   const guide=progress.locator('details#xp-guide');
   await guide.locator('summary').click();
   assert.ok(await guide.evaluate(el=>el.open));
@@ -128,20 +129,20 @@ async function check(browser,width) {
   }
   for(const amount of [18,35,12,8,20,15])assert.match(rewards,new RegExp('\\b'+amount+'\\b'),'XP reward or factor '+amount);
   await guide.locator('summary').click();
-  await seed({...start,xp:35});await expectExpansion(105,'11×11');
+  await seed({...start,xp:35});await expectExpansion(105,'38×38');
   await seed(start);
   await tab('build');assert.equal(await dialog.locator('[data-do="construct"][data-id="academy"]').isDisabled(),true);
-  const mine=await place('mine',5,4);
-  assert.equal((await read()).xp,18);await expectExpansion(17,'11×10');
-  const farm=await place('farm',3,4);assert.equal((await read()).gold,start.gold);
-  await expectExpansion(104,'11×11');
-  assert.match(await page.locator('#island-area').innerText(),/Уровень 2 · 11 × 10/);
-  // Row eleven stays closed while column eleven immediately accepts construction.
+  const mine=await place('mine',13,7);
+  assert.equal((await read()).xp,18);await expectExpansion(17,'38×35');
+  const farm=await place('farm',4,13);assert.equal((await read()).gold,start.gold);
+  await expectExpansion(104,'38×38');
+  assert.match(await page.locator('#island-area').innerText(),/Уровень 2 · 38 × 35/);
+  // The extra rows stay closed while the new columns accept a 4×4 store.
   await tab('build');await act(dialog,'construct','foodstore');
-  const closedCell=await world.evaluate(c=>Art.point(2,10,c.clientWidth,c.clientHeight,11));
+  const closedCell=await world.evaluate(c=>Art.point(2,35,c.clientWidth,c.clientHeight,38));
   await world.click({position:closedCell});assert.equal((await read()).buildings.length,3);
   await act(page,'cancelplace');
-  const barn=await place('foodstore',10,5), treasury=await place('goldstore',4,5);
+  const barn=await place('foodstore',34,12), treasury=await place('goldstore',7,14);
   const built=await read();
   assert.equal(built.gold,start.gold-75-90);
   assert.match(await page.locator('#berries + small').innerText(),/620/);
@@ -167,9 +168,9 @@ async function check(browser,width) {
   assert.ok((await read()).buildings.filter(b=>b.type.endsWith('store')).every(b=>b.level===2));
   await close();await act(page,'collectall');
   assert.ok((await read()).berries>620);
-  const savedBarn=(await read()).buildings.find(b=>b.id===barn.id);assert.equal(savedBarn.x,10);
-  await page.reload();assert.equal((await read()).buildings.find(b=>b.id===barn.id).x,10);
-  const beforeKeep=await read();await selectCell(4,4);
+  const savedBarn=(await read()).buildings.find(b=>b.id===barn.id);assert.equal(savedBarn.x,34);
+  await page.reload();assert.equal((await read()).buildings.find(b=>b.id===barn.id).x,34);
+  const beforeKeep=await read();await selectCell(17,17);
   assert.deepEqual(await dialog.locator('.keep-evolution canvas').evaluateAll(nodes=>nodes.map(n=>n.dataset.level)),['1','2']);
   await act(dialog,'upgrade','b0');
   assert.deepEqual(await dialog.locator('.keep-evolution canvas').evaluateAll(nodes=>nodes.map(n=>n.dataset.level)),['2','3']);
@@ -178,7 +179,7 @@ async function check(browser,width) {
   await tab('build');assert.equal(await dialog.locator('[data-do="construct"][data-id="academy"]').isDisabled(),true);
   const wall=await place('wall',3,5);
   assert.match(await page.locator('#caption').innerText(),/ур. 7/);
-  const academy=await place('academy',12,12);
+  const academy=await place('academy',23,23);
   await openBuilding(academy.id);await act(dialog,'academy');await dialog.locator('#academy-dragon').selectOption('d1');
   const before=await read();await act(dialog,'enchant','d1');const after=await read();
   assert.equal(after.dragons[1].enchant,1);assert.equal(after.dragons[0].enchant||0,0);
@@ -204,15 +205,15 @@ async function check(browser,width) {
   assert.match(await dialog.innerText(),/Зачарование 2 \/ 5/);
   assert.match(await dialog.innerText(),/Фокус/);assert.match(await dialog.locator('.ability .kicker').textContent(),/Ульта · Вода/);
   const maxIsland=await read();maxIsland.xp=35*12*12;maxIsland.gold=450;await seed(maxIsland);
-  assert.match(await page.locator('#island-area').innerText(),/Уровень 13 · 16 × 16/);
-  assert.match(await expansion.innerText(),/максим|полностью|все клетки|все 256/i);
+  assert.match(await page.locator('#island-area').innerText(),/Уровень 13 · 55 × 55/);
+  assert.match(await expansion.innerText(),/максим|полностью|все клетки|все 3\s?025/i);
   assert.doesNotMatch(await expansion.innerText(),/до (?:следующего )?расширения/i);
   await openBuilding(wall.id);await act(dialog,'move',wall.id);
-  await world.focus();for(let i=0;i<17;i++)await world.press('ArrowRight');
-  for(let i=0;i<17;i++)await world.press('ArrowDown');
+  await world.focus();for(let i=0;i<55;i++)await world.press('ArrowRight');
+  for(let i=0;i<55;i++)await world.press('ArrowDown');
   await world.press('Enter');
   const moved=(await read()).buildings.find(b=>b.id===wall.id);
-  assert.deepEqual([moved.x,moved.y],[15,15]);await page.reload();
+  assert.deepEqual([moved.x,moved.y],[54,54]);await page.reload();
   assert.deepEqual((await read()).buildings.find(b=>b.id===wall.id),moved);
   await checkSale(start);
   await checkWallBuilder(start);

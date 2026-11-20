@@ -4392,6 +4392,12 @@ document.addEventListener('keydown',e=>{
  if(wallShift){e.preventDefault();cancelWallShift();world.focus({preventScroll:true});return}
  if(wide){e.preventDefault();toggleWide()}
 });
+// Native WebKit can consume Escape on entry and deliver only its keyup.
+document.addEventListener('keyup',e=>{
+ if(e.key!=='Escape'||!wide||!wallShift||document.querySelector('dialog[open]'))return;
+ cancelWallShift();world.focus({preventScroll:true});
+ if(nativeWideOwner===fullButton)nativeWide(fullButton,false);
+});
 world.addEventListener('wheel',e=>{
  if(battle||(!wide&&!e.ctrlKey&&!e.metaKey&&camera.zoom===1))return;
  e.preventDefault();const delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?H:1);

@@ -98,7 +98,10 @@ async function run(browser,tablet){
   if(!tablet)await photo('landscape-battle');await rotate(portrait);
   await full.tap();assert.equal(await full.getAttribute('aria-pressed'),'false');
   await stats.filter({hasText:/Высажено 1/}).waitFor();await tap('retreat');await tap('abandon');
-  await tap('tab','battle');await tap('mode','defense');await tap('start');
+  await tap('tab','battle');await tap('mode','defense');
+  const nightGuard=dlg.getByLabel('Ночной дозор · 03:00 МСК');
+  assert.equal(await nightGuard.inputValue(),'guard');await nightGuard.selectOption('towers');
+  await tap('start');
   await stats.filter({hasText:/Стойкость цитадели/}).waitFor();await full.tap();await rotate(tablet?landscape:[568,320]);
   await fillsViewport(f.locator('.play'));await usable(full,'Exit fullscreen defense');
   await usable(speed,'Defense speed in fullscreen');assert.equal(await speed.inputValue(),'4');await speed.selectOption('2');
@@ -123,6 +126,10 @@ async function run(browser,tablet){
   await page.setViewportSize({width:portrait[0],height:portrait[1]});await page.locator('#nav [data-v=oplot]').tap();
   await f.locator('#island-cloud-status').filter({hasText:'Остров в облаке'}).waitFor();
   assert.ok(originalDoc().state.buildings.some(b=>b.type==='mine'));assert.equal(originalDoc().state.dragons.length,original.dragons.length);
+  assert.equal(originalDoc().state.settings.nightTowersOnly,true);
+  await tap('tab','battle');await tap('mode','defense');assert.equal(await nightGuard.inputValue(),'towers');
+  await tap('start','towers');await f.locator('.combat .desc').filter({hasText:'Оборона без драконов'}).waitFor();
+  assert.equal(await f.locator('[data-do=combat]').count(),0);
   assert.deepEqual(errors,[]);
   console.log('PASS embedded map, build, editor selection, fullscreen raid, defense, replay and study across rotations',tablet?'768/1024 tablet':'320/360/390/430 landscape phones');
  }finally{await context.close()}

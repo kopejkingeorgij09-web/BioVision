@@ -109,9 +109,11 @@ async function check(browser,width){const ctx=await browser.newContext({viewport
  await d.getByRole('button',{name:'Закрыть отчёты'}).click();reports=[];
  await f.getByRole('button',{name:'Отчёты о ночных набегах'}).click();await d.getByRole('heading',{name:'Ночных набегов пока не было'}).waitFor();await d.getByText('Правила ночного дозора').click();await d.getByText(/25%, 50% и 80%/).waitFor();assert.deepEqual(errors,[]);
  // Advance a known number of animation frames while changing speed during playback.
- reports=[report];await d.getByRole('button',{name:'Закрыть отчёты'}).click();
+ reports=[{...report,stars:0,towersOnly:true,goldLost:0,berriesLost:0,reward:{gold:222,berries:141,xp:99,full:false}}];
+ await d.getByRole('button',{name:'Закрыть отчёты'}).click();
  await page.reload({waitUntil:'domcontentloaded'});
  await f.getByRole('button',{name:'Отчёты о ночных набегах'}).click();await timeline.waitFor();
+ await d.getByText('Оборона без драконов · награда ×3 · золото +222 · ягоды +141 · опыт +99').waitFor();
  const speed=d.getByRole('combobox',{name:'Скорость боя'}),play=d.locator('[data-night-play]');
  assert.equal(await speed.inputValue(),'4','speed preference survives reload');
  const start=Date.now();await page.clock.install({time:new Date(start)});await page.clock.pauseAt(new Date(start+1000));

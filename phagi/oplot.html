@@ -2170,7 +2170,9 @@ window.Art = (() => {
     '0,1,3,4,5':'Звёздный ливень','0,2,3,4,5':'Венец древнего леса','1,2,3,4,5':'Свет семи ручьёв',
     '0,1,2,3,4,5':'Хоровод шести стихий'};
   const vitality = [1,1.19,1.42,1.70];
-  const strength = [1,1.23,1.49,1.81];
+  // Integer rank percentages keep hits and guard selection in sync with server rounding.
+  const strength = [100,123,149,181];
+  const dragonDamage=(level,tier)=>Math.round((700+175*level)*strength[tier-1]/10000);
   const buildingNames = {mortar:'Мортира',skybow:'Баллиста',tempest:'Грозовой обелиск',solar:'Солнечный маяк',goldstore:'Золотое хранилище',foodstore:'Амбар ягод',academy:'Академия чар',keep:'Цитадель',mine:'Шахта',farm:'Ферма',home:'Жилище',archer:'Башня лучников',cannon:'Бастион',spire:'Шпиль стихий',wall:'Магическая стена',den:'Логово',firetrap:'Огненная руна',icetrap:'Ледяная ловушка'};
   const towerType=window.OplotLayout.defenses;
   const health = {mortar:66,skybow:56,tempest:64,solar:82,goldstore:70,foodstore:62,academy:84,keep:112,mine:31,farm:28,home:35,den:38,archer:40,cannon:45,spire:48,wall:35,firetrap:7,icetrap:7};
@@ -2199,7 +2201,7 @@ window.Art = (() => {
     enchant=clamp(Math.floor(Number(enchant)||0),0,5);
     const powerFactor=1+enchant*.18,activeBonus=35+enchant*9;
     const elements=speciesElements(species),tier=clamp(elements.length,1,4);
-    const hp=Math.round((55+7*level)*vitality[tier-1]),damage=Math.round((7+1.45*level)*strength[tier-1]);
+    const hp=Math.round((55+8.5*level)*vitality[tier-1]),damage=dragonDamage(level,tier);
     const charges=tier<3?4:3;
     const extra=Math.max(1,Math.round(damage*(.52+.035*(tier-1))*powerFactor));
     const restore=Math.max(1,Math.round(damage*(.75+.045*(tier-1))*powerFactor));
@@ -2227,7 +2229,7 @@ window.Art = (() => {
   // Integer arithmetic matches the server's decimal rounding at half points.
   function guardPower(d){
     const tier=spec(d.species).rank,level=d.level||1,enchant=d.enchant||0;
-    const damage=Math.round((700+145*level)*[100,123,149,181][tier-1]/10000);
+    const damage=dragonDamage(level,tier);
     const bonus=scale=>Math.round(damage*scale*(100+18*enchant)/100000);
     const specialty=d.specialty==='area'?550:d.specialty==='focus'?400:0;
     return damage+(bonus(520+35*(tier-1))+bonus(specialty))/(tier<3?4:3);
@@ -2401,8 +2403,8 @@ window.Art = (() => {
       const endurance=structures.reduce((sum,b)=>sum+b.maxHp,0);
       const firepower=structures.reduce((sum,b)=>sum+(towerType[b.type]?towerType[b.type].damage/towerType[b.type].delay:0),0);
       for(const b of structures){
-        b.maxHp=b.hp=Math.ceil(b.hp/endurance*(campaignBaseline.hp*(1+.060*depth)));
-        if(towerType[b.type])b.attackScale=campaignBaseline.fire*(1+.047*depth)/(firepower*(1+.22*(b.level-1)));
+        b.maxHp=b.hp=Math.ceil(b.hp/endurance*(campaignBaseline.hp*(1+.072*depth)));
+        if(towerType[b.type])b.attackScale=campaignBaseline.fire*(1+.061*depth)/(firepower*(1+.22*(b.level-1)));
       }
     }
     return structures;
@@ -2442,9 +2444,10 @@ window.Art = (() => {
     ctx.restore();
   }
   function compactButton(id,label,disabled=false,arg,active=false) { return {id,label,disabled,arg,active}; }
-  function start(mode,stage,state,squad,events={}) {
+  function start(mode,stage,state,squad,events={},towersOnly=false) {
     stage=Math.max(1,Math.floor(Number(stage)||1));
     const defense=mode==='defense', arena=mode==='arena', boss=mode==='boss';
+    const unguarded=defense&&towersOnly===true;
     const layoutVersion=defense&&state.layoutVersion===2?2:1,fieldScale=layoutVersion===2?2:1;
     const ownedGrid=defense&&typeof islandGrid==='function'?islandGrid(state):{};
     const minSide=layoutVersion===2?window.OplotLayout.gridAtLevel(1).width:10;
@@ -2454,7 +2457,7 @@ window.Art = (() => {
     const gridSize=Math.max(gridWidth,gridHeight),lastX=gridWidth-1,lastY=gridHeight-1;
     const bounds={width:gridWidth,height:gridHeight};
     const entrances=[{x:0,y:Math.floor(lastY/2)},{x:Math.floor(lastX/2),y:0},{x:lastX,y:Math.ceil(lastY/2)},{x:Math.ceil(lastX/2),y:lastY}];
-    const party=(defense?defenders(state.dragons||squad||[]):(squad||[]).slice(0,arena?3:4)).map(makeDragon);
+    const party=(unguarded?[]:defense?defenders(state.dragons||squad||[]):(squad||[]).slice(0,arena?3:4)).map(makeDragon);
     const structures=arena?[]:defense?(state.buildings||[]).filter(b=>!b.stowed&&Number.isFinite(b.x)&&Number.isFinite(b.y))
       .map((b,i)=>makeBuilding(b,i,1,layoutVersion)):fortress(stage,boss);
     const keep=structures.find(b=>b.type==='keep');
@@ -2598,7 +2601,8 @@ window.Art = (() => {
       const multiplier=win?1+0.25*(stars-1):0;
       const gold=Math.round((base+stage*7)*multiplier), berries=Math.round((base*.62+stage*5)*multiplier);
       fxSound(win?'victory':'click');
-      finishResult={win,stars:win?stars:0,gold,berries,mode,stage};
+      const bonus=unguarded&&win?3:1;
+      finishResult={win,stars:win?stars:0,gold:bonus*gold,berries:bonus*berries,mode,stage,towersOnly:unguarded};
       finishAt=time+Math.min(1.1,Math.max(0,...sparks.filter(e=>e.kind==='attack').map(e=>e.max-e.t)));
     }
     if(defense){
@@ -2649,17 +2653,18 @@ window.Art = (() => {
     function spawn() {
       const side=(Math.floor((spawned+stage-1)/2))%4;
       const edge=entrances[side], drift=((spawned*3+stage)%5-2)*.48*fieldScale;
-      const draconic=spawned%3===2;
+      const draconic=stage>=12?spawned%2!==0:spawned%3===2;
       let u;
       if(draconic){
         const tier=Math.min(4,1+Math.floor(stage/3));
         const species=rivalSpecies(tier,stage*3+spawned);
         u=makeDragon({species,level:Math.max(1,Math.ceil(stage*.70))},0);
-        u.hp=u.maxHp=Math.ceil(u.hp*1.16);u.damage=Math.ceil(u.damage*1.15);
-        Object.assign(u,{side:'enemy',kind:'shadow',joined:true,visualLevel:Math.max(5,u.level),speed:1.12});
+        u.hp=u.maxHp=Math.ceil(u.hp*(1.24+Math.min(2,stage*.02)));
+        u.damage=Math.ceil(u.damage*(1.22+Math.min(1.65,stage*.018)));
+        Object.assign(u,{side:'enemy',kind:'shadow',joined:true,visualLevel:Math.max(5,u.level),speed:1.18+Math.min(.35,stage*.013)});
       }else{
-        const hp=28+stage*5;
-        u={side:'enemy',kind:'goblin',hp,maxHp:hp,speed:1.02,damage:6+Math.ceil(stage*1.16),elements:[]};
+        const hp=Math.round(30+stage*(6+Math.min(9,stage*.28)));
+        u={side:'enemy',kind:'goblin',hp,maxHp:hp,speed:1.07,damage:7+Math.ceil(stage*1.45),elements:[]};
       }
       Object.assign(u,{x:edge.x,y:edge.y,cd:.4,slow:0});
       if(edge.x===0||edge.x===lastX)u.y+=drift;else u.x+=drift;
@@ -2742,7 +2747,7 @@ window.Art = (() => {
     function defenseTurns(dt) {
       if(!keep||!alive(keep)){end(false);return;}
       spawnTimer-=dt;
-      if(spawned<waveSize&&spawnTimer<=0){spawn();spawnTimer=Math.max(.8,1.65-stage*.06);}
+      if(spawned<waveSize&&spawnTimer<=0){spawn();spawnTimer=stage>=12&&spawned%3!==0?.70:Math.max(.85,1.65-stage*.035);}
       for(const u of enemy) {
         if(!alive(u))continue;
         u.cd-=dt;u.slow=Math.max(0,u.slow-dt);
@@ -2919,7 +2924,7 @@ window.Art = (() => {
       return {x:((px-a.x)*by-(py-a.y)*bx)/det,y:((py-a.y)*ax-(px-a.x)*ay)/det};
     }
     function tap(px,py,w,h) {
-      if(done)return;
+      if(done||unguarded)return;
       if(arena){
         if(py>h*.77&&py<h*.97){action('strike');return;}
         let closest=null,d=Infinity;
@@ -3126,7 +3131,7 @@ window.Art = (() => {
       label(ctx,head,w*.5,20,12);
       const v=boss?displayedRatio(guardian):arena?mana/3:defense?keepHealth:visibleKills/Math.max(1,objectives.length);
       bar(ctx,left+18,30,headerWidth-36,5,v,boss?'#e09086':arena?'#96c8dd':'#b0ce96');
-      if(!arena){
+      if(!arena&&!unguarded){
         const bw=Math.min(w*.48,205),bx=w-bw-8;
         ctx.fillStyle='rgba(45,63,57,.87)';rounded(ctx,bx,h-31,bw,24,8);ctx.fill();
         label(ctx,'Ярость '+Math.floor(fury)+'%'+(defense?'':'  ·  '+Math.max(0,Math.ceil(100-elapsed))+' с'),bx+bw/2,h-23,10);
@@ -3165,7 +3170,7 @@ window.Art = (() => {
         buttons.push(compactButton('strike','Ударить',awaitingEnemy),compactButton('magic',(actor?actor.ability.name:'Способность')+' · 2 магии',mana<2||awaitingEnemy));
       }else{
         if(defense){
-          title+=' · волна '+stage;description='Защитите Цитадель. Касанием назначьте отряду цель или место сбора.';
+          title+=' · волна '+stage;description=unguarded?'Оборона без драконов. Если цитадель устоит, награда за волну утроится.':'Защитите Цитадель. Касанием назначьте отряду цель или место сбора.';
           stats='Отбито '+enemy.filter(u=>!alive(u)).length+' из '+waveSize+' · Стойкость цитадели '+Math.round(100*ratio(keep||{hp:0,maxHp:1}))+'%';
         }else{
           title=boss?'Хранитель · испытание '+stage:stages[(stage-1)%stages.length];
@@ -3175,7 +3180,7 @@ window.Art = (() => {
           if(reserve<party.length)entrances.forEach((_,i)=>buttons.push(compactButton('deploy',(i+1)+' · '+entryNames[i],false,i)));
           if(boss&&party.some(clearsWalls))buttons.push(compactButton('evade','Взлёт · ур. 21+',evadeCd>0||!party.some(d=>d.joined&&alive(d)&&clearsWalls(d))));
         }
-        buttons.push(compactButton('fury','Стихийная ярость',fury<99.99||!started||(defense&&!enemy.some(alive))));
+        if(!unguarded)buttons.push(compactButton('fury','Стихийная ярость',fury<99.99||!started||(defense&&!enemy.some(alive))));
         if(mode==='raid'&&raidStars()>0)buttons.push(compactButton('withdraw','Забрать добычу · '+raidStars()+' ★'));
         if(hint)description=hint;
       }
@@ -3753,7 +3758,7 @@ function showXpRewards(){
   ['Вылупление дракона','+'+xp.hatch+' опыта, когда дракон вылупится из яйца.'],
   ['Награда главы','+'+xp.chapter+' опыта, когда заберёшь награду главы «Путь хранителя».'],
   ['Зачарование в академии','+'+xp.enchantPerRank+' × новая ступень зачарования. За вторую ступень — '+(2*xp.enchantPerRank)+' опыта.'],
-  ['Победа в ручном бою','+'+xp.victory+' за победу, '+xp.perStar+' за звезду и '+xp.perStage+' × номер этапа. В кампании опыт за остров и каждую его звезду выдаётся один раз.']
+  ['Победа в ручном бою','+'+xp.victory+' за победу, '+xp.perStar+' за звезду и '+xp.perStage+' × номер этапа. В кампании опыт за остров и каждую его звезду выдаётся один раз. Победа одними укреплениями утраивает опыт.']
  ];
  $('#xp-rewards').innerHTML=rewards.map(([action,reward])=>'<div><dt>'+action+'</dt><dd>'+reward+'</dd></div>').join('');
  $('#xp-examples').textContent='Постройка +'+xp.build+' · дракон из яйца +'+xp.hatch;
@@ -4176,13 +4181,15 @@ const views={
       const d=D(id),number=s.dragons.indexOf(d)+1;
       return '<span class="cost">'+title(d.species)+' · ур. '+d.level+' · №'+number+'</span>';
     });
-    squadMenu='<h3>Защита острова · '+roster.length+'/5</h3><p class="desc">Игра выбирает до пяти драконов по средней силе удара с учётом ульты и зачарования. Этот отряд выходит и на ночной дозор.</p><div class="actions">'+picked.join('')+'</div>';
+    squadMenu='<h3>Защита острова · '+roster.length+'/5</h3><p class="desc">Игра выбирает до пяти драконов по средней силе удара с учётом ульты и зачарования. Если принять волну без них, за победу ты получишь втрое больше золота, ягод и опыта.</p><div class="actions">'+picked.join('')+'</div>';
   }else{
     squadMenu='<h3>Твой отряд · '+roster.length+'/'+n+'</h3><div class="actions">'+s.dragons.map((d,i)=>'<button class="choice" data-do="team" data-id="'+d.id+'" aria-pressed="'+roster.includes(d.id)+'">'+(roster.includes(d.id)?'✓ ':'')+title(d.species)+' · '+d.level+' ур. · №'+(i+1)+'</button>').join('')+'</div>';
   }
-  return ['Военный совет',(host?'<button type="button" class="linkbtn" data-night-open>Ночной дозор · записи обороны</button>':'')+'<div class="actions">'+Object.entries(MODE_NAMES).map(([id,label])=>btn('mode',label,id,'choice '+(planned===id?'active':''))).join('')+'</div><div class="divider"></div><h3>'+MODE_NAMES[planned]+'</h3><p class="desc">'+MODE_TEXT[planned]+'</p>'+stageMenu+'<div class="divider"></div>'+squadMenu+'<div class="actions">'+btn('start','Начать сражение','','cmd gold',!!lock||!roster.length||(planned==='arena'&&roster.length!==3))+'</div>'];
+  const nightChoice=planned==='defense'&&host?'<div class="divider"></div><label for="night-guard">Ночной дозор · 03:00 МСК</label><select class="pick" id="night-guard"'+(islandSync?.locked()?' disabled':'')+'><option value="guard">С драконами</option><option value="towers"'+(s.settings.nightTowersOnly===true?' selected':'')+'>Без драконов · награда ×3</option></select><p class="desc">Этот состав выходит каждую ночь. За ноль звёзд у налётчиков начисляются золото, ягоды и опыт.</p>':'';
+  const startButtons=planned==='defense'?btn('start','Принять волну с драконами','','cmd',!roster.length)+btn('start','Без драконов · награда ×3','towers','cmd gold'):btn('start','Начать сражение','','cmd gold',!!lock||!roster.length||(planned==='arena'&&roster.length!==3));
+  return ['Военный совет',(host?'<button type="button" class="linkbtn" data-night-open>Ночной дозор · записи обороны</button>':'')+'<div class="actions">'+Object.entries(MODE_NAMES).map(([id,label])=>btn('mode',label,id,'choice '+(planned===id?'active':''))).join('')+'</div><div class="divider"></div><h3>'+MODE_NAMES[planned]+'</h3><p class="desc">'+MODE_TEXT[planned]+'</p>'+stageMenu+'<div class="divider"></div>'+squadMenu+'<div class="actions">'+startButtons+'</div>'+nightChoice];
  },
- result(){const r=lastResult;return [r.win?'Победа!':'Сражение окончено','<div class="stars">'+(r.stars?'★'.repeat(r.stars):'◇')+'</div><h3>'+MODE_NAMES[r.mode]+'</h3><p class="desc">'+(r.win?'Добыча доставлена на остров.':'Отряд вернулся на остров. Можно укрепить оборону или накормить драконов перед новой попыткой.')+'</p><div class="cost">+'+r.gold+' золота　+'+r.berries+' ягод　+'+num(r.experience)+' опыта</div>'+(r.scouts?'<p class="desc">Разведчики уже в пути. Следующий архипелаг появится на карте '+Battle.scoutArrival(r.scouts.readyAt)+'.</p>':'')+(r.full?'<p class="desc">Часть добычи осталась в крепости. Для следующего набега можно расширить склады.</p>':'')+'<div class="actions">'+btn('close','На остров')+btn('tab','Военный совет','battle','cmd alt')+'</div>']},
+ result(){const r=lastResult;return [r.win?'Победа!':'Сражение окончено','<div class="stars">'+(r.stars?'★'.repeat(r.stars):'◇')+'</div><h3>'+MODE_NAMES[r.mode]+'</h3><p class="desc">'+(r.towersOnly?(r.win?'Цитадель выстояла без драконов. Начислена тройная награда.':'Цитадель пала. Награда за волну не начислена.'):r.win?'Добыча доставлена на остров.':'Отряд вернулся на остров. Можно укрепить оборону или накормить драконов перед новой попыткой.')+'</p><div class="cost">+'+r.gold+' золота　+'+r.berries+' ягод　+'+num(r.experience)+' опыта</div>'+(r.scouts?'<p class="desc">Разведчики уже в пути. Следующий архипелаг появится на карте '+Battle.scoutArrival(r.scouts.readyAt)+'.</p>':'')+(r.full?'<p class="desc">Часть добычи осталась в крепости. Для следующего набега можно расширить склады.</p>':'')+'<div class="actions">'+btn('close','На остров')+btn('tab','Военный совет','battle','cmd alt')+'</div>']},
  retreat(){return ['Покинуть сражение?','<p class="desc">Отряд вернётся на остров без добычи.</p><div class="actions">'+btn('close','Продолжить бой')+btn('abandon','Вернуться без добычи','','cmd alt')+'</div>']},
  wallet(){
   const items=Object.entries(catalog).map(([id,[label,cost]])=>{
@@ -4193,15 +4200,16 @@ const views={
  settings(){return ['Настройки острова',screenChoices()+'<div class="listline"><b>Сказочные звуки</b>'+btn('sound',s.settings.sound?'Включены':'Выключены','','cmd alt')+'</div><p class="desc">'+(host?'Остров сохраняется в твоём профиле «Фагов» и открывается на других устройствах.':'Гостевой остров сохраняется в этом браузере.')+' Учебные алмазы хранятся в профиле на платформе.</p><div class="actions">'+btn('confirmreset','Сбросить остров','','cmd alt',!!s.pending||busy)+btn('exit','Вернуться в Фаги','','linkbtn')+'</div>']},
  confirmreset(){return ['Начать остров заново?','<p class="desc">Здания, драконы, добыча и главы этого острова будут сброшены. Баланс учебных алмазов и история покупок сохранятся.</p><div class="actions">'+btn('settings','Отмена')+btn('reset','Сбросить остров','','cmd alt')+'</div>']}
 };
-function startFight(){
- const squad=readyTeam().map(D).filter(Boolean);if(!squad.length||(planned==='arena'&&squad.length!==3))return;
+function startFight(option){
+ const towersOnly=planned==='defense'&&option==='towers';
+ const squad=towersOnly?[]:readyTeam().map(D).filter(Boolean);if((!squad.length&&!towersOnly)||(planned==='arena'&&squad.length!==3))return;
  const stage=planned==='raid'?campaignStage:planned==='defense'?s.waves+1:planned==='boss'?s.bosses+1:s.arenas+1;
  if(planned==='raid'&&Battle.campaignLock(stage,s.campaign,lev(),s.campaignScouts))return;
  const island=planned==='defense'?{...s,buildings:s.buildings.map(b=>({...b,fill:stockOnModel(b)}))}:s;
  placement=cursor=null;close();battle=Battle.start(planned,stage,island,squad,{change:combatControls,sound:sounds,finish:r=>{
   battle=null;
   const payout=r.mode==='raid'?Battle.campaignPayout(r,s.campaign[r.stage]||0,PROFILE_XP):
-    {...r,experience:r.win?PROFILE_XP.victory+PROFILE_XP.perStar*r.stars+PROFILE_XP.perStage*r.stage:0};
+    {...r,experience:r.win?(r.towersOnly?3:1)*(PROFILE_XP.victory+PROFILE_XP.perStar*r.stars+PROFILE_XP.perStage*r.stage):0};
   const earnedGold=acceptStock(s,'gold',payout.gold),earnedBerries=acceptStock(s,'berries',payout.berries);
   lastResult={...r,gold:earnedGold,berries:earnedBerries,experience:payout.experience,full:earnedGold<payout.gold||earnedBerries<payout.berries};
   if(r.win){
@@ -4219,7 +4227,7 @@ function startFight(){
     else if(r.mode==='boss')s.bosses++;
   }
   save();refreshIsland();show('result')
- }});refreshIsland();
+ }},towersOnly);refreshIsland();
 }
 async function syncWallet(){
  if(!host)return;
@@ -4271,7 +4279,15 @@ const acts={
  combat:value=>{if(!battle)return;const [id,arg]=value.split('|');battle.action(id,arg===''?undefined:Number(arg));if(battle)combatControls()}
 };
 document.addEventListener('click',e=>{const b=e.target.closest('button[data-do]');if(!b||b.disabled)return;const f=acts[b.dataset.do];if(f){if(b.dataset.do!=='range')rangeId=null;if(!['combat','sound'].includes(b.dataset.do))sounds('click');f(b.dataset.id||'')}});
-document.addEventListener('change',e=>{if(e.target.id==='parentA'||e.target.id==='parentB'){
+document.addEventListener('change',e=>{
+ if(e.target.id==='night-guard'){
+   const previous=s.settings.nightTowersOnly===true;
+   if(!host||islandSync?.locked()){e.target.value=previous?'towers':'guard';return}
+   s.settings.nightTowersOnly=e.target.value==='towers';
+   if(!save()){s.settings.nightTowersOnly=previous;e.target.value=previous?'towers':'guard';return}
+   islandSync?.pump(true);return;
+ }
+ if(e.target.id==='parentA'||e.target.id==='parentB'){
  const id=e.target.id;if(id==='parentA')parentA=e.target.value;else parentB=e.target.value;
  show('breed','',true);document.getElementById(id)?.focus({preventScroll:true});
  }if(e.target.id==='academy-dragon')show('academy',e.target.value,true);if(e.target.id==='stage'){campaignStage=Number(e.target.value);show('battle','',true);body.querySelector('#stage')?.focus({preventScroll:true})}});
@@ -4598,7 +4614,9 @@ nightDialog.addEventListener('cancel',e=>{
 let raids=[],practiceReport=null,raidAt=0,raidClock=0,raidPlaying=false,raidFrame=0,raidPrevious=0,raidScene=null,raidRequest=0,nightSeen='';
 try{if(host)nightSeen=localStorage.getItem(key+'.seenRaid')||'';}catch{}
 function raidDate(day){const t=Date.parse(String(day).slice(0,10)+'T12:00:00Z');return Number.isFinite(t)?new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'Europe/Moscow'}).format(t):'Ночной набег';}
-function raidsLoss(r){return 'Золото −'+num(Math.max(0,Number(r.goldLost)||0))+' · ягоды −'+num(Math.max(0,Number(r.berriesLost)||0));}
+function raidsLoss(r){
+ if(r.reward&&Number(r.stars)===0)return (r.towersOnly?'Оборона без драконов · награда ×3':'Награда за оборону')+' · золото +'+num(r.reward.gold)+' · ягоды +'+num(r.reward.berries)+' · опыт +'+num(r.reward.xp)+(r.reward.full?' · склады заполнены':'');
+ return (r.towersOnly?'Оборона без драконов · ':'')+'Золото −'+num(Math.max(0,Number(r.goldLost)||0))+' · ягоды −'+num(Math.max(0,Number(r.berriesLost)||0));}
 function refreshNightBanner(){
  const r=s.lastRaid;nightBanner.hidden=!host||!r?.day||nightSeen===r.day;
  if(nightBanner.hidden||nightBanner.dataset.day===r.day)return;
@@ -4742,7 +4760,7 @@ function stepRaid(now){
  if(!raidPlaying||!nightDialog.open||document.hidden){pauseRaid();if(nightDialog.open)drawRaid();return;}
  advanceReplayClock(now);drawRaid();if(raidPlaying)raidFrame=requestAnimationFrame(stepRaid);
 }
-const raidRules='<details class="night-rules"><summary>Правила ночного дозора</summary><p>Набег начинается в 03:00 по Москве. На защиту автоматически выходят до пяти сильнейших драконов. Каждую ночь противники становятся сильнее, а отряд постепенно растёт с трёх до десяти налётчиков. Налётчики получают по звезде за разрушение половины целей, цитадели и всех целей. Стены и ловушки в число целей не входят.</p><p>За 0, 1, 2 и 3 звезды налётчики забирают соответственно 0%, 25%, 50% и 80% золота и ягод. В расчёт входят и несобранные запасы на острове.</p></details>';
+const raidRules='<details class="night-rules"><summary>Правила ночного дозора</summary><p>Набег начинается в 03:00 по Москве. Состав ночного дозора выбирается в разделе «Сражения» → «Оборона острова». Обычно выходят до пяти сильнейших драконов. Если враг не получил звёзд, остров получает золото, ягоды и опыт. За оборону одними укреплениями награда утроена. Каждую ночь противники становятся сильнее, а отряд постепенно растёт с трёх до десяти налётчиков. Налётчики получают по звезде за разрушение половины целей, цитадели и всех целей. Стены и ловушки в число целей не входят.</p><p>За 0, 1, 2 и 3 звезды налётчики забирают соответственно 0%, 25%, 50% и 80% золота и ягод. В расчёт входят и несобранные запасы на острове.</p></details>';
 function displayRaid(index,practice=null){
  pauseRaid();raidRequest++;practiceReport=practice;raidAt=index;raidClock=0;const r=activeRaid();if(!r)return;resetRaidScene(r);
  const stars=Math.max(0,Math.min(3,Math.trunc(r.stars)||0)),list=raids.map((x,i)=>'<option value="'+i+'"'+(i===index?' selected':'')+'>'+escape(raidDate(x.day))+' · волна '+escape(x.wave??1)+'</option>').join('');
@@ -4777,7 +4795,7 @@ async function attemptRaidPractice(index){
  pauseRaid();const generation=++raidRequest;
  button.disabled=true;message.textContent='Налётчики занимают исходные позиции…';
  try{
-  const result=await host.practiceRaid(raid.day,{layoutVersion:s.layoutVersion||1,xp:s.xp,buildings:s.buildings,dragons:s.dragons});
+  const result=await host.practiceRaid(raid.day,{layoutVersion:s.layoutVersion||1,xp:s.xp,buildings:s.buildings,dragons:s.settings.nightTowersOnly===true?[]:s.dragons});
   if(generation!==raidRequest||!nightDialog.open)return;
   if(result?.day!==raid.day||result?.wave!==raid.wave||!Array.isArray(result.replay?.events)||!Number.isInteger(result.stars))throw Error('practice');
   displayRaid(index,result);

@@ -251,6 +251,19 @@ async function run(browser){
   const vintagePhone=await device(secondary,null,vintageServer);await vintagePhone.open();await vintagePhone.ready();
   assert.deepEqual(vintageServer.docs.get(otherPath).state,guestSave,'An independent device packs a server-settled pre-XP island identically to the guest');
   assert.equal(vintageServer.docs.get(otherPath).state.limitLegacyGrid,undefined);
+  const campaignServer=fixtures(),advanced=structuredClone(initial);
+  advanced.buildings.find(b=>b.type==='keep').level=12;
+  advanced.campaign=Object.fromEntries(Array.from({length:24},(_,i)=>[i+1,3]));
+  advanced.campaignScouts={after:24,readyAt:Date.now()+18*3600000};
+  advanced.dragons[0].level=49;advanced.berries=10000;
+  campaignServer.docs.set(path,{rev:1,op:'campaign-fixture',state:advanced});
+  const training=await device(primary,null,campaignServer);await training.open();await training.ready();
+  await training.feed(advanced.dragons[0].id);await until(()=>campaignServer.docs.get(path).state.dragons[0].level===50,'Final dragon level saved');
+  const campaignPhone=await device(primary,null,campaignServer);await campaignPhone.open();await campaignPhone.ready();
+  await campaignPhone.f.locator('.tabs [data-id="battle"]').click();
+  assert.equal(await campaignPhone.f.locator('#stage').inputValue(),'25');
+  assert.match(await campaignPhone.f.locator('#dialog').innerText(),/возвращение разведки/);
+  assert.deepEqual(campaignServer.docs.get(path).state.campaignScouts,advanced.campaignScouts);
   assert.deepEqual(errors,[]);
   console.log('PASS cross-device progress, offline conflict backups, receipts, lost CAS and debit replies, database rollout, single-payment refunds, reset, guest legacy coordinates and stale tabs');
  }finally{await Promise.all(contexts.map(c=>c.close()));}

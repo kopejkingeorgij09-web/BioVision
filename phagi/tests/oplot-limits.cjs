@@ -38,3 +38,11 @@ assert.equal(limits.profileLevel(old),2);const migrated=limits.reconcile(old,at)
 assert.equal(migrated.xp,71);assert.equal(limits.profileLevel(migrated),2);
 assert.equal(limits.reconcile({xp:0,buildings:[]},at).xp,0);
 console.log('PASS profile caps, unlocks, ordered building and upgrade refunds, on-map/stowed harvest, excess housing, old XP and idempotent settlements');
+
+const treasuryPrices=[400,950,1900,3600,6200,9800,14500,20500,29000,41000,57000];
+assert.equal(limits.keepMax,12);
+treasuryPrices.forEach((price,i)=>{
+  assert.equal(limits.upgradeGold('keep',i+1),price);
+  const storeLevel=Math.min(i+2,9);
+  assert.ok(price<=450+2*450*storeLevel**2,'Available stores can pay for citadel tier '+(i+2));
+});

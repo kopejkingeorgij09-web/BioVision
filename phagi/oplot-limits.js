@@ -34,10 +34,11 @@
    if(!existingCount&&(type==='mine'||type==='farm'))return 0;
    return gold[type]*(1+2*existingCount);
  }
+ const keepPrices=[400,950,1900,3600,6200,9800,14500,20500,29000,41000,57000];
  function upgradeGold(type,currentLevel){
    if(!Object.hasOwn(gold,type))throw new RangeError('Unknown building type');
    const step=currentLevel-1;
-   if(type==='keep')return Math.round(175*1.65**step);
+   if(type==='keep')return keepPrices[step]??Infinity;
    if(Object.hasOwn(industry,type))return Math.round(gold[type]*(650+240*step+18*step*step)/1000);
    return Math.round((gold[type]*72+1200)*currentLevel/100);
  }
@@ -94,7 +95,7 @@
    if(state.xp===undefined&&state.layoutVersion!==2)settled.limitLegacyGrid=true;
    return settled;
  }
- const api=Object.freeze({profileLevel,cap,nextUnlock,buildGold,upgradeGold,needsSettlement,validReceipt,reconcile});
+ const api=Object.freeze({keepMax:keepPrices.length+1,profileLevel,cap,nextUnlock,buildGold,upgradeGold,needsSettlement,validReceipt,reconcile});
  if(typeof module==='object'&&module.exports)module.exports=api;
  if(root)root.OplotLimits=api;
 })(typeof window==='object'?window:null);

@@ -230,6 +230,11 @@ function fieldDamage(mode,enchant,specialty='') {
   for(let i=0;i<1800 && (!special||!furyHit);i++){
     const {party,enemy,structures,fury}=game.inspect();
     const targets=mode==='defense'?enemy:structures.concat(enemy);
+    if(mode==='defense'){
+      // Isolate the ability from the wave's changing HP budget and kill timing.
+      party[0].hp=party[0].maxHp;structures[0].hp=structures[0].maxHp;
+      for(const invader of living(enemy))invader.hp=invader.maxHp=10000;
+    }
     const before=health(targets),strikes=party[0].strikes;
     if(fury>=100&&!furyHit){
       game.action('fury');furyHit=before-health(targets);
@@ -266,8 +271,26 @@ young.action('deploy',0);young.action('evade');
 assert.equal(young.inspect().party[0].air,0);
 assert.ok(!young.controls().buttons.some(button=>button.id==='evade'));
 const artModule=section('/* All island art','/* Battle simulation uses tile coordinates.');
-vm.runInNewContext(artModule,context);
+vm.runInNewContext(artModule.replace('Object.freeze({island,point','Object.freeze({objectList,roostLayout,island,point'),context);
 const art=context.window.Art;
+const residents=Array.from({length:64},(_,i)=>({id:'resident-'+i,species:i%63,level:1+i%30}));
+for(const occupied of [false,true]){
+  const buildings=occupied?Array.from({length:100},(_,i)=>({id:'tile-'+i,type:'wall',x:i%10,y:Math.floor(i/10)})):[];
+  const island={gridSize:10,homeView:true,dragons:residents,buildings};
+  const places=art.roostLayout(island);
+  assert.equal(new Set(places.map(p=>p.x+','+p.y)).size,residents.length);
+  const drawn=art.objectList(island,390,530,1).filter(o=>o.kind==='dragon');
+  assert.deepEqual(new Set(drawn.map(o=>o.item.id)),new Set(residents.map(d=>d.id)));
+  assert.equal(art.objectList({...island,dragons:residents.slice(1)},390,530,1).filter(o=>o.kind==='dragon').length,63);
+}
+const garrison=[{id:'ordinary',species:0,level:1},{id:'rare',species:5,level:10},
+  {id:'tie-b',species:0,level:12},{id:'tie-a',species:0,level:12},
+  {id:'specialist',species:0,level:12,enchant:3,specialty:'area'},{id:'elder',species:13,level:24}];
+const expectedGuard=['elder','specialist','rare','tie-a','tie-b'];
+assert.deepEqual(Array.from(Battle.defenders(garrison),d=>d.id),expectedGuard);
+assert.deepEqual(Array.from(Battle.start('defense',1,{...fortress,dragons:garrison},[garrison[0]]).inspect().party,d=>d.id),expectedGuard);
+assert.equal(Battle.defenders(garrison.slice(0,2)).length,2);
+
 for(const [cols,rows] of [[11,10],[16,16]]){
   const n=Math.max(cols,rows);
   const farm={id:'edge-farm',type:'farm',x:cols-1,y:rows-1,level:1,ready:true};

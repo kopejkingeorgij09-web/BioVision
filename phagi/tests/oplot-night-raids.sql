@@ -65,14 +65,14 @@ begin
      or not exists(select from jsonb_array_elements(mixed#>'{replay,attackers}') u where u->>'level'='21' and u->>'flying'='true')
      then raise exception 'Level 20/21 boundary'; end if;
   units:='[{"id":"a","species":5,"level":21,"enchant":5},{"id":"b","species":5,"level":20,"enchant":0},
-    {"id":"c","species":5,"level":7},{"id":"d","species":5,"level":10},{"id":"weak","species":0,"level":1}]';
+    {"id":"c","species":5,"level":7},{"id":"d","species":5,"level":10},{"id":"weak","species":0,"level":1},{"id":"fifth","species":5,"level":5}]';
   fixture:=jsonb_build_object('dragons',units,'buildings',
     '[{"id":"keep","type":"keep","x":4,"y":4,"level":1},
       {"id":"gold","type":"goldstore","x":3,"y":4,"level":2},{"id":"gold1","type":"goldstore","x":3,"y":5,"level":1},
       {"id":"food","type":"foodstore","x":5,"y":4,"level":5},{"id":"academy","type":"academy","x":5,"y":3,"level":1},
       {"id":"tower","type":"archer","x":4,"y":4,"level":4}]'::jsonb);
   shield:=oplot.night_battle(fixture,1,'2030-09-02','qa-replay');
-  if jsonb_array_length(shield#>'{replay,defenders}')<>4 or exists(select from jsonb_array_elements(shield#>'{replay,defenders}') z where z->>'id'='weak')
+  if jsonb_array_length(shield#>'{replay,defenders}')<>5 or exists(select from jsonb_array_elements(shield#>'{replay,defenders}') z where z->>'id'='weak')
      or not exists(select from jsonb_array_elements(shield#>'{replay,defenders}') z where z->>'id'='a' and z->>'flying'='true' and z->>'enchant'='5')
      or not exists(select from jsonb_array_elements(shield#>'{replay,defenders}') z where z->>'id'='b' and z->>'flying'='false')
      or not exists(select from jsonb_array_elements(shield#>'{replay,buildings}') z where z->>'id'='gold' and (z->>'hp')::int>70)
@@ -86,6 +86,31 @@ begin
     if not (evt ?& array['t','kind','from','to','id','target','text','amount']) then raise exception 'Incomplete replay event'; end if;
   end loop;
 end $battle$;
+
+-- A rematch uses the recorded attacker roster, even across balance versions.
+do $garrison$
+declare
+  roster jsonb:='[{"id":"ordinary","species":0,"level":1},{"id":"rare","species":5,"level":10},
+    {"id":"tie-b","species":0,"level":12},{"id":"tie-a","species":0,"level":12},
+    {"id":"specialist","species":0,"level":12,"enchant":3,"specialty":"area"},{"id":"elder","species":13,"level":24}]';
+  island jsonb; opening jsonb; replay jsonb; v int; w int; prev_hp int; hp int; ids text[];
+begin
+  for v in 1..2 loop
+    island:=jsonb_build_object('layoutVersion',v,'buildings','[{"id":"k","type":"keep","level":5,"x":4,"y":4}]'::jsonb,'dragons',roster);
+    prev_hp:=0;
+    foreach w in array array[1,3,7,14,30] loop
+      opening:=oplot.night_battle(island,w,'2030-05-20','qa-guard')->'replay';
+      select array_agg(d->>'id' order by n) into ids from jsonb_array_elements(opening->'defenders') with ordinality e(d,n);
+      if ids<>array['elder','specialist','rare','tie-a','tie-b'] then raise exception 'Incorrect guard order: %',ids; end if;
+      select sum((a->>'hp')::int) into hp from jsonb_array_elements(opening->'attackers') a;
+      if hp<=prev_hp or jsonb_array_length(opening->'attackers')<>least(10,3+w/2) then raise exception 'Wave progression at %',w;end if;
+      prev_hp:=hp;
+    end loop;
+    opening:=jsonb_set(opening,'{attackers}',jsonb_build_array((opening->'attackers'->0)||'{"hp":11,"damage":2,"level":2,"flying":false}'));
+    replay:=oplot.simulate_raid(island,30,'2030-05-20','qa-guard',opening)->'replay';
+    if replay->'attackers'<>opening->'attackers' then raise exception 'Practice changed the historical squad'; end if;
+  end loop;
+end $garrison$;
 
 do $expanded_grid$
 declare

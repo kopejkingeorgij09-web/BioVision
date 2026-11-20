@@ -78,7 +78,8 @@ body.island-wide .mapfoot #mapaction{display:flex;align-items:center;gap:5px}
 @media(max-width:760px){.island-sidebar{display:contents}#island-progress{order:-1;width:100%}#island-progress h2{font-size:20px}#xp-rewards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:14px}}
 #world.drawing-walls{touch-action:none;cursor:crosshair}
 .wall-builder{margin:6px 1px 1px;padding:10px 13px;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:10px}
-.wall-builder[hidden],#wall-issue:empty{display:none}
+.wall-builder[hidden]{display:none}
+#wall-issue{min-height:1.3em}
 .wall-builder h3{font:600 18px var(--display);color:var(--pine)}
 .wall-builder p,.wall-builder strong{font-size:13px}.wall-builder p{margin:3px 0}.wall-builder .actions{margin-top:7px}
 #wall-issue{color:#923f31;font-weight:650}
@@ -253,7 +254,7 @@ body.island-wide.battle .combat .kicker{display:none}
 <div class="mapfoot"><span class="note" id="mapnote"></span><span id="mapaction"></span></div><div class="map-view" role="group" aria-label="Масштаб острова"><button type="button" data-camera="out" title="Отдалить" aria-label="Отдалить">−</button><button type="button" data-camera="fit" title="Показать весь остров" aria-label="Показать весь остров">100%</button><button type="button" data-camera="in" title="Приблизить" aria-label="Приблизить">+</button></div></div>
 <section id="wall-builder" class="wall-builder" aria-labelledby="wall-heading" hidden>
  <h3 id="wall-heading">Укладка стен</h3>
- <p>Протяни стену или отметь начало и конец. Каждое следующее касание продлевает линию.</p>
+ <p>Веди вдоль линии стены. Для угла поверни и проведи ещё две клетки. Новый свайп начинает отдельный участок. Можно также задавать углы касаниями.</p>
  <strong id="wall-summary" aria-live="polite"></strong><p id="wall-budget"></p><p id="wall-issue" role="status"></p>
  <div class="actions"><button type="button" class="cmd gold" data-do="confirmwalls" disabled>Построить</button><button type="button" class="cmd alt" data-do="wallundo" disabled>Шаг назад</button></div>
 </section><section id="layout-editor" aria-labelledby="layout-heading" hidden><div class="layout-title"><h3 id="layout-heading">Расстановка</h3><span class="tag" id="layout-count"></span></div><p id="layout-selection" role="status"></p><div class="layout-stock" id="layout-stock" aria-label="Постройки в запасе"></div>
@@ -283,7 +284,7 @@ body.island-wide.battle .combat .kicker{display:none}
 </section>
 <aside class="aside" id="aside"></aside></div></div><div class="attribution"><span id="caption"></span><button class="linkbtn" data-do="exit">Вернуться в Фаги</button></div></main>
 <dialog id="dialog" aria-labelledby="dt"><div class="dlghead"><h2 id="dt"></h2><button class="close" data-do="close" aria-label="Закрыть">×</button></div><div class="dlgbody"><div id="dbody"></div><div class="dlgnotice" role="status" id="dnotice"></div></div></dialog><div class="toast" role="status" id="toast"></div>
-<script src="oplot-layout.js?v=3"></script><script src="oplot-limits.js?v=2"></script><script src="oplot-editor.js?v=4"></script><script src="oplot-art/village.js?v=3"></script><script src="oplot-art/stores.js?v=2"></script><script src="oplot-art/defenses.js?v=1"></script>
+<script src="oplot-layout.js?v=4"></script><script src="oplot-limits.js?v=3"></script><script src="oplot-editor.js?v=4"></script><script src="oplot-art/village.js?v=3"></script><script src="oplot-art/stores.js?v=2"></script><script src="oplot-art/defenses.js?v=1"></script>
 <script>
 'use strict';
 const GAME_ELEMENTS = window.GAME_ELEMENTS = ['Огонь','Вода','Природа','Молния','Земля','Свет'];
@@ -486,17 +487,18 @@ function acceptStock(state,resource,amount){
  state[resource]+=taken;
  return taken;
 }
+const {producerCapacity}=OplotLayout;
 const rates={mine:4,farm:3,home:0.85};
 function keepProduction(b,units,stamp){
  if(!rates[b.type])return;
- if(b.stowed){b.pausedStock=Math.min(b.level*90,Math.max(0,Math.floor(units)));return}
+ if(b.stowed){b.pausedStock=Math.min(producerCapacity(b.type,b.level),Math.max(0,Math.floor(units)));return}
  b.since=stamp-Math.ceil(units*5000/(rates[b.type]*b.level));
 }
 function capacity(s){return 3+s.buildings.filter(b=>b.type==='home').reduce((n,b)=>n+3*b.level,0)}
 function productionStock(b,now){
  if(!rates[b.type])return 0;
  if(b.stowed)return b.pausedStock||0;
- return Math.max(0,Math.min(b.level*90,(now-b.since)*rates[b.type]*b.level/5000));
+ return Math.max(0,Math.min(producerCapacity(b.type,b.level),(now-b.since)*rates[b.type]*b.level/5000));
 }
 function stored(b,now=Date.now()){return Math.floor(productionStock(b,now))}
 // The nightly server checks the primary target by orthogonal tile distance before it moves.
@@ -1193,17 +1195,44 @@ window.Art = (() => {
     c.restore();c.restore();
   }
   /* Quantised animation poses share high-resolution sprites across cards and the board. */
-  const dragonSprites=new Map();
+  // Six original poses per atlas. Keep the full 24-pose cycles of eight island
+  // residents warm, and reuse the least recently drawn atlas when teams change.
+  const dragonSheets=new Map(),poseWidth=286,poseHeight=246,gutter=2;
+  // The recipe book already retains its painted portraits in the DOM.
+  let portraitScratch;
+  function dragonPortrait(c,x,y,size,species,level){
+    if(!portraitScratch)portraitScratch=newLayer(poseWidth,poseHeight);
+    const d=portraitScratch.getContext('2d'),stage=level<5?1:level<10?5:10;
+    d.clearRect(0,0,poseWidth,poseHeight);d.save();d.translate(144,166);d.scale(2.55,2.55);d.lineJoin='round';d.lineCap='round';
+    paintDragon(d,species,stage,0,level<21);d.restore();
+    const scale=size/255;
+    c.drawImage(portraitScratch,x-144*scale,y-166*scale,poseWidth*scale,poseHeight*scale);
+  }
   function dragon(c,x,y,size,species=0,level=1,time=0,flip=false,pose=null) {
     if(!(size>0))return;
     const stage=level<5?1:level<10?5:10,walking=level<21;
-    const phase=((Math.floor(time*12)%24)+24)%24;
-    const id=species+'-'+stage+'-'+phase+(walking?'-walk':'-fly');
-    let img=dragonSprites.get(id);
-    if(!img){img=newLayer(286,246);const d=img.getContext('2d');d.translate(144,166);d.scale(2.55,2.55);d.lineJoin='round';d.lineCap='round';
-      paintDragon(d,species,stage,phase*TAU/24/3.9,walking);
-      if(dragonSprites.size>=120)dragonSprites.delete(dragonSprites.keys().next().value);
-      dragonSprites.set(id,img);
+    const phase=((Math.floor(time*12)%24)+24)%24,slot=phase%6;
+    const key=[species,stage,walking,Math.floor(phase/6)].join('/');
+    let sheet=dragonSheets.get(key);
+    if(sheet)dragonSheets.delete(key);
+    else{
+      if(dragonSheets.size>=32){
+        const oldest=dragonSheets.keys().next().value;
+        sheet=dragonSheets.get(oldest);dragonSheets.delete(oldest);
+        sheet.poses=0;sheet.ctx.clearRect(0,0,sheet.image.width,sheet.image.height);
+      }else{
+        const image=newLayer(3*(poseWidth+2*gutter),2*(poseHeight+2*gutter));
+        sheet={image,ctx:image.getContext('2d'),poses:0};
+        image.addEventListener('contextrestored',()=>{sheet.poses=0});
+      }
+    }
+    dragonSheets.set(key,sheet);
+    const sx=slot%3*(poseWidth+2*gutter)+gutter,sy=Math.floor(slot/3)*(poseHeight+2*gutter)+gutter;
+    if(!(sheet.poses&(1<<slot))){
+      const d=sheet.ctx;d.save();d.beginPath();d.rect(sx,sy,poseWidth,poseHeight);d.clip();
+      d.translate(sx+144,sy+166);d.scale(2.55,2.55);d.lineJoin='round';d.lineCap='round';
+      paintDragon(d,species,stage,phase*TAU/24/3.9,walking);d.restore();
+      sheet.poses|=1<<slot;
     }
     c.save();c.translate(x,y);if(flip)c.scale(-1,1);
     if(pose&&!pose.reduced&&pose.phase>=0&&pose.phase<1){
@@ -1213,7 +1242,7 @@ window.Art = (() => {
       c.rotate(force*(thrust*.042-pull*.085));c.scale(1+thrust*.052-pull*.035,1+pull*.035-thrust*.03);
     }
     const s=size/100;
-    c.drawImage(img,-144/2.55*s,-166/2.55*s,286/2.55*s,246/2.55*s);c.restore();
+    c.drawImage(sheet.image,sx,sy,poseWidth,poseHeight,-144/2.55*s,-166/2.55*s,poseWidth/2.55*s,poseHeight/2.55*s);c.restore();
   }
   function inBounds(item,state) {
     const span=item.type?footSpan(item,state.layoutVersion):1;
@@ -1389,6 +1418,7 @@ window.Art = (() => {
     }
     if(backgroundCache.size>=3)backgroundCache.delete(backgroundCache.keys().next().value);
     const ripples=[[cols*.21,-2.35,.62],[cols*.47,rows+1.55,.46]].map(([a,b,scale])=>({...project(a,b),size:u*scale}));
+    image.addEventListener('contextrestored',()=>{if(backgroundCache.get(key)?.image===image)backgroundCache.delete(key)});
     const layer={image,pad,ripples,grid:plotGrid(w,h,n,cols,rows),blocks:n>=20?plotGrid(w,h,n,cols,rows,2):null};backgroundCache.set(key,layer);return layer;
   }
   function plotGrid(w,h,n,cols,rows,step=1){
@@ -1466,8 +1496,8 @@ window.Art = (() => {
   }
   function same(b,selected) {return selected!=null&&(selected===b||selected===b.id||(typeof selected==='object'&&(selected.id!=null?selected.id===b.id:selected.x===b.x&&selected.y===b.y)));}
   const roosts=[[6,7],[7,3],[1,6],[3,1],[5,8],[8,3],[1,4],[3,7],[7,7],[2,1],[4,9],[8,6]];
-  function dragonPoints(state,w,h,t) {
-    const n=state.gridSize||10,cols=state.gridWidth||n,rows=state.gridHeight||n,u=unit(w,h,n)*(state.layoutVersion===2?2:1),list=(state.dragons||[]).slice(0,12),occupied=new Set();
+  function roostLayout(state) {
+    const n=state.gridSize||10,cols=state.gridWidth||n,rows=state.gridHeight||n,list=(state.dragons||[]).slice(0,12),occupied=new Set();
     if(!list.length)return [];
     for(const b of state.buildings||[]){
       if(!inBounds(b,state)||state.placementPreview?.id===b.id&&b.id!=null)continue;
@@ -1491,25 +1521,33 @@ window.Art = (() => {
         [x,y]=spot||roost(roosts[i]);
       }
       occupied.add(x+','+y);
-      const phase=t*.57+i*2.17;
-      let flip=i%3===2;
-      if(flying){x+=Math.sin(phase)*.42;y+=Math.cos(phase*.8)*.36;flip=Math.cos(phase)+.7*Math.sin(phase*.8)<0;}
-      else{
+      let step=null;
+      if(!flying){
         const steps=[[1,0],[0,1],[-1,0],[0,-1]];
         for(let j=0;j<4;j++){
           const [dx,dy]=steps[(i+j)%4],xx=x+dx,yy=y+dy;
           if(xx<0||xx>=cols||yy<0||yy>=rows||occupied.has(xx+','+yy))continue;
-          occupied.add(xx+','+yy);const travel=(1-Math.cos(phase))*.38;
-          x+=dx*travel;y+=dy*travel;flip=(dx-dy)*Math.sin(phase)<0;break;
+          occupied.add(xx+','+yy);step=[dx,dy];break;
         }
       }
+      result.push({d,i,x,y,flying,step});
+    }
+    return result;
+  }
+  function dragonPoints(state,w,h,t,roost=roostLayout(state)){
+    const n=state.gridSize||10,u=unit(w,h,n)*(state.layoutVersion===2?2:1),result=[];
+    for(const spot of roost){
+      const {i,d,flying,step}=spot,phase=t*.57+i*2.17;
+      let {x,y}=spot,flip=i%3===2;
+      if(flying){x+=Math.sin(phase)*.42;y+=Math.cos(phase*.8)*.36;flip=Math.cos(phase)+.7*Math.sin(phase*.8)<0;}
+      else if(step){const [dx,dy]=step,travel=(1-Math.cos(phase))*.38;x+=dx*travel;y+=dy*travel;flip=(dx-dy)*Math.sin(phase)<0}
       const p=point(x,y,w,h,n),size=u*(d.level>=10?.93:d.level>=5?.82:.72)*dragonScale;
       const lift=flying?size*(.60+.05*Math.sin(t*2.1+i)):size*(d.level<5?.17:.21);
       result.push({item:d,x:p.x,y:p.y-lift,ground:p.y,size,flip});
     }
     return result;
   }
-  function objectList(state,w,h,t,preview=[]){
+  function projectBuildings(state,w,h,preview){
     const n=state.gridSize||10,u=unit(w,h,n),ghost=state.placementPreview;
     const buildings=(state.buildings||[]).filter(b=>inBounds(b,state)&&!(ghost?.id!=null&&b.id===ghost.id));
     function object(b,kind){
@@ -1530,7 +1568,22 @@ window.Art = (() => {
       const b=obj.item;
       obj.wallMask=wallDirections.reduce((mask,[dx,dy],i)=>positions.has((b.x+dx)+','+(b.y+dy))?mask|(1<<i):mask,0);
     }
-    for(const a of dragonPoints(state,w,h,t))things.push({kind:'dragon',...a});
+    return things;
+  }
+  let homeGeometry=null;
+  function objectList(state,w,h,t,preview=[]){
+    const ghost=state.placementPreview;
+    let geometry;
+    if(state.homeView){
+      const key=[w,h,state.gridWidth,state.gridHeight,ghost?.id,ghost?.type,ghost?.x,ghost?.y,ghost?.valid].join('/');
+      if(!homeGeometry||homeGeometry.buildings!==state.buildings||homeGeometry.preview!==state.wallPreview||homeGeometry.key!==key){
+        homeGeometry={key,buildings:state.buildings,preview:state.wallPreview,objects:projectBuildings(state,w,h,preview),roost:roostLayout(state)};
+      }
+      geometry=homeGeometry;
+    }
+    const n=state.gridSize||10;
+    const things=geometry?geometry.objects.slice():projectBuildings(state,w,h,preview);
+    for(const a of dragonPoints(state,w,h,t,geometry?.roost))things.push({kind:'dragon',...a});
     for(const actor of state.figures||[])things.push({kind:'figure',item:actor,...point(actor.x,actor.y,w,h,n)});
     const layer=a=>a.kind==='figure'?Number(!!a.item.above):Number(a.kind==='dragon'&&a.item.level>=21);
     return things.sort((a,b)=>layer(a)-layer(b)||(a.ground??a.y)-(b.ground??b.y)||a.x-b.x);
@@ -1562,6 +1615,25 @@ window.Art = (() => {
       }
     }return null;
   }
+  let seaView=null,seaSurface=null;
+  function drawCoast(c,w,h,matrix,image,pad,home){
+    const bw=c.canvas.width,bh=c.canvas.height;
+    const key=home?[bw,bh,matrix.a,matrix.d,matrix.e,matrix.f].join('/'):'';
+    const stationary=home&&seaView?.key===key&&seaView.image===image;
+    if(home&&!stationary)seaView={key,image,canvas:null};
+    if(stationary){
+      if(!seaView.canvas){
+        if(!seaSurface||seaSurface.width!==bw||seaSurface.height!==bh){
+          seaSurface=newLayer(bw,bh);seaSurface.addEventListener('contextrestored',()=>{seaView=null});
+        }
+        const g=seaSurface.getContext('2d');g.setTransform(matrix);
+        drawSea(g,w,h,matrix);g.drawImage(image,-pad,-pad,w+2*pad,h+2*pad);seaView.canvas=seaSurface;
+      }
+      c.save();c.resetTransform();c.drawImage(seaView.canvas,0,0);c.restore();
+    }else{
+      drawSea(c,w,h,matrix);c.drawImage(image,-pad,-pad,w+2*pad,h+2*pad);
+    }
+  }
   function island(c,w,h,t=0,state={}) {
     if(!(w>0&&h>0))return;
     const n=state.gridSize||10,cols=state.gridWidth||n,rows=state.gridHeight||n,u=unit(w,h,n);
@@ -1570,8 +1642,7 @@ window.Art = (() => {
     const detail=Math.abs(matrix.a)>screenScale*1.12?2.5:1;
     const dpr=Math.min(screenScale*detail,3,2400/(Math.max(w,h)+4*u));
     const {image,pad,grid,blocks,ripples}=backdrop(w,h,dpr,state.theme||state.mode,n,cols,rows);
-    c.save();c.lineCap='round';c.lineJoin='round';drawSea(c,w,h,matrix);
-    c.drawImage(image,-pad,-pad,w+2*pad,h+2*pad);
+    c.save();c.lineCap='round';c.lineJoin='round';drawCoast(c,w,h,matrix,image,pad,state.homeView);
     if(state.waves){
       for(let i=0;i<ripples.length;i++){
         const r=ripples[i],phase=(t*.17+i*.53)%1;
@@ -1949,7 +2020,7 @@ window.Art = (() => {
     const length=(type==='archer'?13:type==='cannon'?20:0)*scale;
     return {x:origin.x+length*Math.cos(angle),y:baseY+length*Math.sin(angle)};
   }
-  return Object.freeze({island,point,cell,unit,dragon,dragonScale,building,egg,hit,bubblePoint,combatEffect,towerMuzzle});
+  return Object.freeze({island,point,cell,unit,dragon,dragonPortrait,dragonScale,building,egg,hit,bubblePoint,combatEffect,towerMuzzle});
 })();
 
 /* Battle simulation uses tile coordinates. Rendering projects them through the island renderer. */
@@ -3010,7 +3081,7 @@ function validIslandState(s){
   &&integer(s.quest,0,QUESTS.length)&&dictionary(s.settings)&&typeof s.settings.sound==='boolean'
   &&OplotLayout.valid(s.buildings,islandGrid(s),s.layoutVersion??1)
   &&s.buildings.every(b=>id(b.id)&&integer(b.level,1,b.type==='keep'?OplotLimits.keepMax:9)&&integer(b.since)&&
-    (!b.stowed||!Object.hasOwn(rates,b.type)||integer(b.pausedStock,0,b.level*90)))
+    (!b.stowed||!Object.hasOwn(rates,b.type)||integer(b.pausedStock,0,producerCapacity(b.type,b.level))))
   &&Array.isArray(s.dragons)&&s.dragons.length>0&&s.dragons.every(d=>d&&id(d.id)&&species(d.species)&&integer(d.level,1,50)&&(d.enchant===undefined||integer(d.enchant,0,5))&&(d.specialty===undefined||Object.hasOwn(ULTIMATE_PATHS,d.specialty)))&&unique(s.dragons,d=>d.id)
   &&Array.isArray(s.book)&&s.book.every(species)&&s.dragons.every(d=>s.book.includes(d.species))
   &&(s.egg===null||s.egg&&id(s.egg.id)&&species(s.egg.species)&&integer(s.egg.end))
@@ -3454,23 +3525,26 @@ function drawIcon(c,type){
  case 'battle':path('M3 3 9 6 23 21 19 23 5 9Z','#c3d3c9');path('M27 2 26 10 12 24 8 20 21 6Z','#d4dbcb');path('M6 17 15 26 M17 24 23 18 M8 24 4 28 M23 24 27 28',null,'#946a35',3);break;
  }
 }
-function paintMini(root=document){
- root.querySelectorAll('canvas[data-icon],canvas[data-dragon],canvas[data-building],canvas[data-egg]').forEach(el=>{
-  const w=el.clientWidth,h=el.clientHeight;if(!w||!h)return;
+function paintMini(root=document,selector='canvas[data-icon],canvas[data-dragon],canvas[data-building],canvas[data-egg]'){
+ const sizes=Array.from(root.querySelectorAll(selector),el=>({el,w:el.clientWidth,h:el.clientHeight}));
+ sizes.forEach(({el,w,h})=>{
+  if(!w||!h)return;
   const r=Math.min(devicePixelRatio||1,2), cw=Math.round(w*r),ch=Math.round(h*r);
   if(el.width!==cw||el.height!==ch){el.width=cw;el.height=ch}
   const c=el.getContext('2d');c.setTransform(r,0,0,r,0,0);c.clearRect(0,0,w,h);
   if(el.dataset.icon){const scale=Math.min(w,h)/32;c.translate((w-32*scale)/2,(h-32*scale)/2);c.scale(scale,scale);drawIcon(c,el.dataset.icon)}
   else if(el.dataset.dragon!=null){
    const level=Number(el.dataset.level)||1,adult=level>=10;
-   Art.dragon(c,w*.5,h*(adult?.65:.57),Math.min(w*.91,h*(adult?1.06:1.38)),+el.dataset.dragon,level,0);
+   Art.dragonPortrait(c,w*.5,h*(adult?.65:.57),Math.min(w*.91,h*(adult?1.06:1.38)),+el.dataset.dragon,level);
   }
   else if(el.dataset.building){Art.building(c,w*.5,h*.64,Math.min(w*.88,h*.91),el.dataset.building,Number(el.dataset.level)||1,0,null,Number(el.dataset.fill)||0)}
   else if(el.dataset.egg!=null)Art.egg(c,w*.5,h*.56,Math.min(w,h)*.7,+el.dataset.egg,0);
  });
 }
 const tabs=[['island','Остров'],['collection','Драконы'],['build','Постройки'],['book','Книга рецептов'],['battle','Сражения']];
-function tabsHTML(){const active=['collection','pet','sale','nursery','breed','hatched'].includes(panel)?'collection':tabs.some(x=>x[0]===panel)?panel:battle?'battle':'island';$('.tabs').innerHTML=tabs.map(([id,name])=>'<button data-do="tab" data-id="'+id+'" aria-current="'+(active===id)+'">'+icon(id)+(id==='book'?'<span class="fullnav">Книга рецептов</span><span class="shortnav">Рецепты</span>':name)+'</button>').join('');paintMini($('.tabs'))}
+function tabsHTML(){const active=['collection','pet','sale','nursery','breed','hatched'].includes(panel)?'collection':tabs.some(x=>x[0]===panel)?panel:battle?'battle':'island';const nav=$('.tabs');
+ if(nav.children.length){for(const button of nav.children){const value=String(button.dataset.id===active);if(button.getAttribute('aria-current')!==value)button.setAttribute('aria-current',value)}return}
+ nav.innerHTML=tabs.map(([id,name])=>'<button data-do="tab" data-id="'+id+'" aria-current="'+(active===id)+'">'+icon(id)+(id==='book'?'<span class="fullnav">Книга рецептов</span><span class="shortnav">Рецепты</span>':name)+'</button>').join('');paintMini(nav)}
 function walletText(){return host?(wallet?num(wallet.balance):'—'):'—'}
 function counters(){ for(const resource of ['gold','berries']){
  const counter=$('#'+resource);counter.textContent=num(s[resource]);
@@ -3561,6 +3635,7 @@ function refreshXpPanel(level,grid){
  bar.setAttribute('aria-valuetext',num(bar.value)+' из '+num(bar.max)+' опыта на этом уровне');
 }
 function refreshIsland(){
+ homeSample=null;
  storesOnMap=warehouseStocks(s);
  renderEditor();
  refreshNightBanner();renderWallPlan();
@@ -3568,7 +3643,7 @@ function refreshIsland(){
  if(!battle&&wide&&document.body.classList.contains('battle'))toggleWide();
  counters();tabsHTML();document.body.classList.toggle('battle',!!battle);
  if(battle){$('#maptools').innerHTML='';$('#mapaction').innerHTML='';$('#mapnote').textContent='';$('#caption').textContent='';combatControls();return}
- $('#maptools').innerHTML=btn(placement?'cancelplace':'edit',editor?'К острову':wallPlan()?(placement.corners.length?'Отменить':'Готово'):placement?'Отмена':'✥ Расстановка','','glass');
+ $('#maptools').innerHTML=btn(placement?'cancelplace':'edit',editor?'К острову':wallPlan()?(placement.segments.length?'Отменить':'Готово'):placement?'Отмена':'✥ Расстановка','','glass');
  const tower=buildingToPlace(),range=tower&&nightTowerReach(tower.type,tower.level,s.layoutVersion);
  if(range){
    const targets=tower.type==='cannon'?'только наземные цели':'земля и воздух';
@@ -3580,7 +3655,8 @@ function refreshIsland(){
  refreshXpPanel(level,grid);refreshSettlement();
  $('#island-area').textContent='Уровень '+level+' · '+grid.width+' × '+grid.height+' клеток';
  $('#caption').textContent='Профиль острова · ур. '+islandLevel(s)+' ('+s.xp+'/'+xpAtLevel(level+1)+' опыта)　·　Цитадель '+lev()+'　·　Драконов '+s.dragons.length+' / '+capacity(s);
- aside.innerHTML=questHTML()+'<section class="panel"><div class="row between"><h2>Мои драконы</h2>'+btn('tab','Все','collection','linkbtn')+'</div>'+s.dragons.slice(0,3).map(petRow).join('')+'</section><section class="panel earnpanel"><div class="earn">'+icon('gem')+'<div><h3>Учебные алмазы</h3><p class="desc">Карточка приносит 1 алмаз, проверенная домашка — от 5 до 10.</p>'+btn('wallet','Открыть кошелёк','','linkbtn')+'</div></div></section>';paintMini(aside);
+ const sidebar=questHTML()+'<section class="panel"><div class="row between"><h2>Мои драконы</h2>'+btn('tab','Все','collection','linkbtn')+'</div>'+s.dragons.slice(0,3).map(petRow).join('')+'</section><section class="panel earnpanel"><div class="earn">'+icon('gem')+'<div><h3>Учебные алмазы</h3><p class="desc">Карточка приносит 1 алмаз, проверенная домашка — от 5 до 10.</p>'+btn('wallet','Открыть кошелёк','','linkbtn')+'</div></div></section>';
+ if(aside._current!==sidebar){aside._current=sidebar;aside.innerHTML=sidebar;paintMini(aside)}
 }
 function combatControls(){
  if(!battle)return;const v=battle.controls();
@@ -3600,26 +3676,30 @@ function wallCapacity(){
  return capFor('wall');
 }
 function wallPlan(){return placement?.kind==='walls'?placement:null}
-function newWallPlan(){return {kind:'walls',corners:[],drag:null,preview:[],valid:false}}
+function newWallPlan(){return {kind:'walls',segments:[],drag:null,preview:[],valid:false}}
 const wallKey=cell=>cell.x+','+cell.y;
-function wallCells(corners){
- const route=new Map();
- if(!corners.length)return [];
- let {x,y}=corners[0];
- const visit=()=>{const cell={x,y};route.set(wallKey(cell),cell)};
- visit();
- for(const target of corners.slice(1)){
-  const across=()=>{while(x!==target.x){x+=Math.sign(target.x-x);visit()}};
-  const along=()=>{while(y!==target.y){y+=Math.sign(target.y-y);visit()}};
-  if(Math.abs(target.x-x)>=Math.abs(target.y-y)){across();along()}else{along();across()}
- }
- return Array.from(route.values());
+function wallSegment(from,cell,axis){
+ const dx=Math.abs(cell.x-from.x),dy=Math.abs(cell.y-from.y);
+ const horizontal=axis?axis==='x':dx>=dy;
+ return {from:{...from},to:horizontal?{x:cell.x,y:from.y}:{x:from.x,y:cell.y}};
 }
-function quoteWalls(corners){
+function tapWallSegment(plan,cell){return wallSegment(plan.segments.at(-1)?.to||cell,cell)}
+function wallCells(segments){
+ const cells=new Map();
+ for(const {from,to} of segments){
+  const dx=Math.sign(to.x-from.x),dy=Math.sign(to.y-from.y);
+  const length=Math.max(Math.abs(to.x-from.x),Math.abs(to.y-from.y));
+  for(let i=0;i<=length;i++){
+   const cell={x:from.x+i*dx,y:from.y+i*dy};cells.set(wallKey(cell),cell);
+  }
+ }
+ return Array.from(cells.values());
+}
+function quoteWalls(segments){
  const occupied=new Map();
  for(const b of s.buildings)for(const cell of OplotLayout.cells(b))occupied.set(wallKey(cell),b);
  const grid=islandGrid(s),unit=priceOf('wall');
- const route=wallCells(corners),preview=[],fresh=[];
+ const route=wallCells(segments),preview=[],fresh=[];
  let blocked=false;
  for(const cell of route){
   const b=occupied.get(wallKey(cell));
@@ -3642,26 +3722,49 @@ function renderWallPlan(){
  const plan=wallPlan(),box=$('#wall-builder');
  box.hidden=!plan;world.classList.toggle('drawing-walls',!!plan);
  if(!plan)return;
- const corners=plan.drag?plan.corners.concat(plan.drag.from,plan.drag.to):plan.corners;
- const quote=quoteWalls(corners);
+ const segments=plan.drag?plan.segments.concat(plan.drag.bends,plan.drag.segment):plan.segments;
+ const quote=quoteWalls(segments);
  plan.preview=quote.preview;plan.valid=quote.valid;
  const exitButton=$('#maptools [data-do="cancelplace"]');
- if(exitButton)exitButton.textContent=corners.length?'Отменить':'Готово';
+ if(exitButton)exitButton.textContent=segments.length?'Отменить':'Готово';
  $('#wall-summary').textContent='Секций в заказе — '+quote.fresh.length+' · '+num(quote.total)+' золота';
  $('#wall-budget').textContent='Можно поставить сейчас — '+quote.available+' · '+num(priceOf('wall'))+' золота за секцию';
  $('#wall-issue').textContent=quote.issue;
  box.querySelector('[data-do="confirmwalls"]').disabled=!quote.valid||!!plan.drag;
- box.querySelector('[data-do="wallundo"]').disabled=!plan.corners.length||!!plan.drag;
+ box.querySelector('[data-do="wallundo"]').disabled=!plan.segments.length||!!plan.drag;
 }
-function addWallCorner(plan,cell){
+function commitWallSegment(plan,segment){
+ const {from,to}=segment,last=plan.segments.at(-1)?.to;
+ if(last&&last.x===to.x&&last.y===to.y&&from.x===to.x&&from.y===to.y)return;
+ plan.segments.push(segment);
+}
+function trackWallPointer(plan,cell,pos){
+ const drag=plan.drag;
  if(!cell)return;
- const last=plan.corners.at(-1);
- if(!last||last.x!==cell.x||last.y!==cell.y)plan.corners.push({x:cell.x,y:cell.y});
+ const dx=Math.abs(cell.x-drag.from.x),dy=Math.abs(cell.y-drag.from.y);
+ if(!drag.moved&&Math.hypot(pos.x-drag.start.x,pos.y-drag.start.y)>=drag.slop&&(dx||dy))drag.moved=true;
+ if(drag.moved){
+  if(!drag.axis&&Math.max(dx,dy)>=2){
+   drag.axis=dx>=dy?'x':'y';drag.pivot=cell;
+  }else if(drag.axis){
+   const axis=drag.axis,other=axis==='x'?'y':'x',pivot=drag.pivot;
+   // Only sustained perpendicular motion after an established run makes a bend.
+   if(cell[axis]!==pivot[axis])drag.pivot=cell;
+   else if(Math.abs(cell[other]-pivot[other])>=2&&Math.abs(pivot[axis]-drag.origin[axis])>=2){
+    const bend=wallSegment(drag.origin,pivot,axis);
+    drag.bends.push(bend);drag.origin=bend.to;drag.axis=other;drag.pivot=cell;
+   }
+  }
+ }
+ const next=drag.moved?wallSegment(drag.origin,cell,drag.axis):wallSegment(drag.from,drag.from);
+ const old=drag.segment;
+ if(next.from.x===old.from.x&&next.from.y===old.from.y&&next.to.x===old.to.x&&next.to.y===old.to.y)return;
+ drag.segment=next;renderWallPlan();
 }
 function confirmWalls(){
  const plan=wallPlan();
  if(!plan||plan.drag||islandSync?.locked())return;
- const {fresh,total,issue,valid}=quoteWalls(plan.corners);
+ const {fresh,total,issue,valid}=quoteWalls(plan.segments);
  if(!valid){renderWallPlan();if(issue)toast(issue);return}
  const since=Date.now(),before=s;
  const sections=fresh.map(cell=>({id:uid(),type:'wall',...cell,level:1,since}));
@@ -3691,8 +3794,8 @@ function industryDetails(type,building){
  let output;
  if(type==='mine'||type==='farm'){
   const perLevel=rates[type]*12,units=type==='mine'?' золота/мин':' ягод/мин';
-  output=level===nextLevel?'Добыча — '+num(perLevel*level)+units+'.':
-   'Ур. '+level+' → '+nextLevel+' · '+num(perLevel*level)+' → '+num(perLevel*nextLevel)+units+', запас '+num(90*level)+' → '+num(90*nextLevel)+'.';
+  output=level===nextLevel?'Добыча — '+num(perLevel*level)+units+', запас до сбора — '+num(producerCapacity(type,level))+'.':
+   'Ур. '+level+' → '+nextLevel+' · '+num(perLevel*level)+' → '+num(perLevel*nextLevel)+units+', запас '+num(producerCapacity(type,level))+' → '+num(producerCapacity(type,nextLevel))+'.';
  }else{
   const units=type==='goldstore'?' золота':' ягод';
   output=level===nextLevel?'Вмещает '+num(storeSpace(type,level))+units+'.':
@@ -3736,7 +3839,7 @@ function useCell(cell,hit){
    if(b)draftSelect(b.id);return;
  }
  const plan=wallPlan();
- if(plan){addWallCorner(plan,cell);renderWallPlan();return}
+ if(plan){if(cell)commitWallSegment(plan,tapWallSegment(plan,cell));renderWallPlan();return}
  if(placement){
   if(!cell||!containsCell(islandGrid(s),cell.x,cell.y))return toast('Выбери клетку внутри острова.');
   const type=placement.type||B(placement.id)?.type;if(!type)return;
@@ -3882,8 +3985,8 @@ const views={
   }
   if(b.type==='mine'||b.type==='farm'){
    const units=b.type==='mine'?'золота':'ягод',perLevel=rates[b.type]*12;
-   detail='<p class="desc">Добыча — '+num(perLevel*b.level)+' '+units+' в минуту. Накапливает до сбора '+num(90*b.level)+'.</p>';
-   if(b.level<upLimit(b))detail+='<p class="desc">После улучшения — '+num(perLevel*(b.level+1))+' в минуту и до '+num(90*(b.level+1))+' до сбора.</p>';
+   detail='<p class="desc">Добыча — '+num(perLevel*b.level)+' '+units+' в минуту. Накапливает до сбора '+num(producerCapacity(b.type,b.level))+'.</p>';
+   if(b.level<upLimit(b))detail+='<p class="desc">После улучшения — '+num(perLevel*(b.level+1))+' в минуту и до '+num(producerCapacity(b.type,b.level+1))+' до сбора.</p>';
   }
   if(['goldstore','foodstore'].includes(b.type)){
    const resource=b.type==='goldstore'?'gold':'berries';
@@ -3985,7 +4088,7 @@ const acts={
  collect:id=>{const b=B(id);if(b)collect([b])},collectall:()=>collect(s.buildings),
  construct:t=>{if(!STRUCT[t]||!canAdd(t)||s.gold<priceOf(t))return;placement=t==='wall'?newWallPlan():{kind:'add',type:t};cursor={x:4,y:4};close();refreshIsland();
   if(t==='wall'){world.focus({preventScroll:true});world.closest('.mapframe').scrollIntoView({block:'nearest'})}},
- confirmwalls:confirmWalls,wallundo:()=>{const plan=wallPlan();if(plan&&!plan.drag){plan.corners.pop();renderWallPlan()}},
+ confirmwalls:confirmWalls,wallundo:()=>{const plan=wallPlan();if(plan&&!plan.drag){plan.segments.pop();renderWallPlan()}},
  move:id=>{const b=B(id);if(!b)return;if(b.stowed){openEditor();draftSelect(id);return}placement={kind:'move',id};const center=OplotLayout.center(b);cursor={x:Math.floor(center.x),y:Math.floor(center.y)};close();refreshIsland()},
  edit:openEditor,cancelplace:()=>{placement=cursor=null;refreshIsland()},
  layoutapply:applyEditor,layoutcancel:()=>leaveEditor(true),layoutclear:()=>changeDraft('clear'),layoutstash:()=>changeDraft('take'),layoutundo:()=>changeDraft('undo'),layoutreserve:draftSelect,
@@ -4008,7 +4111,7 @@ document.addEventListener('change',e=>{if(e.target.id==='parentA'||e.target.id==
 let stateArt={buildings:[],dragons:[]};
 const camera={zoom:1,x:0,y:0};
 const mapPointers=new Map();
-let mapGesture=false,wide=false,nativeWideOwner=null,returnScroll=0;
+let mapGesture=false,wide=false,nativeWideOwner=null,nativeWideEntered=false,returnScroll=0;
 const fullButton=$('#island-full'),fitButton=$('[data-camera="fit"]');
 function mapScreen(e){
  const bounds=world.getBoundingClientRect();
@@ -4095,13 +4198,13 @@ function setWide(enabled){
 async function nativeWide(button,enabled){
  if(!enabled){
    if(nativeWideOwner!==button)return;
-   nativeWideOwner=null;
+   nativeWideOwner=null;nativeWideEntered=false;
    if(document.fullscreenElement===document.documentElement)await document.exitFullscreen().catch(()=>{});
    return;
  }
  const orientation=host?.orientationMode?.();
  if((orientation&&orientation!=='auto')||document.fullscreenElement||!document.fullscreenEnabled||!document.documentElement.requestFullscreen)return;
- nativeWideOwner=button;
+ nativeWideOwner=button;nativeWideEntered=false;
  try{
    await document.documentElement.requestFullscreen();
    if(!nativeWideOwner&&document.fullscreenElement===document.documentElement)await document.exitFullscreen();
@@ -4113,8 +4216,10 @@ function toggleWide(){
 }
 fullButton.addEventListener('click',toggleWide);
 document.addEventListener('fullscreenchange',()=>{
- if(document.fullscreenElement||!nativeWideOwner)return;
- const owner=nativeWideOwner;nativeWideOwner=null;
+ if(document.fullscreenElement){nativeWideEntered=!!nativeWideOwner;return}
+ // A delayed exit event from the previous tap can precede the next entry.
+ if(!nativeWideOwner||!nativeWideEntered)return;
+ const owner=nativeWideOwner;nativeWideOwner=null;nativeWideEntered=false;
  if(owner===fullButton){
    // WebKit may consume Escape before delivering a keydown to the wall editor.
    if(wide&&wallShift){cancelWallShift();world.focus({preventScroll:true})}
@@ -4136,22 +4241,30 @@ function mapCell(px,py){
  return cell&&containsCell(grid,cell.x,cell.y)?cell:null;
 }
 function stockOnModel(b,units=stored(b)){
- return b.type==='mine'||b.type==='farm'?units/(90*b.level):storesOnMap.get(b.id)?.fill||0;
+ return b.type==='mine'||b.type==='farm'?units/(producerCapacity(b.type,b.level)):storesOnMap.get(b.id)?.fill||0;
 }
 function buildingToPlace(){
  return editor?editBuilding():placement?.kind==='move'?B(placement.id):placement?.kind==='add'?placement:null;
 }
+let homeSample=null;
 function sampleMap(){
- const grid=islandGrid(s),tower=buildingToPlace(),reach=tower&&nightTowerReach(tower.type,tower.level,s.layoutVersion);
- const list=layoutBuildings(),location=tower&&(cursor?centeredOrigin(cursor,tower.type,editDrag?.moved?editDrag.offset:null):Number.isInteger(tower.x)?tower:null);
+ const list=layoutBuildings(),groupPreview=wallShift?.preview;
+ if(!homeSample||homeSample.source!==list||homeSample.groupPreview!==groupPreview){
+   const hidden=groupPreview?.cells.length?new Set(wallShift.section.map(b=>b.id)):null;
+   const buildings=list.filter(b=>!b.stowed&&!hidden?.has(b.id)).map(b=>({...b,ready:false,fill:stockOnModel(b,0)}));
+   homeSample={source:list,groupPreview,grid:islandGrid(s),buildings,producers:buildings.filter(b=>rates[b.type]),dragons:editor?[]:s.dragons.slice(0,8)};
+ }
+ const grid=homeSample.grid,tower=buildingToPlace(),reach=tower&&nightTowerReach(tower.type,tower.level,s.layoutVersion);
+ const location=tower&&(cursor?centeredOrigin(cursor,tower.type,editDrag?.moved?editDrag.offset:null):Number.isInteger(tower.x)?tower:null);
  const ghost=location&&tower?{type:tower.type,id:tower.id,x:location.x,y:location.y,level:tower.level||1,valid:OplotLayout.fits(list,tower.type,location.x,location.y,grid,tower.id)}:null;
  const preview=reach&&location&&containsCell(grid,location.x,location.y)?{x:location.x,y:location.y,span:s.layoutVersion===2?OplotLayout.size(tower.type):1,reach}:null;
  const walls=wallPlan();
- const groupPreview=wallShift?.preview,hiddenWalls=groupPreview?.cells.length?new Set(wallShift.section.map(b=>b.id)):null;
- stateArt={layoutVersion:s.layoutVersion,gridSize:Math.max(grid.width,grid.height),gridWidth:grid.width,gridHeight:grid.height,buildings:list.filter(b=>!b.stowed&&!hiddenWalls?.has(b.id)).map(b=>{
-    const units=stored(b);return {...b,ready:!editor&&!placement&&units>=3,fill:stockOnModel(b,units)};
-   }),
-   dragons:editor?[]:s.dragons.slice(0,8),selected:editor?editId:placement?.id||null,grid:!!editor||!!placement,hover:ghost?null:cursor,placementPreview:ghost,
+ const now=Date.now();
+ for(const b of homeSample.producers){
+   const units=stored(b,now);b.ready=!editor&&!placement&&units>=3;b.fill=stockOnModel(b,units);
+ }
+ stateArt={homeView:true,layoutVersion:s.layoutVersion,gridSize:Math.max(grid.width,grid.height),gridWidth:grid.width,gridHeight:grid.height,buildings:homeSample.buildings,
+   dragons:homeSample.dragons,selected:editor?editId:placement?.id||null,grid:!!editor||!!placement,hover:ghost?null:cursor,placementPreview:ghost,
    wallSelection:wallShift?.section,wallPreview:groupPreview?.cells||walls?.preview,wallPreviewValid:groupPreview?!groupPreview.issue:walls?.valid,nightCoverage:preview,waves:!reduced};
 }
 function tap(px,py){
@@ -4190,7 +4303,7 @@ world.addEventListener('pointerdown',e=>{
  if(!plan||plan.drag||!e.isPrimary)return;
  const cell=worldCell(e);if(!cell)return;
  world.focus({preventScroll:true});
- plan.drag={id:e.pointerId,from:cell,to:cell};
+ plan.drag={id:e.pointerId,from:cell,origin:cell,bends:[],start:pos,slop:e.pointerType==='touch'?6:3,moved:false,axis:null,segment:wallSegment(cell,cell)};
  cursor=cell;world.setPointerCapture(e.pointerId);renderWallPlan();
 });
 world.addEventListener('pointermove',e=>{
@@ -4223,7 +4336,7 @@ world.addEventListener('pointermove',e=>{
   const drag=placement.drag,cell=worldCell(e);
   if(drag&&drag.id!==e.pointerId)return;
   cursor=cell;
-  if(drag&&cell&&(cell.x!==drag.to.x||cell.y!==drag.to.y)){drag.to=cell;renderWallPlan()}
+  if(drag)trackWallPointer(placement,cell,point||mapScreen(e));
  }else if(e.pointerType!=='touch')cursor=worldCell(e);
 });
 world.addEventListener('pointerup',e=>{
@@ -4232,7 +4345,11 @@ world.addEventListener('pointerup',e=>{
  const plan=wallPlan(),drag=plan?.drag;
  if(!drag||drag.id!==e.pointerId)return;
  const cell=worldCell(e);
- if(cell){addWallCorner(plan,drag.from);addWallCorner(plan,cell)}
+ if(cell){
+  trackWallPointer(plan,cell,mapScreen(e));
+  for(const bend of drag.bends)commitWallSegment(plan,bend);
+  commitWallSegment(plan,drag.moved?drag.segment:tapWallSegment(plan,drag.from));
+ }
  else toast('Конец стены должен быть на острове.');
  plan.drag=null;renderWallPlan();
 });
@@ -4258,13 +4375,22 @@ world.addEventListener('keydown',e=>{
  const grid=islandGrid(s);cursor.x=Math.max(0,Math.min(grid.width-1,cursor.x));cursor.y=Math.max(0,Math.min(grid.height-1,cursor.y));
  if(wallShift?.source&&wallShift.section.length===wallShift.count)aimWallShift(cursor);
 });
-function resize(){
+function resize(force=false){
  const r=world.getBoundingClientRect();
  if(!r.width||!r.height)return;
+ const dpr=Math.min(devicePixelRatio||1,2),width=Math.round(r.width*dpr),height=Math.round(r.height*dpr);
+ if(!force&&W===r.width&&H===r.height&&world.width===width&&world.height===height)return;
  if(W&&H){const n=islandSize(s),scale=Art.unit(r.width,r.height,n)/Art.unit(W,H,n);camera.x*=scale;camera.y*=scale}
- W=r.width;H=r.height;clampView();drawOverview();const dpr=Math.min(devicePixelRatio||1,2);
- world.width=Math.round(W*dpr);world.height=Math.round(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);paintMini();
+ W=r.width;H=r.height;clampView();drawOverview();
+ if(world.width!==width)world.width=width;
+ if(world.height!==height)world.height=height;
+ ctx.setTransform(dpr,0,0,dpr,0,0);
+ // Changing a canvas dimension discards its pixels, even behind a paused dialog.
+ // Replace the bitmap within this callback, before the browser can present it.
+ if(battle)battle.draw(ctx,W,H,moment);else drawHomeFrame(performance.now()/1000);
+ paintMini();
 }
+world.addEventListener('contextrestored',()=>resize(true));
 // Night reports replay the stored server events against the island as it looked at raid time.
 const nightDialog=document.createElement('dialog');nightDialog.id='night-report';nightDialog.setAttribute('aria-labelledby','night-title');
 nightDialog.innerHTML='<div class="dlghead"><h2 id="night-title">Ночной дозор</h2><button type="button" class="close" aria-label="Закрыть отчёты">×</button></div><div class="dlgbody night-body"></div>';
@@ -4474,17 +4600,20 @@ nightBody.addEventListener('change',e=>{if(e.target.matches('[data-night-date]')
 new ResizeObserver(()=>{if(nightDialog.open&&raidScene)drawRaid()}).observe(nightBody);
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&raidPlaying){pauseRaid();drawRaid();}});
 
+function drawHomeFrame(sec){
+  ctx.save();ctx.translate(W/2+camera.x,H/2+camera.y);ctx.scale(camera.zoom,camera.zoom);ctx.translate(-W/2,-H/2);
+  sampleMap();Art.island(ctx,W,H,moment,stateArt);
+  flying=flying.filter(f=>sec-f.born<1.4);
+  for(const f of flying){const age=sec-f.born,p=Art.point(f.x,f.y,W,H,islandSize(s));ctx.save();ctx.globalAlpha=Math.max(0,1-age*.67);ctx.font='bold 17px system-ui';ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='#3d553f';ctx.fillStyle=f.color;ctx.strokeText(f.txt,p.x,p.y-22-age*35);ctx.fillText(f.txt,p.x,p.y-22-age*35);ctx.restore()}
+  ctx.restore();
+}
 function frame(ms){
  requestAnimationFrame(frame);
  if(document.hidden||!W||!H){lastFrame=ms;return}
  const sec=ms/1000,dt=lastFrame?Math.min(.1,(ms-lastFrame)/1000):0;lastFrame=ms;moment=reduced?0:sec;
  if(battle){if(!dlg.open)battle.tick(dt);if(battle)battle.draw(ctx,W,H,moment)}
  else if(!dlg.open||panel==='hatched'){
-  ctx.save();ctx.translate(W/2+camera.x,H/2+camera.y);ctx.scale(camera.zoom,camera.zoom);ctx.translate(-W/2,-H/2);
-  sampleMap();Art.island(ctx,W,H,moment,stateArt);
-  flying=flying.filter(f=>sec-f.born<1.4);
-  for(const f of flying){const age=sec-f.born,p=Art.point(f.x,f.y,W,H,islandSize(s));ctx.save();ctx.globalAlpha=Math.max(0,1-age*.67);ctx.font='bold 17px system-ui';ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='#3d553f';ctx.fillStyle=f.color;ctx.strokeText(f.txt,p.x,p.y-22-age*35);ctx.fillText(f.txt,p.x,p.y-22-age*35);ctx.restore()}
-  ctx.restore();
+  drawHomeFrame(sec);
  }
  if(dlg.open&&panel==='hatched'&&!reduced&&sec-hatchAt<2.2){
    const el=body.querySelector('.portrait canvas');if(el){paintMini(body);const c=el.getContext('2d'),w=el.clientWidth,h=el.clientHeight,a=sec-hatchAt;c.save();c.fillStyle='#d39335';for(let i=0;i<18;i++){const r=a*(25+(i%4)*10);c.globalAlpha=Math.max(0,1-a/2.2);c.fillText('✦',w/2+Math.cos(i*2.4)*r,h*.48+Math.sin(i*2.4)*r)}c.restore()}
@@ -4545,10 +4674,10 @@ function startScoutPost(){
  load();
 }
 window.addEventListener('oplot-art-ready',()=>{
- paintMini();
+ paintMini(document,'canvas[data-building]');
  if(nightDialog.open&&raidScene&&!raidPlaying)drawRaid();
 });
-setViewZoom(1);startScoutPost();showXpRewards();new ResizeObserver(resize).observe(world);refreshIsland();resize();if(host)refreshStudy();requestAnimationFrame(frame);
+setViewZoom(1);startScoutPost();showXpRewards();new ResizeObserver(()=>resize()).observe(world);refreshIsland();resize();if(host)refreshStudy();requestAnimationFrame(frame);
 })();
 
 </script></body></html>

@@ -120,12 +120,19 @@ async function check(browser,width) {
 
   const basic={...start,gold:812,buildings:[keep,mine,treasury]};
   await seed(basic);await openBuilding(mine.id);assert.match(await dialog.innerText(),/48 золота в минуту/);
-  assert.match(await dialog.innerText(),/96 в минуту и до 180/);
+  assert.match(await dialog.innerText(),/96 в минуту и до 720/);
   await act(dialog,'upgrade',mine.id);const improved=await read(),newMine=improved.buildings.find(b=>b.id===mine.id);
   assert.equal(improved.gold,812-42);assert.deepEqual(improved.buildings.filter(b=>b.id!==mine.id),[keep,treasury]);
   const stock=await page.evaluate(({b,t})=>productionStock(b,t),{b:newMine,t:when});
   assert.ok(stock>=40.5&&stock<40.502,'Upgrading retains both ready stock and partial production');
   assert.equal(await page.evaluate(({b,t})=>stored(b,t+60000),{b:newMine,t:when}),136);
+  for(const level of [1,4,9]){
+   for(const type of ['mine','farm','home']){
+    const producer={...mine,type,level,since:when-3600000};
+    const full=await page.evaluate(({producer,when})=>stored(producer,when),{producer,when});
+    assert.equal(full,(type==='home'?90:360)*level,type+' level '+level+' saturation');
+   }
+  }
   const vintage={...start,layoutVersion:1,gold:200,buildings:[{...keep,x:4,y:4},mine,{...extraMine,x:8,y:0}]};
   await seed(vintage);await tab('build');assert.ok(await purchase('mine').isDisabled());
   await close();await act(page,'collectall');await page.reload();
@@ -178,6 +185,32 @@ async function check(browser,width) {
   await act(page,'cancelplace');assert.deepEqual(await read(),built);
   await begin();await selectCell(1,5);await quote(1);await act(page,'cancelplace');
   await page.reload();assert.deepEqual(await read(),built,'Confirmed walls persist, cancelled preview does not');
+  // A drift of one grid cell does not turn a straight run. Only the second
+  // stroke actually changes direction, and lifting the finger leaves a gap.
+  await seed({...start,gold:950});await begin();
+  const client=width===390&&browser.browserType().name()==='chromium'?await ctx.newCDPSession(page):null;
+  async function stroke(cells){
+   await world.scrollIntoViewIfNeeded();const box=await world.boundingBox();
+   const points=await Promise.all(cells.map(async ([x,y])=>{
+    const p=await cellPoint(x,y);return {x:box.x+p.x,y:box.y+p.y};
+   }));
+   if(client){
+    await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[points[0]]});
+    for(const p of points.slice(1))await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[p]});
+    await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+   }else{
+    await page.mouse.move(points[0].x,points[0].y);await page.mouse.down();
+    for(const p of points.slice(1))await page.mouse.move(p.x,p.y);
+    await page.mouse.up();
+   }
+  }
+  await stroke([[5,8],[7,8],[10,8],[11,9]]);await quote(7);
+  await stroke([[5,13],[8,13],[9,13],[9,14],[9,16]]);await quote(15);
+  await act(panel,'confirmwalls');
+  const ordered=(await read()).buildings.filter(b=>b.type==='wall').map(b=>b.x+','+b.y).sort();
+  const expected=[...Array.from({length:7},(_,i)=>(5+i)+',8'),...Array.from({length:5},(_,i)=>(5+i)+',13'),'9,14','9,15','9,16'];
+  assert.deepEqual(ordered,expected.sort());assert.equal((await read()).gold,650);
+  await act(page,'cancelplace');
   async function blocked(island,row,reason){
    await seed(island);await begin();await selectCell(1,row);await selectCell(2,row);
    await quote(2);assert.ok(await confirm.isDisabled());assert.match(await panel.locator('#wall-issue').innerText(),reason);
@@ -253,12 +286,12 @@ async function check(browser,width) {
   assert.match(await page.locator('#berries + small').innerText(),/620/);
   assert.match(await page.locator('#gold + small').innerText(),/900/);
   const nearFull={...built,gold:895,berries:615};
-  for(const b of nearFull.buildings)b.since=Date.now()-200000;
+  for(const b of nearFull.buildings)b.since=Date.now()-1200000;
   await seed(nearFull);await act(page,'collectall');
   const collected=await read();assert.equal(collected.gold,900);assert.equal(collected.berries,620);
   for(const id of [farm.id,mine.id]){
    const remaining=await page.evaluate(b=>stored(b),collected.buildings.find(b=>b.id===id));
-   assert.ok(remaining>=85&&remaining<90,'Remainder retained at producer');
+   assert.ok(remaining>=355&&remaining<360,'Remainder retained at producer');
   }
   await openBuilding(barn.id);
   const barnArt=dialog.locator('[data-building="foodstore"]'),barnMeter=dialog.locator('.store-meter');

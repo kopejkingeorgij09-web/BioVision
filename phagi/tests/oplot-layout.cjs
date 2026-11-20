@@ -55,13 +55,14 @@ assert.ok(saturated.buildings.some(x=>x.stowed));assert.ok(layout.valid(saturate
 assert.deepEqual(layout.migrate(crowded),saturated);
 for(const [i,b] of saturated.buildings.entries()){
  const old=crowded.buildings[i];assert.equal(b.id,old.id);assert.equal(b.since,old.since);assert.equal(b.level,old.level);
- if(b.stowed){assert.equal(b.x,null);assert.equal(b.y,null);if(b.type==='farm')assert.equal(b.pausedStock,180)}
+ if(b.stowed){assert.equal(b.x,null);assert.equal(b.y,null);if(b.type==='farm')assert.equal(b.pausedStock,720)}
 }
 const inventory=building('spare','farm',null,null);inventory.stowed=true;inventory.pausedStock=15;
 assert.equal(layout.at([inventory],0,0),null);assert.equal(layout.center(inventory),null);assert.deepEqual(layout.cells(inventory),[]);
 assert.ok(layout.valid([b[0],inventory],grid));
 assert.ok(!layout.valid([{...b[0],stowed:true,x:null,y:null}],grid));
-assert.ok(!layout.valid([b[0],{...inventory,pausedStock:181}],grid));
+assert.ok(layout.valid([b[0],{...inventory,pausedStock:720}],grid));
+assert.ok(!layout.valid([b[0],{...inventory,pausedStock:721}],grid));
 assert.ok(!layout.valid([b[0],building('overlap','spire',19,19)],grid));
 assert.ok(!layout.valid([b[0],building('edge','spire',34,34)],grid));
 assert.ok(!layout.valid([b[0],{...inventory,x:0}],grid));

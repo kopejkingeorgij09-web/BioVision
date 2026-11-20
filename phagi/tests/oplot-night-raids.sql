@@ -20,19 +20,19 @@ begin
   for stars in 0..3 loop
     pct:=(array[0,25,50,80])[stars+1];
     loot:=oplot.night_loot(original,moment,stars); s:=loot->'state';
-    if (loot->>'percent')::int<>pct or (loot->>'goldLost')::int<>floor(232*pct/100.0)
-       or (loot->>'berriesLost')::int<>floor(191*pct/100.0) then raise exception 'Loot tier %: %',stars,loot; end if;
+    if (loot->>'percent')::int<>pct or (loot->>'goldLost')::int<>floor(502*pct/100.0)
+       or (loot->>'berriesLost')::int<>floor(731*pct/100.0) then raise exception 'Loot tier %: %',stars,loot; end if;
     gold:=(s->>'gold')::int; berries:=(s->>'berries')::int;
     for ix in 0..3 loop
       b:=s->'buildings'->ix; original_b:=original->'buildings'->ix;
       if b-'since'<>original_b-'since' then raise exception 'Changed producer identity'; end if;
       rate:=case b->>'type' when 'farm' then 0.0006 when 'home' then 0.00017 else 0.0008 end*(b->>'level')::int;
-      capped:=least((b->>'level')::int*90,greatest(0,(ms-(b->>'since')::bigint)*rate));
+      capped:=least((b->>'level')::int*(case b->>'type' when 'home' then 90 else 360 end),greatest(0,(ms-(b->>'since')::bigint)*rate));
       produced:=floor(capped);
       if b->>'type'='farm' then berries:=berries+produced; else gold:=gold+produced; end if;
       if ix=1 and abs((capped-floor(capped))-0.97589)>0.00018 then raise exception 'Lost fractional production: %',capped; end if;
     end loop;
-    if gold<>232-(loot->>'goldLost')::int or berries<>191-(loot->>'berriesLost')::int then raise exception 'Stock conservation'; end if;
+    if gold<>502-(loot->>'goldLost')::int or berries<>731-(loot->>'berriesLost')::int then raise exception 'Stock conservation'; end if;
     if s->'buildings'->3<>original->'buildings'->3 or (stars=0 and s<>original) then raise exception 'Changed intact producers'; end if;
   end loop;
 end $loot$;

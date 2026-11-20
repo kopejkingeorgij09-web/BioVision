@@ -322,7 +322,8 @@ async function check(browser,mobile){
     const canonical=layout.migrate(limits.reconcile(legacyIndustry,clockNow));
     const survivors=['castle','mine-ready','farm-b','treasury-z','barn-large','home'];
     assert.deepEqual(canonical.buildings.map(b=>b.id),survivors);
-    assert.deepEqual([canonical.gold,canonical.berries],[6426,1902]);
+    // The retired level-two mine contributes its full 720 gold to the settlement.
+    assert.deepEqual([canonical.gold,canonical.berries],[6966,1902]);
     server.docs.set(path,{rev:head().rev+1,op:'profile-building-settlement',state:canonical});
     await open();await start();
     assert.ok(await button('layoutundo').isDisabled(),'Discard the obsolete draft as its inventory changed');
@@ -338,11 +339,11 @@ async function check(browser,mobile){
     await game.locator('.tabs [data-do=tab][data-id=collection]').click();await modal.locator('[data-do=pet][data-id=ice]').click();
     const feedIce=modal.locator('[data-do=feed][data-id=ice]');await feedIce.click();await feedIce.click();await modal.locator('.close').click();
     await until(()=>head().state.berries===1502,'Both feedings must persist at the exact displayed cost');
-    assert.equal(head().state.gold,6426);assert.deepEqual(head().state.dragons.map(d=>d.id),['fire','ice']);
+    assert.equal(head().state.gold,canonical.gold);assert.deepEqual(head().state.dragons.map(d=>d.id),['fire','ice']);
     server.loseBuyReply=false;await game.locator('header [data-do=wallet]').click();await press('purchase','berries');
     await until(()=>head().state.berries===1577&&!head().state.pending,'A real 75-berry delivery can complete while gold is over capacity');
     assert.equal(server.accounts.get(p.id).receipts.size,1);
-    await open();assert.equal(head().state.gold,6426);assert.equal(head().state.berries,1577);
+    await open();assert.equal(head().state.gold,canonical.gold);assert.equal(head().state.berries,1577);
     assert.deepEqual(head().state.buildings.map(b=>b.id),survivors);
     assert.deepEqual(head().state.limitReceipt,canonical.limitReceipt,'Neither editing nor spending repeats the settlement');
     assert.deepEqual(errors,[]);

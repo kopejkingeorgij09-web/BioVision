@@ -45,7 +45,7 @@
  function harvest(b,now){
    if(!Object.hasOwn(production,b.type))return 0;
    const qty=b.stowed?b.pausedStock||0:Math.floor((now-b.since)*production[b.type]*b.level/500000);
-   return Math.max(0,Math.min(b.level*90,qty));
+   return Math.max(0,Math.min(layout.producerCapacity(b.type,b.level),qty));
  }
  function validReceipt(r){
    const unsigned=n=>Number.isSafeInteger(n)&&n>=0;

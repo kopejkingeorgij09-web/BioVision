@@ -8,6 +8,9 @@
  const production=Object.freeze({mine:4,farm:3,home:.85});
  const size=type=>typeof type==='string'&&Object.hasOwn(sides,type)?sides[type]:0;
  const active=b=>b&&b.stowed!==true&&Number.isInteger(b.x)&&Number.isInteger(b.y);
+ function producerCapacity(type,level){
+   return (type==='mine'||type==='farm'?360:type==='home'?90:0)*level;
+ }
  function gridAtLevel(level,version=2,buildings){
    const strips=Math.min(12,Math.max(0,Math.floor(level||1)-1));
    const dimension=i=>version===2?fieldSides[i]:10+i;
@@ -54,7 +57,7 @@
      ids.add(b.id);if(b.type==='keep')keeps++;
      if(b.stowed!==undefined&&typeof b.stowed!=='boolean')return false;
      if(b.pausedStock!==undefined&&(!b.stowed||!Object.hasOwn(production,b.type)||
-       !Number.isSafeInteger(b.pausedStock)||b.pausedStock<0||b.pausedStock>b.level*90))return false;
+       !Number.isSafeInteger(b.pausedStock)||b.pausedStock<0||b.pausedStock>producerCapacity(b.type,b.level)))return false;
      if(b.stowed){
        if(version!==2||b.type==='keep'||b.x!==null||b.y!==null)return false;
        continue;
@@ -290,13 +293,13 @@
    const migrated={...state,xp,layoutVersion:2,buildings:old.map(b=>{
      if(placed.has(b.id))return placed.get(b.id);
      const stored={...b,x:null,y:null,stowed:true};
-     if(Object.hasOwn(production,b.type))stored.pausedStock=Math.min(b.level*90,Math.floor((at-b.since)*production[b.type]*b.level/5000));
+     if(Object.hasOwn(production,b.type))stored.pausedStock=Math.min(producerCapacity(b.type,b.level),Math.floor((at-b.since)*production[b.type]*b.level/5000));
      return stored;
    })};
    delete migrated.limitLegacyGrid;
    return migrated;
  }
- const api=Object.freeze({size,center,cells,at,fits,valid,gridAtLevel,migrate,legacyXP});
+ const api=Object.freeze({size,center,cells,at,fits,valid,gridAtLevel,migrate,legacyXP,producerCapacity});
  if(typeof module==='object'&&module.exports)module.exports=api;
  if(root)root.OplotLayout=api;
 })(typeof window==='object'?window:null);

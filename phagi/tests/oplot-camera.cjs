@@ -51,6 +51,23 @@ async function check(browser,mobile){
    assert.equal(await f.locator('#dialog').isVisible(),false,'Pinch must not select a building');
    await fit.click();
   }
+  // ResizeObserver runs after animation callbacks. A modal pauses the island
+  // loop, so the resized bitmap must already contain the map before paint.
+  await f.locator('.tabs [data-id="build"]').click();
+  const pixels=await world.evaluate(async el=>{
+   const map=el.parentElement,start=el.getBoundingClientRect().height;
+   return new Promise((resolve,reject)=>{
+    const timeout=setTimeout(()=>{observer.disconnect();reject(Error('Map did not resize'));},5000);
+    const observer=new ResizeObserver(()=>{
+     if(Math.abs(el.getBoundingClientRect().height-start)<5)return;
+     const ctx=el.getContext('2d'),alpha=[[.5,.5],[.25,.5],[.75,.5]].map(([x,y])=>ctx.getImageData(Math.floor(x*el.width),Math.floor(y*el.height),1,1).data[3]);
+     observer.disconnect();clearTimeout(timeout);map.style.removeProperty('height');resolve(alpha);
+    });
+    observer.observe(el);map.style.setProperty('height',(start+16)+'px','important');
+   });
+  });
+  assert.deepEqual(pixels,[255,255,255],'Resizing under a menu must never present a blank island');
+  await f.locator('#dialog [data-do="close"]').first().click();
   if(mobile)await gesturePinch();
   async function wide(on){
    await f.locator(on?'body.island-wide':'body:not(.island-wide)').waitFor();

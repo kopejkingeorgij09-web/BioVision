@@ -50,10 +50,10 @@ begin
   if not jsonb_path_exists(events,'$[*] ? (@.t == 11 && @.kind == "strike" && @.target == "keep" && @.from[0] == 12 && @.to[0] == 9 && @.to[1] == 9)')
     then raise exception 'Raider must attack the near face before reaching the anchor and aim at the centre';end if;
   for i in 1..2 loop
-    s:=jsonb_set(base,'{buildings}',jsonb_build_array(jsonb_build_object('id','c','type','cannon','level',1,'x',22+i,'y',9)));
+    s:=jsonb_set(base,'{buildings}',jsonb_build_array(jsonb_build_object('id','c','type','cannon','level',1,'x',17+i,'y',9)));
     events:=oplot.simulate_raid(s,1,day1,who,sky)#>'{replay,events}';
     if jsonb_path_exists(events,'$[*] ? (@.t == 1 && @.kind == "tower")')<>(i=2)
-      then raise exception 'Cannon coverage from actual edge';end if;
+      then raise exception 'Cannon circular range from its centre';end if;
   end loop;
   s:=jsonb_set(base,'{buildings}',(base->'buildings')||jsonb_build_array(spare));
   f:=oplot.night_battle(s,1,day1,who);

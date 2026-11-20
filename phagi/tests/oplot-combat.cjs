@@ -230,9 +230,10 @@ function fieldDamage(mode,enchant,specialty='') {
   for(let i=0;i<1800 && (!special||!furyHit);i++){
     const {party,enemy,structures,fury}=game.inspect();
     const targets=mode==='defense'?enemy:structures.concat(enemy);
+    // Isolate measured spell damage from the earlier volleys of a long-range battery.
+    party[0].hp=party[0].maxHp;
     if(mode==='defense'){
-      // Isolate the ability from the wave's changing HP budget and kill timing.
-      party[0].hp=party[0].maxHp;structures[0].hp=structures[0].maxHp;
+      structures[0].hp=structures[0].maxHp;
       for(const invader of living(enemy))invader.hp=invader.maxHp=10000;
     }
     const before=health(targets),strikes=party[0].strikes;
@@ -430,5 +431,20 @@ for(let i=0;i<25*30;i++){
   guards.tick(1/30);
   const {party,structures}=guards.inspect();
   for(const u of living(party))assert.ok(!structures.some(b=>b.hp>0&&occupying(b,u)),'A guard phased through a foundation');
+}
+// The actual defense tick fires from the centre. Keep both a wall and a farm on the firing lane.
+for(const type of Object.keys(layout.defenses)){
+  const game=Battle.start('defense',1,{layoutVersion:2,buildings:[
+    {id:'keep',type:'keep',x:23,y:23},{id:'tower',type,x:6,y:10},
+    {id:'wall',type:'wall',x:11,y:11},{id:'farm',type:'farm',x:13,y:10}
+  ]},[],{});
+  for(let t=0;t<30;t++)game.tick(1/30);
+  const {enemy,structures}=game.inspect(),tower=structures.find(b=>b.id==='tower');
+  const radius=layout.towerReach(type,1,2);
+  Object.assign(enemy[0],{kind:'shadow',level:type==='skybow'?21:1,x:tower.x+radius,y:tower.y,hp:1000,maxHp:1000,speed:0});
+  tower.cd=0; game.tick(.01);
+  assert.ok(enemy[0].hp<1000,type+' reaches a target on the circle beyond obstacles');
+  Object.assign(enemy[0],{x:tower.x+radius,y:tower.y+1,hp:1000});tower.cd=0;game.tick(.01);
+  assert.equal(enemy[0].hp,1000,type+' does not reach beyond its circle');
 }
 console.log('PASS campaign, arena, flight, enchantments, legacy 10–16 and compact 33–53 and legacy 55 grids, footprint picking, moving, four-sided defense and pathfinding');

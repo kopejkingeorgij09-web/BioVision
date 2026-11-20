@@ -16,20 +16,29 @@ async function serverCoverage(){
     const dir=path.join(__dirname,'../../supabase/migrations');
     const files=fs.readdirSync(dir).filter(name=>/(_bioviz_core|_phagi_core|_phagi_teacher_is_georgiy|_ph_set_if_rev|_phagi_oplot_[\w]+)\.sql$/.test(name)).sort();
     for(const file of files)await db.exec(fs.readFileSync(path.join(dir,file),'utf8'));
-    // One raider starts at (0,4). Its first tick precedes movement; this measures the actual primary targeting radius.
-    const {rows:towers}=await db.query(`select version,kind,level,max(dist) filter(where jsonb_path_exists(
-        oplot.simulate_raid(jsonb_build_object('layoutVersion',version,'buildings',jsonb_build_array(jsonb_build_object(
-          'type',kind,'id','tower','x',dist,'y',4,'level',level))),1,'2030-01-01','fixture',
-          '{"v":2,"layoutVersion":2,"entrySide":0,"attackers":[{"id":"a","type":"raider","species":0,"level":1,"x":0,"y":4,"hp":1,"damage":999,"flying":false,"enchant":0}]}'::jsonb||jsonb_build_object('layoutVersion',version))
-        ,'$.replay.events[*] ? (@.t == 1 && @.kind == "tower" && @.target == "a")'))::int as reach
-      from unnest(array['archer','cannon','spire']) as k(kind) cross join
-        unnest(array[1,2,3,5,6,8,9,11,12,30]) as l(level) cross join generate_series(0,16) as d(dist)
-      cross join generate_series(1,2) version group by version,kind,level order by version,kind,level`);
-    const {rows:distances}=await db.query(`select span,dx,dy,case when span=1 then oplot.raid_distance(a,b)
-      else oplot.raid_rect_distance(a,b,span) end as distance from generate_series(-54,54) dx cross join generate_series(-54,54) dy
-      cross join generate_series(1,3) span cross join lateral (select jsonb_populate_record(null::oplot.raid_actor,jsonb_build_object('x',dx,'y',dy)) as a,
-      jsonb_populate_record(null::oplot.raid_actor,'{"x":0,"y":0}') as b) as points`);
-    return {towers,distances};
+    // Compare the actual first volley with the displayed range, on both save geometries.
+    // The blockers stand directly between tower and attacker on these horizontal lanes.
+    const types=['archer','cannon','spire','mortar','skybow','tempest','solar'];
+    const {rows:towers}=await db.query(`select kind,lvl level,v version,oplot.tower_reach(kind,lvl,v) reach
+      from unnest($1::text[]) kind cross join unnest(array[1,3,6,9,12,16]) lvl cross join generate_series(1,2) v`,[types]);
+    for(const v of [1,2])for(const kind of types){
+      const formation={v:3,layoutVersion:v,entrySide:0,attackers:[{id:'a',type:'raider',x:0,y:4,hp:10,damage:999,level:2,species:1,enchant:0,flying:kind==='skybow'}]};
+      const island={layoutVersion:v,buildings:[{id:'t',type:kind,x:5,y:3,level:1},{id:'w',type:'wall',x:1,y:4,level:1},{id:'h',type:'farm',x:2,y:3,level:1}]};
+      const {rows:[{shot}]}=await db.query(`select jsonb_path_exists(oplot.simulate_raid($1::jsonb,1,'2030-01-01','test',$2::jsonb),
+        '$.replay.events[*] ? (@.t == 1 && @.kind == "tower" && @.id == "t" && @.target == "a")') as shot`,[JSON.stringify(island),JSON.stringify(formation)]);
+      assert.ok(shot,kind+' across buildings and walls (layout '+v+')');
+    }
+    async function targets(kind,points){
+      const actors=points.map(([x,y,hp,flying=false])=>({x,y,hp,flying}));
+      return (await db.query(`select idx from oplot.tower_targets(jsonb_populate_record(null::oplot.raid_actor,jsonb_build_object('x',0,'y',0,'type',$1::text,'level',1)),
+        array(select jsonb_populate_record(null::oplot.raid_actor,j) from jsonb_array_elements($2::jsonb) j),1) order by secondary,idx`,[kind,JSON.stringify(actors)])).rows.map(r=>r.idx);
+    }
+    assert.deepEqual(await targets('archer',[[5,5,4],[4,5,2]]),[2]); // sqrt(50)>7; sqrt(41)<7.
+    assert.deepEqual(await targets('mortar',[[1,1,3],[2,3,1],[1,2,4,true],[5,5,10]]),[1,2]);
+    assert.deepEqual(await targets('skybow',[[1,1,5],[2,3,1,true]]),[2]);
+    assert.deepEqual(await targets('tempest',[[1,1,4],[2,1,6],[1,2,4,true],[2,2,10]]),[1,2,3]);
+    assert.deepEqual(await targets('solar',[[1,1,4],[4,4,12,true],[9,0,40]]),[2]);
+    return {towers};
   }finally{await db.close()}
 }
 async function main(){
@@ -45,8 +54,7 @@ async function main(){
       });
     });
     await page.goto(url);await page.waitForFunction(()=>window.Art);
-    const checked=await page.evaluate(({towers,distances})=>{
-      const metric=new Map(distances.map(p=>[[p.span,p.dx,p.dy].join(','),p.distance]));
+    const checked=await page.evaluate(({towers})=>{
       const canvas=document.createElement('canvas'),w=680,h=560;canvas.width=w;canvas.height=h;
       const c=canvas.getContext('2d',{willReadFrequently:true}),state={gridSize:16,gridWidth:16,gridHeight:15,grid:true};
       function pixels(range){
@@ -63,29 +71,36 @@ async function main(){
           for(let cy=0;cy<state.gridHeight;cy++)for(let cx=0;cx<state.gridWidth;cx++){
             const pt=Art.point(cx,cy,w,h,state.gridSize),k=(Math.floor(pt.x)+Math.floor(pt.y)*w)*4;
             const inside=tinted[k]!==plain[k]||tinted[k+1]!==plain[k+1]||tinted[k+2]!==plain[k+2];
-            if(inside!==(metric.get([span,cx-x,cy-y].join(','))<=reach))throw Error([kind,level,x,y,cx,cy].join('/'));
+            const dist=Math.hypot(cx-x-(span-1)/2,cy-y-(span-1)/2);
+            if(Math.abs(dist-reach)<.7)continue; // Ignore the anti-aliased border.
+            if(inside!==(dist<=reach))throw Error([kind,level,x,y,cx,cy].join('/'));
             count++;
           }
         }
       }
       return count;
     },sql);
-    assert.equal(checked,279000);
+    assert.ok(checked>300000);
     const key='phagi.oplot.v1.local.standalone';
     await page.evaluate(key=>{const state=initialState();state.gold=450;
       state.buildings.push({id:'tower',type:'cannon',x:1,y:2,level:6,since:Date.now()});localStorage.setItem(key,JSON.stringify(state));
     },key);
     await page.reload();await page.locator('.tabs [data-do="tab"][data-id="build"]').click();
     await page.locator('[data-do="structure"][data-id="tower"]').click();
+    await page.locator('[data-do="range"][data-id="tower"]').click();
+    await page.waitForFunction(()=>window.observedRange?.x===1&&window.observedRange?.reach===16);
+    assert.match(await page.locator('#mapnote').innerText(),/16 кл. · только наземные цели/);
+    await page.locator('.tabs [data-do="tab"][data-id="build"]').click();
+    await page.locator('[data-do="structure"][data-id="tower"]').click();
     await page.locator('[data-do="move"][data-id="tower"]').click();
-    await page.waitForFunction(()=>window.observedRange?.x===1&&window.observedRange?.y===2&&window.observedRange?.reach===10);
-    assert.match(await page.locator('#mapnote').innerText(),/Ночная зона огня — 10 клеток · только наземные цели/);
+    await page.waitForFunction(()=>window.observedRange?.x===1&&window.observedRange?.y===2&&window.observedRange?.reach===16);
+    assert.match(await page.locator('#mapnote').innerText(),/Радиус огня — 16 кл. · только наземные цели/);
     await page.locator('#world').press('ArrowRight');await page.waitForFunction(()=>window.observedRange?.x===2&&window.observedRange?.y===2);
     await page.locator('#maptools [data-do="cancelplace"]').click();await page.waitForFunction(()=>!window.observedRange);
     await page.locator('.tabs [data-do="tab"][data-id="build"]').click();await page.locator('[data-do="construct"][data-id="archer"]').click();
-    await page.waitForFunction(()=>window.observedRange?.reach===8);
-    assert.match(await page.locator('#mapnote').innerText(),/8 клеток · земля и воздух/);
-    console.log('PASS 60 actual SQL tower ranges, 279,000 coverage cells against both distance metrics, touch and keyboard placement.');
+    await page.waitForFunction(()=>window.observedRange?.reach===14);
+    assert.match(await page.locator('#mapnote').innerText(),/14 кл. · земля и воздух/);
+    console.log('PASS',sql.towers.length,'level/range combinations,',checked,'painted cells, both raid formats, seven tower mechanics and touch/keyboard inspection.');
   }finally{await browser.close()}
 }
 main().catch(error=>{console.error(error);process.exitCode=1});

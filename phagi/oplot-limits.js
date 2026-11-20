@@ -2,14 +2,15 @@
 (function(root){
  'use strict';
  const layout=typeof module==='object'&&module.exports?require('./oplot-layout.js'):root.OplotLayout;
- const gold=Object.freeze({keep:0,mine:65,farm:60,home:80,den:85,goldstore:90,foodstore:75,academy:220,archer:70,cannon:95,spire:130,wall:20,firetrap:40,icetrap:35});
+ const gold=Object.freeze({keep:0,mine:65,farm:60,home:80,den:85,goldstore:90,foodstore:75,academy:220,archer:70,cannon:95,spire:130,mortar:1800,skybow:3200,tempest:5400,solar:8200,wall:20,firetrap:40,icetrap:35});
  const industry={mine:[1,4,7],farm:[1,4,7],goldstore:[1,6],foodstore:[1,6]};
  const production={mine:400,farm:300,home:85}; // hundredths per five seconds at level one
  function experience(state){
    return Number.isSafeInteger(state.xp)?state.xp:layout.legacyXP(state);
  }
  const profileLevel=state=>1+Math.floor(Math.sqrt(Math.max(0,experience(state))/35));
- function slots(type,level){
+ function slots(type,level,keepLevel=1){
+   if(layout.defenses[type]?.keep)return Number(keepLevel>=layout.defenses[type].keep);
    if(!Object.hasOwn(gold,type))return 0;
    if(Object.hasOwn(industry,type))return industry[type].filter(required=>required<=level).length;
    if(type==='keep'||type==='den')return 1;
@@ -22,8 +23,10 @@
    }
    return 1+(type==='firetrap'||type==='icetrap'?2:1)*capped;
  }
- const cap=(type,state)=>slots(type,profileLevel(state));
+ const citadel=state=>state.buildings.find(b=>b.type==='keep')?.level||1;
+ const cap=(type,state)=>slots(type,profileLevel(state),citadel(state));
  function nextUnlock(type,state){
+   if(layout.defenses[type]?.keep)return null;
    const level=profileLevel(state),current=slots(type,level);
    for(let next=level+1;next<=13;next++)if(slots(type,next)>current)return next;
    return null;
@@ -34,7 +37,7 @@
    if(!existingCount&&(type==='mine'||type==='farm'))return 0;
    return gold[type]*(1+2*existingCount);
  }
- const keepPrices=[400,950,1900,3600,6200,9800,14500,20500,29000,41000,57000];
+ const keepPrices=[400,950,1900,3600,6200,9800,14500,20500,29000,41000,57000,76000,99000,125000,155000];
  function upgradeGold(type,currentLevel){
    if(!Object.hasOwn(gold,type))throw new RangeError('Unknown building type');
    const step=currentLevel-1;
@@ -58,10 +61,10 @@
      r.retiredIds.every(id=>typeof id==='string'&&/^[A-Za-z0-9_-]{1,96}$/.test(id))&&new Set(r.retiredIds).size===r.retiredIds.length;
  }
  function needsSettlement(state){
-   const level=profileLevel(state),counts=new Map(),retired=new Set(state.limitReceipt?.retiredIds||[]);
+   const level=profileLevel(state),keepLevel=citadel(state),counts=new Map(),retired=new Set(state.limitReceipt?.retiredIds||[]);
    for(const b of state.buildings){
      const count=(counts.get(b.type)||0)+1;
-     if(retired.has(b.id)||count>slots(b.type,level))return true;
+     if(retired.has(b.id)||count>slots(b.type,level,keepLevel))return true;
      counts.set(b.type,count);
    }
    return false;
@@ -78,7 +81,7 @@
    for(const [type,group] of groups){
      // Stable sorting retains the original order for equally strong, equally placed buildings.
      const eligible=group.filter(b=>!retired.has(b.id)).sort((a,b)=>b.level-a.level||Number(!!a.stowed)-Number(!!b.stowed));
-     for(const b of eligible.slice(slots(type,level)))remove.add(b.id);
+     for(const b of eligible.slice(slots(type,level,citadel(state))))remove.add(b.id);
    }
    const receipt={version:1,at:now,profileLevel:level,removed:{},refundGold:0,productionGold:0,productionBerries:0,retiredIds:[]};
    const buildings=[];

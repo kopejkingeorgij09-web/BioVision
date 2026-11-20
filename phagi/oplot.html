@@ -1195,9 +1195,11 @@ window.Art = (() => {
     c.restore();c.restore();
   }
   /* Quantised animation poses share high-resolution sprites across cards and the board. */
-  // Six original poses per atlas. Keep the full 24-pose cycles of eight island
-  // residents warm, and reuse the least recently drawn atlas when teams change.
+  // Cache the original art up to its full resolution. Crowded overview frames
+  // need smaller tiles; size them above the projected physical pixel footprint.
   const dragonSheets=new Map(),poseWidth=286,poseHeight=246,gutter=2;
+  const sheetPixelBudget=32*6*(poseWidth+2*gutter)*(poseHeight+2*gutter);
+  let sheetPixels=0;
   // The recipe book already retains its painted portraits in the DOM.
   let portraitScratch;
   function dragonPortrait(c,x,y,size,species,level){
@@ -1208,29 +1210,36 @@ window.Art = (() => {
     const scale=size/255;
     c.drawImage(portraitScratch,x-144*scale,y-166*scale,poseWidth*scale,poseHeight*scale);
   }
-  function dragon(c,x,y,size,species=0,level=1,time=0,flip=false,pose=null) {
+  function dragon(c,x,y,size,species=0,level=1,time=0,flip=false,pose=null,screenScale=0) {
     if(!(size>0))return;
     const stage=level<5?1:level<10?5:10,walking=level<21;
     const phase=((Math.floor(time*12)%24)+24)%24,slot=phase%6;
-    const key=[species,stage,walking,Math.floor(phase/6)].join('/');
+    const scale=screenScale?Math.min(1,Math.max(.125,2**Math.ceil(Math.log2(2*screenScale*size/255)))):1;
+    const width=Math.ceil(poseWidth*scale),height=Math.ceil(poseHeight*scale);
+    const key=[species,stage,walking,Math.floor(phase/6),scale].join('/');
     let sheet=dragonSheets.get(key);
     if(sheet)dragonSheets.delete(key);
     else{
-      if(dragonSheets.size>=32){
-        const oldest=dragonSheets.keys().next().value;
-        sheet=dragonSheets.get(oldest);dragonSheets.delete(oldest);
-        sheet.poses=0;sheet.ctx.clearRect(0,0,sheet.image.width,sheet.image.height);
-      }else{
-        const image=newLayer(3*(poseWidth+2*gutter),2*(poseHeight+2*gutter));
+      const pixels=6*(width+2*gutter)*(height+2*gutter);
+      while(dragonSheets.size&&sheetPixels+pixels>sheetPixelBudget){
+        const oldest=dragonSheets.keys().next().value,old=dragonSheets.get(oldest);
+        dragonSheets.delete(oldest);sheetPixels-=old.image.width*old.image.height;
+        if(!sheet&&old.image.width===3*(width+2*gutter)){
+          sheet=old;sheet.poses=0;sheet.ctx.clearRect(0,0,sheet.image.width,sheet.image.height);
+        }else{old.image.width=old.image.height=1}
+      }
+      if(!sheet){
+        const image=newLayer(3*(width+2*gutter),2*(height+2*gutter));
         sheet={image,ctx:image.getContext('2d'),poses:0};
         image.addEventListener('contextrestored',()=>{sheet.poses=0});
       }
+      sheetPixels+=pixels;
     }
     dragonSheets.set(key,sheet);
-    const sx=slot%3*(poseWidth+2*gutter)+gutter,sy=Math.floor(slot/3)*(poseHeight+2*gutter)+gutter;
+    const sx=slot%3*(width+2*gutter)+gutter,sy=Math.floor(slot/3)*(height+2*gutter)+gutter;
     if(!(sheet.poses&(1<<slot))){
-      const d=sheet.ctx;d.save();d.beginPath();d.rect(sx,sy,poseWidth,poseHeight);d.clip();
-      d.translate(sx+144,sy+166);d.scale(2.55,2.55);d.lineJoin='round';d.lineCap='round';
+      const d=sheet.ctx;d.save();d.beginPath();d.rect(sx,sy,width,height);d.clip();
+      d.translate(sx+144*scale,sy+166*scale);d.scale(2.55*scale,2.55*scale);d.lineJoin='round';d.lineCap='round';
       paintDragon(d,species,stage,phase*TAU/24/3.9,walking);d.restore();
       sheet.poses|=1<<slot;
     }
@@ -1242,7 +1251,7 @@ window.Art = (() => {
       c.rotate(force*(thrust*.042-pull*.085));c.scale(1+thrust*.052-pull*.035,1+pull*.035-thrust*.03);
     }
     const s=size/100;
-    c.drawImage(sheet.image,sx,sy,poseWidth,poseHeight,-144/2.55*s,-166/2.55*s,poseWidth/2.55*s,poseHeight/2.55*s);c.restore();
+    c.drawImage(sheet.image,sx,sy,poseWidth*scale,poseHeight*scale,-144/2.55*s,-166/2.55*s,poseWidth/2.55*s,poseHeight/2.55*s);c.restore();
   }
   function inBounds(item,state) {
     const span=item.type?footSpan(item,state.layoutVersion):1;
@@ -1497,40 +1506,51 @@ window.Art = (() => {
   function same(b,selected) {return selected!=null&&(selected===b||selected===b.id||(typeof selected==='object'&&(selected.id!=null?selected.id===b.id:selected.x===b.x&&selected.y===b.y)));}
   const roosts=[[6,7],[7,3],[1,6],[3,1],[5,8],[8,3],[1,4],[3,7],[7,7],[2,1],[4,9],[8,6]];
   function roostLayout(state) {
-    const n=state.gridSize||10,cols=state.gridWidth||n,rows=state.gridHeight||n,list=(state.dragons||[]).slice(0,12),occupied=new Set();
+    const n=state.gridSize||10,cols=state.gridWidth||n,rows=state.gridHeight||n,list=state.dragons||[];
     if(!list.length)return [];
+    const occupied=new Set(),reserved=new Set();
+    const cellId=(x,y)=>y*cols+x;
     for(const b of state.buildings||[]){
       if(!inBounds(b,state)||state.placementPreview?.id===b.id&&b.id!=null)continue;
       const span=footSpan(b,state.layoutVersion);
-      for(let x=b.x;x<b.x+span;x++)for(let y=b.y;y<b.y+span;y++)occupied.add(x+','+y);
+      for(let x=b.x;x<b.x+span;x++)for(let y=b.y;y<b.y+span;y++)occupied.add(cellId(x,y));
     }
-    const result=[],roost=([x,y])=>[Math.round(x*(cols-1)/9),Math.round(y*(rows-1)/9)];
-    for(let i=0;i<list.length;i++){
-      const d=list[i],flying=d.level>=21;
-      let x=d.x,y=d.y;
-      if(!inBounds({x,y},state)||!flying&&occupied.has(x+','+y)){
-        let spot;
-        for(let j=0;j<roosts.length;j++){
-          const candidate=roost(roosts[(i+j)%roosts.length]);
-          if(!occupied.has(candidate.join(','))){spot=candidate;break;}
-        }
-        if(!spot){
-          for(let j=0;j<cols*rows;j++){const candidate=[j%cols,Math.floor(j/cols)];if(!occupied.has(candidate.join(','))){spot=candidate;break;}}
-        }
-        if(!spot&&!flying)continue;
-        [x,y]=spot||roost(roosts[i]);
+    // A packed legacy island can have more residents than open tiles. Reserve
+    // separate perches on structures only after all open anchors have been used.
+    const stride=Math.max(1,Math.ceil(Math.sqrt(list.length/(cols*rows))));
+    const seats=[];
+    for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){
+      const perched=occupied.has(cellId(x,y)),shore=x<2||y<2||x>=cols-2||y>=rows-2;
+      const priority=2*Number(perched)+Number(shore);
+      for(let sy=0;sy<stride;sy++)for(let sx=0;sx<stride;sx++){
+        seats.push({x:x+(sx+.5)/stride-.5,y:y+(sy+.5)/stride-.5,perched,priority,gap:Infinity});
       }
-      occupied.add(x+','+y);
-      let step=null;
-      if(!flying){
-        const steps=[[1,0],[0,1],[-1,0],[0,-1]];
-        for(let j=0;j<4;j++){
-          const [dx,dy]=steps[(i+j)%4],xx=x+dx,yy=y+dy;
-          if(xx<0||xx>=cols||yy<0||yy>=rows||occupied.has(xx+','+yy))continue;
-          occupied.add(xx+','+yy);step=[dx,dy];break;
+    }
+    const result=[],steps=[[1,0],[0,1],[-1,0],[0,-1]];
+    for(const [i,d] of list.entries()){
+      const preferred=roosts[i];
+      const px=Number.isFinite(d.x)?d.x:preferred&&Math.round(preferred[0]*(cols-1)/9);
+      const py=Number.isFinite(d.y)?d.y:preferred&&Math.round(preferred[1]*(rows-1)/9);
+      let best=null;
+      for(const seat of seats){
+        if(seat.gap===0)continue;
+        if(seat.priority===0&&seat.x===px&&seat.y===py&&seat.gap>=4){best=seat;break}
+        if(!best||seat.priority<best.priority||seat.priority===best.priority&&seat.gap>best.gap)best=seat;
+      }
+      const {x,y,perched}=best;
+      reserved.add(cellId(Math.round(x),Math.round(y)));
+      for(const seat of seats)seat.gap=Math.min(seat.gap,(seat.x-x)**2+(seat.y-y)**2);
+      result.push({d,i,x,y,flying:d.level>=21,perched,step:null});
+    }
+    // Plan walking only after every resident has a place.
+    for(const spot of result){
+      if(spot.flying||spot.perched||stride>1)continue;
+      for(let j=0;j<steps.length;j++){
+        const [dx,dy]=steps[(spot.i+j)%steps.length],x=spot.x+dx,y=spot.y+dy,id=cellId(x,y);
+        if(x>=0&&x<cols&&y>=0&&y<rows&&!occupied.has(id)&&!reserved.has(id)){
+          spot.step=[dx,dy];reserved.add(id);break;
         }
       }
-      result.push({d,i,x,y,flying,step});
     }
     return result;
   }
@@ -1543,7 +1563,7 @@ window.Art = (() => {
       else if(step){const [dx,dy]=step,travel=(1-Math.cos(phase))*.38;x+=dx*travel;y+=dy*travel;flip=(dx-dy)*Math.sin(phase)<0}
       const p=point(x,y,w,h,n),size=u*(d.level>=10?.93:d.level>=5?.82:.72)*dragonScale;
       const lift=flying?size*(.60+.05*Math.sin(t*2.1+i)):size*(d.level<5?.17:.21);
-      result.push({item:d,x:p.x,y:p.y-lift,ground:p.y,size,flip});
+      result.push({item:d,x:p.x,y:p.y-lift,ground:p.y,size,flip,perched:spot.perched});
     }
     return result;
   }
@@ -1576,8 +1596,8 @@ window.Art = (() => {
     let geometry;
     if(state.homeView){
       const key=[w,h,state.gridWidth,state.gridHeight,ghost?.id,ghost?.type,ghost?.x,ghost?.y,ghost?.valid].join('/');
-      if(!homeGeometry||homeGeometry.buildings!==state.buildings||homeGeometry.preview!==state.wallPreview||homeGeometry.key!==key){
-        homeGeometry={key,buildings:state.buildings,preview:state.wallPreview,objects:projectBuildings(state,w,h,preview),roost:roostLayout(state)};
+      if(!homeGeometry||homeGeometry.buildings!==state.buildings||homeGeometry.preview!==state.wallPreview||homeGeometry.residents!==state.dragons||homeGeometry.key!==key){
+        homeGeometry={key,residents:state.dragons,buildings:state.buildings,preview:state.wallPreview,objects:projectBuildings(state,w,h,preview),roost:roostLayout(state)};
       }
       geometry=homeGeometry;
     }
@@ -1585,7 +1605,7 @@ window.Art = (() => {
     const things=geometry?geometry.objects.slice():projectBuildings(state,w,h,preview);
     for(const a of dragonPoints(state,w,h,t,geometry?.roost))things.push({kind:'dragon',...a});
     for(const actor of state.figures||[])things.push({kind:'figure',item:actor,...point(actor.x,actor.y,w,h,n)});
-    const layer=a=>a.kind==='figure'?Number(!!a.item.above):Number(a.kind==='dragon'&&a.item.level>=21);
+    const layer=a=>a.kind==='figure'?Number(!!a.item.above):Number(a.kind==='dragon'&&(a.perched||a.item.level>=21));
     return things.sort((a,b)=>layer(a)-layer(b)||(a.ground??a.y)-(b.ground??b.y)||a.x-b.x);
   }
   function hit(px,py,w,h,state,t=0) {
@@ -1692,6 +1712,7 @@ window.Art = (() => {
       }
     }
     const things=objectList(state,w,h,t,preview);
+    const residentScale=state.homeView&&state.dragons?.length>12?Math.abs(matrix.a):0;
     for(const a of things){
       if(a.kind==='building'&&state.layoutVersion===2&&a.span>1){
         const warm=a.item.type==='farm'||a.item.type==='mine'||a.item.type==='den';
@@ -1735,7 +1756,7 @@ window.Art = (() => {
             c.globalAlpha=Math.sin(p*Math.PI)*.75;star(c,a.x+(Math.sin(k*3.8+t)*.20)*a.size,a.y-a.size*(.26+p*.48),Math.max(.8,a.size*.03),'#fff4ae');}c.globalAlpha=1;
         }
       }else{
-        dragon(c,a.x,a.y,a.size,b.species,b.level,t+a.x*.013,a.flip);
+        dragon(c,a.x,a.y,a.size,b.species,b.level,t+a.x*.013,a.flip,null,residentScale);
       }
     }
     // Draw the complete foundation above existing structures even when an invalid preview overlaps them.
@@ -2140,6 +2161,19 @@ window.Art = (() => {
     const advantageElements=Array.from({length:6},(_,i)=>i).filter(i=>elements.some(e=>window.strongAgainst(e,i)));
     return {hp,damage,tier,elements,enchant,ability,advantageElements};
   }
+  // Integer arithmetic matches the server's decimal rounding at half points.
+  function guardPower(d){
+    const tier=spec(d.species).rank,level=d.level||1,enchant=d.enchant||0;
+    const damage=Math.round((700+145*level)*[100,123,149,181][tier-1]/10000);
+    const bonus=scale=>Math.round(damage*scale*(100+18*enchant)/100000);
+    const specialty=d.specialty==='area'?550:d.specialty==='focus'?400:0;
+    return damage+(bonus(520+35*(tier-1))+bonus(specialty))/(tier<3?4:3);
+  }
+  function defenders(dragons){
+    return dragons.map(d=>({d,power:guardPower(d)}))
+      .sort((a,b)=>b.power-a.power||(a.d.id<b.d.id?-1:a.d.id>b.d.id?1:0))
+      .slice(0,5).map(entry=>entry.d);
+  }
   function rivalSpecies(rank,seed,used=[]) {
     const species=window.GAME_SPECIES || [];
     const available=species.map((_,i)=>i).filter(i=>!used.includes(i));
@@ -2355,14 +2389,14 @@ window.Art = (() => {
     const gridSize=Math.max(gridWidth,gridHeight),lastX=gridWidth-1,lastY=gridHeight-1;
     const bounds={width:gridWidth,height:gridHeight};
     const entrances=[{x:0,y:Math.floor(lastY/2)},{x:Math.floor(lastX/2),y:0},{x:lastX,y:Math.ceil(lastY/2)},{x:Math.ceil(lastX/2),y:lastY}];
-    const party=(squad||[]).slice(0,arena?3:4).map(makeDragon);
+    const party=(defense?defenders(state.dragons||squad||[]):(squad||[]).slice(0,arena?3:4)).map(makeDragon);
     const structures=arena?[]:defense?(state.buildings||[]).filter(b=>!b.stowed&&Number.isFinite(b.x)&&Number.isFinite(b.y))
       .map((b,i)=>makeBuilding(b,i,1,layoutVersion)):fortress(stage,boss);
     const keep=structures.find(b=>b.type==='keep');
     const enemy=[],sparks=[],zones=[],rubble=[];
     const lowMotion=!!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     let wallRevision=0,finishResult=null,finishAt=0;
-    const waveSize=4+stage*2;
+    const waveSize=5+stage*2+Math.floor(stage/3);
     let reserve=0, spawned=0, spawnTimer=0.8, elapsed=0, time=0, done=false, started=defense||arena;
     let fury=defense?32:22, focus=null, rally=null, guardian=null, bossClock=2.5, evadeCd=0, stress=0;
     let hint='', notice=0, refresh=0, dirty=true, turn=0, actorIndex=0, foeIndex=0, selected=0, mana=1, foeMana=0, delay=0, awaitingEnemy=false;
@@ -2506,7 +2540,7 @@ window.Art = (() => {
       const anchor=keep||{x:lastX*.5,y:lastY*.5};
       party.forEach((u,i)=>{
         const radius=(anchor.half||0)+1.4*fieldScale;
-        const position={x:clamp(anchor.x+Math.cos(i*Math.PI/2)*radius,0,lastX),y:clamp(anchor.y+Math.sin(i*Math.PI/2)*radius,0,lastY)};
+        const position={x:clamp(anchor.x+Math.cos(i*2*Math.PI/party.length)*radius,0,lastX),y:clamp(anchor.y+Math.sin(i*2*Math.PI/party.length)*radius,0,lastY)};
         Object.assign(u,clearsWalls(u)?position:clearPosition(position,solids,bounds),{joined:true});
       });
     }
@@ -2550,16 +2584,17 @@ window.Art = (() => {
     function spawn() {
       const side=(Math.floor((spawned+stage-1)/2))%4;
       const edge=entrances[side], drift=((spawned*3+stage)%5-2)*.48*fieldScale;
-      const flying=spawned%4===3;
+      const draconic=spawned%3===2;
       let u;
-      if(flying){
+      if(draconic){
         const tier=Math.min(4,1+Math.floor(stage/3));
         const species=rivalSpecies(tier,stage*3+spawned);
         u=makeDragon({species,level:Math.max(1,Math.ceil(stage*.70))},0);
+        u.hp=u.maxHp=Math.ceil(u.hp*1.16);u.damage=Math.ceil(u.damage*1.15);
         Object.assign(u,{side:'enemy',kind:'shadow',joined:true,visualLevel:Math.max(5,u.level),speed:1.12});
       }else{
-        const hp=23+stage*4;
-        u={side:'enemy',kind:'goblin',hp,maxHp:hp,speed:1.02,damage:5+stage,elements:[]};
+        const hp=28+stage*5;
+        u={side:'enemy',kind:'goblin',hp,maxHp:hp,speed:1.02,damage:6+Math.ceil(stage*1.16),elements:[]};
       }
       Object.assign(u,{x:edge.x,y:edge.y,cd:.4,slow:0});
       if(edge.x===0||edge.x===lastX)u.y+=drift;else u.x+=drift;
@@ -2631,7 +2666,7 @@ window.Art = (() => {
     function defenseTurns(dt) {
       if(!keep||!alive(keep)){end(false);return;}
       spawnTimer-=dt;
-      if(spawned<waveSize&&spawnTimer<=0){spawn();spawnTimer=Math.max(0.8,1.9-stage*0.06);}
+      if(spawned<waveSize&&spawnTimer<=0){spawn();spawnTimer=Math.max(.8,1.65-stage*.06);}
       for(const u of enemy) {
         if(!alive(u))continue;
         u.cd-=dt;u.slow=Math.max(0,u.slow-dt);
@@ -3062,7 +3097,7 @@ window.Art = (() => {
     }
     return {draw,tick,tap,action,controls};
   }
-  window.Battle={start,stages,chapters,chapterOf,campaignLock,dispatchScouts,scoutArrival,campaignPayout,siegeIntel,profile};
+  window.Battle={start,stages,chapters,chapterOf,campaignLock,dispatchScouts,scoutArrival,campaignPayout,siegeIntel,profile,defenders};
 })();
 
 // A study account owns one private document. Each write names the revision it read.
@@ -3655,7 +3690,7 @@ function refreshIsland(){
  refreshXpPanel(level,grid);refreshSettlement();
  $('#island-area').textContent='Уровень '+level+' · '+grid.width+' × '+grid.height+' клеток';
  $('#caption').textContent='Профиль острова · ур. '+islandLevel(s)+' ('+s.xp+'/'+xpAtLevel(level+1)+' опыта)　·　Цитадель '+lev()+'　·　Драконов '+s.dragons.length+' / '+capacity(s);
- const sidebar=questHTML()+'<section class="panel"><div class="row between"><h2>Мои драконы</h2>'+btn('tab','Все','collection','linkbtn')+'</div>'+s.dragons.slice(0,3).map(petRow).join('')+'</section><section class="panel earnpanel"><div class="earn">'+icon('gem')+'<div><h3>Учебные алмазы</h3><p class="desc">Карточка приносит 1 алмаз, проверенная домашка — от 5 до 10.</p>'+btn('wallet','Открыть кошелёк','','linkbtn')+'</div></div></section>';
+ const sidebar=questHTML()+'<section class="panel"><div class="row between"><h2>Мои драконы</h2>'+btn('tab','Все ('+s.dragons.length+')','collection','linkbtn')+'</div>'+s.dragons.slice(0,3).map(petRow).join('')+'</section><section class="panel earnpanel"><div class="earn">'+icon('gem')+'<div><h3>Учебные алмазы</h3><p class="desc">Карточка приносит 1 алмаз, проверенная домашка — от 5 до 10.</p>'+btn('wallet','Открыть кошелёк','','linkbtn')+'</div></div></section>';
  if(aside._current!==sidebar){aside._current=sidebar;aside.innerHTML=sidebar;paintMini(aside)}
 }
 function combatControls(){
@@ -3902,7 +3937,9 @@ function confirmSale(id){
  sounds('collect');refreshIsland();show('collection');toast(GAME_SPECIES[d.species].shortName+' продан · +'+num(price)+' золота');
 }
 function readyTeam(){
+ if(planned==='defense')return Battle.defenders(s.dragons).map(d=>d.id);
  const n=planned==='arena'?3:4;team=team.filter(id=>D(id)).slice(0,n);if(!team.length)team=s.dragons.slice(0,n).map(d=>d.id);
+ return team;
 }
 const rewardsInfo='<p class="desc">Первое успешное прохождение карточки приносит 1 алмаз. За домашку начисляется 5 алмазов плюс до 5 за долю набранных баллов. Письменная работа засчитывается после проверки учителем, тест — после автопроверки.</p>';
 const catalog={incubate:['Ускорить яйцо',1],berries:['Корзина · 75 ягод',3],gold:['Сундук · 150 золота',5]};
@@ -3995,7 +4032,7 @@ const views={
   return [data[0],illustration+'<span class="kicker">Уровень '+b.level+' · '+(b.stowed?'В запасе':'Клетка '+(b.x+1)+', '+(b.y+1))+' · '+OplotLayout.size(b.type)+'×'+OplotLayout.size(b.type)+'</span><p class="desc">'+data[1]+'</p>'+detail+'<div class="actions">'+btn('upgrade',b.level>=upLimit(b)?(b.type==='keep'||b.level>=9?'Высший уровень':'Улучши цитадель'):'Улучшить · '+upCost(b)+' зол.',b.id,'cmd',b.level>=upLimit(b)||s.gold<upCost(b))+btn('move',b.stowed?'Поставить на остров':'Перенести',b.id,'cmd alt')+(n&&!b.stowed?btn('collect','Собрать '+n,b.id,'cmd gold'):'')+(b.type==='den'?btn('breed','Скрещивание'):b.type==='academy'?btn('academy','Зачаровать дракона'):'')+'</div>'];
  },
  battle(){
-  readyTeam();const n=planned==='arena'?3:4;
+  const roster=readyTeam(),n=planned==='arena'?3:4;
   if(!campaignStage)campaignStage=Battle.stages.findIndex((_,i)=>!s.campaign[i+1])+1||Battle.stages.length;
   const next=planned==='raid'?campaignStage:planned==='defense'?s.waves+1:planned==='boss'?s.bosses+1:s.arenas+1;
   const lock=planned==='raid'?Battle.campaignLock(next,s.campaign,lev(),s.campaignScouts):'';
@@ -4014,7 +4051,17 @@ const views={
       (s.campaign[next]?'<p class="desc">Новый рекорд принесёт половину добычи и опыт за новые звёзды. Повтор прежнего результата — пятую часть добычи.</p>':
        next%6===0?'<p class="desc">За первую победу в финале главы — ещё '+num(100*(index+1))+' золота и '+num(50*(index+1))+' ягод.</p>':'');
   }
-  return ['Военный совет',(host?'<button type="button" class="linkbtn" data-night-open>Ночной дозор · записи обороны</button>':'')+'<div class="actions">'+Object.entries(MODE_NAMES).map(([id,label])=>btn('mode',label,id,'choice '+(planned===id?'active':''))).join('')+'</div><div class="divider"></div><h3>'+MODE_NAMES[planned]+'</h3><p class="desc">'+MODE_TEXT[planned]+'</p>'+stageMenu+'<div class="divider"></div><h3>Твой отряд · '+team.length+'/'+n+'</h3><div class="actions">'+s.dragons.map((d,i)=>'<button class="choice" data-do="team" data-id="'+d.id+'" aria-pressed="'+team.includes(d.id)+'">'+(team.includes(d.id)?'✓ ':'')+title(d.species)+' · '+d.level+' ур. · №'+(i+1)+'</button>').join('')+'</div><div class="actions">'+btn('start','Начать сражение','','cmd gold',!!lock||!team.length||(planned==='arena'&&team.length!==3))+'</div>'];
+  let squadMenu;
+  if(planned==='defense'){
+    const picked=roster.map(id=>{
+      const d=D(id),number=s.dragons.indexOf(d)+1;
+      return '<span class="cost">'+title(d.species)+' · ур. '+d.level+' · №'+number+'</span>';
+    });
+    squadMenu='<h3>Защита острова · '+roster.length+'/5</h3><p class="desc">Игра выбирает до пяти драконов по средней силе удара с учётом ульты и зачарования. Этот отряд выходит и на ночной дозор.</p><div class="actions">'+picked.join('')+'</div>';
+  }else{
+    squadMenu='<h3>Твой отряд · '+roster.length+'/'+n+'</h3><div class="actions">'+s.dragons.map((d,i)=>'<button class="choice" data-do="team" data-id="'+d.id+'" aria-pressed="'+roster.includes(d.id)+'">'+(roster.includes(d.id)?'✓ ':'')+title(d.species)+' · '+d.level+' ур. · №'+(i+1)+'</button>').join('')+'</div>';
+  }
+  return ['Военный совет',(host?'<button type="button" class="linkbtn" data-night-open>Ночной дозор · записи обороны</button>':'')+'<div class="actions">'+Object.entries(MODE_NAMES).map(([id,label])=>btn('mode',label,id,'choice '+(planned===id?'active':''))).join('')+'</div><div class="divider"></div><h3>'+MODE_NAMES[planned]+'</h3><p class="desc">'+MODE_TEXT[planned]+'</p>'+stageMenu+'<div class="divider"></div>'+squadMenu+'<div class="actions">'+btn('start','Начать сражение','','cmd gold',!!lock||!roster.length||(planned==='arena'&&roster.length!==3))+'</div>'];
  },
  result(){const r=lastResult;return [r.win?'Победа!':'Сражение окончено','<div class="stars">'+(r.stars?'★'.repeat(r.stars):'◇')+'</div><h3>'+MODE_NAMES[r.mode]+'</h3><p class="desc">'+(r.win?'Добыча доставлена на остров.':'Отряд вернулся на остров. Можно укрепить оборону или накормить драконов перед новой попыткой.')+'</p><div class="cost">+'+r.gold+' золота　+'+r.berries+' ягод　+'+num(r.experience)+' опыта</div>'+(r.scouts?'<p class="desc">Разведчики уже в пути. Следующий архипелаг появится на карте '+Battle.scoutArrival(r.scouts.readyAt)+'.</p>':'')+(r.full?'<p class="desc">Часть добычи осталась в крепости. Для следующего набега можно расширить склады.</p>':'')+'<div class="actions">'+btn('close','На остров')+btn('tab','Военный совет','battle','cmd alt')+'</div>']},
  retreat(){return ['Покинуть сражение?','<p class="desc">Отряд вернётся на остров без добычи.</p><div class="actions">'+btn('close','Продолжить бой')+btn('abandon','Вернуться без добычи','','cmd alt')+'</div>']},
@@ -4028,7 +4075,7 @@ const views={
  confirmreset(){return ['Начать остров заново?','<p class="desc">Здания, драконы, добыча и главы этого острова будут сброшены. Баланс учебных алмазов и история покупок сохранятся.</p><div class="actions">'+btn('settings','Отмена')+btn('reset','Сбросить остров','','cmd alt')+'</div>']}
 };
 function startFight(){
- readyTeam();const squad=team.map(D).filter(Boolean);if(!squad.length||(planned==='arena'&&squad.length!==3))return;
+ const squad=readyTeam().map(D).filter(Boolean);if(!squad.length||(planned==='arena'&&squad.length!==3))return;
  const stage=planned==='raid'?campaignStage:planned==='defense'?s.waves+1:planned==='boss'?s.bosses+1:s.arenas+1;
  if(planned==='raid'&&Battle.campaignLock(stage,s.campaign,lev(),s.campaignScouts))return;
  const island=planned==='defense'?{...s,buildings:s.buildings.map(b=>({...b,fill:stockOnModel(b)}))}:s;
@@ -4099,7 +4146,7 @@ const acts={
  quest:()=>{const q=QUESTS[s.quest];if(!q||!s.marks[q[2]])return;if(!fitsStock(s,'gold',q[3])||!fitsStock(s,'berries',q[4]))return toast('Награда ждёт. Освободи место или расширь хранилища.');
  s.gold+=q[3];s.berries+=q[4];s.xp+=PROFILE_XP.chapter;s.quest++;sounds('victory');update();toast('Награда главы получена')},
  mode:m=>{if(!MODE_NAMES[m])return;planned=m;team=s.dragons.slice(0,m==='arena'?3:4).map(d=>d.id);show('battle','',true)},
- team:id=>{if(!D(id))return;const n=planned==='arena'?3:4;if(team.includes(id)){if(team.length===1)return toast('Нужен хотя бы один участник.');team=team.filter(x=>x!==id)}else if(team.length<n)team.push(id);else return toast('Сначала сними отметку с одного участника.');show('battle','',true)},
+ team:id=>{if(planned==='defense'||!D(id))return;const n=planned==='arena'?3:4;if(team.includes(id)){if(team.length===1)return toast('Нужен хотя бы один участник.');team=team.filter(x=>x!==id)}else if(team.length<n)team.push(id);else return toast('Сначала сними отметку с одного участника.');show('battle','',true)},
  start:startFight,retreat:()=>show('retreat'),abandon:()=>{battle=null;close();refreshIsland()},
  combat:value=>{if(!battle)return;const [id,arg]=value.split('|');battle.action(id,arg===''?undefined:Number(arg));if(battle)combatControls()}
 };
@@ -4252,7 +4299,7 @@ function sampleMap(){
  if(!homeSample||homeSample.source!==list||homeSample.groupPreview!==groupPreview){
    const hidden=groupPreview?.cells.length?new Set(wallShift.section.map(b=>b.id)):null;
    const buildings=list.filter(b=>!b.stowed&&!hidden?.has(b.id)).map(b=>({...b,ready:false,fill:stockOnModel(b,0)}));
-   homeSample={source:list,groupPreview,grid:islandGrid(s),buildings,producers:buildings.filter(b=>rates[b.type]),dragons:editor?[]:s.dragons.slice(0,8)};
+   homeSample={source:list,groupPreview,grid:islandGrid(s),buildings,producers:buildings.filter(b=>rates[b.type]),dragons:editor?[]:s.dragons};
  }
  const grid=homeSample.grid,tower=buildingToPlace(),reach=tower&&nightTowerReach(tower.type,tower.level,s.layoutVersion);
  const location=tower&&(cursor?centeredOrigin(cursor,tower.type,editDrag?.moved?editDrag.offset:null):Number.isInteger(tower.x)?tower:null);
@@ -4538,7 +4585,7 @@ function stepRaid(now){
  if(raidPrevious)raidClock=Math.min(raidDuration(),raidClock+Math.max(0,now-raidPrevious)/1000);raidPrevious=now;
  if(raidClock>=raidDuration())pauseRaid();drawRaid();if(raidPlaying)raidFrame=requestAnimationFrame(stepRaid);
 }
-const raidRules='<details class="night-rules"><summary>Правила ночного дозора</summary><p>Набег начинается в 03:00 по Москве. Налётчики получают по звезде за разрушение половины целей, цитадели и всех целей. Стены и ловушки в число целей не входят.</p><p>За 0, 1, 2 и 3 звезды налётчики забирают соответственно 0%, 25%, 50% и 80% золота и ягод. В расчёт входят и несобранные запасы на острове.</p></details>';
+const raidRules='<details class="night-rules"><summary>Правила ночного дозора</summary><p>Набег начинается в 03:00 по Москве. На защиту автоматически выходят до пяти сильнейших драконов. Каждую ночь противники становятся сильнее, а отряд постепенно растёт с трёх до десяти налётчиков. Налётчики получают по звезде за разрушение половины целей, цитадели и всех целей. Стены и ловушки в число целей не входят.</p><p>За 0, 1, 2 и 3 звезды налётчики забирают соответственно 0%, 25%, 50% и 80% золота и ягод. В расчёт входят и несобранные запасы на острове.</p></details>';
 function displayRaid(index,practice=null){
  pauseRaid();raidRequest++;practiceReport=practice;raidAt=index;raidClock=0;const r=activeRaid();if(!r)return;resetRaidScene(r);
  const stars=Math.max(0,Math.min(3,Math.trunc(r.stars)||0)),list=raids.map((x,i)=>'<option value="'+i+'"'+(i===index?' selected':'')+'>'+escape(raidDate(x.day))+' · волна '+escape(x.wave??1)+'</option>').join('');

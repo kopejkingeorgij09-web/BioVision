@@ -41,6 +41,27 @@ async function check(browser,width) {
   await close();await page.evaluate(({key,save})=>{localStorage.removeItem(key+'.settled-v1');localStorage.setItem(key,JSON.stringify(save))},{key,save});await page.reload();
  }
  async function openBuilding(id){await tab('build');await act(dialog,'structure',id)}
+ async function checkResidents(start){
+  const dragons=Array.from({length:48},(_,i)=>({id:'roster-'+i,species:i,level:1+i%27}));
+  await seed({...start,dragons,book:dragons.map(d=>d.species)});
+  const painted=await page.evaluate(()=>new Promise(resolve=>{
+   const art=window.Art;
+   window.Art={...art,island(c,w,h,time,state){
+    if(!state.homeView)return art.island(c,w,h,time,state);
+    let count=0;const draw=c.drawImage;
+    c.drawImage=function(...args){if(args.length===9)count++;return draw.apply(this,args)};
+    try{art.island(c,w,h,time,state);resolve({ids:state.dragons.map(d=>d.id),count})}
+    finally{delete c.drawImage;window.Art=art}
+   }};
+  }));
+  assert.deepEqual(painted.ids,dragons.map(d=>d.id));assert.equal(painted.count,dragons.length);
+  await tab('battle');await act(dialog,'mode','defense');
+  assert.match(await dialog.innerText(),/Защита острова · 5\/5/);
+  assert.equal(await dialog.locator('[data-do="team"]').count(),0);
+  const labels=await page.evaluate(dragons=>Battle.defenders(dragons).map(d=>GAME_SPECIES[d.species].name+' · ур. '+d.level+' · №'+(dragons.indexOf(d)+1)),dragons);
+  assert.deepEqual(await dialog.locator('.actions span.cost').allTextContents(),labels);
+  await act(dialog,'mode','raid');assert.equal(await dialog.locator('[data-do="team"]').count(),dragons.length);
+ }
  async function checkCampaign(start){
   const base=structuredClone(start),keep=base.buildings[0];
   const record=Object.fromEntries(Array.from({length:24},(_,i)=>[i+1,3]));
@@ -353,6 +374,7 @@ async function check(browser,width) {
   const moved=(await read()).buildings.find(b=>b.id===wall.id);
   assert.deepEqual([moved.x,moved.y],[52,52]);await page.reload();
   assert.deepEqual((await read()).buildings.find(b=>b.id===wall.id),moved);
+  await checkResidents(start);
   await checkSale(start);
   await checkWallBuilder(start);
   await checkIndustry(start);

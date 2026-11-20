@@ -19,6 +19,17 @@ async function check(browser,width,reduced){
       for(const level of [1,3,5,8,9,12,16])for(const type of types)Art.building(c,80,90,64,type,level,0);
       return svg===14*7;
     });
+    const cached=await page.evaluate(()=>{
+      const c=document.createElement('canvas').getContext('2d');
+      const drawFlock=()=>{for(let i=0;i<48;i++)Art.dragon(c,70,80,65,i,23,.75,false,null,2)};
+      drawFlock();
+      const proto=CanvasRenderingContext2D.prototype,clip=proto.clip;
+      let repaints=0;
+      try{proto.clip=function(...args){repaints++;return clip.apply(this,args)};drawFlock()}
+      finally{proto.clip=clip}
+      return repaints;
+    });
+    assert.equal(cached,0,'A stationary Retina flock must reuse all 48 current poses');
     const results=await page.evaluate(reduced=>{
       const canvas=document.createElement('canvas');canvas.width=280;canvas.height=130;
       const c=canvas.getContext('2d',{willReadFrequently:true});

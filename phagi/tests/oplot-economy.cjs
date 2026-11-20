@@ -55,6 +55,13 @@ async function check(browser,width) {
    }};
   }));
   assert.deepEqual(painted.ids,dragons.map(d=>d.id));assert.equal(painted.count,dragons.length);
+  await tab('collection');
+  const lastPortrait=dialog.locator('canvas[data-dragon="47"]').last();
+  await lastPortrait.scrollIntoViewIfNeeded();
+  await page.waitForFunction(()=>{
+    const el=document.querySelector('#dialog canvas[data-dragon="47"]');
+    return el&&el.width===Math.round(el.clientWidth*Math.min(devicePixelRatio||1,2))&&el.getContext('2d').getImageData(0,0,el.width,el.height).data.some((v,i)=>i%4===3&&v);
+  });
   await tab('battle');await act(dialog,'mode','defense');
   assert.match(await dialog.innerText(),/Защита острова · 5\/5/);
   assert.equal(await dialog.locator('[data-do="team"]').count(),0);

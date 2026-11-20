@@ -246,6 +246,8 @@
   window.OplotStoreSVG=(type,level=1,fill=0)=>{
     const amount=Math.max(0,Math.min(1,Number(fill)||0)),tier=Math.max(1,Math.floor(Number(level)||1));
     const art=type==='goldstore'?treasury(tier,amount):type==='foodstore'?granary(tier,amount):'';
-    return art?`<g stroke-linecap="round" stroke-linejoin="round">${art}</g>`:'';
+    let trim='';
+    for(let i=0;i<Math.min(16,tier)-9;i++)trim+=oval(64+i*3.4,118+i*.5,1.7,1.3,type==='goldstore'?'#ffe09a':'#99d5ab','#896f52',.65);
+    return art?`<g stroke-linecap="round" stroke-linejoin="round">${art}${trim}</g>`:'';
   };
 })();

@@ -15,9 +15,9 @@ async function check(browser,width,reduced){
       // Count the vector images actually composited by the production entry point.
       const c=document.createElement('canvas').getContext('2d'),draw=c.drawImage.bind(c);
       let svg=0;c.drawImage=(image,...args)=>{if(image instanceof HTMLImageElement&&image.src.startsWith('data:image/svg+xml'))svg++;draw(image,...args);};
-      const types=['archer','cannon','spire','icetrap','firetrap','wall'];
-      for(const level of [1,3,5,8,9])for(const type of types)Art.building(c,80,90,64,type,level,0);
-      return svg===8*5;
+      const types=['archer','cannon','spire','mortar','skybow','tempest','solar','icetrap','firetrap','wall'];
+      for(const level of [1,3,5,8,9,12,16])for(const type of types)Art.building(c,80,90,64,type,level,0);
+      return svg===14*7;
     });
     const results=await page.evaluate(reduced=>{
       const canvas=document.createElement('canvas');canvas.width=280;canvas.height=130;
@@ -40,16 +40,16 @@ async function check(browser,width,reduced){
         signatures.add(signature);visible&&=signature!==blank;
         distinct&&=shot('dragon',id,.42)!==shot('ultimate',id,.42);
       }
-      for(const kind of ['archer','cannon','spire','icetrap','firetrap']){
+      for(const kind of ['archer','cannon','spire','mortar','skybow','tempest','solar','icetrap','firetrap']){
         const ink=shot(kind,0,kind.endsWith('trap')?.27:.43);
         hardware.add(ink);visible&&=ink!==blank;
       }
-      const turning=['archer','cannon'].every(type=>{
+      const turning=['archer','cannon','mortar','skybow'].every(type=>{
         const head=angle=>hash(()=>Art.building(c,110,105,85,type,3,0,{angle,phase:.8}));
         return head(-.8)!==head(1.3);
       });
-      const levels=['archer','cannon','spire','icetrap','firetrap','wall'].every(type=>
-        new Set([1,3,5,8,9].map(level=>hash(()=>Art.building(c,110,104,95,type,level,0)))).size===5);
+      const levels=['archer','cannon','spire','mortar','skybow','tempest','solar','icetrap','firetrap','wall'].every(type=>
+        new Set([1,3,5,8,9,12,16].map(level=>hash(()=>Art.building(c,110,104,95,type,level,0)))).size===7);
       const walls=new Set(Array.from({length:16},(_,mask)=>OplotDefenseSVG('wall',3,'base',mask))).size;
       const recoil=type=>[.12,.21,.8].map(phase=>hash(()=>Art.building(c,110,104,95,type,3,0,{angle:.12,phase})));
       const moving=new Set(recoil('cannon')).size>=2&&new Set(recoil('archer')).size===3&&new Set(recoil('spire')).size===3;
@@ -57,7 +57,7 @@ async function check(browser,width,reduced){
       const lunges=pose(.13)!==pose(.32);
       return {species:signatures.size,hardware:hardware.size,distinct,visible,turning,moving,levels,walls,lunges};
     },reduced);
-    assert.deepEqual(results,{species:63,hardware:5,distinct:true,visible:true,turning:true,moving:true,levels:true,walls:16,lunges:!reduced});
+    assert.deepEqual(results,{species:63,hardware:9,distinct:true,visible:true,turning:true,moving:true,levels:true,walls:16,lunges:!reduced});
     const placement=await page.evaluate(width=>{
       const canvas=document.createElement('canvas');
       const w=canvas.width=Math.min(width,810),h=canvas.height=width<500?430:614;
@@ -89,7 +89,7 @@ async function check(browser,width,reduced){
     },width);
     assert.deepEqual(placement,{drawn:true,moved:true,validity:true,restored:true,adjacent:['keep','gold','keep','gold'],battle:true});
     assert.deepEqual(errors,[]);
-    console.log('PASS 63 signature impacts, regular shots, SVG defenses, five upgrades, 16 wall joints, moving weapons, dragon poses and multi-cell placement/defense',width,reduced?'reduced motion':'full motion');
+    console.log('PASS 63 signature impacts, regular shots, SVG defenses, seven sampled levels, 16 wall joints, moving weapons, dragon poses and multi-cell placement/defense',width,reduced?'reduced motion':'full motion');
   }finally{await context.close();}
 }
 (async()=>{

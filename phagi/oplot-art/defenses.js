@@ -223,6 +223,30 @@
     }
     return s+runs.filter(([x,y])=>x+y>0).map(arm).join('');
   }
+  function siegeBase(type,l){
+    const mechanical=type==='mortar'||type==='skybow';
+    let s=plinth(80,103,44,25,6,mechanical?'@slate':'@violet');
+    if(type==='mortar'){
+      s+=plinth(80,97,37,20,8,'@iron')+ellipse(80,84,29,14,'@brass','#594f45',1.5)+ellipse(80,82,24,11,'@iron','#465659',1.2);
+      for(const [x,y] of [[49,97],[57,102],[51,90]])s+=ellipse(x,y,5,4.4,'@iron','#3c4d50',1);
+    }else if(type==='skybow'){
+      s+=path('M51 98L65 60 77 54 94 56 109 92 82 109Z','@slate','#486467',1.2)+path('M58 97L68 65 75 63 71 101Z','@ice','#527e87',1);
+      s+=path('M85 102L89 64 94 63 102 93Z','@iron','#526268',1)+plinth(80,59,26,13,5,'@brass');
+      s+=crystal(54,91,.23,true)+crystal(106,91,.23,true);
+    }else if(type==='tempest'){
+      s+=plinth(80,96,32,18,8,'@slate')+path('M64 90L69 60 76 49 84 48 94 88 81 99Z','@iron','#484e65',1.3);
+      for(let i=0;i<4;i++)s+=ellipse(80,84-i*7,15-i,5,'@violet','#ceb7ea',1.4);
+      for(const [x,y] of [[58,91],[101,87],[83,99]])s+=crystal(x,y,.34,true);
+      s+=line('M58 82l8 -9 -1 -6 10 -8 M101 78l-9 -8 3 -6 -9 -6','#b8e4ff',1.8)+crystal(80,47,.68,true);
+    }else{
+      s+=plinth(80,95,32,17,7,'@brass')+path('M62 91L71 62 89 62 99 89 81 100Z','@stone','#8c795b',1.25);
+      s+=path('M76 94L79 66 86 65 85 92Z','@brass','#98774a',.9)+ellipse(80,60,19,7,'@brass','#806342',1);
+      s+=ellipse(80,45,22,24,'none','#936e3d',4)+ellipse(80,45,21,23,'none','#ffe4a2',1.8);
+      s+='<g transform="rotate(-34 80 45)">'+ellipse(80,45,24,9,'none','@brass',3)+'</g>';
+      s+=ellipse(80,45,9,9,'@runeFire','#9d703c',1.2)+ellipse(78,42,3,3,'#fff3bd');
+    }
+    return s+(l>1?badge(68,102,l,mechanical?'@ice':'@ruby'):'');
+  }
   function reinforcement(type,stage,part){
     if(stage<6||part!=='base')return '';
     let s='';
@@ -240,6 +264,11 @@
       s+=crystal(66,89,.26);if(stage>=7)s+=crystal(96,87,.30);
       if(stage>=8)s+=ellipse(81,66,17.5,7.2,'none','#b1e4cb',1.28);
       if(stage>=9)s+=line('M61 96 L78 104 L99 94','@brass',1.6);
+    }else if(['mortar','skybow','tempest','solar'].includes(type)){
+      s+=strap(53,98);
+      if(stage>=7)s+=strap(106,98,true);
+      if(stage>=8)s+=line('M53 107l20 10 9 2 21-9','@brass',2);
+      if(stage>=9)s+=crystal(81,111,.21,true);
     }else if(type==='firetrap'||type==='icetrap'){
       for(let i=0;i<stage-4;i++){
         const a=Math.PI*(.16+i*.13),x=(80+Math.cos(a)*23.5).toFixed(1),y=(97+Math.sin(a)*14.6).toFixed(1);
@@ -249,7 +278,7 @@
     return s;
   }
   window.OplotDefenseSVG=(type,level=1,part='base',mask=0)=>{
-    const stage=Math.max(1,Math.min(10,Math.trunc(level)||1)),l=Math.min(5,stage);
+    const stage=Math.max(1,Math.min(16,Math.trunc(level)||1)),l=Math.min(5,stage);
     let body='';
     if(type==='wall'){
       body=wall(l,mask&15,part);
@@ -258,11 +287,13 @@
         for(let i=0;i<stage-5;i++)body+=ellipse(76+i*2,z+i*.47,1.26,.8,'#e4ce94','#736b53',.42);
       }
     }
-    else if(part==='weapon'){body=type==='cannon'?barrel(l):type==='archer'?crossbow(l):'';}
+    else if(part==='weapon'){body=type==='cannon'?barrel(l):type==='archer'?crossbow(l):type==='mortar'?'<g transform="translate(12 -28) scale(.85 1.28)">'+barrel(l)+'</g>':type==='skybow'?crossbow(l)+path('M72 96L106 97 114 100 104 103 72 101Z','@ice','#4f8291',1):'';}
     else if(part==='base'){
       if(type==='archer')body=archer(l);else if(type==='cannon')body=cannon(l);
+      else if(['mortar','skybow','tempest','solar'].includes(type))body=siegeBase(type,l);
       else if(type==='spire')body=spire(l);else if(type==='firetrap'||type==='icetrap')body=trap(type==='icetrap',l);
     }
+    if(body&&part==='base'&&stage>=10&&type!=='wall')for(let i=0;i<stage-9;i++)body+=rivet(66+i*3.5,111+i*.30,1.48);
     return body?defs+body+reinforcement(type,stage,part):'';
   };
 })();

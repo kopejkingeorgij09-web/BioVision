@@ -1,6 +1,21 @@
 -- All accounts and awards in this test are transaction-local.
 begin;
 do $$
+declare k text; required int; initial jsonb; kept jsonb; expected bigint;
+begin
+  for k,required in select * from (values ('mortar',10),('skybow',12),('tempest',14),('solar',16)) as unlocks(kind,level) loop
+    initial:=jsonb_build_object('xp',35000,'buildings',jsonb_build_array(
+      jsonb_build_object('id','k','type','keep','level',required-1),jsonb_build_object('id','a','type',k,'level',16)));
+    if not oplot.excess_buildings(initial) then raise exception 'Early unlock: %',k;end if;
+    initial:=jsonb_set(initial,'{buildings,0,level}',to_jsonb(required));
+    if oplot.excess_buildings(initial) then raise exception 'Valid tower rejected: %',k;end if;
+    initial:=jsonb_set(initial,'{buildings}',(initial->'buildings')||jsonb_build_array(jsonb_build_object('id','b','type',k,'level',10)));
+    kept:=oplot.settle_buildings(initial,100000);
+    expected:=oplot.building_refund(k,10,1);
+    if expected is null or kept#>>'{limitReceipt,refundGold}'<>expected::text or kept#>>'{buildings,1,id}'<>'a' then raise exception 'High-tier refund: %',k;end if;
+  end loop;
+end $$;
+do $$
 declare
   t bigint:=1893500000000; profile int; k text; s jsonb; fixed jsonb; r jsonb; result jsonb; newest jsonb; stored jsonb;
   who text:='quota-qa-'||gen_random_uuid(); code text:=upper(gen_random_uuid()::text); path text:='data/users/'||who||'/oplot/saves/main';

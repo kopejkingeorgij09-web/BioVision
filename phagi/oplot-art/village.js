@@ -382,6 +382,10 @@
       out+=crystal(...p(0,21,25),7,['#65c3c6','#347b8d','#c6f4df']);
       out+=turret(-16,-1,28,6.5,16,12,straw);
     }
+    if(level>=13)out+=turret(20,1,7,6.5,27,11,straw);
+    if(level>=14)out+=banner(...p(20,1,46),6,'#437e96')+crystal(...p(-9,20,35),4.5,['#94dade','#4795a5','#e7ffe2']);
+    if(level>=15)out+=turret(-16,4,33,5.6,14,10,violet);
+    if(level>=16)out+=crystal(...p(-5,-6,66),6,['#f7d988','#bf8551','#fff1c4'])+banner(...p(8,22,37),5,'#a54855');
     return out;
   }
   function den(level){
@@ -459,9 +463,11 @@
   }
   window.OplotVillageSVG=(type,level=1,fill=0)=>{
     if(!Object.hasOwn(plans,type))return '';
-    const stage=Math.max(1,Math.min(type==='keep'?12:9,Math.floor(Number(level)||1)));
+    const stage=Math.max(1,Math.min(16,Math.floor(Number(level)||1)));
     const used=new Map();
-    const model=plans[type](stage,Math.max(0,Math.min(1,Number(fill)||0))).replace(/fill="(#[0-9a-f]{6})"/g,(attr,color)=>{
+    let detail='';
+    if(type!=='keep')for(let i=0;i<stage-9;i++)detail+=crystal(72+i*2.1,110+i*.55,1.65,['#e3ca94','#a77e50','#fff1b8']);
+    const model=(plans[type](stage,Math.max(0,Math.min(1,Number(fill)||0)))+detail).replace(/fill="(#[0-9a-f]{6})"/g,(attr,color)=>{
       if(!painted.has(color))return attr;
       if(!used.has(color))used.set(color,'vlg-'+type+stage+'-'+color.slice(1));
       return 'fill="url(#'+used.get(color)+')"';

@@ -87,6 +87,19 @@ async function check(browser,width) {
   await act(page.locator('.tabs'),'tab','collection');await act(dialog,'pet',base.dragons[0].id);await act(dialog,'feed');
   await page.reload();assert.equal((await read()).dragons[0].level,31);
  }
+ async function checkAdvancedTowers(start){
+  for(const [type,required] of [['mortar',10],['skybow',12],['tempest',14],['solar',16]]){
+   const base={...start,buildings:[{...start.buildings[0],level:required-1}],gold:500000,xp:35000};
+   await seed(base);await tab('build');const buy=dialog.locator('[data-do="construct"][data-id="'+type+'"]');
+   assert.ok(await buy.isDisabled());assert.match(await buy.innerText(),new RegExp('ур. '+required));
+   await close();await selectCell(base.buildings[0].x+2,base.buildings[0].y+2);await act(dialog,'upgrade',base.buildings[0].id);
+   const added=await place(type,6,11);await openBuilding(added.id);await act(dialog,'range',added.id);
+   assert.match(await page.locator('#mapnote').innerText(),/Радиус огня/);
+   const save=await read();save.buildings.find(b=>b.id===added.id).level=9;await seed(save);
+   await openBuilding(added.id);await act(dialog,'upgrade',added.id);await page.reload();
+   assert.equal((await read()).buildings.find(b=>b.id===added.id).level,10);
+  }
+ }
  async function checkIndustry(start){
   const when=Math.floor(Date.now()/1000)*1000;
   await page.clock.setFixedTime(when);
@@ -377,7 +390,7 @@ async function check(browser,width) {
   await checkResidents(start);
   await checkSale(start);
   await checkWallBuilder(start);
-  await checkIndustry(start);
+  await checkAdvancedTowers(start);await checkIndustry(start);
   await checkCampaign(start);
   assert.deepEqual(errors,[]);console.log('PASS '+width+'px · placement, industry quotas/prices/legacy stock, storage, profile XP, enchantments, walls, dragon sales and housing');
  }finally{await ctx.close()}

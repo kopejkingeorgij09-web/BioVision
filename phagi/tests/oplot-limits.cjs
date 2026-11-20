@@ -39,10 +39,18 @@ assert.equal(migrated.xp,71);assert.equal(limits.profileLevel(migrated),2);
 assert.equal(limits.reconcile({xp:0,buildings:[]},at).xp,0);
 console.log('PASS profile caps, unlocks, ordered building and upgrade refunds, on-map/stowed harvest, excess housing, old XP and idempotent settlements');
 
-const treasuryPrices=[400,950,1900,3600,6200,9800,14500,20500,29000,41000,57000];
-assert.equal(limits.keepMax,12);
+const treasuryPrices=[400,950,1900,3600,6200,9800,14500,20500,29000,41000,57000,76000,99000,125000,155000];
+assert.equal(limits.keepMax,16);
 treasuryPrices.forEach((price,i)=>{
   assert.equal(limits.upgradeGold('keep',i+1),price);
-  const storeLevel=Math.min(i+2,9);
+  const storeLevel=Math.min(i+2,16);
   assert.ok(price<=450+2*450*storeLevel**2,'Available stores can pay for citadel tier '+(i+2));
 });
+
+for(const [type,required] of [['mortar',10],['skybow',12],['tempest',14],['solar',16]]){
+ const state={...level(20),buildings:[building('k','keep',required-1),building('a',type,3)]};
+ assert.equal(limits.cap(type,state),0);assert.ok(limits.needsSettlement(state));
+ state.buildings[0].level++;assert.equal(limits.cap(type,state),1);assert.ok(!limits.needsSettlement(state));
+ state.buildings.push(building('b',type,1));const resolved=limits.reconcile(state,at);
+ assert.equal(resolved.limitReceipt.refundGold,limits.buildGold(type,1));assert.deepEqual(resolved.limitReceipt.retiredIds,['b']);
+}

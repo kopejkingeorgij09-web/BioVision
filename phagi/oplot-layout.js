@@ -1,10 +1,24 @@
 /* Geometry shared by the island editor, save migration, and battle renderer. */
 (function(root){
  'use strict';
- const sides=Object.freeze({keep:5,goldstore:4,foodstore:4,den:4,academy:4,archer:3,cannon:3,home:3,farm:3,mine:3,spire:2,wall:1,icetrap:1,firetrap:1});
+ const sides=Object.freeze({keep:5,goldstore:4,foodstore:4,den:4,academy:4,mortar:4,skybow:3,tempest:3,solar:4,archer:3,cannon:3,home:3,farm:3,mine:3,spire:2,wall:1,icetrap:1,firetrap:1});
  const fieldSides=Object.freeze([33,36,40,43,46,50,53]);
  // Two occupied border cells from the previous release may extend either axis.
  const oldBorder=2;
+ // Radius is measured centre-to-centre, in original island cells (two small tiles).
+ const defenses=Object.freeze({
+   archer:{range:7,damage:5.2,delay:1.1,color:'#edce85'},
+   cannon:{range:6,damage:9,delay:1.85,color:'#e68c51',targets:'ground',splash:1},
+   spire:{range:6,damage:6.5,delay:1.45,color:'#ae8dcf'},
+   mortar:{keep:10,range:8,damage:22,delay:3.1,color:'#f8ab62',targets:'ground',splash:2.25},
+   skybow:{keep:12,range:8,damage:17,delay:1.35,color:'#83e0ec',targets:'air'},
+   tempest:{keep:14,range:7,damage:14,delay:1.9,color:'#a7baff',splash:2,chain:true},
+   solar:{keep:16,range:8,damage:28,delay:2.4,color:'#ffd98c',strongest:true}
+ });
+ function towerReach(type,level=1,version=2){
+   const tower=defenses[type];
+   return tower?(tower.range+Math.floor(Math.min(16,Math.max(1,level))/3))*(version===2?2:1):0;
+ }
  const production=Object.freeze({mine:4,farm:3,home:.85});
  const size=type=>typeof type==='string'&&Object.hasOwn(sides,type)?sides[type]:0;
  const active=b=>b&&b.stowed!==true&&Number.isInteger(b.x)&&Number.isInteger(b.y);
@@ -299,7 +313,7 @@
    delete migrated.limitLegacyGrid;
    return migrated;
  }
- const api=Object.freeze({size,center,cells,at,fits,valid,gridAtLevel,migrate,legacyXP,producerCapacity});
+ const api=Object.freeze({defenses,towerReach,size,center,cells,at,fits,valid,gridAtLevel,migrate,legacyXP,producerCapacity});
  if(typeof module==='object'&&module.exports)module.exports=api;
  if(root)root.OplotLayout=api;
 })(typeof window==='object'?window:null);

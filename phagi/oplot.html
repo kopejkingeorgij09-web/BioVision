@@ -284,7 +284,7 @@ body.island-wide.battle .combat .kicker{display:none}
 </section>
 <aside class="aside" id="aside"></aside></div></div><div class="attribution"><span id="caption"></span><button class="linkbtn" data-do="exit">Вернуться в Фаги</button></div></main>
 <dialog id="dialog" aria-labelledby="dt"><div class="dlghead"><h2 id="dt"></h2><button class="close" data-do="close" aria-label="Закрыть">×</button></div><div class="dlgbody"><div id="dbody"></div><div class="dlgnotice" role="status" id="dnotice"></div></div></dialog><div class="toast" role="status" id="toast"></div>
-<script src="oplot-layout.js?v=4"></script><script src="oplot-limits.js?v=3"></script><script src="oplot-editor.js?v=4"></script><script src="oplot-art/village.js?v=3"></script><script src="oplot-art/stores.js?v=2"></script><script src="oplot-art/defenses.js?v=1"></script>
+<script src="oplot-layout.js?v=5"></script><script src="oplot-limits.js?v=4"></script><script src="oplot-editor.js?v=4"></script><script src="oplot-art/village.js?v=4"></script><script src="oplot-art/stores.js?v=3"></script><script src="oplot-art/defenses.js?v=2"></script>
 <script>
 'use strict';
 const GAME_ELEMENTS = window.GAME_ELEMENTS = ['Огонь','Вода','Природа','Молния','Земля','Свет'];
@@ -410,6 +410,10 @@ const STRUCT = {
  archer:['Башня лучников','Поражает захватчиков на дальних подступах.'],
  cannon:['Пушка Бастиона','Разбивает группы врагов одним ядром.'],
  spire:['Шпиль стихий','Атакует магией и усиливает ближайших драконов.'],
+ mortar:['Вулканическая мортира','Навесной выстрел поражает группу наземных врагов вокруг цели.'],
+ skybow:['Небесная баллиста','Дальнобойные болты перехватывают только летающих драконов.'],
+ tempest:['Грозовой обелиск','Разряд перескакивает с первой цели ещё на двух ближайших противников.'],
+ solar:['Солнечный маяк','Фокусирует луч на противнике с наибольшим оставшимся здоровьем в радиусе огня.'],
  wall:['Магическая стена','Преграждает путь врагам, пока они её не разрушат.'],
  firetrap:['Огненная руна','Срабатывает под врагом и поражает целую группу.'],
  icetrap:['Ледяная ловушка','Замедляет захватчиков на пути к цитадели.']
@@ -501,10 +505,10 @@ function productionStock(b,now){
  return Math.max(0,Math.min(producerCapacity(b.type,b.level),(now-b.since)*rates[b.type]*b.level/5000));
 }
 function stored(b,now=Date.now()){return Math.floor(productionStock(b,now))}
-// The nightly server checks the primary target by orthogonal tile distance before it moves.
-function nightTowerReach(type,level=1,layoutVersion=1){
-  if(type!=='archer'&&type!=='cannon'&&type!=='spire')return 0;
-  return (layoutVersion===2?2:1)*Math.min(7,(type==='archer'?4:3)+Math.floor(Math.max(1,level)/3));
+const nightTowerReach=OplotLayout.towerReach;
+function towerTargets(type){
+ const targets=OplotLayout.defenses[type]?.targets;
+ return targets==='ground'?'только наземные цели':targets==='air'?'только воздушные цели':'земля и воздух';
 }
 /* All island art is painted locally. Board geometry is shared by the renderer and pointer input. */
 window.Art = (() => {
@@ -1029,7 +1033,7 @@ window.Art = (() => {
     const img=newLayer(modelWidth,modelHeight),c=img.getContext('2d');
     c.translate(...modelOrigin);c.scale(modelScale,modelScale);c.lineCap='round';c.lineJoin='round';
     const make={keep,home:house,mine,farm,den,goldstore:treasury,foodstore:foodBarn,academy}[type];
-    if(make)make(c,level);else defense(c,type,level);
+    if(make)make(c,level);else defense(c,({mortar:'cannon',skybow:'archer',tempest:'spire',solar:'spire'})[type]||type,level);
     if(level>1&&!type.endsWith('trap')){
       const count=Math.min(4,level-1);
       const [x,y]=modelPoint(21,21,3.5);
@@ -1060,7 +1064,7 @@ window.Art = (() => {
     const store=type==='goldstore'||type==='foodstore';
     const producer=type==='mine'||type==='farm',steps=producer?12:100;
     const quantity=(store||producer)&&fill>0?(fill>=1?steps:Math.min(steps-1,Math.max(1,Math.round(fill*steps)))):0;
-    const stage=Math.min(type==='keep'?OplotLimits.keepMax:10,Math.max(1,Math.floor(level)||1)),key=[type,stage,quantity,part,mask].join('/');
+    const stage=Math.min(OplotLimits.keepMax,Math.max(1,Math.floor(level)||1)),key=[type,stage,quantity,part,mask].join('/');
     if(svgModels.has(key)){
       const entry=svgModels.get(key);
       if(entry.image&&entry.image.complete&&entry.image.naturalWidth)return entry.image;
@@ -1106,7 +1110,7 @@ window.Art = (() => {
     const model=svgModel(type,level,fill);
     if(model)c.drawImage(model,x-size*.625,y-size*.78125,size*1.25,size*1.25);
     else c.drawImage(buildingSprite(type,level).img,left,top,modelWidth*s,modelHeight*s);
-    if(type==='archer'||type==='cannon'||type==='spire')weaponHead(c,type,x,y,size,aim,level);
+    if(window.OplotLayout.defenses[type])weaponHead(c,type,x,y,size,aim,level);
   }
   function wing(c,stage,p,variant,near,phase,folded) {
     c.save();c.translate(near?-6:1,near?-6:-9);c.rotate(folded?-.66+phase*.025:phase*(near?.16:.12)+(near?-.03:.24));
@@ -1444,32 +1448,18 @@ window.Art = (() => {
   function drawNightCoverage(c,w,h,n,cols,rows,origin) {
     const {x,y,span=1,reach}=origin,key=[w,h,n,cols,rows,x,y,span,reach].join('/');
     if(lastCoverage?.key!==key){
-      const fill=new Path2D(),border=new Path2D();
-      const project=(x,y)=>point(x,y,w,h,n);
-      function line(path,a,b){path.moveTo(a.x,a.y);path.lineTo(b.x,b.y)}
-      const sideDistance=(value,start)=>Math.max(0,start-value,value-start-span+1);
-      const inside=(cx,cy)=>sideDistance(cx,x)+sideDistance(cy,y)<=reach;
-      for(let cy=Math.max(0,y-reach);cy<=Math.min(rows-1,y+span-1+reach);cy++){
-        const width=reach-sideDistance(cy,y);
-        const left=Math.max(0,x-width),right=Math.min(cols-1,x+span-1+width);
-        const a=project(left-.5,cy-.5),b=project(right+.5,cy-.5);
-        const d=project(left-.5,cy+.5),e=project(right+.5,cy+.5);
-        line(fill,a,b);fill.lineTo(e.x,e.y);fill.lineTo(d.x,d.y);fill.closePath();
-        if(left>0)line(border,a,d);
-        if(right<cols-1)line(border,b,e);
-        // Draw only edges separating reachable and unreachable island cells.
-        for(let cx=left;cx<=right;cx++){
-          if(cy>0&&!inside(cx,cy-1))line(border,project(cx-.5,cy-.5),project(cx+.5,cy-.5));
-          if(cy<rows-1&&!inside(cx,cy+1))line(border,project(cx-.5,cy+.5),project(cx+.5,cy+.5));
-        }
-      }
-      lastCoverage={key,fill,border};
+      const centre=point(x+(span-1)/2,y+(span-1)/2,w,h,n),u=unit(w,h,n);
+      const circle=new Path2D(),land=new Path2D();
+      circle.ellipse(centre.x,centre.y,Math.SQRT2*axisX*u*reach,Math.SQRT2*axisY*u*reach,0,0,TAU);
+      const corners=[[-.5,-.5],[cols-.5,-.5],[cols-.5,rows-.5],[-.5,rows-.5]];
+      corners.forEach(([cx,cy],i)=>{const p=point(cx,cy,w,h,n);if(i)land.lineTo(p.x,p.y);else land.moveTo(p.x,p.y)});
+      land.closePath();lastCoverage={key,circle,land};
     }
-    c.fillStyle='rgba(86,189,220,.25)';c.fill(lastCoverage.fill);
-    c.strokeStyle='rgba(33,102,131,.86)';c.lineWidth=Math.max(.95,unit(w,h,n)*.028);c.stroke(lastCoverage.border);
+    c.save();c.clip(lastCoverage.land);c.fillStyle='rgba(86,189,220,.25)';c.fill(lastCoverage.circle);
+    c.strokeStyle='rgba(33,102,131,.86)';c.lineWidth=Math.max(.95,unit(w,h,n)*.05);c.stroke(lastCoverage.circle);c.restore();
   }
   const sizes={wall:.81};
-  const heights={keep:.61,home:.47,mine:.34,farm:.37,den:.31,goldstore:.47,foodstore:.49,academy:.55,cannon:.38,archer:.46,spire:.49,wall:.28,firetrap:.17,icetrap:.18};
+  const heights={mortar:.36,skybow:.53,tempest:.62,solar:.60,keep:.61,home:.47,mine:.34,farm:.37,den:.31,goldstore:.47,foodstore:.49,academy:.55,cannon:.38,archer:.46,spire:.49,wall:.28,firetrap:.17,icetrap:.18};
   function footSpan(b,version){
     return version===2?(Number.isInteger(b.span)&&b.span>0?b.span:window.OplotLayout.size(b.type)):1;
   }
@@ -1805,12 +1795,13 @@ window.Art = (() => {
   function weaponHead(c,type,x,y,size,aim,level=1) {
     const phase=aim?.phase??1,angle=aim?.angle??-.51;
     const recoil=phase<.18?0:Math.max(0,1-(phase-.18)/.25);
-    const svg=type==='spire'?null:svgModel(type,level,0,'weapon');
+    const gun=type==='cannon'||type==='mortar',bow=type==='archer'||type==='skybow';
+    const svg=gun||bow?svgModel(type,level,0,'weapon'):null;
     if(svg){
       c.save();c.translate(x,y-size*mountHeight(type)/66);c.rotate(angle);c.scale(size/128,size/128);
-      if(type==='cannon')c.translate(-6.6*recoil,0);
+      if(gun)c.translate(-6.6*recoil,0);
       c.drawImage(svg,-80,-100,160,160);
-      if(type==='archer'){
+      if(bow){
         const nock=phase<.18?-17-phase/.18*9:-17;
         poly(c,[[-12.3,-29.6],[nock,0],[-11.5,26.9]],null,'#60533c',1.65,false);
         poly(c,[[-12.3,-29.6],[nock,0],[-11.5,26.9]],null,'#f1dca4',.90,false);
@@ -1824,7 +1815,7 @@ window.Art = (() => {
     }
     // The procedural preview also rotates while external vector art is loading.
     c.save();c.translate(x,y);c.scale(size/66,size/66);
-    if(type==='cannon'){
+    if(gun){
       c.translate(0,-mountHeight(type));c.rotate(angle);c.translate(-3.4*recoil,0);
       for(const yy of [-7.5,7.5]){
         ell(c,-2,yy,6.4,3.7,grad(c,-5,yy-3,0,yy+3,['#dfaf6b','#9e784c','#765943']),0,'#654f3d',.86);
@@ -1835,7 +1826,7 @@ window.Art = (() => {
       ell(c,19,0,4,8,'#cfab68',0,'#695d4d',1);
       ell(c,20,0,2.4,5.1,'#253a41');shape(c,'M10 -7 L10 7 M-6 -5 L-6 5',null,'#705f46',2.8);
       shape(c,'M9.7 -7 L9.7 6.8 M-6.3 -5 L-6.3 5',null,'#e3bf79',1.18);
-    }else if(type==='archer'){
+    }else if(bow){
       c.translate(0,-mountHeight(type));ell(c,0,0,5.8,3.2,'#7a6550');
       c.rotate(angle);const draw=phase<.18?phase/.18:0;
       shape(c,'M-12 -2.35 L10 -2 Q15 0 10 2.2 L-12 2.2Z',grad(c,-9,-2,8,1,['#c79a65','#926447','#776044']),'#574d42',.95);
@@ -1897,11 +1888,11 @@ window.Art = (() => {
   }
   function combatEffect(c,from,to,unit,attack,progress,reduced=false) {
     if(!(unit>0)||progress<0||progress>=1)return;
-    const p=progress,kind=attack.kind,spell=kind==='ultimate',dragon=spell||kind==='dragon';
+    const weapon=attack.kind,p=progress,kind=({mortar:'cannon',skybow:'archer',tempest:'spire'})[weapon]||weapon,spell=kind==='ultimate',dragon=spell||kind==='dragon';
     const sp=GAME_SPECIES[attack.species]||GAME_SPECIES[0];
     const lead=sp.element,mask=sp.mask,tier=sp.rank;
     const type=dragon?lead:kind==='icetrap'?1:kind==='spire'?3:kind==='firetrap'||kind==='cannon'?0:4;
-    const [edge,ink,shine]=spellPaint[type];
+    const [edge,ink,shine]=weapon==='tempest'?['#6e62a9','#acbcff','#edf6ff']:weapon==='solar'?['#b27330','#ffd47e','#fff6d7']:weapon==='skybow'?['#43859c','#8ce7ec','#ecfffa']:spellPaint[type];
     const delta={x:to.x-from.x,y:to.y-from.y},angle=Math.atan2(delta.y,delta.x);
     const magnitude=Math.max(1,Math.hypot(delta.x,delta.y));
     const size=Math.max(8,unit)*(spell?.82+.105*tier:kind==='cannon'?.68:.48);
@@ -1911,9 +1902,9 @@ window.Art = (() => {
       c.strokeStyle=ink;c.lineWidth=spell?3:1.8;c.beginPath();c.moveTo(from.x,from.y);c.lineTo(to.x,to.y);c.stroke();
       if(kind==='archer'){
         c.save();c.translate(to.x,to.y);c.rotate(angle);
-        poly(c,[[0,0],[-8,-3],[-6,0],[-8,3]],'#e9ddad','#62563e',1);c.restore();
+        poly(c,[[0,0],[-8,-3],[-6,0],[-8,3]],weapon==='skybow'?'#94ecf4':'#e9ddad','#62563e',1);c.restore();
       }else if(kind==='cannon'){
-        ell(c,to.x,to.y,size*.20,size*.20,'#4f5350',0,'#e1bf86',1.5);
+        const r=size*(weapon==='mortar'?.31:.20);ell(c,to.x,to.y,r,r,'#4f5350',0,'#e1bf86',1.5);
       }else{
         elementalGlyph(c,type,to.x,to.y,size*(spell?.30:.17));
         if(spell)sp.elements.forEach((element,i)=>{
@@ -1927,7 +1918,7 @@ window.Art = (() => {
     const flight=between(p,release,contact),after=between(p,contact,1);
     const variant=mask%5;
     // The emitted path stays on the selected target in both arena and isometric views.
-    const arc=kind==='cannon'?.85:type===4?.33:type===1?.32:.11;
+    const arc=weapon==='mortar'?1.65:kind==='cannon'?.85:type===4?.33:type===1?.32:.11;
     const path=f=>({x:from.x+delta.x*f,y:from.y+delta.y*f-Math.sin(Math.PI*f)*unit*arc});
     const n={x:-delta.y/magnitude,y:delta.x/magnitude};
     function line(a,b,w,color){poly(c,[[a.x,a.y],[b.x,b.y]],null,color,w,false);}
@@ -1956,8 +1947,10 @@ window.Art = (() => {
     }
     if(p>=release&&p<contact+.12){
       c.globalAlpha=1-between(p,contact,contact+.12);
-      if(kind==='archer'){
-        const tail=path(Math.max(0,flight-.25));line(tail,tip,1.5,'#eee7ae');
+      if(weapon==='solar'){
+        line(from,tip,Math.max(4,size*.23),'#e09a478c');line(from,tip,Math.max(2,size*.1),'#ffdf8a');line(from,tip,1.45,'#fffbee');
+      }else if(kind==='archer'){
+        const tail=path(Math.max(0,flight-.25));line(tail,tip,weapon==='skybow'?2.8:1.5,weapon==='skybow'?'#8deafa':'#eee7ae');
         c.save();c.translate(tip.x,tip.y);c.rotate(angle);
         shape(c,'M-10 0 L1 0 M-6 0 L-10 -2 M-6 0 L-10 2',null,'#75512a',1.65);poly(c,[[3,0],[-1,-1.9],[-.5,1.8]],'#edf2db','#5a655e',.6);c.restore();
       }else if(kind==='cannon'){
@@ -2034,11 +2027,11 @@ window.Art = (() => {
     c.restore();
   }
 
-  function mountHeight(type){return type==='archer'?20:type==='spire'?26:13}
+  function mountHeight(type){return ({archer:20,skybow:24,spire:26,tempest:29,solar:29,mortar:14})[type]||13}
   function towerMuzzle(type,origin,target,w,h,n=10,span=1){
     const u=unit(w,h,n),scale=u*span*(sizes[type]||1)/66;
     const baseY=origin.y-mountHeight(type)*scale,angle=Math.atan2(target.y-baseY,target.x-origin.x);
-    const length=(type==='archer'?13:type==='cannon'?20:0)*scale;
+    const length=(type==='archer'||type==='skybow'?13:type==='cannon'||type==='mortar'?20:0)*scale;
     return {x:origin.x+length*Math.cos(angle),y:baseY+length*Math.sin(angle)};
   }
   return Object.freeze({island,point,cell,unit,dragon,dragonPortrait,dragonScale,building,egg,hit,bubblePoint,combatEffect,towerMuzzle});
@@ -2108,9 +2101,9 @@ window.Art = (() => {
     '0,1,2,3,4,5':'Хоровод шести стихий'};
   const vitality = [1,1.19,1.42,1.70];
   const strength = [1,1.23,1.49,1.81];
-  const buildingNames = {goldstore:'Золотое хранилище',foodstore:'Амбар ягод',academy:'Академия чар',keep:'Цитадель',mine:'Шахта',farm:'Ферма',home:'Жилище',archer:'Башня лучников',cannon:'Бастион',spire:'Шпиль стихий',wall:'Магическая стена',den:'Логово',firetrap:'Огненная руна',icetrap:'Ледяная ловушка'};
-  const towerType = {archer:{range:3.25,damage:5.2,delay:1.1,color:'#edce85'},cannon:{range:2.7,damage:9,delay:1.85,color:'#e68c51'},spire:{range:3.3,damage:6.5,delay:1.45,color:'#ae8dcf'}};
-  const health = {goldstore:70,foodstore:62,academy:84,keep:112,mine:31,farm:28,home:35,den:38,archer:40,cannon:45,spire:48,wall:35,firetrap:7,icetrap:7};
+  const buildingNames = {mortar:'Мортира',skybow:'Баллиста',tempest:'Грозовой обелиск',solar:'Солнечный маяк',goldstore:'Золотое хранилище',foodstore:'Амбар ягод',academy:'Академия чар',keep:'Цитадель',mine:'Шахта',farm:'Ферма',home:'Жилище',archer:'Башня лучников',cannon:'Бастион',spire:'Шпиль стихий',wall:'Магическая стена',den:'Логово',firetrap:'Огненная руна',icetrap:'Ледяная ловушка'};
+  const towerType=window.OplotLayout.defenses;
+  const health = {mortar:66,skybow:56,tempest:64,solar:82,goldstore:70,foodstore:62,academy:84,keep:112,mine:31,farm:28,home:35,den:38,archer:40,cannon:45,spire:48,wall:35,firetrap:7,icetrap:7};
   function distance(a,b){
     const edge=(a.half||0)+(b.half||0);
     return Math.hypot(Math.max(0,Math.abs(a.x-b.x)-edge),Math.max(0,Math.abs(a.y-b.y)-edge));
@@ -2419,7 +2412,7 @@ window.Art = (() => {
       const effect={kind:'attack',attack:{kind,species:a.species,specialty:a.ability?.specialty||''},x:a.x,y:a.y,tx:contact.x,ty:contact.y,
         source:a,target:b,sourceAir:a.air>0,targetAir:b.air>0,facing,t:0,max};
       sparks.push(effect);
-      if(a.ability){a.motion=effect;a.flip=facing<0;}
+      if(a.ability&&(kind==='dragon'||ultimate)){a.motion=effect;a.flip=facing<0;}
       if(towerType[a.type]){
         a.weaponAim={x:b.x,y:b.y,lift:(b.kind==='goblin'?.24:.53+(b.air>0?.72:0))*fieldScale,phase:0,previous:a.weaponAim?{x:a.weaponAim.x,y:a.weaponAim.y}:null};
         a.shot=effect;
@@ -2652,12 +2645,23 @@ window.Art = (() => {
       for(const s of structures) {
         const cfg=towerType[s.type];if(!cfg||!alive(s))continue;
         s.cd-=dt;if(s.cd>0)continue;
-        const target=nearest(s,list);if(!target||distance(s,target)>cfg.range*fieldScale)continue;
-        const at=launch(s,target,s.type);
-        s.cd=cfg.delay;hit(s,target,cfg.damage*(1+0.22*(s.level-1))*(s.attackScale||1),cfg.color,null,s,at);
-        if(s.type==='cannon'){
-          for(const nearby of list){
-            if(nearby!==target&&alive(nearby)&&distance(target,nearby)<1.05*fieldScale)hit(s,nearby,cfg.damage*.45*(1+0.22*(s.level-1))*(s.attackScale||1),cfg.color,null,target,at);
+        const matches=u=>alive(u)&&(!cfg.targets||(cfg.targets==='air')===clearsWalls(u));
+        const radius=window.OplotLayout.towerReach(s.type,s.level,layoutVersion);
+        const inRange=list.filter(u=>matches(u)&&Math.hypot(u.x-s.x,u.y-s.y)<=radius);
+        if(!inRange.length)continue;
+        const squared=u=>(u.x-s.x)**2+(u.y-s.y)**2;
+        const target=inRange.reduce((best,u)=>cfg.strongest&&u.hp!==best.hp?(u.hp>best.hp?u:best):(squared(u)<squared(best)?u:best));
+        // Campaign batteries cover more of their authored map. Scale their burst budget for the longer exposure.
+        const siegeScale=defense?1:Math.max(.48,1-.025*Math.max(0,stage-3));
+        const at=launch(s,target,s.type),damage=cfg.damage*(1+.22*(s.level-1))*(s.attackScale||1)*siegeScale;
+        s.cd=cfg.delay;hit(s,target,damage,cfg.color,null,s,at);
+        if(cfg.splash){
+          const spread=u=>Math.hypot(u.x-target.x,u.y-target.y);
+          const close=list.filter(u=>u!==target&&matches(u)&&spread(u)<=cfg.splash*fieldScale);
+          const secondary=cfg.chain?close.sort((a,b)=>spread(a)-spread(b)).slice(0,2):close;
+          for(const u of secondary){
+            if(cfg.chain)launch(target,u,'tempest');
+            hit(s,u,damage*.5,cfg.color,null,target,at);
           }
         }
         if(defense)gain(s.type==='cannon'?5:3);
@@ -2931,7 +2935,7 @@ window.Art = (() => {
           const height=(u,air)=>u.kind==='building'?.31:u.kind==='guardian'?1.26:u.kind==='goblin'?.24:.53+(air?.72:0);
           const to={x:q.x,y:q.y-unit*(arena?.18:height(b,e.targetAir))};
           let from={x:p.x,y:p.y-unit*(arena?.38:height(a,e.sourceAir))};
-          if(towerType[e.attack.kind])from=Art.towerMuzzle(e.attack.kind,p,to,w,h,gridSize,a.span||1);
+          if(towerType[e.attack.kind]&&towerType[a.type])from=Art.towerMuzzle(e.attack.kind,p,to,w,h,gridSize,a.span||1);
           else if(e.attack.kind.endsWith('trap'))from={x:p.x,y:p.y};
           else if(a.ability){
             const offset=arena?.77:a.kind==='guardian'?1:.44;
@@ -3115,7 +3119,7 @@ function validIslandState(s){
   &&(s.incubationCredits===undefined||integer(s.incubationCredits))&&(s.lastRaid==null||dictionary(s.lastRaid)&&/^\d{4}-\d{2}-\d{2}$/.test(s.lastRaid.day))
   &&integer(s.quest,0,QUESTS.length)&&dictionary(s.settings)&&typeof s.settings.sound==='boolean'
   &&OplotLayout.valid(s.buildings,islandGrid(s),s.layoutVersion??1)
-  &&s.buildings.every(b=>id(b.id)&&integer(b.level,1,b.type==='keep'?OplotLimits.keepMax:9)&&integer(b.since)&&
+  &&s.buildings.every(b=>id(b.id)&&integer(b.level,1,OplotLimits.keepMax)&&integer(b.since)&&
     (!b.stowed||!Object.hasOwn(rates,b.type)||integer(b.pausedStock,0,producerCapacity(b.type,b.level))))
   &&Array.isArray(s.dragons)&&s.dragons.length>0&&s.dragons.every(d=>d&&id(d.id)&&species(d.species)&&integer(d.level,1,50)&&(d.enchant===undefined||integer(d.enchant,0,5))&&(d.specialty===undefined||Object.hasOwn(ULTIMATE_PATHS,d.specialty)))&&unique(s.dragons,d=>d.id)
   &&Array.isArray(s.book)&&s.book.every(species)&&s.dragons.every(d=>s.book.includes(d.species))
@@ -3383,6 +3387,7 @@ function read(){
 }
 let s=upgradeIsland(read()), wallet=null, walletError='', busy=false;
 let storesOnMap=warehouseStocks(s);
+let rangeId=null;
 let panel='', current='', placement=null, cursor=null, battle=null, lastResult=null;
 let editor=null,editId=null,editDrag=null,editMessage='';
 let wallShift=null;
@@ -3679,11 +3684,10 @@ function refreshIsland(){
  counters();tabsHTML();document.body.classList.toggle('battle',!!battle);
  if(battle){$('#maptools').innerHTML='';$('#mapaction').innerHTML='';$('#mapnote').textContent='';$('#caption').textContent='';combatControls();return}
  $('#maptools').innerHTML=btn(placement?'cancelplace':'edit',editor?'К острову':wallPlan()?(placement.segments.length?'Отменить':'Готово'):placement?'Отмена':'✥ Расстановка','','glass');
- const tower=buildingToPlace(),range=tower&&nightTowerReach(tower.type,tower.level,s.layoutVersion);
+ const tower=buildingToPlace()||(!editor&&!placement&&rangeId&&B(rangeId)),range=tower&&nightTowerReach(tower.type,tower.level,s.layoutVersion);
  if(range){
-   const targets=tower.type==='cannon'?'только наземные цели':'земля и воздух';
-   const cells=range===3||range===4?'клетки':'клеток';
-   $('#mapnote').textContent='Выбери свободную клетку. Ночная зона огня — '+range+' '+cells+' · '+targets+'.';
+   const targets=towerTargets(tower.type);
+   $('#mapnote').textContent='Радиус огня — '+range+' кл. · '+targets+'.';
  }else $('#mapnote').textContent=wallPlan()?'':placement?(placement.kind==='add'?'Строительство · выбери пустую клетку':placement.kind==='move'?'Перенос · выбери свободную клетку':'Выбери постройку для переноса'):'';
  $('#mapaction').innerHTML=placement||editor?'':btn('tab','Строить','build','cmd wide-build')+btn('collectall','Собрать всё','','cmd gold');
  const level=islandLevel(s),grid=islandGrid(s);
@@ -3816,16 +3820,17 @@ const ownedCount=type=>s.buildings.filter(b=>b.type===type).length;
 const capFor=type=>OplotLimits.cap(type,s);
 const priceOf=type=>OplotLimits.buildGold(type,ownedCount(type));
 const upCost=b=>OplotLimits.upgradeGold(b.type,b.level);
-function upLimit(b){return b.type==='keep'?OplotLimits.keepMax:Math.min(9,lev()+1)}
+function upLimit(b){return b.type==='keep'?OplotLimits.keepMax:Math.min(OplotLimits.keepMax,lev()+1)}
 function canAdd(type){return type!=='keep'&&ownedCount(type)<capFor(type)}
 function limitDetails(type){
  const count=ownedCount(type),limit=capFor(type),next=OplotLimits.nextUnlock(type,s);
- const unlock=next?' Следующее место — на '+next+'-м уровне профиля.':'';
+ const required=OplotLayout.defenses[type]?.keep;
+ const unlock=required?' Открывается на '+required+'-м уровне цитадели.':next?' Следующее место — на '+next+'-м уровне профиля.':'';
  return '<p class="desc">Построено '+count+' из '+limit+'.'+unlock+'</p>';
 }
 function industryDetails(type,building){
  if(!['mine','farm','goldstore','foodstore'].includes(type))return '';
- const level=building?.level||1,nextLevel=Math.min(9,level+1);
+ const level=building?.level||1,nextLevel=Math.min(OplotLimits.keepMax,level+1);
  let output;
  if(type==='mine'||type==='farm'){
   const perLevel=rates[type]*12,units=type==='mine'?' золота/мин':' ягод/мин';
@@ -3864,6 +3869,7 @@ function buyStructure(t,x,y){
  placement=null;cursor=null;sounds('build');pop(x,y,'Построено','#fff3b5');update();
 }
 function useCell(cell,hit){
+ if(rangeId){rangeId=null;refreshIsland()}
  if(editor){
    if(wallShift){selectWallCell(cell);return}
    const b=cell&&OplotLayout.at(editor.buildings,cell.x,cell.y);
@@ -4006,7 +4012,7 @@ const views={
   const growth=next.width===grid.width&&next.height===grid.height?'Открыты все '+grid.width*grid.height+' клеток.':'На '+(level+1)+'-м уровне откроется ещё '+(next.width*next.height-grid.width*grid.height)+' клеток.';
   return ['Мастерская острова','<h3>Остров '+grid.width+' × '+grid.height+'</h3><p class="desc">'+growth+' До нового уровня профиля — '+num(xpAtLevel(level+1)-s.xp)+' опыта.</p><p class="desc">Выбери постройку, затем свободную клетку. Для переноса или улучшения коснись готовой постройки на карте.</p><div class="cards">'+Object.entries(STRUCT).filter(([t])=>t!=='keep').map(([t,[name,desc]])=>{
    const allowed=canAdd(t),has=s.buildings.find(b=>b.type===t&&!b.stowed)||s.buildings.find(b=>b.type===t),side=OplotLayout.size(t);
-   return '<article class="card">'+buildingArt(t)+'<h3>'+name+'</h3><span class="tag">'+side+' × '+side+' клеток</span><p class="desc">'+desc+'</p>'+industryDetails(t,has)+limitDetails(t)+btn('construct',!capFor(t)?'Профиль острова · ур. '+OplotLimits.nextUnlock(t,s):!allowed?'Лимит построек':t==='wall'?'Разметить · '+priceOf(t)+' зол. за секцию':priceOf(t)?'Построить · '+priceOf(t)+' зол.':'Разместить бесплатно',t,'cmd alt',!allowed||s.gold<priceOf(t))+(has?' '+btn('structure',has.stowed?'В запасе':'На острове',has.id,'linkbtn'):'')+'</article>'}).join('')+'</div>'];
+   return '<article class="card">'+buildingArt(t)+'<h3>'+name+'</h3><span class="tag">'+side+' × '+side+' клеток</span><p class="desc">'+desc+'</p>'+industryDetails(t,has)+limitDetails(t)+btn('construct',!capFor(t)?(OplotLayout.defenses[t]?.keep?'Цитадель · ур. '+OplotLayout.defenses[t].keep:'Профиль острова · ур. '+OplotLimits.nextUnlock(t,s)):!allowed?'Лимит построек':t==='wall'?'Разметить · '+priceOf(t)+' зол. за секцию':priceOf(t)?'Построить · '+priceOf(t)+' зол.':'Разместить бесплатно',t,'cmd alt',!allowed||s.gold<priceOf(t))+(has?' '+btn('structure',has.stowed?'В запасе':'На острове',has.id,'linkbtn'):'')+'</article>'}).join('')+'</div>'];
  },
  structure(){
   const b=B(current);if(!b)return views.build();const data=STRUCT[b.type],n=stored(b),stock=storesOnMap.get(b.id);
@@ -4017,7 +4023,9 @@ const views={
   let detail=b.type==='den'?'<p class="desc">Время инкубации · '+incubationSeconds()+' с.</p>':'';
   if(b.type==='keep'){
    const chapter=Battle.chapters.find(c=>c.keep>b.level);
-   detail='<p class="desc">Цитадель · '+b.level+' / '+OplotLimits.keepMax+'. '+(chapter?'На уровне '+chapter.keep+' откроется поход в «'+chapter.name+'» при достаточном числе звёзд.':'Достигнут высший уровень цитадели.')+'</p>';
+   detail='<p class="desc">Цитадель · '+b.level+' / '+OplotLimits.keepMax+'. '+(chapter?'На уровне '+chapter.keep+' откроется поход в «'+chapter.name+'» при достаточном числе звёзд.':(b.level===OplotLimits.keepMax?'Достигнут высший уровень цитадели.':'Все главы кампании открыты по уровню цитадели.'))+'</p>';
+   const nextTower=Object.entries(OplotLayout.defenses).find(([,t])=>t.keep>b.level);
+   if(nextTower)detail+='<p class="desc">Следующая оборона · '+STRUCT[nextTower[0]][0]+' на '+nextTower[1].keep+'-м уровне цитадели.</p>';
    if(b.level<upLimit(b)&&upCost(b)>stockLimit(s,'gold'))detail+='<p class="desc">Для улучшения нужно вместить '+num(upCost(b))+' золота. Сейчас помещается '+num(stockLimit(s,'gold'))+'. Расширь золотое хранилище.</p>';
   }
   if(b.type==='mine'||b.type==='farm'){
@@ -4025,11 +4033,15 @@ const views={
    detail='<p class="desc">Добыча — '+num(perLevel*b.level)+' '+units+' в минуту. Накапливает до сбора '+num(producerCapacity(b.type,b.level))+'.</p>';
    if(b.level<upLimit(b))detail+='<p class="desc">После улучшения — '+num(perLevel*(b.level+1))+' в минуту и до '+num(producerCapacity(b.type,b.level+1))+' до сбора.</p>';
   }
+  if(OplotLayout.defenses[b.type]){
+   detail+='<p class="desc">Радиус огня · '+nightTowerReach(b.type,b.level,s.layoutVersion)+' кл. · '+towerTargets(b.type)+'. Выстрел проходит над стенами и постройками.</p>';
+   if(!b.stowed)detail+=btn('range','Показать радиус на острове',b.id,'cmd alt');
+  }
   if(['goldstore','foodstore'].includes(b.type)){
    const resource=b.type==='goldstore'?'gold':'berries';
    detail='<p class="desc">В этом хранилище · <strong>'+num(stock.amount)+' из '+num(stock.capacity)+'</strong></p><progress class="store-meter '+b.type+'" aria-label="Заполненность хранилища" value="'+stock.amount+'" max="'+stock.capacity+'"></progress><p class="desc">Вместимость здания — '+num(stock.capacity)+'. '+(b.level<upLimit(b)?'После улучшения — '+num(storeSpace(b.type,b.level+1))+'. ':'')+'Всего на острове '+num(s[resource])+' из '+num(stockLimit(s,resource))+'.</p>';
   }
-  return [data[0],illustration+'<span class="kicker">Уровень '+b.level+' · '+(b.stowed?'В запасе':'Клетка '+(b.x+1)+', '+(b.y+1))+' · '+OplotLayout.size(b.type)+'×'+OplotLayout.size(b.type)+'</span><p class="desc">'+data[1]+'</p>'+detail+'<div class="actions">'+btn('upgrade',b.level>=upLimit(b)?(b.type==='keep'||b.level>=9?'Высший уровень':'Улучши цитадель'):'Улучшить · '+upCost(b)+' зол.',b.id,'cmd',b.level>=upLimit(b)||s.gold<upCost(b))+btn('move',b.stowed?'Поставить на остров':'Перенести',b.id,'cmd alt')+(n&&!b.stowed?btn('collect','Собрать '+n,b.id,'cmd gold'):'')+(b.type==='den'?btn('breed','Скрещивание'):b.type==='academy'?btn('academy','Зачаровать дракона'):'')+'</div>'];
+  return [data[0],illustration+'<span class="kicker">Уровень '+b.level+' · '+(b.stowed?'В запасе':'Клетка '+(b.x+1)+', '+(b.y+1))+' · '+OplotLayout.size(b.type)+'×'+OplotLayout.size(b.type)+'</span><p class="desc">'+data[1]+'</p>'+detail+'<div class="actions">'+btn('upgrade',b.level>=upLimit(b)?(b.type==='keep'||b.level>=OplotLimits.keepMax?'Высший уровень':'Улучши цитадель'):'Улучшить · '+upCost(b)+' зол.',b.id,'cmd',b.level>=upLimit(b)||s.gold<upCost(b))+btn('move',b.stowed?'Поставить на остров':'Перенести',b.id,'cmd alt')+(n&&!b.stowed?btn('collect','Собрать '+n,b.id,'cmd gold'):'')+(b.type==='den'?btn('breed','Скрещивание'):b.type==='academy'?btn('academy','Зачаровать дракона'):'')+'</div>'];
  },
  battle(){
   const roster=readyTeam(),n=planned==='arena'?3:4;
@@ -4133,6 +4145,7 @@ const acts={
  sell:offerSale,confirmsale:confirmSale,pet:id=>show('pet',id),structure:id=>show('structure',id),nursery:()=>show('nursery'),breed:id=>{if(D(id)){parentA=id;parentB=s.dragons.find(d=>d.id!==id)?.id}show('breed')},
  bookfilter:id=>show('book',id,true),academy:id=>show('academy',id),specialize,enchant,feed,lay:eggChoice,hatch,adopt:i=>{i=Number(i);if(!Genetics.baseIds.includes(i)||s.gold<65||s.dragons.length>=capacity(s)-(s.egg?1:0))return;s.gold-=65;const d={id:uid(),species:i,level:1};s.dragons.push(d);if(!s.book.includes(i))s.book.push(i);sounds('hatch');update();show('pet',d.id)},
  collect:id=>{const b=B(id);if(b)collect([b])},collectall:()=>collect(s.buildings),
+ range:id=>{close();placement=cursor=null;rangeId=id;refreshIsland();world.focus({preventScroll:true})},
  construct:t=>{if(!STRUCT[t]||!canAdd(t)||s.gold<priceOf(t))return;placement=t==='wall'?newWallPlan():{kind:'add',type:t};cursor={x:4,y:4};close();refreshIsland();
   if(t==='wall'){world.focus({preventScroll:true});world.closest('.mapframe').scrollIntoView({block:'nearest'})}},
  confirmwalls:confirmWalls,wallundo:()=>{const plan=wallPlan();if(plan&&!plan.drag){plan.segments.pop();renderWallPlan()}},
@@ -4150,7 +4163,7 @@ const acts={
  start:startFight,retreat:()=>show('retreat'),abandon:()=>{battle=null;close();refreshIsland()},
  combat:value=>{if(!battle)return;const [id,arg]=value.split('|');battle.action(id,arg===''?undefined:Number(arg));if(battle)combatControls()}
 };
-document.addEventListener('click',e=>{const b=e.target.closest('button[data-do]');if(!b||b.disabled)return;const f=acts[b.dataset.do];if(f){if(!['combat','sound'].includes(b.dataset.do))sounds('click');f(b.dataset.id||'')}});
+document.addEventListener('click',e=>{const b=e.target.closest('button[data-do]');if(!b||b.disabled)return;const f=acts[b.dataset.do];if(f){if(b.dataset.do!=='range')rangeId=null;if(!['combat','sound'].includes(b.dataset.do))sounds('click');f(b.dataset.id||'')}});
 document.addEventListener('change',e=>{if(e.target.id==='parentA'||e.target.id==='parentB'){
  const id=e.target.id;if(id==='parentA')parentA=e.target.value;else parentB=e.target.value;
  show('breed','',true);document.getElementById(id)?.focus({preventScroll:true});
@@ -4304,7 +4317,8 @@ function sampleMap(){
  const grid=homeSample.grid,tower=buildingToPlace(),reach=tower&&nightTowerReach(tower.type,tower.level,s.layoutVersion);
  const location=tower&&(cursor?centeredOrigin(cursor,tower.type,editDrag?.moved?editDrag.offset:null):Number.isInteger(tower.x)?tower:null);
  const ghost=location&&tower?{type:tower.type,id:tower.id,x:location.x,y:location.y,level:tower.level||1,valid:OplotLayout.fits(list,tower.type,location.x,location.y,grid,tower.id)}:null;
- const preview=reach&&location&&containsCell(grid,location.x,location.y)?{x:location.x,y:location.y,span:s.layoutVersion===2?OplotLayout.size(tower.type):1,reach}:null;
+ const inspected=!editor&&!placement&&rangeId&&B(rangeId);
+ const preview=inspected&&!inspected.stowed?{x:inspected.x,y:inspected.y,span:s.layoutVersion===2?OplotLayout.size(inspected.type):1,reach:nightTowerReach(inspected.type,inspected.level,s.layoutVersion)}:reach&&location&&containsCell(grid,location.x,location.y)?{x:location.x,y:location.y,span:s.layoutVersion===2?OplotLayout.size(tower.type):1,reach}:null;
  const walls=wallPlan();
  const now=Date.now();
  for(const b of homeSample.producers){
@@ -4568,9 +4582,9 @@ function drawRaid(){
  }
  if(scene.scale===1)for(const f of figures.sort((a,b)=>a.x+a.y-b.x-b.y))f.draw(c,spot(f.x,f.y));
  for(const {e,source,kind,phase} of attacks){
-  const origin=spot(...e.from),dst=spot(...e.to),target=scene.actors.get(e.target);
+  const relay=Array.isArray(e.relay),origin=spot(...(relay?e.relay:e.from)),dst=spot(...e.to),target=scene.actors.get(e.target);
   dst.y-=unit*(target?.flying?.98:.42);
-  const src=e.kind==='tower'?Art.towerMuzzle(kind,origin,dst,w,h,side,scene.layoutVersion===2?source.span:1):
+  const src=relay?{x:origin.x,y:origin.y-unit*.48}:e.kind==='tower'?Art.towerMuzzle(kind,origin,dst,w,h,side,scene.layoutVersion===2?source.span:1):
    {x:origin.x,y:origin.y-unit*(e.kind==='trap'?.12:source.flying?.98:.55)};
   Art.combatEffect(c,src,dst,unit,{kind,species:source.species,specialty:source.specialty},phase,reduced);
  }

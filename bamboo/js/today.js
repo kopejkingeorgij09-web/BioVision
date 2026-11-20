@@ -53,6 +53,65 @@ B.dayList = (date, opts = {}) => {
 };
 B.planPicker = date => B.dayList(date, {ph: 'Дело на завтра', empty: 'На завтра пока ничего.'});
 
+// Only bounded gaps between timed commitments count as study windows.
+function studyWindows(day){
+  const C = B.calData;
+  if (!B.calendarView?.daySchedule) return [];
+  const now = new Date(), current = B.ymd(now);
+  if (day !== current) return [];
+  const busy = B.calendarView.daySchedule(day).filter(x => x.start.includes('T') && !x.done);
+  for (const l of B.teaching?.lessons || []) {
+    if (l.day !== day || l.cancel || !/^\d{2}:\d{2}$/.test(l.start)) continue;
+    // Some teaching records only have a start. Don't promise free time after an unknown end.
+    const end=/^\d{2}:\d{2}$/.test(l.end) ? day+'T'+l.end : C.at(day,1440);
+    busy.push({start:day+'T'+l.start,end,title:l.title});
+  }
+  const minute = value => C.span(day+'T00:00',value);
+  const blocks = busy.map(x => ({from:Math.max(0,minute(x.start)-(x.travel || 0)),
+    to:Math.min(1440,minute(x.end)),title:x.title})).filter(x => x.from < x.to)
+    .sort((a,b)=>a.from-b.from || b.to-a.to);
+  const gaps = [];
+  let last;
+  for (const block of blocks){
+    if (last) {
+      const start = Math.max(last.to, now.getHours()*60+now.getMinutes());
+      if (block.from-start >= 25) gaps.push({start,end:block.from,after:last.title,before:block.title});
+    }
+    if (!last || block.to > last.to) last = block;
+  }
+  return gaps;
+}
+function gapRows(day){
+  const C = B.calData;
+  return studyWindows(day).map(g => `<button class="day-gap" data-act="planGap" data-end="${g.end}">
+    <span><b>Окно · ${B.mins(g.end-g.start)}</b><small>${esc(g.after)} → ${esc(g.before)}</small></span>
+    <span>${C.time(g.start)}–${C.time(g.end)}</span></button>`).join('');
+}
+function gapTasks(day){
+  return B.tasks().filter(t=>!t.done && !t.time && (!t.due || t.due===day));
+}
+B.acts.planGap = el => {
+  const day=B.today(), g=studyWindows(day).find(x=>x.end===+el.dataset.end);
+  if (!g) {B.render(true);return;}
+  B.sheet(`<h2>Заняться в окно</h2><p>${B.calData.time(g.start)}–${B.calData.time(g.end)} · до «${esc(g.before)}»</p>
+    <label class="field">Дело<select id="gapTask"><option value="">Новое дело</option>${gapTasks(day).map(t=>`<option value="${esc(t.id)}">${esc(t.title)}</option>`).join('')}</select></label>
+    <label class="field" id="gapNameField">Название<input id="gapName" maxlength="180" placeholder="Например, разобрать задачу 3"></label>
+    <label class="field">Оставить перед занятием<select id="gapReserve">${[0,10,15,30].filter(m=>g.end-g.start-m>=25).map(m=>`<option value="${m}" ${m===15?'selected':''}>${m} мин</option>`).join('')}</select></label>
+    <div class="row wrap">${[25,45].map(m=>`<button class="btn" data-act="bookGap" data-min="${m}" data-end="${g.end}">Выделить ${m} мин</button>`).join('')}</div>`);
+  const update=()=>{B.$('#gapNameField').hidden=!!B.$('#gapTask').value;
+    B.$$('#sheet [data-act="bookGap"]').forEach(b=>{b.disabled=+b.dataset.min + +B.$('#gapReserve').value > g.end-g.start;});};
+  B.$('#gapTask').onchange=update; B.$('#gapReserve').onchange=update; update();
+};
+B.acts.bookGap = el => {
+  const day=B.today(), g=studyWindows(day).find(x=>x.end===+el.dataset.end);
+  const minutes=+el.dataset.min, reserve=+B.$('#gapReserve').value;
+  if (!g || minutes+reserve>g.end-g.start) {B.toast('Окно изменилось. Выбери время заново.');B.closeSheet();B.render(true);return;}
+  const id=B.$('#gapTask').value, title=B.$('#gapName').value.trim();
+  const task=id?gapTasks(day).find(t=>t.id===id):title?B.newTask({title}):null;
+  if (!task) {B.toast(id?'Дело уже перенесено или выполнено.':'Введи название дела.');return;}
+  B.saveTask({...task,due:day,time:B.calData.time(g.start),est:minutes}); B.closeSheet(); B.toast('Время записано в календарь');
+};
+
 function dayCard(c, d){
   const late = B.tasks().filter(x => !x.done && x.due && x.due < c.today).length;
   const today = c.today, cal = B.calData;
@@ -63,6 +122,7 @@ function dayCard(c, d){
   return `<section class="card plan">
     <div class="row between"><h2>${icon('list')}Дела на сегодня</h2>${late ? `<span class="tag late">${late} просрочено</span>` : ''}</div>
     ${next ? `<a class="agenda-next" href="#/tasks/calendar"><small>${next.start <= now ? 'Сейчас' : 'Ближайшее занятие'}</small><b>${esc(next.start.slice(11,16))} · ${esc(next.title)}</b></a>` : ''}
+    ${gapRows(today)}
     ${study.map(it=>B.shadRow(it,today)).join('')}
     ${B.dayList(c.today,{empty: next || study.length ? 'Других дел пока нет.' : ''})}
   </section>`;
@@ -75,8 +135,9 @@ B.shadRow = (it, date) => {
   return `<div class="shad-row ${ok ? 'ok' : ''} ${late ? 'late' : ''}">
     <div class="shad-top"><span class="cchip c-${p.c}">${esc(course.name || p.c)}</span><span class="mono">${it.kind === 'web' ? '' : 'ДЗ · '}${esc(p.code)}</span>${it.from ? `<span class="mono muted">${it.from}–${it.to}</span>` : `<span class="muted">${(it.kind === 'web' ? p.wp : p.hp) ? (it.kind === 'hw' ? 'до ' : '') + B.fmtS(it.kind === 'web' ? p.w.date : p.h.date) : 'неделя ' + B.fmtS(it.kind === 'web' ? p.wk : p.hk)}</span>`}</div>
     <button class="study-title" data-act="shadOpen" data-n="${p.n}">${esc(p.t)}</button>
+    ${s < 3 && B.hwBookmark(p.n) ? `<small class="hw-where">Остановился · ${esc(B.hwBookmark(p.n))}</small>` : ''}
     <div class="row between"><small>${B.SHAD_STAGES[s]}</small>
-    ${s === 2 ? `<a class="btn sm" href="../phagi/?shadHw=${p.n}">Открыть ДЗ на Фагах</a>` : s < 4 ? `<button class="btn sm" data-act="shadSet" data-n="${p.n}" data-s="${s+1}">${['Начать веб','Отметить просмотр','','Закрыть тему'][s]}</button>` : ''}</div>
+    ${s === 2 ? `<a class="btn sm" href="${esc(B.hwResumeUrl(p.n))}" target="_blank" rel="noopener">Продолжить ДЗ</a>` : s < 4 ? `<button class="btn sm" data-act="shadSet" data-n="${p.n}" data-s="${s+1}">${['Начать веб','Отметить просмотр','','Закрыть тему'][s]}</button>` : ''}</div>
   </div>`;
 };
 B.acts.shadSet = el => {

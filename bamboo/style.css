@@ -1492,3 +1492,11 @@ kbd{font:600 12px var(--f-mono);background:var(--paper-2);border:1px solid var(-
 .habit-review{display:block;margin-top:14px}
 .habit-review summary{cursor:pointer;font-weight:600;line-height:1.5}
 .habit-review[open] summary{margin-bottom:12px}
+
+.day-gap{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:44px;margin:6px 0;padding:8px 12px;text-align:left;border:1px dashed var(--rule);border-radius:12px;background:var(--paper);color:var(--ink);cursor:pointer}
+.day-gap span:first-child{display:grid;gap:2px;min-width:0}.day-gap small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-2)}
+.day-gap span:last-child,.week-goal span:last-child{white-space:nowrap;font-variant-numeric:tabular-nums}
+.habit-week-goals{margin:16px 0}.habit-week-goals h2{font-size:16px;margin:0 0 6px}
+.week-goal{display:flex;align-items:center;gap:10px;padding:5px 0}.week-goal b{margin-right:auto;overflow-wrap:anywhere}
+.goal-dots{display:flex;gap:3px}.goal-dots i{width:8px;height:8px;border-radius:50%;border:1px solid currentColor}.goal-dots .done{background:currentColor}
+.hw-bookmark{padding:12px 0}.hw-where{display:block;color:var(--ink-2);overflow-wrap:anywhere}

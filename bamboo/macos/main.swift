@@ -71,7 +71,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     }
     func testUI(){
         attempts+=1
-        web.evaluateJavaScript("!!window.B?.alberts?.book && window.B.shad.plan.length===102"){value,error in
+        web.evaluateJavaScript("!!window.B?.alberts?.book && window.B.shad.plan.length>0 && B.shad.plan.every(p=>Number.isInteger(p.n) && p.t && p.w?.date && B.shad.courses[p.c])"){value,error in
             if value as? Bool != true {if self.attempts<80{DispatchQueue.main.asyncAfter(deadline:.now()+0.25){self.testUI()}}else{fputs("FAIL: bundled Mac UI did not load\n",stderr);exit(1)};return}
             self.web.evaluateJavaScript("B.put('study_alberts',AlbertsPlan.log(B.alberts.book,B.alberts.state(),35,B.today()));location.hash='#/tasks/alberts';B.render(true);JSON.stringify({pages:B.alberts.pagesOn(B.today()),habit:B.habitDone(B.get('h_read'),B.today()),title:document.querySelector('.alberts-hero h2')?.textContent,updates:!!B.nativeUpdates})"){value,error in
                 guard error==nil,let text=value as? String,text.contains("\"pages\":18"),text.contains("\"habit\":true"),text.contains("\"updates\":true") else{fputs("FAIL: Mac reading/update bridge \(String(describing:value)) \(String(describing:error))\n",stderr);exit(1)}

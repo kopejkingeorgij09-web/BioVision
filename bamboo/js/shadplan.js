@@ -93,6 +93,8 @@ function sheetHTML(n){
     <h2>${esc(p.t)}</h2>
     <p class="muted">Веб: ${p.wp ? B.fmtW(p.w.date) : 'неделя ' + weekOf(p.wk) + ', день не выбран'}${p.w.from ? ' · ' + p.w.from + '–' + p.w.to : ''}${late === 'веб' ? ' · <b class="neg">отстаю</b>' : ''}<br>ДЗ: ${p.h ? (p.hp ? 'до ' + B.fmtW(p.h.date) : 'неделя ' + weekOf(p.hk) + ', день не выбран') : '—'}${late === 'ДЗ' ? ' · <b class="neg">отстаю</b>' : ''}</p>
     ${B.shadPending(n) ? '<p class="hint" data-shad-pending>Ожидает отправки</p>' : ''}
+    ${p.h ? `<section class="hw-bookmark"><label class="field">Где остановился в ДЗ<input data-in="hwBookmark" data-n="${n}" maxlength="180" value="${esc(B.hwBookmark(n))}" placeholder="Например, задача 3, пункт б"></label>
+      <a class="btn primary" data-resume href="${esc(B.hwResumeUrl(n))}" target="_blank" rel="noopener">Продолжить ДЗ</a></section>` : ''}
     ${dayPick(p, 'web')}${p.h && p.h.date ? dayPick(p, 'hw') : ''}
     <div class="sp-opts">${B.SHAD_STAGES.map((l, i) => `<button class="sp-opt ${s === i ? 'on' : ''}" data-act="shadPick" data-n="${n}" data-s="${i}"><i>${i === 4 ? '✓' : i}</i><span><b>${l}</b><small>${DESC[i]}</small></span></button>`).join('')}</div>
     ${note ? `<p class="hint">Заметка: ${esc(note)}</p>` : ''}
@@ -107,7 +109,7 @@ function sheetHTML(n){
       <p class="hint">Проще перетаскивать: в «Неделе» карточки без дня лежат в блоке «ШАД на неделю», их можно поставить на любой день и вернуть обратно. Если у ДЗ уже есть день, он едет вместе с вебом. Изменения видны и в трекере ШАДа.</p>
       ${p.edited ? `<button class="btn sm ghost" data-act="shReset" data-n="${n}">Вернуть как в плане</button>` : ''}
     </details>
-    <div class="row between">${B.shad.lms ? `<a class="btn ghost" href="${esc(p.lessonId ? `https://lms.profimatika.ru/school/lesson/${p.lessonId}` : B.shad.lms)}" target="_blank" rel="noopener">${p.lessonId ? 'Открыть урок' : 'Платформа'} ↗</a>` : '<span></span>'}<a class="btn ghost" href="../phagi/?shadHw=${n}" target="_blank" rel="noopener">Открыть ДЗ на Фагах ↗</a><button class="btn primary" data-act="closeSheet">Готово</button></div>${hwStatus ? `<p class="hint">${hwStatus}</p>` : ''}`;
+    <div class="row between">${B.shad.lms ? `<a class="btn ghost" href="${esc(p.lessonId ? `https://lms.profimatika.ru/school/lesson/${p.lessonId}` : B.shad.lms)}" target="_blank" rel="noopener">${p.lessonId ? 'Открыть урок' : 'Платформа'} ↗</a>` : '<span></span>'}<a class="btn ghost" href="${esc(B.phagiLink({shadHw:n,role:'student'}))}" target="_blank" rel="noopener">Открыть ДЗ на Фагах ↗</a><button class="btn primary" data-act="closeSheet">Готово</button></div>${hwStatus ? `<p class="hint">${hwStatus}</p>` : ''}`;
 }
 /* быстрый выбор дня в пределах недели: удобно на телефоне, где тянуть карточку далеко */
 function dayPick(p, kind){
@@ -134,6 +136,12 @@ B.on('sync', () => {
 });
 let editOpen = false;
 B.acts.shadOpen = el => { editOpen = false; B.sheet(sheetHTML(+el.dataset.n)); };
+B.inputs.hwBookmark = el => {
+  const n=+el.dataset.n, note=el.value.trim().slice(0,180);
+  if (note === B.hwBookmark(n)) return;
+  B.put('hwBookmark_'+n,note ? {note} : null,true);
+  B.$('#sheet [data-resume]').href=B.hwResumeUrl(n);
+};
 B.inputs.shEd = (el, e) => {
   if (e.type !== 'change') return;
   const n = +el.dataset.n, k = el.dataset.k, v = el.value, p = B.shad.plan.find(x => x.n === n); if (!p) return;

@@ -110,3 +110,27 @@ test('pinning keeps two habits first, supports unpin and frees archived slots', 
   tap('c');
   assert.deepEqual(first(), ['a','c']);
 });
+
+test('a study block respects overlapping lessons, travel and a newly booked gap', () => {
+  const {B,page} = planner();
+  page.TextEncoder = TextEncoder;
+  vm.runInContext(fs.readFileSync('bamboo/js/calendar-data.js','utf8'),page);
+  const day = B.today(), at = time => day+'T'+time;
+  const busy = [
+    {title:'Пара',start:at('20:00'),end:at('21:10')},
+    {title:'Внутри пары',start:at('20:15'),end:at('20:45')},
+    {title:'Следующее занятие',start:at('22:20'),end:at('23:00'),travel:10}
+  ];
+  B.calendarView = {daySchedule: () => [...busy]};
+  B.closeSheet = () => {};
+  B.toast = () => {};
+  B.$ = selector => ({value:({'#gapReserve':15,'#gapTask':'','#gapName':'Математика'})[selector]});
+  const button = {dataset:{end:22*60+10,min:45}};
+  B.acts.bookGap(button);
+  assert.equal(B.tasks().length,1);
+  assert.equal(B.tasks()[0].time,'21:10');
+  assert.equal(B.tasks()[0].est,45);
+  busy.push({title:'Уже занято',start:at('21:10'),end:at('21:55')});
+  B.acts.bookGap(button);
+  assert.equal(B.tasks().length,1);
+});

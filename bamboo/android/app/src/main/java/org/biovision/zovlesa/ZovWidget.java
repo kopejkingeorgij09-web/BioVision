@@ -73,9 +73,13 @@ public class ZovWidget extends AppWidgetProvider {
         try {return !LocalDateTime.parse(text(x,"date")+"T"+text(x,"time")).isAfter(now)
             && LocalDateTime.parse(text(x,"end")).isAfter(now);}catch(Exception ignored){return false;}
     }
-    private static String timeLabel(JSONObject x,LocalDate today,boolean agenda,LocalDateTime now){
+    private static String dayLabel(LocalDate date,LocalDate today){
+        String name=date.equals(today)?"Сегодня":date.equals(today.plusDays(1))?"Завтра":date.format(DateTimeFormatter.ofPattern("EEEE",new Locale("ru")));
+        return name+" · "+date.format(DateTimeFormatter.ofPattern("d MMM",new Locale("ru")));
+    }
+    private static String timeLabel(JSONObject x,LocalDate today,LocalDateTime now){
         LocalDate date=LocalDate.parse(text(x,"date"));
-        String label=date.isBefore(today)?"Хвост":agenda?(date.equals(today)?"Сегодня":date.equals(today.plusDays(1))?"Завтра":date.format(DateTimeFormatter.ofPattern("d MMM, EEE",new Locale("ru")))):"";
+        String label=date.isBefore(today)?"Хвост":"";
         String time=text(x,"time");
         if(!time.isEmpty()){
             String end=text(x,"end");
@@ -123,13 +127,27 @@ public class ZovWidget extends AppWidgetProvider {
         rows.sort(Comparator.comparingInt((JSONObject x)->!agenda&&text(x,"date").compareTo(today)<0?1:0)
             .thenComparing(x->text(x,"date"))
             .thenComparing(x->text(x,"time").isEmpty()?"99:99":text(x,"time")));
+        if(agenda && !rows.isEmpty()){
+            LocalDate first=LocalDate.parse(text(rows.get(0),"date"));
+            v.setTextViewText(R.id.widget_date,dayLabel(first,now));
+        }
         WidgetLayout layout = new WidgetLayout(c,v,width,height);
         int shown=0;
         v.removeAllViews(R.id.widget_rows);
         for(JSONObject x:rows){
-            String title=text(x,"title"),location=text(x,"location"),teacher=text(x,"teacher"),time=timeLabel(x,now,agenda,clock);
+            String title=text(x,"title"),location=text(x,"location"),teacher=text(x,"teacher"),time=timeLabel(x,now,clock);
+            if (location.startsWith("Корпус ") && location.contains(" · ")){
+                int split=location.indexOf(" · ");
+                location=location.substring(split+3)+" · "+location.substring(0,split);
+            }
+            String date=text(x,"date");
+            boolean group=agenda && (shown==0 ? compact : !date.equals(text(rows.get(shown-1),"date")));
             RemoteViews card=new RemoteViews(c.getPackageName(),R.layout.zov_widget_row);
             card.setViewPadding(R.id.widget_row,dp(c,rowPadding),dp(c,rowPadding),dp(c,rowPadding),dp(c,rowPadding));
+            if(group){
+                card.setTextViewText(R.id.widget_group_day,dayLabel(LocalDate.parse(date),now));
+                card.setViewVisibility(R.id.widget_group_day,View.VISIBLE);
+            }
             card.setTextViewText(R.id.widget_time,time);
             card.setTextViewText(R.id.widget_event_title,title);
             card.setTextViewText(R.id.widget_location,location);
@@ -142,8 +160,11 @@ public class ZovWidget extends AppWidgetProvider {
             }
             card.setViewVisibility(R.id.widget_location,location.isEmpty()?View.GONE:View.VISIBLE);
             card.setViewVisibility(R.id.widget_teacher,teacher.isEmpty()?View.GONE:View.VISIBLE);
-            if(shown==0 || ongoing(x,clock)) emphasize(c,card);
-            card.setContentDescription(R.id.widget_row,time+". "+title+". "+location+". "+teacher);
+            if(shown==0 || ongoing(x,clock)){
+                emphasize(c,card);
+                card.setTextColor(R.id.widget_group_day,c.getColor(R.color.widget_inverse_sub));
+            }
+            card.setContentDescription(R.id.widget_row,dayLabel(LocalDate.parse(date),now)+". "+time+". "+title+". "+location+". "+teacher);
             card.setOnClickPendingIntent(R.id.widget_row,open(c,text(x,"kind"),text(x,"id"),text(x,"date")));
             if(!layout.fits(card)){
                 if(shown>0)break;

@@ -1,8 +1,8 @@
 // Service worker: нужен, чтобы сайт можно было установить как приложение.
 // Стратегия «сначала сеть»: всегда свежая версия, кеш только на случай отсутствия интернета.
 // Запросы к другим доменам (Supabase, шрифты) не трогаем.
-const CACHE = 'phagi-v39-oplot-towers-only';
-const SHELL = ['./', './cloud.js?v=16', './oplot.html?v=17', './oplot-layout.js?v=5', './oplot-limits.js?v=4', './oplot-editor.js?v=4', './oplot-art/village.js?v=4', './oplot-art/stores.js?v=3', './oplot-art/defenses.js?v=2', './lesson-workspace.js?v=1', './prepare-lesson.js?v=1',
+const CACHE = 'phagi-v40-oplot-moderate-raids';
+const SHELL = ['./', './cloud.js?v=16', './oplot.html?v=18', './oplot-layout.js?v=5', './oplot-limits.js?v=4', './oplot-editor.js?v=4', './oplot-art/village.js?v=4', './oplot-art/stores.js?v=3', './oplot-art/defenses.js?v=2', './lesson-workspace.js?v=1', './prepare-lesson.js?v=1',
   './lesson-files.js?v=2', './lesson-workspace.css?v=1', './forest/progress.js?v=1', './forest/scene.js?v=1', './forest/forest.css?v=1'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

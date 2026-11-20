@@ -323,10 +323,31 @@ assert.equal(Battle.defenders(garrison.slice(0,2)).length,2);
 const solo=Battle.start('defense',29,{...fortress,dragons:garrison},garrison,{},true);
 assert.equal(solo.inspect().party.length,0);assert.ok(!solo.controls().buttons.some(b=>b.id==='fury'));
 solo.tap(3,3,10,10);assert.equal(solo.inspect().rally,null);
-for(let i=0;i<30;i++)solo.tick(.1);
+for(let i=0;i<60;i++)solo.tick(.1);
 const invaders=solo.inspect().enemy,lateDragon=invaders.find(u=>u.kind==='shadow');
-assert.ok(lateDragon.level>20&&lateDragon.maxHp>500&&lateDragon.damage>120);
-assert.ok(invaders.filter(u=>u.kind==='shadow').length>=Math.floor(invaders.length/2),'Late waves bring dragons in groups');
+assert.equal(lateDragon.level,21);
+assert.ok(lateDragon.maxHp>=450&&lateDragon.maxHp<=500&&lateDragon.damage>=85&&lateDragon.damage<=95,'Wave 29 has a moderate airborne threat');
+assert.ok(invaders.length>=6);assert.equal(invaders.filter(u=>u.kind==='shadow').length,Math.floor(invaders.length/3));
+
+// Keep wave 29 winnable on a developed, legal layout both with a garrison and with upgraded towers alone.
+function holdLateWave(towerLevel,towersOnly){
+  const layoutSpec=[['keep',17,17],['archer',14,14],['archer',23,22],['spire',21,14],['spire',14,23],
+    ['cannon',10,17],['cannon',27,17],['cannon',17,9],['cannon',17,27],['cannon',9,27],
+    ['skybow',22,26],['tempest',22,9],['mortar',10,22],['solar',25,26],['farm',10,10],['home',25,11],['mine',9,14],['foodstore',23,18]];
+  for(let k=8;k<=31;k++)layoutSpec.push(['wall',k,7],['wall',k,32],['wall',7,k],['wall',32,k]);
+  const buildings=layoutSpec.map(([type,x,y],i)=>({id:'b'+i,type,x:x+6,y:y+6,level:type==='keep'?16:towerLevel}));
+  const dragons=[4,5,7,8,12].map((species,i)=>({id:'guard'+i,level:44,species}));
+  const grid=layout.gridAtLevel(13);
+  assert.ok(layout.valid(buildings,grid,2));
+  let result;
+  const game=Battle.start('defense',29,{layoutVersion:2,gridSize:grid.width,buildings,dragons},dragons,{finish:r=>result=r},towersOnly);
+  for(let frame=0;frame<2400&&!result;frame++)game.tick(.05,2);
+  assert.ok(result?.win);
+  const keep=game.inspect().structures[0];
+  return keep.hp/keep.maxHp;
+}
+assert.ok(holdLateWave(9,false)<1,'Wave 29 should still threaten the keep');
+assert.ok(holdLateWave(16,true)>0);
 
 for(const [cols,rows] of [[11,10],[16,16]]){
   const n=Math.max(cols,rows);

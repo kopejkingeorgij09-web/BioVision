@@ -84,26 +84,32 @@ async function run(browser,tablet){
   await tap('tab','battle');await tap('start');
   const stats=f.locator('.combat .stats'),deploy=f.locator('[data-do=combat][data-id^="deploy|"]').first();
   const full=f.locator('#island-full');
+  const speed=f.locator('#maptools [data-battle-speed]');
   async function fillsViewport(container){
    const fills=await container.evaluate(el=>{const r=el.getBoundingClientRect();return Math.abs(r.width-innerWidth)<2&&Math.abs(r.height-innerHeight)<2});
    assert.ok(fills,'Fullscreen uses the entire phone viewport');
   }
-  await stats.filter({hasText:/Высажено 0/}).waitFor();await full.tap();await fillsViewport(f.locator('.play'));
+  await stats.filter({hasText:/Высажено 0/}).waitFor();assert.equal(await speed.inputValue(),'1');
+  await speed.selectOption('2');await full.tap();await fillsViewport(f.locator('.play'));
   await usable(full,'Exit fullscreen attack');await rotate(landscape);
   await usable(deploy,'Deploy dragon in fullscreen landscape');await deploy.tap();
   await stats.filter({hasText:/Высажено 1/}).waitFor();
+  await usable(speed,'Attack speed in fullscreen landscape');await speed.selectOption('4');
   if(!tablet)await photo('landscape-battle');await rotate(portrait);
   await full.tap();assert.equal(await full.getAttribute('aria-pressed'),'false');
   await stats.filter({hasText:/Высажено 1/}).waitFor();await tap('retreat');await tap('abandon');
   await tap('tab','battle');await tap('mode','defense');await tap('start');
   await stats.filter({hasText:/Стойкость цитадели/}).waitFor();await full.tap();await rotate(tablet?landscape:[568,320]);
   await fillsViewport(f.locator('.play'));await usable(full,'Exit fullscreen defense');
+  await usable(speed,'Defense speed in fullscreen');assert.equal(await speed.inputValue(),'4');await speed.selectOption('2');
   await world.tap({position:{x:100,y:125}});await usable(f.locator('.combat .actions button').first(),'Defense command');
   await tap('retreat');await tap('abandon');assert.equal(await full.getAttribute('aria-pressed'),'false');
   await f.getByRole('button',{name:'Отчёты о ночных набегах'}).tap();
   const night=f.locator('#night-report'),play=night.locator('[data-night-play]'),step=night.locator('[data-night-step]'),seek=night.locator('[data-night-seek]'),expand=night.locator('[data-night-full]');
   await step.tap();assert.equal(await seek.inputValue(),'1');await expand.tap();await fillsViewport(night);
   await usable(night.locator('canvas'),'Entire fullscreen replay');await usable(play,'Fullscreen replay play button');
+  const replaySpeed=night.getByRole('combobox',{name:'Скорость боя'});
+  await usable(replaySpeed,'Night raid speed in fullscreen');assert.equal(await replaySpeed.inputValue(),'2');await replaySpeed.selectOption('1');
   if(!tablet)await photo('landscape-archive');
   await step.tap();assert.equal(await seek.inputValue(),'4');
   await play.tap();await rotate(portrait);await fillsViewport(night);

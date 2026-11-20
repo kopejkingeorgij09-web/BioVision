@@ -29,6 +29,32 @@ const inside = (unit, tile) => Math.abs(unit.x-tile.x)<.5 && Math.abs(unit.y-til
 const living = list => list.filter(o => o.hp>0);
 const health = list => list.reduce((sum,o) => sum + o.hp, 0);
 
+// Issue the same orders at the same game times with different numbers of display frames.
+function speedTrial(mode,speeds){
+  const finishes=[],sounds=[];
+  const squad=studentTeam.map(species=>({species,level:8}));
+  const game=Battle.start(mode,1,fortress,squad,{finish:r=>finishes.push(r),sound:s=>sounds.push(s)});
+  if(mode==='raid'||mode==='boss')squad.forEach(()=>game.action('deploy',0));
+  const snapshots=[];
+  for(let block=0;block<450&&!finishes.length;block++){
+    const speed=speeds[block%speeds.length];
+    if(mode==='arena'&&block%3===0)game.action('strike');
+    for(let i=0;i<4;i+=speed)game.tick(.1,speed);
+    if(block===1||block===9){
+      const {time,party,enemy,structures,fury}=game.inspect();
+      assert.ok(Math.abs(time-(block+1)*.4)<1e-8);
+      snapshots.push([time,fury,...[...party,...enemy,...structures].map(u=>[u.x,u.y,u.hp])]);
+    }
+  }
+  game.tick(.1,4);
+  assert.equal(finishes.length,1,mode+' must settle exactly once');
+  return {snapshots,sounds,finishes};
+}
+for(const mode of ['raid','boss','defense','arena']){
+  const normal=speedTrial(mode,[1]);
+  for(const speeds of [[2],[4],[4,1,2]])assert.deepEqual(speedTrial(mode,speeds),normal,mode+' speed '+speeds);
+}
+
 function raid(stage, team, level, enchant, side, order) {
   let result;
   const squad = team.map(species => ({species,level,enchant}));

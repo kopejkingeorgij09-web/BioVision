@@ -27,7 +27,8 @@ dialog{padding:0;border:1px solid #958451;box-shadow:0 18px 80px #142a2980;backg
 .maptools button:hover,.map-view button:hover:not(:disabled){background-color:#315548}.island-full-button{display:grid;place-items:center;flex:none;padding:7px}.island-full-button svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .map-panel-tools{position:absolute;z-index:2;top:12px;right:12px;display:flex;gap:5px;align-items:center}.map-panel-tools .maptools{position:static}
 .mapfoot{right:150px;justify-content:flex-start}.mapfoot .note{max-width:100%}.mapfoot #mapaction:empty{display:none}
-.battle .maptools,.battle .map-view,.battle #island-overview{display:none}
+.battle .map-view,.battle #island-overview{display:none}
+.battle-speed{min-height:44px;min-width:58px;padding:4px 6px;border:1px solid #acc19b;border-radius:8px;background:#193a32;color:#fff6dc;color-scheme:dark;font:650 16px/1.2 var(--sans,system-ui);cursor:pointer}
 #world{touch-action:pan-y}#world.zoomed,body.island-wide #world{touch-action:none;cursor:grab}#world.panning{cursor:grabbing}#world.drawing-walls{cursor:crosshair}
 body.island-wide{overflow:hidden}body.island-wide .mapframe{position:fixed;inset:0;z-index:6;width:100%;height:100%;height:100dvh;display:flex;flex-direction:column;border:0;border-radius:0;padding:0;background:#163c38}
 body.island-wide .map{width:100%;height:auto;flex:1;min-height:0;border:0;border-radius:0}
@@ -236,6 +237,8 @@ body.island-wide.battle .combat .kicker{display:none}
 #night-report.replay-wide .night-meta,#night-report.replay-wide .night-extra{display:none}
 #night-report.replay-wide .night-actions{margin:2px 0;justify-content:center}
 #night-report.replay-wide .night-legend{margin:2px 0}
+#night-report .night-legend{flex-wrap:wrap;column-gap:8px}
+#night-report .battle-speed{width:auto;margin:0}
 @media(orientation:landscape){
  #night-report.replay-wide .night-stage{grid-template-columns:minmax(0,1fr) clamp(155px,24vw,245px);grid-template-rows:1fr auto auto 1fr;column-gap:10px}
  #night-report.replay-wide .night-map{grid-column:1;grid-row:1/-1}
@@ -2836,9 +2839,15 @@ window.Art = (() => {
       actorIndex=nextAlive(party,actorIndex+1);foeIndex=(foeIndex+1)%enemy.length;
       turn++;clockReset=time;awaitingEnemy=false;dirty=true;
     }
-    function tick(dt) {
+    function tick(dt,speed=1) {
       if(!Number.isFinite(dt)||dt<=0)return;
-      dt=Math.min(dt,.12);time+=dt;stress=Math.max(0,stress-dt);swing=Math.max(0,swing-dt);
+      dt=Math.min(dt,.12);
+      // Use normal-sized simulation steps so fast dragons and projectiles still hit their targets.
+      for(let i=0;i<speed&&(!done||finishResult);i++)step(dt);
+      if(!done&&dirty&&refresh>=.16){refresh=0;pending();}
+    }
+    function step(dt) {
+      time+=dt;stress=Math.max(0,stress-dt);swing=Math.max(0,swing-dt);
       for(let i=sparks.length-1;i>=0;i--){
         const e=sparks[i];
         if(e.kind==='attack'){
@@ -2878,7 +2887,6 @@ window.Art = (() => {
         }
       }
       refresh+=dt;
-      if(!done&&dirty&&refresh>=.16){refresh=0;pending();}
     }
     function action(id,arg){
       if(done)return;
@@ -3596,6 +3604,13 @@ let saleOffer=null;
 let planned='raid', campaignStage=0, team=[], parentA='',parentB='', soundCtx;
 let W=0,H=0, lastFrame=0, lastSecond=0, flying=[], moment=0, hatchAt=0;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const speedKey='phagi.oplot.battleSpeed',battleSpeeds=[1,2,4];
+let battleSpeed=1;
+try{const saved=Number(localStorage.getItem(speedKey));if(battleSpeeds.includes(saved))battleSpeed=saved}catch{}
+function speedPicker(){
+ return '<select class="battle-speed" data-battle-speed aria-label="Скорость боя" title="Скорость боя">'+
+   battleSpeeds.map(n=>'<option value="'+n+'"'+(n===battleSpeed?' selected':'')+'>'+n+'×</option>').join('')+'</select>';
+}
 const B=id=>s.buildings.find(b=>b.id===id), D=id=>s.dragons.find(d=>d.id===id);
 const keep=()=>s.buildings.find(b=>b.type==='keep'), lev=()=>keep().level;
 const symbols={gold:'зол.',berries:'яг.'};
@@ -3772,7 +3787,7 @@ function refreshIsland(){
  drawOverview();
  if(!battle&&wide&&document.body.classList.contains('battle'))toggleWide();
  counters();tabsHTML();document.body.classList.toggle('battle',!!battle);
- if(battle){$('#maptools').innerHTML='';$('#mapaction').innerHTML='';$('#mapnote').textContent='';$('#caption').textContent='';combatControls();return}
+ if(battle){if(!$('#maptools [data-battle-speed]'))$('#maptools').innerHTML=speedPicker();$('#mapaction').innerHTML='';$('#mapnote').textContent='';$('#caption').textContent='';combatControls();return}
  $('#maptools').innerHTML=btn(placement?'cancelplace':'edit',editor?'К острову':wallPlan()?(placement.segments.length?'Отменить':'Готово'):placement?'Отмена':'✥ Расстановка','','glass');
  const tower=buildingToPlace()||(!editor&&!placement&&rangeId&&B(rangeId)),range=tower&&nightTowerReach(tower.type,tower.level,s.layoutVersion);
  if(range){
@@ -4555,7 +4570,7 @@ function resize(force=false){
  ctx.setTransform(dpr,0,0,dpr,0,0);
  // Changing a canvas dimension discards its pixels, even behind a paused dialog.
  // Replace the bitmap within this callback, before the browser can present it.
- if(battle)battle.draw(ctx,W,H,moment);else drawHomeFrame(performance.now()/1000);
+ if(battle)battle.draw(ctx,W,H,reduced?0:undefined);else drawHomeFrame(performance.now()/1000);
  paintMini();
 }
 world.addEventListener('contextrestored',()=>resize(true));
@@ -4709,10 +4724,23 @@ function drawRaid(){
  if(toggle.getAttribute('aria-pressed')!==String(raidPlaying))toggle.setAttribute('aria-pressed',String(raidPlaying));
 }
 function pauseRaid(){raidPlaying=false;cancelAnimationFrame(raidFrame);raidFrame=0;}
+function advanceReplayClock(now){
+ const delta=Math.max(0,now-raidPrevious);
+ raidClock=Math.min(raidDuration(),raidClock+delta*battleSpeed/1000);
+ raidPrevious+=delta;
+ if(raidClock>=raidDuration())pauseRaid();
+}
+document.addEventListener('change',e=>{
+ if(!e.target.matches('[data-battle-speed]'))return;
+ const speed=Number(e.target.value);if(!battleSpeeds.includes(speed))return;
+ if(raidPlaying){advanceReplayClock(performance.now());drawRaid()}
+ battleSpeed=speed;
+ for(const picker of document.querySelectorAll('[data-battle-speed]'))picker.value=String(speed);
+ try{localStorage.setItem(speedKey,String(speed))}catch{}
+});
 function stepRaid(now){
  if(!raidPlaying||!nightDialog.open||document.hidden){pauseRaid();if(nightDialog.open)drawRaid();return;}
- if(raidPrevious)raidClock=Math.min(raidDuration(),raidClock+Math.max(0,now-raidPrevious)/1000);raidPrevious=now;
- if(raidClock>=raidDuration())pauseRaid();drawRaid();if(raidPlaying)raidFrame=requestAnimationFrame(stepRaid);
+ advanceReplayClock(now);drawRaid();if(raidPlaying)raidFrame=requestAnimationFrame(stepRaid);
 }
 const raidRules='<details class="night-rules"><summary>Правила ночного дозора</summary><p>Набег начинается в 03:00 по Москве. На защиту автоматически выходят до пяти сильнейших драконов. Каждую ночь противники становятся сильнее, а отряд постепенно растёт с трёх до десяти налётчиков. Налётчики получают по звезде за разрушение половины целей, цитадели и всех целей. Стены и ловушки в число целей не входят.</p><p>За 0, 1, 2 и 3 звезды налётчики забирают соответственно 0%, 25%, 50% и 80% золота и ягод. В расчёт входят и несобранные запасы на острове.</p></details>';
 function displayRaid(index,practice=null){
@@ -4727,7 +4755,7 @@ function displayRaid(index,practice=null){
  }
  nightFull.hidden=!r.replay||!raidScene.events.length;
  if(nightFull.hidden){setReplayWide(false);nightBody.insertAdjacentHTML('beforeend','<p>Для этого набега сохранилась только сводка.</p>'+raidRules);return;}
- nightBody.insertAdjacentHTML('beforeend','<div class="night-stage"><canvas class="night-map" role="img" aria-label="Запись обороны острова"></canvas><div class="night-legend"><span>● Защитники</span><span>● Налётчики</span><span data-night-time></span></div><input data-night-seek aria-label="Перемотка записи" type="range" min="0" step="0.1" max="'+raidDuration()+'" value="0"><div class="actions night-actions"><button type="button" class="cmd" data-night-play>Воспроизвести</button><button type="button" class="cmd alt" data-night-step>Следующее событие</button></div></div><div class="night-extra"><p data-night-event></p>'+raidRules+'</div>');
+ nightBody.insertAdjacentHTML('beforeend','<div class="night-stage"><canvas class="night-map" role="img" aria-label="Запись обороны острова"></canvas><div class="night-legend"><span>● Защитники</span><span>● Налётчики</span><span data-night-time></span>'+speedPicker()+'</div><input data-night-seek aria-label="Перемотка записи" type="range" min="0" step="0.1" max="'+raidDuration()+'" value="0"><div class="actions night-actions"><button type="button" class="cmd" data-night-play>Воспроизвести</button><button type="button" class="cmd alt" data-night-step>Следующее событие</button></div></div><div class="night-extra"><p data-night-event></p>'+raidRules+'</div>');
  const testControls=practice?
   '<div class="actions"><button type="button" class="cmd alt" data-night-original>К ночной записи</button><button type="button" class="cmd alt" data-night-edit>Изменить расстановку</button></div>':
   '<div class="divider"></div><h3>Тренировка обороны</h3><p class="desc">Та же волна атакует сегодняшний остров. Ресурсы сохраняются, результат можно сравнить с ночным.</p><div class="actions"><button type="button" class="cmd" data-night-practice>Испытать оборону</button><button type="button" class="cmd alt" data-night-edit>Изменить расстановку</button></div><p class="desc" role="status" data-night-training-status></p>';
@@ -4738,7 +4766,7 @@ function displayRaid(index,practice=null){
  if(practice)nightBody.querySelector('[data-night-original]').onclick=()=>displayRaid(index);
  else nightBody.querySelector('[data-night-practice]').onclick=()=>attemptRaidPractice(index);
  nightBody.querySelector('[data-night-seek]').addEventListener('input',e=>{pauseRaid();raidClock=Number(e.target.value);drawRaid();});
- nightBody.querySelector('[data-night-play]').onclick=()=>{if(raidPlaying){pauseRaid();drawRaid();return;}if(raidClock>=raidDuration())raidClock=0;raidPrevious=0;raidPlaying=true;drawRaid();raidFrame=requestAnimationFrame(stepRaid);};
+ nightBody.querySelector('[data-night-play]').onclick=()=>{if(raidPlaying){advanceReplayClock(performance.now());pauseRaid();drawRaid();return;}if(raidClock>=raidDuration())raidClock=0;raidPrevious=performance.now();raidPlaying=true;drawRaid();raidFrame=requestAnimationFrame(stepRaid);};
  nightBody.querySelector('[data-night-step]').onclick=()=>{pauseRaid();raidClock=raidScene.events.find(e=>e.at>raidClock)?.at??raidDuration();drawRaid();};drawRaid();
 }
 async function attemptRaidPractice(index){
@@ -4787,7 +4815,7 @@ function frame(ms){
  requestAnimationFrame(frame);
  if(document.hidden||!W||!H){lastFrame=ms;return}
  const sec=ms/1000,dt=lastFrame?Math.min(.1,(ms-lastFrame)/1000):0;lastFrame=ms;moment=reduced?0:sec;
- if(battle){if(!dlg.open&&!nightDialog.open){battle.tick(dt);if(battle)battle.draw(ctx,W,H,moment)}}
+ if(battle){if(!dlg.open&&!nightDialog.open){battle.tick(dt,battleSpeed);if(battle)battle.draw(ctx,W,H,reduced?0:undefined)}}
  else if(!nightDialog.open&&(!dlg.open||panel==='hatched')){
   drawHomeFrame(sec);
  }

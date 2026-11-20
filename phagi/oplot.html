@@ -1520,8 +1520,10 @@ window.Art = (() => {
     const stride=Math.max(1,Math.ceil(Math.sqrt(list.length/(cols*rows))));
     const seats=[];
     for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){
+      const perched=occupied.has(cellId(x,y)),shore=x<2||y<2||x>=cols-2||y>=rows-2;
+      const priority=2*Number(perched)+Number(shore);
       for(let sy=0;sy<stride;sy++)for(let sx=0;sx<stride;sx++){
-        seats.push({x:x+(sx+.5)/stride-.5,y:y+(sy+.5)/stride-.5,perched:occupied.has(cellId(x,y)),gap:Infinity});
+        seats.push({x:x+(sx+.5)/stride-.5,y:y+(sy+.5)/stride-.5,perched,priority,gap:Infinity});
       }
     }
     const result=[],steps=[[1,0],[0,1],[-1,0],[0,-1]];
@@ -1532,8 +1534,8 @@ window.Art = (() => {
       let best=null;
       for(const seat of seats){
         if(seat.gap===0)continue;
-        if(!seat.perched&&seat.x===px&&seat.y===py&&seat.gap>=4){best=seat;break}
-        if(!best||Number(seat.perched)<Number(best.perched)||seat.perched===best.perched&&seat.gap>best.gap)best=seat;
+        if(seat.priority===0&&seat.x===px&&seat.y===py&&seat.gap>=4){best=seat;break}
+        if(!best||seat.priority<best.priority||seat.priority===best.priority&&seat.gap>best.gap)best=seat;
       }
       const {x,y,perched}=best;
       reserved.add(cellId(Math.round(x),Math.round(y)));

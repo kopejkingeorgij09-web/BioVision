@@ -274,6 +274,8 @@ const artModule=section('/* All island art','/* Battle simulation uses tile coor
 vm.runInNewContext(artModule.replace('Object.freeze({island,point','Object.freeze({objectList,roostLayout,island,point'),context);
 const art=context.window.Art;
 const residents=Array.from({length:64},(_,i)=>({id:'resident-'+i,species:i%63,level:1+i%30}));
+const inland=art.roostLayout({gridSize:33,dragons:residents,buildings:[]});
+assert.ok(inland.every(p=>p.x>=2&&p.y>=2&&p.x<31&&p.y<31),'Keep residents and their wings in view at the shoreline');
 for(const occupied of [false,true]){
   const buildings=occupied?Array.from({length:100},(_,i)=>({id:'tile-'+i,type:'wall',x:i%10,y:Math.floor(i/10)})):[];
   const island={gridSize:10,homeView:true,dragons:residents,buildings};

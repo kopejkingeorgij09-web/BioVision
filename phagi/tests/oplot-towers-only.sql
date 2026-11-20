@@ -43,6 +43,10 @@ begin
     mature:=oplot.night_battle(jsonb_set(s,'{buildings,0,level}','12'),1,day,'test')->'replay';
     if replay->'defenders'<>'[]' or (mature#>>'{attackers,0,hp}')::int<=(replay#>>'{attackers,0,hp}')::int
        or (mature#>>'{attackers,0,damage}')::int<=(replay#>>'{attackers,0,damage}')::int then raise exception 'Difficulty or roster (layout %)',v; end if;
+    if (replay#>>'{attackers,0,level}')::int<>4 or (mature#>>'{attackers,0,level}')::int<>8
+       or (mature#>>'{attackers,0,hp}')::int<>112 or (mature#>>'{attackers,0,damage}')::int<>28 then
+      raise exception 'First night difficulty jumped for a developed keep (layout %)',v;
+    end if;
   end loop;
 end $test$;
 rollback;

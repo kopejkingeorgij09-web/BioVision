@@ -2172,7 +2172,7 @@ window.Art = (() => {
   const vitality = [1,1.19,1.42,1.70];
   // Integer rank percentages keep hits and guard selection in sync with server rounding.
   const strength = [100,123,149,181];
-  const dragonDamage=(level,tier)=>Math.round((700+175*level)*strength[tier-1]/10000);
+  const dragonDamage=(level,tier)=>Math.round((700+155*level)*strength[tier-1]/10000);
   const buildingNames = {mortar:'Мортира',skybow:'Баллиста',tempest:'Грозовой обелиск',solar:'Солнечный маяк',goldstore:'Золотое хранилище',foodstore:'Амбар ягод',academy:'Академия чар',keep:'Цитадель',mine:'Шахта',farm:'Ферма',home:'Жилище',archer:'Башня лучников',cannon:'Бастион',spire:'Шпиль стихий',wall:'Магическая стена',den:'Логово',firetrap:'Огненная руна',icetrap:'Ледяная ловушка'};
   const towerType=window.OplotLayout.defenses;
   const health = {mortar:66,skybow:56,tempest:64,solar:82,goldstore:70,foodstore:62,academy:84,keep:112,mine:31,farm:28,home:35,den:38,archer:40,cannon:45,spire:48,wall:35,firetrap:7,icetrap:7};
@@ -2201,7 +2201,7 @@ window.Art = (() => {
     enchant=clamp(Math.floor(Number(enchant)||0),0,5);
     const powerFactor=1+enchant*.18,activeBonus=35+enchant*9;
     const elements=speciesElements(species),tier=clamp(elements.length,1,4);
-    const hp=Math.round((55+8.5*level)*vitality[tier-1]),damage=dragonDamage(level,tier);
+    const hp=Math.round((55+7.5*level)*vitality[tier-1]),damage=dragonDamage(level,tier);
     const charges=tier<3?4:3;
     const extra=Math.max(1,Math.round(damage*(.52+.035*(tier-1))*powerFactor));
     const restore=Math.max(1,Math.round(damage*(.75+.045*(tier-1))*powerFactor));
@@ -2403,8 +2403,8 @@ window.Art = (() => {
       const endurance=structures.reduce((sum,b)=>sum+b.maxHp,0);
       const firepower=structures.reduce((sum,b)=>sum+(towerType[b.type]?towerType[b.type].damage/towerType[b.type].delay:0),0);
       for(const b of structures){
-        b.maxHp=b.hp=Math.ceil(b.hp/endurance*(campaignBaseline.hp*(1+.072*depth)));
-        if(towerType[b.type])b.attackScale=campaignBaseline.fire*(1+.061*depth)/(firepower*(1+.22*(b.level-1)));
+        b.maxHp=b.hp=Math.ceil(b.hp/endurance*(campaignBaseline.hp*(1+.064*depth)));
+        if(towerType[b.type])b.attackScale=campaignBaseline.fire*(1+.052*depth)/(firepower*(1+.22*(b.level-1)));
       }
     }
     return structures;
@@ -2653,18 +2653,18 @@ window.Art = (() => {
     function spawn() {
       const side=(Math.floor((spawned+stage-1)/2))%4;
       const edge=entrances[side], drift=((spawned*3+stage)%5-2)*.48*fieldScale;
-      const draconic=stage>=12?spawned%2!==0:spawned%3===2;
+      const draconic=spawned%3===2;
       let u;
       if(draconic){
         const tier=Math.min(4,1+Math.floor(stage/3));
         const species=rivalSpecies(tier,stage*3+spawned);
         u=makeDragon({species,level:Math.max(1,Math.ceil(stage*.70))},0);
-        u.hp=u.maxHp=Math.ceil(u.hp*(1.24+Math.min(2,stage*.02)));
-        u.damage=Math.ceil(u.damage*(1.22+Math.min(1.65,stage*.018)));
-        Object.assign(u,{side:'enemy',kind:'shadow',joined:true,visualLevel:Math.max(5,u.level),speed:1.18+Math.min(.35,stage*.013)});
+        u.hp=u.maxHp=Math.ceil(u.hp*(1.18+Math.min(.4,stage*.005)));
+        u.damage=Math.ceil(u.damage*(1.16+Math.min(.3,stage*.0035)));
+        Object.assign(u,{side:'enemy',kind:'shadow',joined:true,visualLevel:Math.max(5,u.level),speed:1.13+Math.min(.12,stage*.004)});
       }else{
-        const hp=Math.round(30+stage*(6+Math.min(9,stage*.28)));
-        u={side:'enemy',kind:'goblin',hp,maxHp:hp,speed:1.07,damage:7+Math.ceil(stage*1.45),elements:[]};
+        const hp=28+stage*6;
+        u={side:'enemy',kind:'goblin',hp,maxHp:hp,speed:1.03,damage:6+Math.ceil(stage*1.22),elements:[]};
       }
       Object.assign(u,{x:edge.x,y:edge.y,cd:.4,slow:0});
       if(edge.x===0||edge.x===lastX)u.y+=drift;else u.x+=drift;
@@ -2747,7 +2747,7 @@ window.Art = (() => {
     function defenseTurns(dt) {
       if(!keep||!alive(keep)){end(false);return;}
       spawnTimer-=dt;
-      if(spawned<waveSize&&spawnTimer<=0){spawn();spawnTimer=stage>=12&&spawned%3!==0?.70:Math.max(.85,1.65-stage*.035);}
+      if(spawned<waveSize&&spawnTimer<=0){spawn();spawnTimer=Math.max(.9,1.65-stage*.045);}
       for(const u of enemy) {
         if(!alive(u))continue;
         u.cd-=dt;u.slow=Math.max(0,u.slow-dt);

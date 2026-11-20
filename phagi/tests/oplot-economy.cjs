@@ -94,6 +94,22 @@ async function check(browser,width) {
   await act(page.locator('.tabs'),'tab','collection');await act(dialog,'pet',base.dragons[0].id);await act(dialog,'feed');
   await page.reload();assert.equal((await read()).dragons[0].level,31);
  }
+ async function checkDefensePrize(start){
+  const island={...structuredClone(start),gold:0,berries:0,xp:30000,buildings:[
+    {...start.buildings[0],x:15,y:15,level:12},
+    ...[['archer',11,15],['spire',21,15],['cannon',16,11]].map(([type,x,y],i)=>({id:'fort'+i,type,x,y,level:12,since:Date.now()}))
+  ]};
+  for(const [option,multiplier] of [['',1],['towers',3]]){
+   await seed(island);await tab('battle');await act(dialog,'mode','defense');await act(dialog,'start',option);
+   await page.locator('#maptools [data-battle-speed]').selectOption('4');
+   await dialog.getByRole('heading',{name:'Победа!'}).waitFor();
+   const after=await read();
+   assert.equal(after.waves,1);assert.equal(after.gold,74*multiplier);assert.equal(after.berries,47*multiplier);
+   assert.equal(after.xp-island.xp,33*multiplier);assert.deepEqual(after.dragons,island.dragons);
+   if(multiplier===3)assert.match(await dialog.innerText(),/тройная награда/);
+   await dialog.getByRole('button',{name:'На остров',exact:true}).click();
+  }
+ }
  async function checkAdvancedTowers(start){
   for(const [type,required] of [['mortar',10],['skybow',12],['tempest',14],['solar',16]]){
    const base={...start,buildings:[{...start.buildings[0],level:required-1}],gold:500000,xp:35000};
@@ -399,6 +415,7 @@ async function check(browser,width) {
   await checkWallBuilder(start);
   await checkAdvancedTowers(start);await checkIndustry(start);
   await checkCampaign(start);
+  await checkDefensePrize(start);
   assert.deepEqual(errors,[]);console.log('PASS '+width+'px · placement, industry quotas/prices/legacy stock, storage, profile XP, enchantments, walls, dragon sales and housing');
  }finally{await ctx.close()}
 }

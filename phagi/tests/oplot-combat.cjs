@@ -248,7 +248,7 @@ function duelDamage(enchant) {
 }
 assert.ok(duelDamage(5)>duelDamage(0),'The arena special did not benefit from training');
 function fieldDamage(mode,enchant,specialty='') {
-  const squad=[{species:species(1),level:12,enchant,specialty}];
+  const squad=[{species:species(1),level:21,enchant,specialty}];
   const base=mode==='defense'?{buildings:[{type:'keep',x:4,y:4,level:50}]}:fortress;
   const game=Battle.start(mode,mode==='defense'?14:2,base,squad,{});
   if(mode!=='defense')game.action('deploy',mode==='boss'?2:0);
@@ -260,8 +260,9 @@ function fieldDamage(mode,enchant,specialty='') {
     party[0].hp=party[0].maxHp;
     if(mode==='defense'){
       structures[0].hp=structures[0].maxHp;
-      for(const invader of living(enemy))invader.hp=invader.maxHp=10000;
     }
+    // Keep the same target alive across builds so overkill cannot mask an upgraded spell.
+    for(const target of living(targets))target.hp=target.maxHp=10000;
     const before=health(targets),strikes=party[0].strikes;
     if(fury>=100&&!furyHit){
       game.action('fury');furyHit=before-health(targets);
@@ -319,6 +320,13 @@ const expectedGuard=['elder','specialist','rare','tie-a','tie-b'];
 assert.deepEqual(Array.from(Battle.defenders(garrison),d=>d.id),expectedGuard);
 assert.deepEqual(Array.from(Battle.start('defense',1,{...fortress,dragons:garrison},[garrison[0]]).inspect().party,d=>d.id),expectedGuard);
 assert.equal(Battle.defenders(garrison.slice(0,2)).length,2);
+const solo=Battle.start('defense',29,{...fortress,dragons:garrison},garrison,{},true);
+assert.equal(solo.inspect().party.length,0);assert.ok(!solo.controls().buttons.some(b=>b.id==='fury'));
+solo.tap(3,3,10,10);assert.equal(solo.inspect().rally,null);
+for(let i=0;i<30;i++)solo.tick(.1);
+const invaders=solo.inspect().enemy,lateDragon=invaders.find(u=>u.kind==='shadow');
+assert.ok(lateDragon.level>20&&lateDragon.maxHp>500&&lateDragon.damage>120);
+assert.ok(invaders.filter(u=>u.kind==='shadow').length>=Math.floor(invaders.length/2),'Late waves bring dragons in groups');
 
 for(const [cols,rows] of [[11,10],[16,16]]){
   const n=Math.max(cols,rows);

@@ -326,6 +326,15 @@
     const lower=level>=7?21:level>=5?18:level>=3?16:13;
     const herald=level>=8?azure:level>=5?coral:level>=3?azure:coral;
     let out=level===1?foundation(west-1.5,-3,main+4.5,20):foundation(west-1,-15,main+9,31);
+    if(level>=9){
+      // The sea bastion grows along the western side of the existing foundation.
+      out+=turret(-20,13,2,7.5,31,12,violet);
+      if(level>=11)out+=turret(-20,16,27,6.8,22,12,straw);
+    }
+    if(level>=10){
+      out+=turret(14,-15,2,8.5,42,14,azure);
+      out+=banner(...p(14,-15,57),9,'#c45852');
+    }
     if(level>=4)out+=watchtower(-18,8,2,level);
     if(level>=3)out+=turret(6,-13,2,level>=6?7.2:5.9,level>=6?30:24,level>=6?15:10,herald);
     if(level>=2)out+=house(0,-14,16,12,2.6,level>=5?19:13,8,level>=3?stone:plaster,level>=5?azure:coral,level<3);
@@ -333,13 +342,13 @@
       out+=cuboid(-12,-11,22,18,2.6,21,chalk);
       out+=masonry('front',7,-12,22,3,16)+masonry('right',10,-11,18,3,16);
       if(level>=7){
-        out+=house(-12,-11,20,16,21,level===8?19:15,11,chalk,herald);
-        const [x,y]=p(-6,-5,level===8?50:45);out+=banner(x,y,5,'#bd4852');
+        out+=house(-12,-11,20,16,21,level>=8?19:15,11,chalk,herald);
+        const [x,y]=p(-6,-5,level>=8?50:45);out+=banner(x,y,5,'#bd4852');
       }else out+=house(-11,-10,19,15,21,13,10,plaster,coral,true);
       if(level>=6){
         const [x,y]=p(-5,-6,44);
-        out+=turret(-5,-6,41,level===8?7.3:4.9,level===8?10:6,level===8?15:9,level===8?azure:violet);
-        if(level===8)out+=banner(x,y-23,4.6,'#cd4e55');
+        out+=turret(-5,-6,41,level>=8?7.3:4.9,level>=8?10:6,level>=8?15:9,level>=8?azure:violet);
+        if(level>=8)out+=banner(x,y-23,4.6,'#cd4e55');
       }
     }
     out+=house(west,-1,main,15,2.6,lower,level>=6?12:9,level>=3?chalk:plaster,herald,level<3);
@@ -357,10 +366,21 @@
     if(level>=6)out+=turret(17,12,2.5,5.3,15,8,herald);
     if(level>=7)out+=royalGallery();
     if(level>=7)out+=turret(-10,16.5,2,4.9,14,8,herald);
-    if(level===8){
+    if(level>=8){
       out+=buttress(1,15.2,0,13)+buttress(5,15.2,0,13);
       out+=turret(19,15.8,2.2,3.9,17,8,azure);
       const [x,y]=p(1,5.5,24);out+=banner(x,y,7.5,'#b4474e');
+    }
+    if(level>=11){
+      out+=turret(15,18,2,6.8,22,10,violet);
+      out+=balcony(8,18,8,14);
+    }
+    if(level>=12){
+      // Paired gilded gatehouses frame a suspended crystal over the main entrance.
+      out+=turret(-9,20,2,6.2,24,10,straw)+turret(8,22,2,6.2,24,10,straw);
+      out+=cuboid(-8,20,17,4,19,22,chalk);
+      out+=crystal(...p(0,21,25),7,['#65c3c6','#347b8d','#c6f4df']);
+      out+=turret(-16,-1,28,6.5,16,12,straw);
     }
     return out;
   }
@@ -439,7 +459,7 @@
   }
   window.OplotVillageSVG=(type,level=1,fill=0)=>{
     if(!Object.hasOwn(plans,type))return '';
-    const stage=Math.max(1,Math.min(type==='keep'?8:9,Math.floor(Number(level)||1)));
+    const stage=Math.max(1,Math.min(type==='keep'?12:9,Math.floor(Number(level)||1)));
     const used=new Map();
     const model=plans[type](stage,Math.max(0,Math.min(1,Number(fill)||0))).replace(/fill="(#[0-9a-f]{6})"/g,(attr,color)=>{
       if(!painted.has(color))return attr;

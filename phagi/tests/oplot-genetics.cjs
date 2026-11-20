@@ -51,6 +51,7 @@ for(const a of species)for(const b of species){
     near(rare+epic,1);assert.ok(epic>0 && epic<otherRare);near(rare,otherRare);
     near(mass(G.outcomes(dragon(a.id,4),dragon(b.id,4)),3),.08);
     near(mass(G.outcomes(dragon(a.id,30),dragon(b.id,30)),3),.4);
+    near(mass(G.outcomes(dragon(a.id,50),dragon(b.id,50)),3),.46);
     assert.ok(mass(G.outcomes(dragon(a.id,8),q),3)>epic);
     assert.ok(mass(G.outcomes(p,dragon(b.id,19)),3)>epic);
   }

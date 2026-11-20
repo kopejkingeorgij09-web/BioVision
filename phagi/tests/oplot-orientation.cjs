@@ -83,24 +83,42 @@ async function run(browser,tablet){
   // Real play buttons, counters, selected targets and the active battle stay in the same game instance.
   await tap('tab','battle');await tap('start');
   const stats=f.locator('.combat .stats'),deploy=f.locator('[data-do=combat][data-id^="deploy|"]').first();
-  await stats.filter({hasText:/Высажено 0/}).waitFor();await rotate(landscape);
-  await deploy.scrollIntoViewIfNeeded();await usable(deploy,'Deploy dragon in landscape');await deploy.tap();
-  await stats.filter({hasText:/Высажено 1/}).waitFor();if(!tablet)await photo('landscape-battle');await rotate(portrait);
+  const full=f.locator('#island-full');
+  async function fillsViewport(container){
+   const fills=await container.evaluate(el=>{const r=el.getBoundingClientRect();return Math.abs(r.width-innerWidth)<2&&Math.abs(r.height-innerHeight)<2});
+   assert.ok(fills,'Fullscreen uses the entire phone viewport');
+  }
+  await stats.filter({hasText:/Высажено 0/}).waitFor();await full.tap();await fillsViewport(f.locator('.play'));
+  await usable(full,'Exit fullscreen attack');await rotate(landscape);
+  await usable(deploy,'Deploy dragon in fullscreen landscape');await deploy.tap();
+  await stats.filter({hasText:/Высажено 1/}).waitFor();
+  if(!tablet)await photo('landscape-battle');await rotate(portrait);
+  await full.tap();assert.equal(await full.getAttribute('aria-pressed'),'false');
   await stats.filter({hasText:/Высажено 1/}).waitFor();await tap('retreat');await tap('abandon');
+  await tap('tab','battle');await tap('mode','defense');await tap('start');
+  await stats.filter({hasText:/Стойкость цитадели/}).waitFor();await full.tap();await rotate(tablet?landscape:[568,320]);
+  await fillsViewport(f.locator('.play'));await usable(full,'Exit fullscreen defense');
+  await world.tap({position:{x:100,y:125}});await usable(f.locator('.combat .actions button').first(),'Defense command');
+  await tap('retreat');await tap('abandon');assert.equal(await full.getAttribute('aria-pressed'),'false');
   await f.getByRole('button',{name:'Отчёты о ночных набегах'}).tap();
-  const night=f.locator('#night-report'),play=night.locator('[data-night-play]'),step=night.locator('[data-night-step]'),seek=night.locator('[data-night-seek]');
-  await step.tap();assert.equal(await seek.inputValue(),'1');
-  await rotate(tablet?landscape:[568,320]);
-  if(!tablet){await usable(night.locator('canvas'),'Entire replay canvas in landscape');await usable(play,'Replay play button in landscape');await photo('landscape-archive');}
+  const night=f.locator('#night-report'),play=night.locator('[data-night-play]'),step=night.locator('[data-night-step]'),seek=night.locator('[data-night-seek]'),expand=night.locator('[data-night-full]');
+  await step.tap();assert.equal(await seek.inputValue(),'1');await expand.tap();await fillsViewport(night);
+  await usable(night.locator('canvas'),'Entire fullscreen replay');await usable(play,'Fullscreen replay play button');
+  if(!tablet)await photo('landscape-archive');
   await step.tap();assert.equal(await seek.inputValue(),'4');
-  await rotate(portrait);assert.equal(await seek.inputValue(),'4');await night.getByRole('button',{name:'Закрыть отчёты'}).tap();
+  await play.tap();await rotate(portrait);await fillsViewport(night);
+  assert.equal(await play.innerText(),'Пауза');await play.tap();const pausedAt=await seek.inputValue();
+  await expand.tap();assert.equal(await seek.inputValue(),pausedAt);await expand.tap();
+  await night.getByRole('button',{name:'Закрыть отчёты'}).tap();
+  await f.getByRole('button',{name:'Отчёты о ночных набегах'}).tap();await expand.waitFor();
+  assert.equal(await expand.getAttribute('aria-pressed'),'false');await night.getByRole('button',{name:'Закрыть отчёты'}).tap();
   await tap('wallet');await rotate(landscape);await dlg.locator('[data-do=learn][data-id=cards]').tap();
   await page.locator('[data-act=deck][data-id=fixture-deck]').first().waitFor();
   await page.setViewportSize({width:portrait[0],height:portrait[1]});await page.locator('#nav [data-v=oplot]').tap();
   await f.locator('#island-cloud-status').filter({hasText:'Остров в облаке'}).waitFor();
   assert.ok(originalDoc().state.buildings.some(b=>b.type==='mine'));assert.equal(originalDoc().state.dragons.length,original.dragons.length);
   assert.deepEqual(errors,[]);
-  console.log('PASS embedded map, build, editor selection, battlefield, report timeline and study across rotations',tablet?'768/1024 tablet':'320/360/390/430 landscape phones');
+  console.log('PASS embedded map, build, editor selection, fullscreen raid, defense, replay and study across rotations',tablet?'768/1024 tablet':'320/360/390/430 landscape phones');
  }finally{await context.close()}
 }
 async function manualTurns(browser){
@@ -184,6 +202,10 @@ async function manualTurns(browser){
   await physicalTap(command('edit'));await tapMine(1.35);
   await f.locator('#layout-selection').filter({hasText:'Золотая шахта'}).waitFor();assert.equal(await command('layoutstash').isDisabled(),false);
   await physicalTap(command('layoutcancel'));await physicalTap(f.locator('#island-full'));
+  await physicalTap(command('tab','battle'));await physicalTap(command('start'));await physicalTap(f.locator('#island-full'));
+  assert.equal(await page.evaluate(()=>!!document.fullscreenElement),false);
+  await physicalTap(command('combat','deploy|1'));await f.locator('.combat .stats').filter({hasText:/Высажено 1/}).waitFor();
+  await physicalTap(f.locator('#island-full'));await physicalTap(command('retreat'));await physicalTap(command('abandon'));
   await changeScreen('landscape');await checkFrame('landscape');
   await physicalTap(command('settings'));await select('portrait');await physicalTap(dialog.locator('.close'));
   await physicalTap(f.locator('[data-camera=fit]'));await tapMine();

@@ -27,7 +27,7 @@ dialog{padding:0;border:1px solid #958451;box-shadow:0 18px 80px #142a2980;backg
 .maptools button:hover,.map-view button:hover:not(:disabled){background-color:#315548}.island-full-button{display:grid;place-items:center;flex:none;padding:7px}.island-full-button svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .map-panel-tools{position:absolute;z-index:2;top:12px;right:12px;display:flex;gap:5px;align-items:center}.map-panel-tools .maptools{position:static}
 .mapfoot{right:150px;justify-content:flex-start}.mapfoot .note{max-width:100%}.mapfoot #mapaction:empty{display:none}
-.battle .map-panel-tools,.battle .map-view{display:none}
+.battle .maptools,.battle .map-view,.battle #island-overview{display:none}
 #world{touch-action:pan-y}#world.zoomed,body.island-wide #world{touch-action:none;cursor:grab}#world.panning{cursor:grabbing}#world.drawing-walls{cursor:crosshair}
 body.island-wide{overflow:hidden}body.island-wide .mapframe{position:fixed;inset:0;z-index:6;width:100%;height:100%;height:100dvh;display:flex;flex-direction:column;border:0;border-radius:0;padding:0;background:#163c38}
 body.island-wide .map{width:100%;height:auto;flex:1;min-height:0;border:0;border-radius:0}
@@ -212,6 +212,37 @@ body.island-wide .mapfoot #mapaction{display:flex;align-items:center;gap:5px}
  body:not(.battle) .play>.island-sidebar{max-height:none;overflow:visible}
 }
 
+
+/* Keep the live battlefield and its commands in the same fullscreen viewport. */
+body.island-wide.battle .play{position:fixed;inset:0;z-index:6;display:grid;align-items:stretch;gap:0;height:100%;height:100dvh;padding:var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);background:#163c38;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}
+body.island-wide.battle .mapframe{position:relative;inset:auto;width:100%;height:100%;min-height:0;min-width:0;padding:0;z-index:auto}
+body.island-wide.battle .map{height:100%;min-height:0}
+body.island-wide.battle .map-panel-tools{top:5px;right:5px}
+body.island-wide.battle .island-sidebar{display:block;max-height:42dvh;overflow-y:auto;overscroll-behavior:contain;background:var(--paper);min-height:0}
+body.island-wide.battle .aside{display:block}
+body.island-wide.battle .combat{border:0;border-radius:0;box-shadow:none;padding:8px 12px}
+body.island-wide.battle .combat .kicker{display:none}
+@media(orientation:landscape){
+ body.island-wide.battle .play{grid-template-columns:minmax(0,1fr) clamp(172px,25vw,340px);grid-template-rows:minmax(0,1fr)}
+ body.island-wide.battle .island-sidebar{max-height:100%}
+}
+#night-report .dlghead [data-night-full]{margin-left:auto;min-width:44px;min-height:44px}
+#night-report [data-night-full][hidden]{display:none}
+#night-report.replay-wide[open]{position:fixed;inset:0;display:flex;flex-direction:column;width:100%;height:100%;height:100dvh;max-width:none;max-height:none;margin:0;padding:var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);border:0;border-radius:0;overflow:hidden}
+#night-report.replay-wide .night-body:has(.night-stage){display:flex;flex-direction:column;flex:1;height:auto;min-height:0;padding:0 6px 4px}
+#night-report.replay-wide .night-stage{display:grid;flex:1;grid-template-rows:minmax(0,1fr) auto auto auto;min-height:0}
+#night-report.replay-wide .night-map{width:100%;height:100%;min-height:0}
+#night-report.replay-wide .night-meta,#night-report.replay-wide .night-extra{display:none}
+#night-report.replay-wide .night-actions{margin:2px 0;justify-content:center}
+#night-report.replay-wide .night-legend{margin:2px 0}
+@media(orientation:landscape){
+ #night-report.replay-wide .night-stage{grid-template-columns:minmax(0,1fr) clamp(155px,24vw,245px);grid-template-rows:1fr auto auto 1fr;column-gap:10px}
+ #night-report.replay-wide .night-map{grid-column:1;grid-row:1/-1}
+ #night-report.replay-wide .night-legend{grid-column:2;grid-row:2;flex-wrap:wrap}
+ #night-report.replay-wide [data-night-seek]{grid-column:2;grid-row:3;min-height:36px;margin:0}
+ #night-report.replay-wide .night-actions{grid-column:2;grid-row:4;align-self:start}
+ #night-report.replay-wide .night-actions button{flex:1 1 120px}
+}
 </style></head><body>
 <header><div class="header-inner"><button class="logo" data-do="exit" title="Вернуться в Фаги" aria-label="Вернуться в Фаги"><canvas data-icon="crest"></canvas></button><div class="brand"><small>Фаги естественных наук</small><h1>Драконий Оплот</h1></div>
 <div class="wallets"><span class="res"><canvas data-icon="gold"></canvas><b id="gold">0</b><small>Золото</small></span><span class="res"><canvas data-icon="berries"></canvas><b id="berries">0</b><small>Ягоды</small></span><button class="res" data-do="wallet"><canvas data-icon="gem"></canvas><b id="balance">—</b><small>Алмазы</small></button></div><button class="topbtn" data-do="settings" aria-label="Настройки" title="Настройки">⚙</button></div></header>
@@ -252,7 +283,7 @@ body.island-wide .mapfoot #mapaction{display:flex;align-items:center;gap:5px}
 </section>
 <aside class="aside" id="aside"></aside></div></div><div class="attribution"><span id="caption"></span><button class="linkbtn" data-do="exit">Вернуться в Фаги</button></div></main>
 <dialog id="dialog" aria-labelledby="dt"><div class="dlghead"><h2 id="dt"></h2><button class="close" data-do="close" aria-label="Закрыть">×</button></div><div class="dlgbody"><div id="dbody"></div><div class="dlgnotice" role="status" id="dnotice"></div></div></dialog><div class="toast" role="status" id="toast"></div>
-<script src="oplot-layout.js?v=3"></script><script src="oplot-limits.js?v=1"></script><script src="oplot-editor.js?v=4"></script><script src="oplot-art/village.js?v=2"></script><script src="oplot-art/stores.js?v=2"></script><script src="oplot-art/defenses.js?v=1"></script>
+<script src="oplot-layout.js?v=3"></script><script src="oplot-limits.js?v=2"></script><script src="oplot-editor.js?v=4"></script><script src="oplot-art/village.js?v=3"></script><script src="oplot-art/stores.js?v=2"></script><script src="oplot-art/defenses.js?v=1"></script>
 <script>
 'use strict';
 const GAME_ELEMENTS = window.GAME_ELEMENTS = ['Огонь','Вода','Природа','Молния','Земля','Свет'];
@@ -335,13 +366,15 @@ const Genetics = window.Genetics = (() => {
     const recombined=regular.filter(child=>child.id!==a.id && child.id!==b.id);
     if(recombined.length)regular=recombined;
     const promoted=sameSize?candidates.filter(child=>child.elements.length===size+1):[];
-    const level=p=>Math.min(30,Math.max(4,Math.floor(Number(p.level)||4)));
-    const training=(level(parentA)+level(parentB)-8)/52;
+    const level=p=>Math.min(50,Math.max(4,Math.floor(Number(p.level)||4)));
+    const trained=p=>Math.min(level(p),30)-4;
+    const training=(trained(parentA)+trained(parentB))/52;
+    const veteran=(Math.max(0,level(parentA)-30)+Math.max(0,level(parentB)-30))/40;
     let promotion=0;
     if(promoted.length){
-      // Two rares: 8–40%. Two epics: 5–30%. Beyond four elements: 4–22%.
+      // Levels 4–30 retain the original odds. Levels 31–50 add up to six percentage points.
       const [floor,ceiling]=size===2?[.08,.40]:size===3?[.05,.30]:[.04,.22];
-      promotion=floor+(ceiling-floor)*training;
+      promotion=floor+(ceiling-floor)*training+.06*veteran;
     }
     return [
       ...regular.map(child=>({species:child.id,chance:(1-promotion)/regular.length})),
@@ -1025,7 +1058,7 @@ window.Art = (() => {
     const store=type==='goldstore'||type==='foodstore';
     const producer=type==='mine'||type==='farm',steps=producer?12:100;
     const quantity=(store||producer)&&fill>0?(fill>=1?steps:Math.min(steps-1,Math.max(1,Math.round(fill*steps)))):0;
-    const stage=Math.min(10,Math.max(1,Math.floor(level)||1)),key=[type,stage,quantity,part,mask].join('/');
+    const stage=Math.min(type==='keep'?OplotLimits.keepMax:10,Math.max(1,Math.floor(level)||1)),key=[type,stage,quantity,part,mask].join('/');
     if(svgModels.has(key)){
       const entry=svgModels.get(key);
       if(entry.image&&entry.image.complete&&entry.image.naturalWidth)return entry.image;
@@ -1922,7 +1955,43 @@ window.Art = (() => {
 /* Battle simulation uses tile coordinates. Rendering projects them through the island renderer. */
 (() => {
   'use strict';
-  const stages = ['Лазурная пристань', 'Сады янтаря', 'Облачная застава', 'Громовой перевал', 'Терновая корона', 'Солнечный бастион'];
+  const chapters = [
+    {name:'Берега Рассвета',keep:1,stars:0,scoutHours:0,islands:['Лазурная пристань','Сады янтаря','Облачная застава','Громовой перевал','Терновая корона','Солнечный бастион']},
+    {name:'Железный пролив',keep:3,stars:9,scoutHours:0,islands:['Цепная гавань','Красный редут','Маяк семи ветров','Форт близнецов','Медные ворота','Адмиральская верфь']},
+    {name:'Грозовые атоллы',keep:6,stars:10,scoutHours:6,islands:['Громовой створ','Янтарные батареи','Дозор молний','Разбитый компас','Корона прилива','Око шторма']},
+    {name:'Обсидиановый пояс',keep:9,stars:11,scoutHours:12,islands:['Пепельная коса','Чёрная кузница','Базальтовый клин','Две кальдеры','Угольный караул','Крепость огненных зеркал']},
+    {name:'Небесный предел',keep:12,stars:12,scoutHours:18,islands:['Звёздный фарватер','Лунный арсенал','Игла зенита','Врата равноденствия','Последний дозор','Престол драконов']}
+  ];
+  const stages=chapters.flatMap(chapter=>chapter.islands);
+  const chapterOf=stage=>Math.floor((stage-1)/6);
+  function dispatchScouts(stage,now){
+    if(stage%6!==0)return null;
+    const hours=chapters[chapterOf(stage)+1]?.scoutHours;
+    return hours?{after:stage,readyAt:now+hours*3600000}:null;
+  }
+  const scoutArrival=t=>new Date(t).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+  function campaignLock(stage,record,keepLevel,scouts,now=Date.now()){
+    if(!Number.isInteger(stage)||stage<1||stage>stages.length)return 'Неизвестный остров';
+    if(record[stage]>0)return '';
+    if(stage>1&&!record[stage-1])return 'Победи на предыдущем острове';
+    const index=chapterOf(stage),chapter=chapters[index];
+    const stars=index?chapters[index-1].islands.reduce((sum,_,i)=>sum+(record[(index-1)*6+i+1]||0),0):0;
+    const needs=[];
+    if(keepLevel<chapter.keep)needs.push('цитадель ур. '+chapter.keep);
+    if(stars<chapter.stars)needs.push('звёзды предыдущей главы '+stars+' / '+chapter.stars);
+    if(scouts?.after===index*6&&scouts.readyAt>now)needs.push('возвращение разведки '+scoutArrival(scouts.readyAt));
+    return needs.join(' · ');
+  }
+  function campaignPayout(r,previous,xp){
+    if(!r.win)return {gold:0,berries:0,experience:0};
+    const gained=Math.max(0,r.stars-previous);
+    const share=previous===0?1:(gained>0?0.5:0.2);
+    const bonus=!previous&&r.stage%6===0?100*(chapterOf(r.stage)+1):0;
+    return {
+      gold:Math.round(r.gold*share)+bonus,berries:Math.round(r.berries*share)+Math.floor(bonus/2),
+      experience:(!previous?xp.victory+xp.perStage*r.stage:0)+xp.perStar*gained
+    };
+  }
   const entryNames = ['Слева сверху', 'Справа сверху', 'Справа снизу', 'Слева снизу'];
   const banner = {defense:'Оборона Оплота',raid:'Набег',boss:'Дракон-Хранитель',arena:'Стихийная арена'};
   const colors = ['#f07349','#49a9cd','#78ad57','#ae84d1','#c79548','#ebc260'];
@@ -2121,15 +2190,58 @@ window.Art = (() => {
   ];
   const fortSigns = {K:'keep',w:'wall',A:'archer',C:'cannon',S:'spire',F:'farm',M:'mine',G:'goldstore',B:'foodstore',D:'academy'};
   const fortHp=[1.40,1.7,2,2.42,2.9,3.3], fortDamage=[1.72,1.85,2.05,2.36,2.66,2.96];
-  function fortress(stage,boss) {
-    const rank=clamp(stage-1,0,fortPlans.length-1),structures=[];
-    fortPlans[rank].forEach((row,y)=>[...row].forEach((symbol,x)=>{
-      const type=fortSigns[symbol];if(!type)return;
-      const structure=makeBuilding({x,y,type,level:rank+1},structures.length,fortHp[rank]);
+  // Each row is ground seen from above. The six plans have different approaches.
+  const siegePlans=[
+    ['..........','.www..www.','.wCASASAw.','.w.CwwS.w.','.wG.wK.Aw.','.ww.SwCww.','.wAw.GwCw.','.wCBASDAw.','.wwwwwww..','..........'],
+    ['..........','.wwww.www.','.wACACACw.','.w.wwww.w.','.wAS.KSCw.','..Cw.w.Gw.','.wAw.wCSw.','.wBwM.ADw.','.wwwwwwww.','..........'],
+    ['..........','.wwwwwwww.','.wS.AC.Sw.','.w.wwwwAw.','.wCwKwC.w.','.wSw.SwGw.','.wAww.wCw.','.wBCASADw.','.www.wwww.','..........'],
+    ['..........','.www..www.','.wCSAAACw.','.w.w..wBw.','.wGwwwwSw.','.wA.wK.Cw.','.wC.wSwAw.','.wSADCACw.','.wwww.www.','..........'],
+    ['..........','.wwwwwwww.','.wCSABSCw.','.w.w.w.Aw.','.wCwKwC.w.','.wAw.wSw..','.w.wwwwAw.','.wSCAGDMw.','.wwwwwwww.','..........'],
+    ['..........','.wwwwwwww.','.wSACSCGw.','.w.wwwwAw.','.wCwKCADw.','.wSwSAwCw.','.wAwwwwSw.','.wBCAACAw.','.wwwwwwww.','..........']
+  ];
+  const siegeIntel=[
+    'Две батареи прикрывают вход в гавань. Проверь, можно ли зайти сбоку и быстро снять одну из них.',
+    'Пушки простреливают общий проход. Раздели высадку, чтобы залп не накрыл весь отряд.',
+    'Башни стоят за второй стеной. Летающие драконы могут перелететь её и ударить по башне.',
+    'Два крыла крепости соединены у цитадели. Сосредоточь огонь на одном крыле.',
+    'Поперечные стены разделяют двор. Выбери одну цель и пробей к ней короткий путь.',
+    'Цитадель стоит в центре перекрёстного огня. Для трёх звёзд придётся уничтожить и дальние батареи.'
+  ];
+  function fortress(stage,boss){
+    const rank=Math.min(stage,6)-1, siege=!boss&&stage>6;
+    const slot=(stage-1)%6, chapter=chapterOf(stage);
+    const plan=siege?siegePlans[slot]:fortPlans[rank], structures=[];
+    plan.forEach((row,y)=>[...row].forEach((symbol,x)=>{
+      let type=fortSigns[symbol];if(!type)return;
+      let tx=x,ty=y;
+      if(siege){
+        // Later archipelagos turn the approaches and refit selected batteries.
+        for(let turn=1;turn<chapter;turn++)[tx,ty]=[9-ty,tx];
+        if(chapter>=2&&symbol==='A'&&(x+y)%2===0)type=chapter===3?'cannon':'spire';
+        if(chapter>=3&&symbol==='S'&&x<4)type=chapter===3?'archer':'cannon';
+      }
+      const level=siege?6+Math.floor((stage-6)/4):rank+1;
+      const structure=makeBuilding({x:tx,y:ty,type,level},structures.length,fortHp[rank]);
       structure.attackScale=fortDamage[rank];structures.push(structure);
     }));
+    if(siege){
+      // Budget total durability and sustained fire separately, so a smaller fort
+      // still increases the challenge. Individual tower ranges and layouts matter.
+      const depth=stage-6;
+      const endurance=structures.reduce((sum,b)=>sum+b.maxHp,0);
+      const firepower=structures.reduce((sum,b)=>sum+(towerType[b.type]?towerType[b.type].damage/towerType[b.type].delay:0),0);
+      for(const b of structures){
+        b.maxHp=b.hp=Math.ceil(b.hp/endurance*(campaignBaseline.hp*(1+.060*depth)));
+        if(towerType[b.type])b.attackScale=campaignBaseline.fire*(1+.047*depth)/(firepower*(1+.22*(b.level-1)));
+      }
+    }
     return structures;
   }
+  const lastOriginalFort=fortress(6,false);
+  const campaignBaseline={
+    hp:lastOriginalFort.reduce((sum,b)=>sum+b.maxHp,0),
+    fire:lastOriginalFort.reduce((sum,b)=>sum+(towerType[b.type]?towerType[b.type].damage/towerType[b.type].delay*(1+.22*(b.level-1))*b.attackScale:0),0)
+  };
   function rounded(ctx,x,y,w,h,r) {
     ctx.beginPath();
     if(ctx.roundRect) ctx.roundRect(x,y,w,h,Math.max(0,Math.min(r,w/2,h/2)));
@@ -2879,7 +2991,7 @@ window.Art = (() => {
     }
     return {draw,tick,tap,action,controls};
   }
-  window.Battle={start,stages,profile};
+  window.Battle={start,stages,chapters,chapterOf,campaignLock,dispatchScouts,scoutArrival,campaignPayout,siegeIntel,profile};
 })();
 
 // A study account owns one private document. Each write names the revision it read.
@@ -2897,12 +3009,13 @@ function validIslandState(s){
   &&(s.incubationCredits===undefined||integer(s.incubationCredits))&&(s.lastRaid==null||dictionary(s.lastRaid)&&/^\d{4}-\d{2}-\d{2}$/.test(s.lastRaid.day))
   &&integer(s.quest,0,QUESTS.length)&&dictionary(s.settings)&&typeof s.settings.sound==='boolean'
   &&OplotLayout.valid(s.buildings,islandGrid(s),s.layoutVersion??1)
-  &&s.buildings.every(b=>id(b.id)&&integer(b.level,1,9)&&integer(b.since)&&
+  &&s.buildings.every(b=>id(b.id)&&integer(b.level,1,b.type==='keep'?OplotLimits.keepMax:9)&&integer(b.since)&&
     (!b.stowed||!Object.hasOwn(rates,b.type)||integer(b.pausedStock,0,b.level*90)))
-  &&Array.isArray(s.dragons)&&s.dragons.length>0&&s.dragons.every(d=>d&&id(d.id)&&species(d.species)&&integer(d.level,1,30)&&(d.enchant===undefined||integer(d.enchant,0,5))&&(d.specialty===undefined||Object.hasOwn(ULTIMATE_PATHS,d.specialty)))&&unique(s.dragons,d=>d.id)
+  &&Array.isArray(s.dragons)&&s.dragons.length>0&&s.dragons.every(d=>d&&id(d.id)&&species(d.species)&&integer(d.level,1,50)&&(d.enchant===undefined||integer(d.enchant,0,5))&&(d.specialty===undefined||Object.hasOwn(ULTIMATE_PATHS,d.specialty)))&&unique(s.dragons,d=>d.id)
   &&Array.isArray(s.book)&&s.book.every(species)&&s.dragons.every(d=>s.book.includes(d.species))
   &&(s.egg===null||s.egg&&id(s.egg.id)&&species(s.egg.species)&&integer(s.egg.end))
   &&dictionary(s.marks)&&Object.entries(s.marks).every(([k,v])=>id(k)&&integer(v))
+  &&(!s.campaignScouts||dictionary(s.campaignScouts)&&[12,18,24].includes(s.campaignScouts.after)&&integer(s.campaignScouts.readyAt,1,8640000000000000))
   &&dictionary(s.campaign)&&Object.entries(s.campaign).every(([k,v])=>/^[1-9][0-9]*$/.test(k)&&integer(v,0,3))
   &&Array.isArray(s.deliveries)&&s.deliveries.every(id)&&(s.purchaseCount===undefined||integer(s.purchaseCount,s.deliveries.length))
   &&(s.pending===null||s.pending&&['gold','berries','incubate'].includes(s.pending.item)&&id(s.pending.op)&&(s.pending.egg==null||id(s.pending.egg)));
@@ -3295,7 +3408,7 @@ function applyEditor(){
  leaveEditor(true);toast('Расстановка сохранена.');
 }
 let saleOffer=null;
-let planned='raid', campaignStage=1, team=[], parentA='',parentB='', soundCtx;
+let planned='raid', campaignStage=0, team=[], parentA='',parentB='', soundCtx;
 let W=0,H=0, lastFrame=0, lastSecond=0, flying=[], moment=0, hatchAt=0;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const B=id=>s.buildings.find(b=>b.id===id), D=id=>s.dragons.find(d=>d.id===id);
@@ -3421,7 +3534,7 @@ function showXpRewards(){
   ['Вылупление дракона','+'+xp.hatch+' опыта, когда дракон вылупится из яйца.'],
   ['Награда главы','+'+xp.chapter+' опыта, когда заберёшь награду главы «Путь хранителя».'],
   ['Зачарование в академии','+'+xp.enchantPerRank+' × новая ступень зачарования. За вторую ступень — '+(2*xp.enchantPerRank)+' опыта.'],
-  ['Победа в ручном бою','+'+xp.victory+' за победу, ещё '+xp.perStar+' за каждую звезду и '+xp.perStage+' × номер этапа, волны, испытания или лиги. Повторные победы тоже дают опыт.']
+  ['Победа в ручном бою','+'+xp.victory+' за победу, '+xp.perStar+' за звезду и '+xp.perStage+' × номер этапа. В кампании опыт за остров и каждую его звезду выдаётся один раз.']
  ];
  $('#xp-rewards').innerHTML=rewards.map(([action,reward])=>'<div><dt>'+action+'</dt><dd>'+reward+'</dd></div>').join('');
  $('#xp-examples').textContent='Постройка +'+xp.build+' · дракон из яйца +'+xp.hatch;
@@ -3452,6 +3565,7 @@ function refreshIsland(){
  renderEditor();
  refreshNightBanner();renderWallPlan();
  drawOverview();
+ if(!battle&&wide&&document.body.classList.contains('battle'))toggleWide();
  counters();tabsHTML();document.body.classList.toggle('battle',!!battle);
  if(battle){$('#maptools').innerHTML='';$('#mapaction').innerHTML='';$('#mapnote').textContent='';$('#caption').textContent='';combatControls();return}
  $('#maptools').innerHTML=btn(placement?'cancelplace':'edit',editor?'К острову':wallPlan()?(placement.corners.length?'Отменить':'Готово'):placement?'Отмена':'✥ Расстановка','','glass');
@@ -3564,7 +3678,7 @@ const ownedCount=type=>s.buildings.filter(b=>b.type===type).length;
 const capFor=type=>OplotLimits.cap(type,s);
 const priceOf=type=>OplotLimits.buildGold(type,ownedCount(type));
 const upCost=b=>OplotLimits.upgradeGold(b.type,b.level);
-function upLimit(b){return b.type==='keep'?8:lev()+1}
+function upLimit(b){return b.type==='keep'?OplotLimits.keepMax:Math.min(9,lev()+1)}
 function canAdd(type){return type!=='keep'&&ownedCount(type)<capFor(type)}
 function limitDetails(type){
  const count=ownedCount(type),limit=capFor(type),next=OplotLimits.nextUnlock(type,s);
@@ -3637,7 +3751,7 @@ function useCell(cell,hit){
  if(b)show('structure',b.id);
 }
 function feed(id){
- const d=D(id);if(!d||d.level>=30||s.berries<feedCost(d))return;
+ const d=D(id);if(!d||d.level>=50||s.berries<feedCost(d))return;
  s.berries-=feedCost(d);d.level++;s.xp+=PROFILE_XP.feedBase+d.level;mark('feed');if(d.level>=5)mark('evolve');sounds(d.level===5||d.level===10?'hatch':'feed');
  update();toast(d.level===5||d.level===10?'Эволюция! '+title(d.species)+' · '+stageName(d.level):title(d.species)+' достиг уровня '+d.level);
 }
@@ -3702,7 +3816,7 @@ const views={
   const sp=GAME_SPECIES[d.species],p=Battle.profile(d.species,d.level,d.enchant,d.specialty),a=p.ability;
   const price=dragonSalePrice(d),blocked=saleBlocked(price);
   const travel=d.level>20?'Летает над стенами.':'Ходит по земле и ломает стены на пути. Полёт откроется на 21-м уровне.';
-  return [sp.name,'<div class="portrait">'+portrait(d)+'</div>'+rankBadge(sp)+seals(sp)+'<h3>'+stageName(d.level)+' · уровень '+d.level+'</h3><p class="desc">'+sp.lore+' '+stageHint(d)+'</p><dl class="pet-stats"><div><dt>Здоровье</dt><dd>'+p.hp+'</dd></div><div><dt>Урон удара</dt><dd>'+p.damage+'</dd></div></dl><p class="desc">'+travel+' Стихийное преимущество ×1,5 против '+p.advantageElements.map(e=>GAME_ELEMENTS[e]).join(', ')+'.</p><section class="ability rank-'+sp.rank+'"><span class="kicker">Ульта · '+GAME_ELEMENTS[a.leadElement]+'</span><h3>'+a.name+'</h3><p class="desc">'+a.passive+'</p><p class="desc">'+a.active+' Вклад в ярость отряда — '+a.furyPower+'.</p><small>Зачарование '+p.enchant+' / 5 · '+(d.specialty?'Специализация «'+specialtyName(d)+'»':'Специализация ещё не выбрана')+'</small></section><div class="actions">'+btn('feed',d.level>=30?'Высший уровень':'Накормить · '+num(feedCost(d))+' ягод',d.id,'cmd',d.level>=30||s.berries<feedCost(d))+btn('breed','В логово скрещивания',d.id,'cmd alt')+(academyBuilding()?btn('academy','В академию',d.id,'cmd alt'):'')+'</div><div class="divider"></div>'+btn('sell','Продать за '+num(price)+' золота',d.id,'cmd alt',!!blocked)+(blocked?'<p class="desc">'+blocked+'</p>':'')];
+  return [sp.name,'<div class="portrait">'+portrait(d)+'</div>'+rankBadge(sp)+seals(sp)+'<h3>'+stageName(d.level)+' · уровень '+d.level+'</h3><p class="desc">'+sp.lore+' '+stageHint(d)+'</p><dl class="pet-stats"><div><dt>Здоровье</dt><dd>'+p.hp+'</dd></div><div><dt>Урон удара</dt><dd>'+p.damage+'</dd></div></dl><p class="desc">'+travel+' Стихийное преимущество ×1,5 против '+p.advantageElements.map(e=>GAME_ELEMENTS[e]).join(', ')+'.</p><section class="ability rank-'+sp.rank+'"><span class="kicker">Ульта · '+GAME_ELEMENTS[a.leadElement]+'</span><h3>'+a.name+'</h3><p class="desc">'+a.passive+'</p><p class="desc">'+a.active+' Вклад в ярость отряда — '+a.furyPower+'.</p><small>Зачарование '+p.enchant+' / 5 · '+(d.specialty?'Специализация «'+specialtyName(d)+'»':'Специализация ещё не выбрана')+'</small></section><div class="actions">'+btn('feed',d.level>=50?'Высший уровень':'Накормить · '+num(feedCost(d))+' ягод',d.id,'cmd',d.level>=50||s.berries<feedCost(d))+btn('breed','В логово скрещивания',d.id,'cmd alt')+(academyBuilding()?btn('academy','В академию',d.id,'cmd alt'):'')+'</div><div class="divider"></div>'+btn('sell','Продать за '+num(price)+' золота',d.id,'cmd alt',!!blocked)+(blocked?'<p class="desc">'+blocked+'</p>':'')];
  },
  sale(){
   const d=D(current);if(!d||saleOffer?.id!==d.id)return views.collection();
@@ -3761,6 +3875,11 @@ const views={
     illustration='<div class="keep-evolution">'+[b.level,b.level+1].map(level=>'<figure>'+buildingArt('keep',level)+'<figcaption>'+(level===b.level?'Сейчас':'После улучшения')+' · ур. '+level+'</figcaption></figure>').join('')+'</div>';
   }
   let detail=b.type==='den'?'<p class="desc">Время инкубации · '+incubationSeconds()+' с.</p>':'';
+  if(b.type==='keep'){
+   const chapter=Battle.chapters.find(c=>c.keep>b.level);
+   detail='<p class="desc">Цитадель · '+b.level+' / '+OplotLimits.keepMax+'. '+(chapter?'На уровне '+chapter.keep+' откроется поход в «'+chapter.name+'» при достаточном числе звёзд.':'Достигнут высший уровень цитадели.')+'</p>';
+   if(b.level<upLimit(b)&&upCost(b)>stockLimit(s,'gold'))detail+='<p class="desc">Для улучшения нужно вместить '+num(upCost(b))+' золота. Сейчас помещается '+num(stockLimit(s,'gold'))+'. Расширь золотое хранилище.</p>';
+  }
   if(b.type==='mine'||b.type==='farm'){
    const units=b.type==='mine'?'золота':'ягод',perLevel=rates[b.type]*12;
    detail='<p class="desc">Добыча — '+num(perLevel*b.level)+' '+units+' в минуту. Накапливает до сбора '+num(90*b.level)+'.</p>';
@@ -3770,15 +3889,31 @@ const views={
    const resource=b.type==='goldstore'?'gold':'berries';
    detail='<p class="desc">В этом хранилище · <strong>'+num(stock.amount)+' из '+num(stock.capacity)+'</strong></p><progress class="store-meter '+b.type+'" aria-label="Заполненность хранилища" value="'+stock.amount+'" max="'+stock.capacity+'"></progress><p class="desc">Вместимость здания — '+num(stock.capacity)+'. '+(b.level<upLimit(b)?'После улучшения — '+num(storeSpace(b.type,b.level+1))+'. ':'')+'Всего на острове '+num(s[resource])+' из '+num(stockLimit(s,resource))+'.</p>';
   }
-  return [data[0],illustration+'<span class="kicker">Уровень '+b.level+' · '+(b.stowed?'В запасе':'Клетка '+(b.x+1)+', '+(b.y+1))+' · '+OplotLayout.size(b.type)+'×'+OplotLayout.size(b.type)+'</span><p class="desc">'+data[1]+'</p>'+detail+'<div class="actions">'+btn('upgrade',b.level>=upLimit(b)?(b.type==='keep'?'Высший уровень':'Улучши цитадель'):'Улучшить · '+upCost(b)+' зол.',b.id,'cmd',b.level>=upLimit(b)||s.gold<upCost(b))+btn('move',b.stowed?'Поставить на остров':'Перенести',b.id,'cmd alt')+(n&&!b.stowed?btn('collect','Собрать '+n,b.id,'cmd gold'):'')+(b.type==='den'?btn('breed','Скрещивание'):b.type==='academy'?btn('academy','Зачаровать дракона'):'')+'</div>'];
+  return [data[0],illustration+'<span class="kicker">Уровень '+b.level+' · '+(b.stowed?'В запасе':'Клетка '+(b.x+1)+', '+(b.y+1))+' · '+OplotLayout.size(b.type)+'×'+OplotLayout.size(b.type)+'</span><p class="desc">'+data[1]+'</p>'+detail+'<div class="actions">'+btn('upgrade',b.level>=upLimit(b)?(b.type==='keep'||b.level>=9?'Высший уровень':'Улучши цитадель'):'Улучшить · '+upCost(b)+' зол.',b.id,'cmd',b.level>=upLimit(b)||s.gold<upCost(b))+btn('move',b.stowed?'Поставить на остров':'Перенести',b.id,'cmd alt')+(n&&!b.stowed?btn('collect','Собрать '+n,b.id,'cmd gold'):'')+(b.type==='den'?btn('breed','Скрещивание'):b.type==='academy'?btn('academy','Зачаровать дракона'):'')+'</div>'];
  },
  battle(){
   readyTeam();const n=planned==='arena'?3:4;
+  if(!campaignStage)campaignStage=Battle.stages.findIndex((_,i)=>!s.campaign[i+1])+1||Battle.stages.length;
   const next=planned==='raid'?campaignStage:planned==='defense'?s.waves+1:planned==='boss'?s.bosses+1:s.arenas+1;
-  const stageMenu=planned==='raid'?'<label>Крепость<select class="pick" id="stage">'+Battle.stages.map((name,i)=>'<option value="'+(i+1)+'"'+(i+1===campaignStage?' selected':'')+(i>0&&!s.campaign[i]?' disabled':'')+'>'+name+' · '+(s.campaign[i+1]?'★'.repeat(s.campaign[i+1]):i>0&&!s.campaign[i]?'закрыта':'доступна')+'</option>').join('')+'</select></label>':'<span class="kicker">'+(planned==='defense'?'Волна':planned==='boss'?'Испытание':'Лига')+' '+next+'</span>';
-  return ['Военный совет',(host?'<button type="button" class="linkbtn" data-night-open>Ночной дозор · записи обороны</button>':'')+'<div class="actions">'+Object.entries(MODE_NAMES).map(([id,label])=>btn('mode',label,id,'choice '+(planned===id?'active':''))).join('')+'</div><div class="divider"></div><h3>'+MODE_NAMES[planned]+'</h3><p class="desc">'+MODE_TEXT[planned]+'</p>'+stageMenu+'<div class="divider"></div><h3>Твой отряд · '+team.length+'/'+n+'</h3><div class="actions">'+s.dragons.map((d,i)=>'<button class="choice" data-do="team" data-id="'+d.id+'" aria-pressed="'+team.includes(d.id)+'">'+(team.includes(d.id)?'✓ ':'')+title(d.species)+' · '+d.level+' ур. · №'+(i+1)+'</button>').join('')+'</div><div class="actions">'+btn('start','Начать сражение','','cmd gold',!team.length||(planned==='arena'&&team.length!==3))+'</div>'];
+  const lock=planned==='raid'?Battle.campaignLock(next,s.campaign,lev(),s.campaignScouts):'';
+  let stageMenu='<span class="kicker">'+(planned==='defense'?'Волна':planned==='boss'?'Испытание':'Лига')+' '+next+'</span>';
+  if(planned==='raid'){
+    const index=Battle.chapterOf(next),chapter=Battle.chapters[index];
+    const options=Battle.chapters.map((c,j)=>'<optgroup label="'+(j+1)+'. '+c.name+'">'+c.islands.map((name,k)=>{
+      const n=j*6+k+1,stars=s.campaign[n];
+      return '<option value="'+n+'"'+(n===next?' selected':'')+'>'+n+'. '+name+' · '+(stars?'★'.repeat(stars):Battle.campaignLock(n,s.campaign,lev(),s.campaignScouts)?'закрыта':'доступна')+'</option>';
+    }).join('')+'</optgroup>').join('');
+    const scoutHours=next%6===0?Battle.chapters[index+1]?.scoutHours:0;
+    stageMenu='<span class="kicker">Глава '+(index+1)+' / '+Battle.chapters.length+' · '+chapter.name+'</span><label>Остров '+next+' из '+Battle.stages.length+'<select class="pick" id="stage">'+options+'</select></label>'+
+      (index?'<p class="desc">'+Battle.siegeIntel[(next-1)%6]+'</p>':'')+
+      (lock?'<p class="cost"'+(s.campaignScouts?.after===index*6&&s.campaignScouts.readyAt>Date.now()?' data-scout-arrival="'+s.campaignScouts.readyAt+'"':'')+'>Остров закрыт · '+lock+'</p>':'')+
+      (scoutHours&&!s.campaign[next]?'<p class="desc">После первой победы разведчики отправятся к следующему архипелагу на '+scoutHours+' ч. Можно продолжать играть или закрыть игру.</p>':'')+
+      (s.campaign[next]?'<p class="desc">Новый рекорд принесёт половину добычи и опыт за новые звёзды. Повтор прежнего результата — пятую часть добычи.</p>':
+       next%6===0?'<p class="desc">За первую победу в финале главы — ещё '+num(100*(index+1))+' золота и '+num(50*(index+1))+' ягод.</p>':'');
+  }
+  return ['Военный совет',(host?'<button type="button" class="linkbtn" data-night-open>Ночной дозор · записи обороны</button>':'')+'<div class="actions">'+Object.entries(MODE_NAMES).map(([id,label])=>btn('mode',label,id,'choice '+(planned===id?'active':''))).join('')+'</div><div class="divider"></div><h3>'+MODE_NAMES[planned]+'</h3><p class="desc">'+MODE_TEXT[planned]+'</p>'+stageMenu+'<div class="divider"></div><h3>Твой отряд · '+team.length+'/'+n+'</h3><div class="actions">'+s.dragons.map((d,i)=>'<button class="choice" data-do="team" data-id="'+d.id+'" aria-pressed="'+team.includes(d.id)+'">'+(team.includes(d.id)?'✓ ':'')+title(d.species)+' · '+d.level+' ур. · №'+(i+1)+'</button>').join('')+'</div><div class="actions">'+btn('start','Начать сражение','','cmd gold',!!lock||!team.length||(planned==='arena'&&team.length!==3))+'</div>'];
  },
- result(){const r=lastResult;return [r.win?'Победа!':'Сражение окончено','<div class="stars">'+(r.stars?'★'.repeat(r.stars):'◇')+'</div><h3>'+MODE_NAMES[r.mode]+'</h3><p class="desc">'+(r.win?'Добыча доставлена на остров.':'Отряд вернулся на остров. Можно укрепить оборону или накормить драконов перед новой попыткой.')+'</p><div class="cost">+'+r.gold+' золота　+'+r.berries+' ягод</div>'+(r.full?'<p class="desc">Часть добычи осталась в крепости. Для следующего набега можно расширить склады.</p>':'')+'<div class="actions">'+btn('close','На остров')+btn('tab','Военный совет','battle','cmd alt')+'</div>']},
+ result(){const r=lastResult;return [r.win?'Победа!':'Сражение окончено','<div class="stars">'+(r.stars?'★'.repeat(r.stars):'◇')+'</div><h3>'+MODE_NAMES[r.mode]+'</h3><p class="desc">'+(r.win?'Добыча доставлена на остров.':'Отряд вернулся на остров. Можно укрепить оборону или накормить драконов перед новой попыткой.')+'</p><div class="cost">+'+r.gold+' золота　+'+r.berries+' ягод　+'+num(r.experience)+' опыта</div>'+(r.scouts?'<p class="desc">Разведчики уже в пути. Следующий архипелаг появится на карте '+Battle.scoutArrival(r.scouts.readyAt)+'.</p>':'')+(r.full?'<p class="desc">Часть добычи осталась в крепости. Для следующего набега можно расширить склады.</p>':'')+'<div class="actions">'+btn('close','На остров')+btn('tab','Военный совет','battle','cmd alt')+'</div>']},
  retreat(){return ['Покинуть сражение?','<p class="desc">Отряд вернётся на остров без добычи.</p><div class="actions">'+btn('close','Продолжить бой')+btn('abandon','Вернуться без добычи','','cmd alt')+'</div>']},
  wallet(){
   const items=Object.entries(catalog).map(([id,[label,cost]])=>{
@@ -3792,13 +3927,28 @@ const views={
 function startFight(){
  readyTeam();const squad=team.map(D).filter(Boolean);if(!squad.length||(planned==='arena'&&squad.length!==3))return;
  const stage=planned==='raid'?campaignStage:planned==='defense'?s.waves+1:planned==='boss'?s.bosses+1:s.arenas+1;
- if(planned==='raid'&&stage>1&&!s.campaign[stage-1])return;
- if(wide)toggleWide();
+ if(planned==='raid'&&Battle.campaignLock(stage,s.campaign,lev(),s.campaignScouts))return;
  const island=planned==='defense'?{...s,buildings:s.buildings.map(b=>({...b,fill:stockOnModel(b)}))}:s;
  placement=cursor=null;close();battle=Battle.start(planned,stage,island,squad,{change:combatControls,sound:sounds,finish:r=>{
-  battle=null;const earnedGold=acceptStock(s,'gold',r.gold),earnedBerries=acceptStock(s,'berries',r.berries);
-  lastResult={...r,gold:earnedGold,berries:earnedBerries,full:earnedGold<r.gold||earnedBerries<r.berries};
-  if(r.win){s.xp+=PROFILE_XP.victory+PROFILE_XP.perStar*r.stars+PROFILE_XP.perStage*r.stage;mark(r.mode);if(r.mode==='raid')s.campaign[r.stage]=Math.max(r.stars,s.campaign[r.stage]||0);else if(r.mode==='defense')s.waves++;else if(r.mode==='arena')s.arenas++;else if(r.mode==='boss')s.bosses++}
+  battle=null;
+  const payout=r.mode==='raid'?Battle.campaignPayout(r,s.campaign[r.stage]||0,PROFILE_XP):
+    {...r,experience:r.win?PROFILE_XP.victory+PROFILE_XP.perStar*r.stars+PROFILE_XP.perStage*r.stage:0};
+  const earnedGold=acceptStock(s,'gold',payout.gold),earnedBerries=acceptStock(s,'berries',payout.berries);
+  lastResult={...r,gold:earnedGold,berries:earnedBerries,experience:payout.experience,full:earnedGold<payout.gold||earnedBerries<payout.berries};
+  if(r.win){
+    s.xp+=payout.experience;mark(r.mode);
+    if(r.mode==='raid'){
+      const previous=s.campaign[r.stage]||0;
+      if(!previous){
+        const scouts=Battle.dispatchScouts(r.stage,Date.now());
+        if(scouts){s.campaignScouts=scouts;lastResult.scouts=scouts}
+      }
+      s.campaign[r.stage]=Math.max(r.stars,previous);
+      campaignStage=Math.min(r.stage+1,Battle.stages.length);
+    }else if(r.mode==='defense')s.waves++;
+    else if(r.mode==='arena')s.arenas++;
+    else if(r.mode==='boss')s.bosses++;
+  }
   save();refreshIsland();show('result')
  }});refreshIsland();
 }
@@ -3826,7 +3976,7 @@ function tab(v){
 const acts={
  orientation:mode=>{host?.setOrientation?.(mode);show('settings','',true);body.querySelector('[data-do="orientation"][aria-pressed="true"]')?.focus({preventScroll:true})},
  tab,close,settings:()=>show('settings'),confirmreset:()=>show('confirmreset'),
- reset:()=>{if(s.pending||busy)return;battle=placement=cursor=null;team=[];const deliveries=s.deliveries,purchaseCount=s.purchaseCount??deliveries.length,lastRaid=s.lastRaid??null,incubationCredits=s.incubationCredits||0,limitReceipt=s.limitReceipt;s=initialState();Object.assign(s,{deliveries,purchaseCount,lastRaid,incubationCredits});if(limitReceipt){s.limitReceipt=limitReceipt;if(limitReceipt.retiredIds.includes(s.buildings[0].id))s.buildings[0].id=uid()}close();update();toast('Остров основан заново')},
+ reset:()=>{if(s.pending||busy)return;battle=placement=cursor=null;team=[];campaignStage=0;const deliveries=s.deliveries,purchaseCount=s.purchaseCount??deliveries.length,lastRaid=s.lastRaid??null,incubationCredits=s.incubationCredits||0,limitReceipt=s.limitReceipt;s=initialState();Object.assign(s,{deliveries,purchaseCount,lastRaid,incubationCredits});if(limitReceipt){s.limitReceipt=limitReceipt;if(limitReceipt.retiredIds.includes(s.buildings[0].id))s.buildings[0].id=uid()}close();update();toast('Остров основан заново')},
  wallet:()=>{show('wallet');syncWallet()},sync:refreshStudy,recover:deliver,purchase,
  learn:v=>{if(islandSync)islandSync.leave(v)},exit:()=>{if(islandSync)islandSync.leave('home');else if(location.protocol.startsWith('http'))location.assign('./?oplot=1');else toast('Открой «Драконий Оплот» в меню платформы «Фаги естественных наук».')},
  sound:()=>{s.settings.sound=!s.settings.sound;sounds('collect');update()},
@@ -3854,11 +4004,11 @@ document.addEventListener('click',e=>{const b=e.target.closest('button[data-do]'
 document.addEventListener('change',e=>{if(e.target.id==='parentA'||e.target.id==='parentB'){
  const id=e.target.id;if(id==='parentA')parentA=e.target.value;else parentB=e.target.value;
  show('breed','',true);document.getElementById(id)?.focus({preventScroll:true});
- }if(e.target.id==='academy-dragon')show('academy',e.target.value,true);if(e.target.id==='stage')campaignStage=Number(e.target.value)});
+ }if(e.target.id==='academy-dragon')show('academy',e.target.value,true);if(e.target.id==='stage'){campaignStage=Number(e.target.value);show('battle','',true);body.querySelector('#stage')?.focus({preventScroll:true})}});
 let stateArt={buildings:[],dragons:[]};
 const camera={zoom:1,x:0,y:0};
 const mapPointers=new Map();
-let mapGesture=false,wide=false,ownsFullscreen=false,returnScroll=0;
+let mapGesture=false,wide=false,nativeWideOwner=null,returnScroll=0;
 const fullButton=$('#island-full'),fitButton=$('[data-camera="fit"]');
 function mapScreen(e){
  const bounds=world.getBoundingClientRect();
@@ -3881,7 +4031,7 @@ function overviewScale(){
    left,top,right,bottom};
 }
 function drawOverview(){
- overview.hidden=!wide||camera.zoom<1.45;if(overview.hidden||!W||!H)return;
+ overview.hidden=!!battle||!wide||camera.zoom<1.45;if(overview.hidden||!W||!H)return;
  const c=mini.getContext('2d'),v=overviewScale(),px=x=>x*v.scale+v.x,py=y=>y*v.scale+v.y;
  c.fillStyle='#20534b';c.fillRect(0,0,mini.width,mini.height);
  c.beginPath();for(const [i,p] of [v.top,v.right,v.bottom,v.left].entries()){if(i)c.lineTo(px(p.x),py(p.y));else c.moveTo(px(p.x),py(p.y))}c.closePath();
@@ -3928,41 +4078,48 @@ function changeZoom(action){
 $('.map-view').addEventListener('click',e=>{
  const control=e.target.closest('[data-camera]');if(control)changeZoom(control.dataset.camera);
 });
+function fullscreenButton(button,enabled,exitLabel){
+ button.setAttribute('aria-pressed',String(enabled));
+ button.title=enabled?exitLabel:'На весь экран';
+ button.setAttribute('aria-label',button.title);
+ button.querySelector('path').setAttribute('d',enabled?'M3 8h5V3m13 5h-5V3M8 21v-5H3m13 5v-5h5':'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5');
+}
 function setWide(enabled){
  if(wide===enabled)return;
  if(enabled)returnScroll=window.scrollY;
  wide=enabled;document.body.classList.toggle('island-wide',wide);
- fullButton.setAttribute('aria-pressed',String(wide));
- fullButton.title=wide?'Свернуть остров':'На весь экран';
- fullButton.setAttribute('aria-label',fullButton.title);
- fullButton.querySelector('path').setAttribute('d',wide?'M3 8h5V3m13 5h-5V3M8 21v-5H3m13 5v-5h5':'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5');
- mapPointers.clear();world.classList.remove('panning');
- drawOverview();
+ fullscreenButton(fullButton,wide,battle?'Свернуть бой':'Свернуть остров');
+ mapPointers.clear();world.classList.remove('panning');drawOverview();
  if(!enabled){window.scrollTo(0,returnScroll);fullButton.focus({preventScroll:true})}
 }
-async function toggleWide(){
- if(wide){
-   setWide(false);
-   if(ownsFullscreen&&document.fullscreenElement)await document.exitFullscreen().catch(()=>{});
-   ownsFullscreen=false;return;
+async function nativeWide(button,enabled){
+ if(!enabled){
+   if(nativeWideOwner!==button)return;
+   nativeWideOwner=null;
+   if(document.fullscreenElement===document.documentElement)await document.exitFullscreen().catch(()=>{});
+   return;
  }
- setWide(true);
  const orientation=host?.orientationMode?.();
- if((!orientation||orientation==='auto')&&!document.fullscreenElement&&document.fullscreenEnabled&&document.documentElement.requestFullscreen){
-   try{await document.documentElement.requestFullscreen();ownsFullscreen=true;
-    if(!wide&&document.fullscreenElement)await document.exitFullscreen();
-   }catch{/* The island still fills the viewport in embedded apps and mobile browsers. */}
- }
+ if((orientation&&orientation!=='auto')||document.fullscreenElement||!document.fullscreenEnabled||!document.documentElement.requestFullscreen)return;
+ nativeWideOwner=button;
+ try{
+   await document.documentElement.requestFullscreen();
+   if(!nativeWideOwner&&document.fullscreenElement===document.documentElement)await document.exitFullscreen();
+ }catch{if(nativeWideOwner===button)nativeWideOwner=null}
+}
+function toggleWide(){
+ setWide(!wide);
+ return nativeWide(fullButton,wide);
 }
 fullButton.addEventListener('click',toggleWide);
 document.addEventListener('fullscreenchange',()=>{
- if(!document.fullscreenElement&&ownsFullscreen){
-   ownsFullscreen=false;
-   // WebKit consumes Escape in native fullscreen before the canvas receives
-   // keydown. Exit the wall tool and keep the in-game map open in that case.
+ if(document.fullscreenElement||!nativeWideOwner)return;
+ const owner=nativeWideOwner;nativeWideOwner=null;
+ if(owner===fullButton){
+   // WebKit may consume Escape before delivering a keydown to the wall editor.
    if(wide&&wallShift){cancelWallShift();world.focus({preventScroll:true})}
    else setWide(false);
- }
+ }else setReplayWide(false);
 });
 document.addEventListener('keydown',e=>{
  if(e.key!=='Escape'||document.querySelector('dialog[open]'))return;
@@ -4116,6 +4273,19 @@ const nightBody=nightDialog.querySelector('.night-body'), nightBanner=document.c
 const nightArchive=document.createElement('button');nightArchive.type='button';nightArchive.className='linkbtn';nightArchive.textContent='Отчёты о ночных набегах';nightArchive.hidden=!host;
 const attribution=document.querySelector('.attribution');if(attribution)attribution.insertBefore(nightArchive,attribution.lastElementChild);
 document.querySelector('.play')?.before(nightBanner);
+const nightFull=fullButton.cloneNode(true);
+nightFull.removeAttribute('id');nightFull.dataset.nightFull='';nightFull.hidden=true;
+nightDialog.querySelector('.dlghead').insertBefore(nightFull,nightDialog.querySelector('.close'));
+function setReplayWide(enabled){
+ if(nightDialog.classList.contains('replay-wide')===enabled)return;
+ nightDialog.classList.toggle('replay-wide',enabled);
+ fullscreenButton(nightFull,enabled,'Свернуть запись');
+ nativeWide(nightFull,enabled);
+}
+nightFull.addEventListener('click',()=>setReplayWide(!nightDialog.classList.contains('replay-wide')));
+nightDialog.addEventListener('cancel',e=>{
+ if(nightDialog.classList.contains('replay-wide')){e.preventDefault();setReplayWide(false)}
+});
 let raids=[],practiceReport=null,raidAt=0,raidClock=0,raidPlaying=false,raidFrame=0,raidPrevious=0,raidScene=null,raidRequest=0,nightSeen='';
 try{if(host)nightSeen=localStorage.getItem(key+'.seenRaid')||'';}catch{}
 function raidDate(day){const t=Date.parse(String(day).slice(0,10)+'T12:00:00Z');return Number.isFinite(t)?new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'Europe/Moscow'}).format(t):'Ночной набег';}
@@ -4253,7 +4423,8 @@ function displayRaid(index,practice=null){
   nightBody.querySelector('.night-summary p').textContent='Звёзды налётчиков ночью — '+nightStars+' из 3, сейчас — '+stars+' из 3. '+
    (stars<nightStars?'Новая оборона сдержала налёт лучше.':stars>nightStars?'Ночью остров защищался лучше.':'Результат по звёздам совпал.');
  }
- if(!r.replay||!raidScene.events.length){nightBody.insertAdjacentHTML('beforeend','<p>Для этого набега сохранилась только сводка.</p>'+raidRules);return;}
+ nightFull.hidden=!r.replay||!raidScene.events.length;
+ if(nightFull.hidden){setReplayWide(false);nightBody.insertAdjacentHTML('beforeend','<p>Для этого набега сохранилась только сводка.</p>'+raidRules);return;}
  nightBody.insertAdjacentHTML('beforeend','<div class="night-stage"><canvas class="night-map" role="img" aria-label="Запись обороны острова"></canvas><div class="night-legend"><span>● Защитники</span><span>● Налётчики</span><span data-night-time></span></div><input data-night-seek aria-label="Перемотка записи" type="range" min="0" step="0.1" max="'+raidDuration()+'" value="0"><div class="actions night-actions"><button type="button" class="cmd" data-night-play>Воспроизвести</button><button type="button" class="cmd alt" data-night-step>Следующее событие</button></div></div><div class="night-extra"><p data-night-event></p>'+raidRules+'</div>');
  const testControls=practice?
   '<div class="actions"><button type="button" class="cmd alt" data-night-original>К ночной записи</button><button type="button" class="cmd alt" data-night-edit>Изменить расстановку</button></div>':
@@ -4287,7 +4458,7 @@ async function attemptRaidPractice(index){
  }
 }
 async function openNight(){
- if(!host)return;pauseRaid();const generation=++raidRequest;
+ if(!host)return;setReplayWide(false);nightFull.hidden=true;pauseRaid();const generation=++raidRequest;
  nightBody.innerHTML='<p role="status">Загружаем записи ночных набегов…</p>';if(!nightDialog.open)nightDialog.showModal();
  try{
   const reports=await host.loadRaids();if(!nightDialog.open||generation!==raidRequest)return;
@@ -4298,7 +4469,7 @@ async function openNight(){
 }
 nightArchive.dataset.nightOpen='';nightBanner.dataset.nightOpen='';
 body.addEventListener('click',e=>{if(e.target.closest('[data-night-open]'))openNight()});
-nightArchive.onclick=openNight;nightBanner.onclick=openNight;nightDialog.querySelector('.close').onclick=()=>nightDialog.close();nightDialog.addEventListener('close',()=>{raidRequest++;pauseRaid();});
+nightArchive.onclick=openNight;nightBanner.onclick=openNight;nightDialog.querySelector('.close').onclick=()=>nightDialog.close();nightDialog.addEventListener('close',()=>{setReplayWide(false);raidRequest++;pauseRaid();});
 nightBody.addEventListener('change',e=>{if(e.target.matches('[data-night-date]'))displayRaid(Number(e.target.value));});
 new ResizeObserver(()=>{if(nightDialog.open&&raidScene)drawRaid()}).observe(nightBody);
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&raidPlaying){pauseRaid();drawRaid();}});
@@ -4319,6 +4490,7 @@ function frame(ms){
    const el=body.querySelector('.portrait canvas');if(el){paintMini(body);const c=el.getContext('2d'),w=el.clientWidth,h=el.clientHeight,a=sec-hatchAt;c.save();c.fillStyle='#d39335';for(let i=0;i<18;i++){const r=a*(25+(i%4)*10);c.globalAlpha=Math.max(0,1-a/2.2);c.fillText('✦',w/2+Math.cos(i*2.4)*r,h*.48+Math.sin(i*2.4)*r)}c.restore()}
  }
  if(sec-lastSecond>=.24){lastSecond=sec;
+  if(panel==='battle'&&dlg.open){const arrival=body.querySelector('[data-scout-arrival]');if(arrival&&Date.now()>=Number(arrival.dataset.scoutArrival))show('battle','',true)}
   if(panel==='breed'&&s.egg){const l=secLeft();if(!l&&$('#egg-status')?.textContent!=='Пора вылупляться!')show('breed','',true);else if(l&&$('#egg-timer'))$('#egg-timer').textContent='До вылупления: '+l+' с'}
  }
 }

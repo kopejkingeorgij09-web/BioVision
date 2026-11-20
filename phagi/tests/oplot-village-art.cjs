@@ -13,7 +13,7 @@ const {chromium}=(()=>{try{return require('playwright')}catch{return require('pl
    const ctx=canvas.getContext('2d',{willReadFrequently:true}),changes=[];
    let decoded=0,previous=null;
    for(const type of ['keep','home','den','farm','mine','academy']){
-    for(let level=1;level<=(type==='keep'?8:9);level++){
+    for(let level=1;level<=(type==='keep'?12:9);level++){
      const art=OplotVillageSVG(type,level);
      const text='<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">'+art+'</svg>';
      const url=URL.createObjectURL(new Blob([text],{type:'image/svg+xml'}));
@@ -34,9 +34,9 @@ const {chromium}=(()=>{try{return require('playwright')}catch{return require('pl
    }
    return {decoded,changes};
   });
-  assert.equal(results.decoded,53);
-  assert.equal(results.changes.length,7);
+  assert.equal(results.decoded,57);
+  assert.equal(results.changes.length,11);
   assert.ok(results.changes.every(n=>n>=35),'Every upgrade changes the keep silhouette at 64px: '+results.changes);
-  console.log('PASS 53 village sprites and eight distinct keep silhouettes at map scale');
+  console.log('PASS 57 village sprites and twelve distinct keep silhouettes at map scale');
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

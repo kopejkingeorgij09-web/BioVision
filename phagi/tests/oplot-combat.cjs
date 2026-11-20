@@ -49,7 +49,8 @@ function raid(stage, team, level, enchant, side, order) {
   return result.stars;
 }
 
-assert.equal(Battle.stages.length,6);
+assert.equal(Battle.stages.length,30);
+assert.equal(new Set(Battle.stages).size,30);
 for(let stage=1;stage<=6;stage++){
   const scores=[];
   const preview=Battle.start('raid',stage,fortress,[],{}).inspect();
@@ -62,7 +63,54 @@ for(let stage=1;stage<=6;stage++){
   else if(stage===2)assert.ok(Math.max(...scores)<3);
   else assert.equal(Math.max(...scores),0,'Starter dragons swept stage '+stage);
 }
-assert.equal(raid(6,eliteTeam,30,5,0,''),3,'A trained team should be able to finish the campaign');
+assert.equal(raid(6,eliteTeam,30,5,0,''),3,'A trained team should be able to finish the first chapter');
+
+// Every sequel island has its own map. Test the same entry directions players can use.
+const layouts=new Set();
+let previousHealth=0,previousFire=0;
+const battery={archer:5.2/1.1,cannon:9/1.85,spire:6.5/1.45};
+for(let stage=6;stage<=Battle.stages.length;stage++){
+  const {structures}=Battle.start('raid',stage,fortress,[],{}).inspect();
+  assert.equal(structures.filter(b=>b.type==='keep').length,1);
+  const layoutKey=structures.map(b=>b.x+','+b.y+':'+b.type).sort().join('|');
+  assert.ok(!layouts.has(layoutKey),'Repeated map at '+stage);layouts.add(layoutKey);
+  const fortHealth=health(structures);
+  const fire=structures.reduce((sum,b)=>sum+(battery[b.type]||0)*(1+.22*(b.level-1))*b.attackScale,0);
+  assert.ok(fortHealth>previousHealth&&fire>previousFire,'Growing fort budget at '+stage);
+  previousHealth=fortHealth;previousFire=fire;
+  const scores=[];
+  for(const side of [0,1,2,3])for(const order of ['', 'keep','towers'])scores.push(raid(stage,eliteTeam,50,5,side,order));
+  assert.ok(scores.includes(3),'Three stars attainable at '+stage);
+  if(stage===30){
+    assert.ok(scores.includes(0),'The final still punishes a bad approach');
+    for(const side of [0,1,2,3])for(const order of ['', 'keep','towers'])assert.equal(raid(stage,eliteTeam,30,5,side,order),0);
+  }
+}
+for(const [index,chapter] of Battle.chapters.entries()){
+  if(!index)continue;
+  const first=index*6+1,early=Object.fromEntries(Array.from({length:first-1},(_,i)=>[i+1,1]));
+  const record=Object.fromEntries(Array.from({length:first-1},(_,i)=>[i+1,3]));
+  assert.match(Battle.campaignLock(first,early,12),/звёзды/);
+  assert.match(Battle.campaignLock(first,record,chapter.keep-1),/цитадель/);
+  assert.equal(Battle.campaignLock(first,record,chapter.keep),'');
+  assert.equal(Battle.campaignLock(first-1,record,1),'','Previous victories remain available');
+  assert.ok(Battle.campaignLock(first+1,record,12));
+}
+const launch=1800000000000;
+for(const [stage,hours] of [[12,6],[18,12],[24,18]]){
+  const record=Object.fromEntries(Array.from({length:stage},(_,i)=>[i+1,3]));
+  const scouts=Battle.dispatchScouts(stage,launch);
+  assert.equal(scouts.readyAt-launch,hours*3600000);
+  assert.match(Battle.campaignLock(stage+1,record,12,scouts,scouts.readyAt-1),/разведки/);
+  assert.equal(Battle.campaignLock(stage+1,record,12,scouts,scouts.readyAt),'');
+  assert.equal(Battle.campaignLock(stage,record,12,scouts,launch),'');
+}
+for(const stage of [1,6,13,30])assert.equal(Battle.dispatchScouts(stage,launch),null);
+const payout=(previous,stars)=>Object.values(Battle.campaignPayout({stage:6,win:stars>0,stars,gold:100,berries:60},previous,{victory:15,perStage:3,perStar:5}));
+assert.deepEqual(payout(0,2),[200,110,43]);
+assert.deepEqual(payout(2,3),[50,30,5]);
+assert.deepEqual(payout(3,1),[20,12,0]);
+assert.deepEqual(payout(0,0),[0,0,0]);
 
 function fencedBase(gap) {
   const buildings=[{type:'keep',x:4,y:4,level:10000}];

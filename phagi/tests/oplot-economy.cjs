@@ -41,6 +41,31 @@ async function check(browser,width) {
   await close();await page.evaluate(({key,save})=>{localStorage.removeItem(key+'.settled-v1');localStorage.setItem(key,JSON.stringify(save))},{key,save});await page.reload();
  }
  async function openBuilding(id){await tab('build');await act(dialog,'structure',id)}
+ async function checkCampaign(start){
+  const base=structuredClone(start),keep=base.buildings[0];
+  const record=Object.fromEntries(Array.from({length:24},(_,i)=>[i+1,3]));
+  base.campaign={...record};base.gold=57000;base.berries=15000;keep.level=11;base.dragons[0].level=30;
+  await seed(base);await tab('battle');
+  assert.equal(await dialog.locator('#stage').inputValue(),'25');
+  assert.equal(await dialog.locator('#stage option').count(),30);
+  assert.match(await dialog.innerText(),/цитадель ур. 12/);
+  assert.ok(await dialog.locator('[data-do="start"]').isDisabled());
+  await dialog.locator('#stage').selectOption('6');
+  assert.ok(await dialog.locator('[data-do="start"]').isEnabled());
+  await close();await selectCell(keep.x+2,keep.y+2);
+  const upgrade=dialog.locator('[data-do="upgrade"]');
+  assert.match(await upgrade.innerText(),/57000/);await upgrade.click();await page.reload();
+  const after=await read();assert.equal(after.buildings[0].level,12);assert.equal(after.gold,0);assert.deepEqual(after.campaign,record);
+  await tab('battle');assert.ok(await dialog.locator('[data-do="start"]').isEnabled());
+  const clock=await page.evaluate(()=>Date.now());
+  after.campaignScouts={after:24,readyAt:clock+60000};await seed(after);await tab('battle');
+  assert.match(await dialog.innerText(),/возвращение разведки/);assert.ok(await dialog.locator('[data-do="start"]').isDisabled());
+  await page.clock.setFixedTime(clock+65000);await page.waitForFunction(()=>!document.querySelector('[data-do="start"]').disabled);
+  await dialog.locator('#stage').selectOption('30');
+  assert.ok(await dialog.locator('[data-do="start"]').isDisabled());await close();
+  await act(page.locator('.tabs'),'tab','collection');await act(dialog,'pet',base.dragons[0].id);await act(dialog,'feed');
+  await page.reload();assert.equal((await read()).dragons[0].level,31);
+ }
  async function checkIndustry(start){
   const when=Math.floor(Date.now()/1000)*1000;
   await page.clock.setFixedTime(when);
@@ -298,6 +323,7 @@ async function check(browser,width) {
   await checkSale(start);
   await checkWallBuilder(start);
   await checkIndustry(start);
+  await checkCampaign(start);
   assert.deepEqual(errors,[]);console.log('PASS '+width+'px · placement, industry quotas/prices/legacy stock, storage, profile XP, enchantments, walls, dragon sales and housing');
  }finally{await ctx.close()}
 }

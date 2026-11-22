@@ -21,7 +21,7 @@
 .ac-shell { display:grid;min-width:0;background:var(--ac-bg);border:1px solid var(--ac-line);border-radius:17px;overflow:hidden }
 .ac-shell.with-side { grid-template-columns:216px minmax(0,1fr) }
 .ac-main { min-width:0 }
-.ac-main > h1 { font-size:clamp(23px,3vw,36px);font-family:inherit;font-weight:680;letter-spacing:-.045em;margin:0;padding:4px 16px 12px }
+.ac-heading h1 { font-size:clamp(23px,3vw,36px);font-family:inherit;font-weight:680;letter-spacing:-.045em;margin:0;line-height:1.1 }
 .ac-toolbar { padding:10px 12px 5px }
 .ac-toolbar .icon-btn,.ac-top-tools .icon-btn { width:34px;height:34px }
 .ac-toolbar .ac-add { background:var(--ac-control);border-radius:50% }
@@ -194,4 +194,94 @@
   .ac-item:not(.timed) .ac-grab { position:static;padding:2px 5px;flex:none }
   .ac-grab { display:block;position:absolute;right:0;top:8px;padding:2px 4px;color:var(--ac-muted);z-index:2 }
   .sheet:has(.ac-quick) { padding-bottom:calc(14px + env(safe-area-inset-bottom,0px)) }
+}
+
+/* Карточки ШАД и полка занятий рядом с сеткой календаря. */
+.ac-heading {
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:6px 16px 12px;
+}
+.ac-heading .ac-shad-toggle {
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;flex:none;
+  min-height:34px;padding:5px 12px;border:1px solid var(--rule-2);border-radius:9px;
+  font-size:13px;font-weight:650;background:var(--sheet);color:var(--ink);
+}
+.ac-shad-toggle[aria-expanded=true] {
+  border-color:color-mix(in srgb,var(--c-blue) 55%,var(--sheet));
+  background:color-mix(in srgb,var(--c-blue) 12%,var(--sheet));
+}
+.ac-shad-tray {
+  padding:10px 16px 12px;background:var(--paper-2);
+  border-block:1px solid var(--rule);min-width:0;
+}
+.ac-shad-tabs { display:flex;align-items:center;gap:4px;margin:0 0 8px;flex-wrap:wrap }
+.ac-shad-tabs > span { margin-inline-start:auto;color:var(--ink-2);font-size:12px }
+.ac-shad-tabs button {
+  padding:5px 9px;border-radius:7px;color:var(--ink-2);
+  font-size:12px;line-height:1.4;font-weight:600;
+}
+.ac-shad-tabs button[aria-pressed=true] {
+  background:var(--sheet);color:var(--ink);box-shadow:inset 0 0 0 1px var(--rule-2);
+}
+.ac-shad-list {
+  display:flex;gap:8px;overflow-x:auto;overscroll-behavior-x:contain;
+  scrollbar-width:thin;padding:1px 1px 4px;
+}
+.ac-shad-list > .muted { margin:2px 0;color:var(--ink-2);font-size:13px }
+.ac-item[data-k=shad],.ac-shad-card { --cal-color:var(--c-blue) }
+.ac-item[data-k=shad][data-part=hw],.ac-shad-card[data-part=hw] { --cal-color:var(--c-violet) }
+.ac-shad-card {
+  flex:0 0 min(226px,82%);display:flex;align-items:stretch;min-width:0;position:relative;
+  background:var(--sheet);border:1px solid var(--rule-2);border-inline-start:3px solid var(--cal-color);
+  border-radius:9px;
+}
+.ac-shad-card .ac-shad-pick {
+  display:grid;align-content:start;gap:4px;flex:1;min-width:0;text-align:start;
+  padding:8px 10px;color:var(--ink);border-radius:inherit;
+}
+.ac-shad-card strong {
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;
+  font-size:13px;line-height:1.35;font-weight:650;
+}
+.ac-shad-meta {
+  display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:color-mix(in srgb,var(--cal-color,var(--c-blue)) 58%,var(--ink));
+  font-size:11px;font-weight:650;line-height:1.3;
+}
+.ac-item[data-k=shad] {
+  background:color-mix(in srgb,var(--cal-color) 12%,var(--sheet));
+  border-radius:5px;
+}
+.ac-item[data-k=shad] .ac-shad-meta { font-size:10px }
+.ac-item.timed[data-k=shad] .ac-title {
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;
+  white-space:normal;overflow-wrap:anywhere;
+}
+.ac-shad-editor { display:grid;gap:14px;min-width:0 }
+.ac-shad-editor h2 { margin:0;color:var(--ink);font-size:21px;line-height:1.22;overflow-wrap:anywhere }
+.ac-shad-fields { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px }
+.ac-shad-fields .field { margin:0;min-width:0;align-content:start }
+.ac-shad-fields .field:has(input[type=date]) { grid-column:1/-1 }
+.ac-shad-fields input { width:100%;min-width:0 }
+.ac-shad-actions,.ac-shad-links { display:flex;align-items:center;flex-wrap:wrap;gap:6px }
+.ac-shad-links { padding-top:8px;border-top:1px solid var(--rule) }
+@media(hover:hover) {
+  .ac-shad-card:hover,.ac-heading .ac-shad-toggle:hover { border-color:var(--c-blue) }
+  .ac-shad-card[data-part=hw]:hover { border-color:var(--c-violet) }
+  .ac-shad-tabs button:hover { background:var(--sheet) }
+}
+@media(pointer:coarse) {
+  .ac-shad-card .ac-grab {
+    position:static;display:grid;place-content:center;
+    align-self:stretch;min-width:32px;cursor:grab;color:var(--ink-2);
+  }
+  .ac-item.timed[data-k=shad] .ac-open { padding-inline-end:16px }
+  .ac-shad-tabs button,.ac-heading .ac-shad-toggle,.ac-shad-actions .btn { min-height:42px }
+}
+@media(max-width:560px) {
+  .ac-heading { padding:6px 10px 10px }
+  .ac-shad-tray { padding:6px 10px 8px }
+  .ac-shad-tabs > span { margin-inline-start:0 }
+  .ac-shad-card { flex-basis:min(210px,78%) }
+  .ac-shad-editor input { font-size:16px }
 }

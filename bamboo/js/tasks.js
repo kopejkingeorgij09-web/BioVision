@@ -475,7 +475,7 @@ function drop(st, target){
   if (was !== to) B.toast(to ? `Перенесено на ${B.fmtW(to)}` : 'Перенесено в «Когда-нибудь»', 1400);
 }
 /* перенос веба (вместе с ним сдвигается срок ДЗ) или только срока ДЗ */
-function moveShad(n, kind, to, slot){
+function moveShad(n, kind, to, slot, shiftHomework=true){
   const p = B.shad.plan.find(x => x.n === n); if (!p) return;
   const key = kind === 'web' ? 'w' : 'h', old = p[key];
   if (!old || (!slot && (key==='w'?p.wp:p.hp) && old.date===to)) return;
@@ -483,7 +483,7 @@ function moveShad(n, kind, to, slot){
   const endDate = old.endDate ? B.add(old.endDate,k) : '';
   const patch = {[key]:{date:to,...(endDate?{endDate}:{}),...slot}};
   // При переносе веба на другой день сохраняем расстояние до уже назначенного ДЗ.
-  if (k && key==='w' && p.wp && p.hp){
+  if (shiftHomework && k && key==='w' && p.wp && p.hp){
     patch.h={date:B.add(p.h.date,k)};
     if (p.h.endDate) patch.h.endDate=B.add(p.h.endDate,k);
   }
@@ -493,7 +493,7 @@ function moveShad(n, kind, to, slot){
 }
 B.calendarMoveShad = (n,kind,start,end) => {
   const date=start.slice(0,10), from=start.slice(11);
-  moveShad(n,kind,date,{from,to:from?end.slice(11):'',endDate:from&&end.slice(0,10)!==date?end.slice(0,10):''});
+  moveShad(n,kind,date,{from,to:from?end.slice(11):'',endDate:from&&end.slice(0,10)!==date?end.slice(0,10):''},false);
 };
 /* перенос с записью в историю: дело, переехавшее на более поздний день, считается переносом (без штрафа) */
 function moveTask(t, to, order, slot){

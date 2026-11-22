@@ -32,6 +32,7 @@ const projectOf = e => {
 const savePrefs = () => {
   try { localStorage.setItem(prefsKey, JSON.stringify({mode,side,hidden:[...hidden]})); } catch (_) {}
 };
+let shadTrayOpen = false, shadTab = 'week';
 const visible = key => !hidden.has(key);
 const save = e => B.put('e_' + e.id, e);
 const get = id => B.get('e_' + id);
@@ -57,6 +58,43 @@ function taskItem(t,d,ghost=false){
   return {kind:'task', id:t.id, proj:projectOf(t), title:t.title, start, on:d, done:t.done, ghost,
     end:t.time ? C.at(d,C.minuteOf(start) + Math.max(dragStep,t.est || 30)) : add(d,1)};
 }
+const shadPart = part => part==='web' ? 'Вебинар' : 'ДЗ';
+const shadDuration = part => Math.max(dragStep, snap((B.shad.hours?.[part] || 1) * hour));
+function shadItem(p,part){
+  const web=part==='web', slot=web?p.w:p.h, d=slot.date;
+  const start=slot.from?d+'T'+slot.from:d;
+  const end=slot.from&&slot.to ? (slot.endDate||(slot.to>slot.from?d:add(d,1)))+'T'+slot.to :
+    slot.from?C.at(d,C.minuteOf(start)+shadDuration(part)):add(d,1);
+  return {kind:'shad', id:p.n, part, start, end, on:d, proj:'@shad', title:p.t,
+    course:B.shad.courses[p.c]?.name || p.code || '', done:B.shadStage(p.n)>=(web?2:3)};
+}
+function shadMeta(item){
+  return '<span class="ac-shad-meta">'+esc(shadPart(item.part))+' · '+esc(item.course)+'</span>';
+}
+function shadPanel(){
+  if(!visible('@shad'))return {button:'',tray:''};
+  const week=B.weekStart(date);
+  const pending=list=>list.filter(it=>B.shadStage(it.p.n)<it.need);
+  const pool=pending(B.shadWeek(week)), parked=pending(B.shadSomeday());
+  const list=shadTab==='week'?pool:parked;
+  const total=pool.length+parked.length;
+  const tabs=[['week','На неделю',pool.length],['someday','Когда-нибудь',parked.length]];
+  const button='<button class="btn ghost sm ac-shad-toggle" data-act="acShadToggle" aria-expanded="'+shadTrayOpen+'" aria-label="Планировать дела ШАД">'+icon('book')+' ШАД · '+total+'</button>';
+  return {button, tray:shadTrayOpen?`<section class="ac-shad-tray" aria-label="Планирование ШАД">
+    <div class="ac-shad-tabs">${tabs.map(([k,t,n])=>`<button data-act="acShadTab" data-tab="${k}" aria-pressed="${shadTab===k}">${t} · ${n}</button>`).join('')}
+    ${shadTab==='week'?`<span>${fmt(week)} – ${fmt(add(week,6))}</span>`:''}</div>
+    <div class="ac-shad-list">${list.map(({p,kind})=>{
+      const it=shadItem(p,kind);
+      return `<div class="ac-shad-card" data-k="shad" data-id="${p.n}" data-part="${kind}">
+        <button class="ac-shad-pick" data-act="acShadPick" data-id="${p.n}" data-part="${kind}">
+        ${shadMeta(it)}<strong>${esc(p.t)}</strong></button>
+        <span class="ac-grab" aria-hidden="true" title="Перенести на календарь">⠿</span></div>`;
+    }).join('') || `<span class="muted">${shadTab==='week'?'На эту неделю нет дел ШАД без даты.':'Отложенных дел ШАД нет.'}</span>`}</div>
+  </section>`:''};
+}
+B.acts.acShadToggle=()=>{shadTrayOpen=!shadTrayOpen;B.render(true);};
+B.acts.acShadTab=el=>{shadTab=el.dataset.tab;B.render(true);};
+
 function itemsBetween(from,to){
   const items = C.events().filter(e => visible(projectOf(e))).flatMap(e =>
     C.occurrences(e,from,to).map(x => ({...x,kind:'event',proj:projectOf(x)})));
@@ -71,13 +109,9 @@ function itemsBetween(from,to){
     }
   });
   if (visible('@shad')) for (const p of B.shad.plan){
-    for(const [part,slot,placed,stage] of [['web',p.w,p.wp,2],['hw',p.h,p.hp,3]]){
+    for(const [part,slot,placed] of [['web',p.w,p.wp],['hw',p.h,p.hp]]){
       if(!placed||!C.validDate(slot?.date))continue;
-      const d=slot.date, start=slot.from?d+'T'+slot.from:d;
-      const end=slot.from&&slot.to ? (slot.endDate||(slot.to>slot.from?d:add(d,1)))+'T'+slot.to :
-        slot.from?C.at(d,C.minuteOf(start)+60):add(d,1);
-      const item={kind:'shad',id:p.n,part,start,end,on:d,proj:'@shad',
-        title:(part==='hw'?'ДЗ · ':'')+p.t,done:B.shadStage(p.n)>=stage};
+      const item=shadItem(p,part);
       if(inView(item))items.push(item);
     }
   }
@@ -109,7 +143,7 @@ function chip(e,style='',segment=null){
   const interval = timed ? `${e.start.slice(11)}–${e.end.slice(11)}` : '';
   const task = e.kind==='task' && !e.ghost;
   const movable=task||e.kind==='event'||e.kind==='shad';
-  const contents = `<span class="ac-title">${title}${e.repeat ? '<span aria-label="Повторяется"> ↻</span>' : ''}</span>${timed ? `<small>${interval}${e.location ? ' · '+esc(e.location) : ''}</small>` : ''}`;
+  const contents = `${e.kind==='shad'?shadMeta(e):''}<span class="ac-title">${title}${e.repeat ? '<span aria-label="Повторяется"> ↻</span>' : ''}</span>${timed ? `<small>${interval}${e.location ? ' · '+esc(e.location) : ''}</small>` : ''}`;
   return `<div class="ac-item c-${esc(color(e.proj))}${timed?' timed':''}${e.done?' done':''}${e.ghost?' ghost':''}" ${attrs} ${style? `style="${style}"` : ''}>
     ${task ? `<button class="ac-check" data-act="toggleTask" data-id="${esc(e.id)}" aria-label="${e.done?'Вернуть задачу':'Выполнить задачу'}" aria-pressed="${!!e.done}">${e.done?'✓':'○'}</button>` : ''}
     ${e.kind==='phagi' ? `<a class="ac-open" href="${esc(phagiHref(e.id))}" title="${title}">${contents}</a>` :
@@ -204,6 +238,7 @@ function yearView(byDay){
 }
 function render(toggle){
   const [from,to]=ranges(), byDay=eachDay(itemsBetween(from,to),from,to), ds=days(from,diff(from,to)+1);
+  const panel=shadPanel();
   const title = mode==='year' ? date.slice(0,4)+' г.' : mode==='day' ? fmt(date)+' '+date.slice(0,4)+' г.' : monthTitle(date)+' г.';
   return `<div class="page planner ac" data-cal-mode="${mode}">
     <header class="ac-top">${toggle}<div class="ac-top-tools">
@@ -221,7 +256,8 @@ function render(toggle){
             <button class="btn ghost sm" data-act="acToday">Сегодня</button>
             <button class="icon-btn" data-act="acShift" data-n="1" aria-label="Вперёд">${icon('right')}</button></div>
         </div>
-        <h1>${esc(title)}</h1>
+        <div class="ac-heading"><h1>${esc(title)}</h1>${panel.button}</div>
+        ${panel.tray}
         <div class="ac-scroll">${mode==='day'||mode==='week'?timeGrid(ds,byDay):mode==='month'?monthView(ds,byDay):yearView(byDay)}</div>
       </div>
     </div>
@@ -459,9 +495,66 @@ function fromNode(el){
 B.acts.acOpen=el=>{
   const x=fromNode(el);
   if(x.kind==='task') return B.openTask(x.id);
-  if(x.kind==='shad') return B.acts.shadOpen({dataset:{n:x.id}});
+  if(x.kind==='shad') return shadEditor(x.id,x.part);
   const e=get(x.id); if(e) editor({...e,start:x.start,end:x.end,on:x.on},e,false,near(el));
 };
+B.acts.acShadPick=el=>shadEditor(el.dataset.id,el.dataset.part);
+function shadEditor(id,part){
+  const p=B.shad.plan.find(p=>p.n===Number(id)), web=part==='web';
+  if(!p || !(web?p.w:p.h))return;
+  const item=shadItem(p,part), placed=web?p.wp:p.hp;
+  const timed=placed && item.start.length>10;
+  const duration=timed?C.span(item.start,item.end):shadDuration(part);
+  const day=placed?item.on:date, note=B.shad.marks[p.n]?.note;
+  const material=web?(p.lessonId?'https://lms.profimatika.ru/school/lesson/'+encodeURIComponent(p.lessonId):B.shad.lms):
+    B.phagiLink({shadHw:p.n,backDay:day});
+  B.sheet(`<form class="ac-shad-editor">
+    ${shadMeta(item)}<h2>${esc(p.t)}</h2>
+    ${note?`<p class="ac-shad-note">${esc(note)}</p>`:''}
+    <div class="ac-shad-fields">
+      <label class="field">Дата<input type="date" name="day" min="1900-01-01" max="2199-12-31" value="${day}" required></label>
+      <label class="field">Начало<input type="time" name="time" value="${timed?item.start.slice(11):''}"><small>Пусто — весь день</small></label>
+      <label class="field">Длительность, мин<input type="number" name="duration" min="1" step="1" required value="${duration}" ${timed?'':'disabled'}></label>
+    </div>
+    <div class="ac-shad-actions">
+      <button class="btn primary" type="submit">${placed?'Сохранить':'Поставить в календарь'}</button>
+      ${!(web?p.w:p.h).someday?`<button class="btn ghost" type="button" data-dest="someday">Когда-нибудь</button>`:''}
+      <button class="btn ghost" type="button" data-dest="week">На следующую неделю</button>
+    </div>
+    <div class="ac-shad-links">
+      ${item.done?`<span class="muted">${web?'Вебинар просмотрен':'ДЗ сдано'}</span>`:`<button type="button" class="btn ghost sm" data-complete>${web?'Отметить просмотр':'Отметить сдачу'}</button>`}
+      ${material?`<a class="btn ghost sm" href="${esc(material)}" target="_blank" rel="noopener">${web?'Открыть урок':'Открыть ДЗ'} ↗</a>`:''}
+      <button type="button" class="btn ghost sm" data-act="shadOpen" data-n="${p.n}">Карточка темы ↗</button>
+    </div></form>`);
+  const form=B.$('#sheet .ac-shad-editor'), f=form.elements;
+  function updateDuration(){
+    f.duration.disabled=!f.time.value;
+    if(C.validDate(f.day.value))f.duration.max=C.span(f.day.value+'T'+(f.time.value||'00:00'),'2199-12-31T23:59');
+  }
+  f.time.oninput=f.day.oninput=updateDuration;
+  updateDuration();
+  form.onsubmit=ev=>{
+    ev.preventDefault();
+    const d=f.day.value, time=f.time.value, mins=Number(f.duration.value);
+    if(!C.validDate(d)|| (time && (!Number.isInteger(mins)||mins<=0)))return;
+    const start=time?d+'T'+time:d;
+    const end=time?C.at(d,C.minuteOf(start)+mins):add(d,1);
+    if(time && !C.validDate(C.dateOf(end)))return B.toast('Выбери более раннее окончание');
+    B.calendarMoveShad(p.n,part,start,end);B.closeSheet();change(d,mode,true);
+  };
+  form.querySelectorAll('[data-dest]').forEach(btn=>btn.onclick=()=>{
+    const week=btn.dataset.dest==='week'?add(B.weekStart(C.validDate(f.day.value)?f.day.value:day),7):'';
+    if(week&&!C.validDate(week))return B.toast('Следующая неделя за пределами календаря');
+    B.shadPark(p.n,part,week);B.closeSheet();
+    B.toast(week?'ШАД · на неделю с '+fmt(week):'ШАД · в «Когда-нибудь»');
+  });
+  const complete=form.querySelector('[data-complete]');
+  if(complete)complete.onclick=()=>{
+    const stage=web?2:3;
+    if(B.shadStage(p.n)<stage)B.setShadStage(p.n,stage);
+    B.closeSheet();
+  };
+}
 B.acts.acDuplicate=()=>{
   const ctx=editContext; if(!ctx) return;
   const e=ctx.e;
@@ -493,9 +586,18 @@ function searchResults(query){
   const match=e=>[e.title,e.location,e.notes].some(v=>String(v||'').toLocaleLowerCase('ru').includes(q));
   const events=C.events().filter(match).map(e=>({...e,kind:'event',on:C.dateOf(e.start)}));
   const tasks=B.tasks().filter(match).map(t=>({id:t.id,kind:'task',title:t.title,start:t.due||''}));
-  const list=events.concat(tasks).sort((a,b)=>a.start.localeCompare(b.start));
-  return list.length ? `<div class="ac-results">${list.slice(0,80).map(x=>`<button data-act="acSearchGo" data-k="${x.kind}" data-id="${esc(x.id)}">
-    <b>${esc(x.title)}</b><small>${x.kind==='task'?'Задача':'Событие'} · ${x.start?fmt(C.dateOf(x.start))+' '+x.start.slice(0,4):'Без даты'}</small></button>`).join('')}</div>`:
+  const shad=B.shad.plan.flatMap(p=>['web','hw'].flatMap(part=>{
+    const web=part==='web', slot=web?p.w:p.h;
+    if(!slot)return [];
+    const placed=web?p.wp:p.hp;
+    const context=placed?fmt(slot.date):slot.someday?'Когда-нибудь':'Неделя с '+fmt(web?p.wk:p.hk);
+    const title=shadPart(part)+' · '+p.t, course=B.shad.courses[p.c]?.name || '';
+    if(!match({title,notes:'ШАД '+course+' '+p.code}))return [];
+    return [{kind:'shad',id:p.n,part,title,start:placed?slot.date:'',context:'ШАД · '+context}];
+  }));
+  const list=events.concat(tasks,shad).sort((a,b)=>a.start.localeCompare(b.start));
+  return list.length ? `<div class="ac-results">${list.slice(0,80).map(x=>`<button data-act="acSearchGo" data-k="${x.kind}" data-part="${x.part||''}" data-id="${esc(x.id)}">
+    <b>${esc(x.title)}</b><small>${x.context?esc(x.context):(x.kind==='task'?'Задача':'Событие')+' · '+(x.start?fmt(C.dateOf(x.start))+' '+x.start.slice(0,4):'Без даты')}</small></button>`).join('')}</div>`:
     '<p class="muted">Ничего не найдено.</p>';
 }
 B.acts.acSearch=()=>{
@@ -505,7 +607,9 @@ B.acts.acSearch=()=>{
   query.addEventListener('input',()=>{results.innerHTML=searchResults(query.value)});
 };
 B.acts.acSearchGo=el=>{
-  const {k,id}=el.dataset, e=k==='task'?B.task(id):get(id);
+  const {k,id,part}=el.dataset;
+  if(k==='shad')return shadEditor(id,part);
+  const e=k==='task'?B.task(id):get(id);
   if(!e) return;
   B.closeSheet();
   if(k==='task'){ if(C.validDate(e.due)) change(e.due); B.openTask(id); }
@@ -600,11 +704,13 @@ const minuteAt=(col,y,end=false)=>B.clamp(snap((y-col.getBoundingClientRect().to
 function rangePointer(e,root){
   if((e.pointerType==='touch'&&!e.target.closest('.ac-resize,.ac-grab'))||e.button!==0||e.target.closest('.ac-check,a')) return;
   const col=e.target.closest('[data-col]'), all=e.target.closest('[data-all]');
-  if(!col&&!all) return;
-  const item=e.target.closest('.ac-item'), x=item&&fromNode(item);
+  const card=e.target.closest('.ac-shad-card');
+  if(!col&&!all&&!card) return;
+  const item=card||e.target.closest('.ac-item'), x=item&&fromNode(item);
+  if(card){x.start=date; x.end=add(date,1);}
   if(x&&(!['event','task','shad'].includes(x.kind)||item.classList.contains('ghost'))) return;
   if(!item&&e.target.closest('button')) return;
-  const origin=col?.dataset.col||all.dataset.all, start=col?minuteAt(col,e.clientY):null;
+  const origin=col?.dataset.col||all?.dataset.all||date, start=col?minuteAt(col,e.clientY):null;
   const edge=e.target.dataset.resize, id=e.pointerId, sx=e.clientX,sy=e.clientY;
   let active=false, validDrop=false, target=origin, minute=start, selectedCol=col;
   const preview=document.createElement('span'); preview.className='ac-preview';
@@ -626,8 +732,8 @@ function rangePointer(e,root){
     const d=add(target,offset);
     const dest=minute==null?(root.dataset.calMode==='month'?d+x.start.slice(10):d):
       C.at(d,B.clamp(minute-grab,0,C.DAY-dragStep));
-    if(x.kind==='task' && x.start.length===10 && dest.length>10){
-      const length=Math.max(dragStep,B.task(x.id)?.est||30);
+    if((x.kind==='task'||x.kind==='shad') && x.start.length===10 && dest.length>10){
+      const length=x.kind==='shad'?shadDuration(x.part):Math.max(dragStep,B.task(x.id)?.est||30);
       return {start:dest,end:C.at(d,C.minuteOf(dest)+length)};
     }
     return C.move(x,dest);
@@ -678,7 +784,7 @@ function rangePointer(e,root){
       return;
     }
     const next=proposed();
-    if(!next || (next.start===x.start&&next.end===x.end))return;
+    if(!next || (!card&&next.start===x.start&&next.end===x.end))return;
     if(x.kind==='event'){
       const event=get(x.id); if(!event)return;
       const draft={...event,start:next.start,end:next.end};
@@ -797,7 +903,7 @@ function mountWeekPan(root,sc){
       if(!sc.isConnected||dragging)return;
       // Переносим буфер дат за краем экрана, сохраняя дробный сдвиг.
       const nearEdge=(day<7&&first>'1900-01-01')||(diff(next,last)<14&&last<'2199-12-31');
-      if(nearEdge||(side&&next!==renderedFrom)||redrawAfterInteraction){
+      if(nearEdge||(side&&next!==renderedFrom)||(visible('@shad')&&B.weekStart(next)!==B.weekStart(renderedFrom))||redrawAfterInteraction){
         redrawAfterInteraction=false;
         B.render();
       }
@@ -824,7 +930,7 @@ function mount(){
   if(editContext?.selected)markDraft(editContext.e,editContext.task);
   root.addEventListener('pointerdown',e=>rangePointer(e,root));
   root.addEventListener('click',e=>{
-    if(Date.now()-draggedAt<350&&e.target.closest('[data-col],[data-all]')){e.stopImmediatePropagation();e.preventDefault();}
+    if(Date.now()-draggedAt<350&&e.target.closest('[data-col],[data-all],.ac-shad-card')){e.stopImmediatePropagation();e.preventDefault();}
   },true);
   root.addEventListener('dblclick',e=>{
     if(e.target.closest('.ac-item,button,a'))return;

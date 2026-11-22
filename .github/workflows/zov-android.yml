@@ -37,7 +37,7 @@ jobs:
           cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" /tmp/zov-release/
       - uses: actions/upload-artifact@v4
         with:
-          name: Zov-Lesa-1.5.1-unsigned
+          name: Zov-Lesa-1.5.2-unsigned
           path: /tmp/zov-release/
       - name: Enable KVM
         run: |

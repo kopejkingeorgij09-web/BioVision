@@ -5,7 +5,7 @@
   if(!window.PhagiBookIndex || !window.PhagiReading || !window.PhagiBookAppearance){window.ReplicationBook?.showSequence();return;}
   const micro=document.getElementById('microbook');
   if(micro && !window.MicroBookPage)return;
-  const key=micro?'microbiology':'replication', book=PhagiBookIndex[key];
+  const key=micro?'microbiology':(document.documentElement.dataset.volume || 'replication'), book=PhagiBookIndex[key];
   const {read,write,marks,items,search,excerpt,element}=PhagiReading;
   const topics=items(key), byId=new Map(topics.map(s=>[s.id,s]));
   for(const group of book.groups){
@@ -219,7 +219,7 @@
     if(drawer.open)drawer.close();
     if(!micro){
       const target=document.getElementById(id), section=target?.closest('.unit');
-      const actual=section?.id || (id==='start'?id:book.first);
+      const actual=section?.id || (id==='start' && book.groups.some(g=>g.topics.some(t=>t[0]==='start'))?id:book.first);
       if(push && fragment()!==id)history.pushState(null,'','#'+encodeURIComponent(id));
       showPage(actual);
       if(place)restore(place);
@@ -343,7 +343,7 @@
     const article=document.querySelector('#book .layout article'), player=document.querySelector('.sequence-player');
     overview=element('section','desk-overview');overview.id='start';overview.hidden=true;
     overview.append(element('div','desk-kicker',book.title),element('h1','','Анимация репликации'),player);
-    article.prepend(overview);
+    if(player)article.prepend(overview);
     for(const [id,section] of sections){
       indexBlocks(section);const heading=section.querySelector('h2'), intro=section.querySelector(':scope > p');
       const figure=section.querySelector(':scope > figure.plate');

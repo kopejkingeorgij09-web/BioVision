@@ -4,3 +4,4 @@
 .unit h2,.hero h1,.desk-turn strong,.check summary {overflow-wrap:anywhere}
 html.desk-opening #book .hero,html.desk-opening #book .contents{display:none}
 @media(max-width:680px){.hero-inner{min-width:0}.lab,.mol{min-width:0}}
+figure video{display:block;width:100%;height:auto;border-radius:.35em}

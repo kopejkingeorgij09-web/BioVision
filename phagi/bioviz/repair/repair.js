@@ -36,3 +36,24 @@ document.querySelectorAll('.mol').forEach(details=>{
     finally{loading=false;}
   });
 });
+
+const tracer=document.querySelector('#ner-tracer');
+if(tracer){
+  const position=tracer.querySelector('input');
+  const strand=tracer.querySelector('select');
+  function traceNucleotide(){
+    const n=Number(position.value);
+    let result;
+    if(strand.value==='lower'){
+      result='нижней цепи остаётся в непрерывной матрице. Удалённый 28-мер не мечен.';
+    }else if(n>=6 && n<=33){
+      result='верхней цепи входит в удаляемый 28-мер (6–33). Короткий продукт мечен.';
+    }else{
+      result='верхней цепи остаётся в '+(n<6?'левом':'правом')+' фрагменте. Удалённый 28-мер не мечен.';
+    }
+    tracer.querySelector('output').textContent='Позиция '+n+' '+result;
+  }
+  position.addEventListener('input',traceNucleotide);
+  strand.addEventListener('change',traceNucleotide);
+  traceNucleotide();
+}

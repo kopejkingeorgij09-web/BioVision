@@ -125,7 +125,7 @@ B.phRow = it => `<div class="pl-ph ${it.k} ${it.role || ''} ${it.done ? 'ok' : '
     ${it.k === 'dl' ? `<span class="pl-phs" title="${it.done ? (it.checked ? 'Сдано и проверено' : 'Сдано') : 'Не сдано'}">${it.done ? (it.checked ? '✓✓' : '✓') : ''}</span>` : `<span class="pl-phs" title="${it.role === 'teach' ? 'Урок с ученицей' : 'Занятие'} на Фагах">${it.role === 'teach' ? '👩‍🏫' : '📘'}</span>`}
   </div>`;
 function dayList(date, list, min, gh){
-  const shad = S.cal === 'all' || S.cal === 'shad' ? B.shadOn(date) : [], ph = phList(date);
+  const shad = S.cal === 'all' || S.cal === 'shad' ? (date ? B.shadOn(date) : B.shadSomeday()) : [], ph = date ? phList(date) : [];
   const rows = [
     ...ph.filter(x => x.k === 'ev').map(x => ({time: x.from, html: B.phRow(x)})),
     ...list.map(t => ({time: t.time, html: row(t)})),
@@ -164,7 +164,7 @@ function weekView(){
   const ws = anchor || B.weekStart(B.today()), days = Array.from({length: 7}, (_, i) => B.add(ws, i));
   const gh = ghosts(days[0], days[6]);
   const withShad = (S.cal === 'all' || S.cal === 'shad') && B.shad.plan.length, cols = withShad ? 2 : 3;
-  const sd = someday(), rows = innerWidth < 760 ? sd.length + 2 : Math.max(4, Math.ceil((sd.length + 1) / cols) + 1);
+  const sd = someday(), count = sd.length + (withShad ? B.shadSomeday().length : 0), rows = innerWidth < 760 ? count + 2 : Math.max(4, Math.ceil((count + 1) / cols) + 1);
   const mobilePool = withShad && innerWidth < 760;
   return `${mobilePool ? shadBox(ws,true) : ''}<div class="pl-week">
       ${days.slice(0, 5).map(d => dayCol(d, 9, gh)).join('')}
@@ -186,7 +186,7 @@ function shadBox(ws, mobile = false){
   const sub = !all.length ? 'на этой неделе вебов нет' : left ? `осталось ≈${h(left)} ч${open ? ` · без дня ${open}` : ' · всё расставлено'}` : 'неделя закрыта';
   return `<section class="pl-shbox">
     ${mobile ? `<button class="pool-toggle" data-act="poolToggle" aria-expanded="${poolOpen}">ШАД на неделю <span>${all.filter(x=>x.kind==='web').length} веб. · ${all.filter(x=>x.kind==='hw').length} ДЗ</span> ${icon('right')}</button>` : `<h2>ШАД на неделю <span>${sub}</span></h2>`}
-    <div class="pl-list" data-d="" data-shbox="1" ${mobile && !poolOpen ? 'hidden' : ''}>
+    <div class="pl-list" data-d="" data-shbox="${ws}" ${mobile && !poolOpen ? 'hidden' : ''}>
       ${list.map(shadRow).join('')}
       ${list.length ? '' : `<div class="pl-shempty">${all.length ? 'Всё стоит по дням. Перетащи карточку сюда, чтобы снять день.' : 'Свободная неделя.'}</div>`}
     </div>
@@ -228,7 +228,7 @@ function monthWeekCell(ws, withShad, cur){
   const h = (Math.round(left * 2) / 2).toString().replace('.', ',');
   return `<div class="pl-mw ${cur ? 'cw' : ''}">
     <div class="pl-mwh">${head}${left ? `<span>≈${h} ч</span>` : ''}</div>
-    <div class="pl-list" data-d="" data-shbox="1">${list.slice(0, show).map(shadRow).join('')}
+    <div class="pl-list" data-d="" data-shbox="${ws}">${list.slice(0, show).map(shadRow).join('')}
       ${list.length > show ? `<button class="pl-more" data-act="plGoWeek" data-d="${ws}">ещё ${list.length - show} без дня</button>` : ''}</div>
   </div>`;
 }
@@ -420,7 +420,7 @@ function over(st, x, y){
   // попадание в шапку дня или пустое место клетки тоже считается этим днём
   let list = hit && hit.closest('.pl-list');
   if (!list && hit){ const box = hit.closest('.pl-day,.pl-mc,.pl-mw,.pl-some'); if (box) list = box.querySelector('.pl-list'); }
-  const ok = list && !(!!list.dataset.shbox !== !!st.shn && !(st.shn && list.dataset.d));   // задачи не кладутся в блок ШАДа, вебы не кладутся в «Когда-нибудь»
+  const ok = list && (st.shn || !list.dataset.shbox);
   B.$$('.pl-over').forEach(b => { if (!ok || !b.contains(list)) b.classList.remove('pl-over'); });
   if (!ok){ st.target = null; st.tag.textContent = ''; st.ghost.classList.add('nope'); return; }
   st.ghost.classList.remove('nope');
@@ -432,7 +432,7 @@ function over(st, x, y){
   const grid = !list.closest('.pl-day,.pl-mc');   // в «Когда-нибудь» задачи стоят в несколько колонок
   if (!st.shn) for (const r of rows){ const b = r.getBoundingClientRect(); if (y < b.top + b.height / 2 && (!grid || Math.abs(x - (b.left + b.width / 2)) < b.width / 2 + 20)){ before = r; break; } }
   const date = list.dataset.d || '';
-  st.target = {date, before: before ? before.dataset.tid : null, box: !!list.dataset.shbox};
+  st.target = {date, before: before ? before.dataset.tid : null, box: list.dataset.shbox};
   st.tag.textContent = st.target.box ? 'в блок недели' : date ? '→ ' + B.fmtW(date) : '→ Когда-нибудь';
   // переставляем место вставки, только если оно правда сдвинулось
   const anchor = before || (rows.length ? rows[rows.length - 1].nextSibling : list.firstChild);
@@ -461,9 +461,9 @@ function finish(st, commit){
 }
 function drop(st, target){
   if (st.shn){
-    const p = B.shad.plan.find(x => x.n === st.shn);
-    if (target.box){ if (p && (st.kind === 'web' ? p.wp : p.hp)){ B.shadUnplace(st.shn, st.kind); B.toast(`${st.kind === 'web' ? '' : 'ДЗ '}${esc(p.code || '')}: день снят, карточка в блоке недели`); } else B.render(true); }
-    else if (target.date){ moveShad(st.shn, st.kind, target.date); B.render(true); }
+    if (target.date) moveShad(st.shn, st.kind, target.date);
+    else B.shadPark(st.shn, st.kind, target.box);
+    B.render(true);
     return;
   }
   const t = B.task(st.id); if (!t) return B.render(true);

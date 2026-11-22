@@ -209,6 +209,7 @@ function applyOver(){
   B.shad.plan = B.shad.base.map(p => {
     const o = (B.shad.marks[p.n] || {}).o; if (!o) return p;
     return Object.assign({}, p, {t: o.t || p.t, w: o.w ? Object.assign({}, p.w, o.w) : p.w, h: o.h ? Object.assign({}, p.h, o.h) : p.h, edited: true,
+      wk: o.w?.week || p.wk, hk: o.h?.week || p.hk,
       wp: !!(o.w && o.w.date), hp: !!(o.h && o.h.date)});
   });
 }
@@ -275,6 +276,7 @@ B.setShadOver = (n, patch) => {
     ['w', 'h'].forEach(k => {
       if (!patch[k]) return;
       const m = Object.assign({}, o[k] || {}, patch[k]);
+      if ('date' in patch[k] && !patch[k].someday) delete m.someday;
       // свой день хранится, даже если совпал с днём из плана (это значит «поставлен»); пустой день убирает его
       Object.keys(m).forEach(f => { if (f === 'date' ? !m.date : (m[f] || '') === (base[k][f] || '')) delete m[f]; });
       o[k] = Object.keys(m).length ? m : undefined;
@@ -377,10 +379,18 @@ B.shadOn = date => {
 B.shadWeek = ws => {
   const out = [];
   B.shad.plan.forEach(p => {
-    if (p.w && !p.wp && p.wk === ws) out.push({p, kind: 'web', need: 2});
-    if (p.h && p.h.date && !p.hp && p.hk === ws) out.push({p, kind: 'hw', need: 3});
+    if (p.w && !p.w.someday && !p.wp && p.wk === ws) out.push({p, kind: 'web', need: 2});
+    if (p.h && !p.h.someday && p.h.date && !p.hp && p.hk === ws) out.push({p, kind: 'hw', need: 3});
   });
   return out.sort((a, b) => a.p.n - b.p.n || (a.kind === 'web' ? -1 : 1));
+};
+B.shadSomeday = () => B.shad.plan.flatMap(p => [
+  ...(p.w?.someday ? [{p, kind: 'web', need: 2}] : []),
+  ...(p.h?.someday ? [{p, kind: 'hw', need: 3}] : [])
+]);
+B.shadPark = (n, kind, week = '') => {
+  const key = kind === 'web' ? 'w' : 'h';
+  B.setShadOver(n, {[key]: {someday: !week, week, date: '', from: '', to: '', endDate: ''}});
 };
 B.shadWeekAll = ws => {
   const we = B.add(ws, 6), out = B.shadWeek(ws);
@@ -401,7 +411,7 @@ B.shadLate = () => {
   const t = B.today(), ws = B.weekStart(t), out = [];
   B.shad.plan.forEach(p => {
     const s = B.shadStage(p.n);
-    const wl = p.w && (p.wp ? p.w.date < t : p.wk < ws), hl = p.h && p.h.date && (p.hp ? p.h.date < t : p.hk < ws);
+    const wl = p.w && !p.w.someday && (p.wp ? p.w.date < t : p.wk < ws), hl = p.h && !p.h.someday && p.h.date && (p.hp ? p.h.date < t : p.hk < ws);
     if (s < 2 && wl) out.push({p, kind: 'web', need: 2});
     else if (s < 3 && hl) out.push({p, kind: 'hw', need: 3});
   });

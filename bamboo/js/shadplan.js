@@ -11,8 +11,8 @@ const FILTERS = [['ahead', 'Не закрыто'], ['late', 'Отстаю'], ['a
    пока день не выбран, отставанием считается только конец недели из плана */
 const lateOf = p => {
   const s = B.shadStage(p.n), t = B.today(), ws = B.weekStart(t);
-  if (s < 2 && p.w && (p.wp ? p.w.date < t : p.wk < ws)) return 'веб';
-  if (s < 3 && p.h && p.h.date && (p.hp ? p.h.date < t : p.hk < ws)) return 'ДЗ';
+  if (s < 2 && p.w && !p.w.someday && (p.wp ? p.w.date < t : p.wk < ws)) return 'веб';
+  if (s < 3 && p.h && !p.h.someday && p.h.date && (p.hp ? p.h.date < t : p.hk < ws)) return 'ДЗ';
   return '';
 };
 const weekOf = ws => `${B.fmtS(ws)} – ${B.fmtS(B.add(ws, 6))}`;
@@ -34,7 +34,7 @@ function row(p){
     <span class="sp-body">
       <span class="sp-tag"><span class="mono">${String(p.n).padStart(2, '0')}</span><span class="cchip c-${p.c}">${esc(course.name || p.c)}</span><span class="mono">${esc(p.code || '')}</span>${rel ? `<span class="sp-rel">${rel}</span>` : ''}</span>
       <span class="sp-title">${esc(p.t)}</span>
-      <span class="sp-when muted">${p.wp ? '' : 'день не выбран · '}ДЗ ${p.h ? (p.hp ? 'до ' + B.fmtW(p.h.date) : 'на неделе ' + weekOf(p.hk)) : '—'}</span>
+      <span class="sp-when muted">${p.wp ? '' : 'день не выбран · '}ДЗ ${p.h ? (p.h.someday ? 'когда-нибудь' : p.hp ? 'до ' + B.fmtW(p.h.date) : 'на неделе ' + weekOf(p.hk)) : '—'}</span>
     </span>
     <span class="sp-stat"><span class="sp-meter c-${p.c}">${meter}</span>${late ? `<span class="sp-late">отстаю: ${late}</span>` : `<span class="muted">${B.SHAD_STAGES[s]}</span>`}</span>
   </button>`;
@@ -91,7 +91,7 @@ function sheetHTML(n){
   const DESC = ['Веб ещё впереди', 'Начал веб, досмотрю позже', 'Есть конспект от руки', 'Решил сам и сверил с решениями', 'Ошибки разобраны, тема понятна'];
   return `<div class="row"><span class="cchip c-${p.c}">${esc(course.full || course.name || p.c)}</span><span class="mono muted">${esc(p.code || '')} · веб ${n}/${B.shad.plan.length}</span></div>
     <h2>${esc(p.t)}</h2>
-    <p class="muted">Веб: ${p.wp ? B.fmtW(p.w.date) : 'неделя ' + weekOf(p.wk) + ', день не выбран'}${p.w.from ? ' · ' + p.w.from + '–' + p.w.to : ''}${late === 'веб' ? ' · <b class="neg">отстаю</b>' : ''}<br>ДЗ: ${p.h ? (p.hp ? 'до ' + B.fmtW(p.h.date) : 'неделя ' + weekOf(p.hk) + ', день не выбран') : '—'}${late === 'ДЗ' ? ' · <b class="neg">отстаю</b>' : ''}</p>
+    <p class="muted">Веб: ${p.w.someday ? 'когда-нибудь' : p.wp ? B.fmtW(p.w.date) : 'неделя ' + weekOf(p.wk) + ', день не выбран'}${p.w.from ? ' · ' + p.w.from + '–' + p.w.to : ''}${late === 'веб' ? ' · <b class="neg">отстаю</b>' : ''}<br>ДЗ: ${p.h ? (p.h.someday ? 'когда-нибудь' : p.hp ? 'до ' + B.fmtW(p.h.date) : 'неделя ' + weekOf(p.hk) + ', день не выбран') : '—'}${late === 'ДЗ' ? ' · <b class="neg">отстаю</b>' : ''}</p>
     ${B.shadPending(n) ? '<p class="hint" data-shad-pending>Ожидает отправки</p>' : ''}
     ${dayPick(p, 'web')}${p.h && p.h.date ? dayPick(p, 'hw') : ''}
     <div class="sp-opts">${B.SHAD_STAGES.map((l, i) => `<button class="sp-opt ${s === i ? 'on' : ''}" data-act="shadPick" data-n="${n}" data-s="${i}"><i>${i === 4 ? '✓' : i}</i><span><b>${l}</b><small>${DESC[i]}</small></span></button>`).join('')}</div>
@@ -117,9 +117,16 @@ function dayPick(p, kind){
   const days = Array.from({length: 7}, (_, i) => B.add(ws, i));
   return `<div class="sp-pick"><span class="muted">${kind === 'web' ? 'Веб' : 'ДЗ'}</span>
     ${days.map(d => `<button class="${placed && d === date ? 'on' : ''} ${d === B.today() ? 'now' : ''}" data-act="shPlace" data-n="${p.n}" data-k="${kind}" data-d="${d}" title="${B.fmtW(d)}">${B.WD[B.wd(d)]}<small>${B.parse(d).getDate()}</small></button>`).join('')}
+    <button class="sp-unpl" data-act="shPark" data-n="${p.n}" data-k="${kind}" data-week="${B.add(ws,7)}">На следующую неделю</button>
+    <button class="sp-unpl" data-act="shPark" data-n="${p.n}" data-k="${kind}" ${p[kind === 'web' ? 'w' : 'h'].someday ? 'disabled' : ''}>Когда-нибудь</button>
     ${placed ? `<button class="sp-unpl" data-act="shPlace" data-n="${p.n}" data-k="${kind}" data-d="" title="Снять день, карточка вернётся в блок недели">без дня</button>` : ''}
   </div>`;
 }
+B.acts.shPark = el => {
+  const n = +el.dataset.n;
+  B.shadPark(n, el.dataset.k, el.dataset.week);
+  B.sheet(sheetHTML(n));
+};
 B.acts.shPlace = el => {
   const n = +el.dataset.n, k = el.dataset.k, d = el.dataset.d, p = B.shad.plan.find(x => x.n === n); if (!p) return;
   if (!d) B.shadUnplace(n, k);

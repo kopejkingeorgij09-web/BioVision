@@ -957,7 +957,7 @@ function openReminder(id,on){
   editor(x,e);
   return true;
 }
-B.calendarView={render,mount,openReminder,deferRender(){
+B.calendarView={render,mount,itemsBetween,openReminder,deferRender(){
   if(!dragging&&!weekScrollTimer)return false;
   redrawAfterInteraction=true;
   return true;

@@ -19,6 +19,13 @@ const prefsKey = 'bamboo-calendar';
 let prefs = {};
 try { prefs = JSON.parse(localStorage.getItem(prefsKey) || '{}') || {}; } catch (_) {}
 let mode = Object.hasOwn(MODES,prefs.mode) ? prefs.mode : (innerWidth < 650 ? 'day' : 'week');
+let allExpanded = prefs.allExpanded === true;
+function weekTitle(start){
+  const end = add(start,6), sameYear = start.slice(0,4) === end.slice(0,4);
+  const label = d => parse(d).getDate() + ' ' + B.MONG[parse(d).getMonth()];
+  if (!sameYear) return label(start) + ' ' + start.slice(0,4) + ' – ' + label(end) + ' ' + end.slice(0,4);
+  return (start.slice(0,7) === end.slice(0,7) ? parse(start).getDate() : label(start)) + '–' + label(end);
+}
 const returnDay=new URLSearchParams(location.search).get('day');
 let date = C.validDate(returnDay || '') ? returnDay : today(), side = prefs.side ?? innerWidth >= 950;
 let weekFrom = null, weekFraction = 0;
@@ -30,7 +37,7 @@ const projectOf = e => {
   return p && !p.arch ? p.id : 'inbox';
 };
 const savePrefs = () => {
-  try { localStorage.setItem(prefsKey, JSON.stringify({mode,side,hidden:[...hidden]})); } catch (_) {}
+  try { localStorage.setItem(prefsKey, JSON.stringify({mode,side,allExpanded,hidden:[...hidden]})); } catch (_) {}
 };
 let shadTrayOpen = false, shadTab = 'week';
 const visible = key => !hidden.has(key);
@@ -79,7 +86,7 @@ function shadPanel(){
   const list=shadTab==='week'?pool:parked;
   const total=pool.length+parked.length;
   const tabs=[['week','На неделю',pool.length],['someday','Когда-нибудь',parked.length]];
-  const button='<button class="btn ghost sm ac-shad-toggle" data-act="acShadToggle" aria-expanded="'+shadTrayOpen+'" aria-label="Планировать дела ШАД">'+icon('book')+' ШАД · '+total+'</button>';
+  const button='<button class="btn ghost sm ac-shad-toggle" data-act="acShadToggle" aria-expanded="'+shadTrayOpen+'" title="Дела ШАД без даты">'+icon('book')+' Без даты · '+total+'</button>';
   return {button, tray:shadTrayOpen?`<section class="ac-shad-tray" aria-label="Планирование ШАД">
     <div class="ac-shad-tabs">${tabs.map(([k,t,n])=>`<button data-act="acShadTab" data-tab="${k}" aria-pressed="${shadTab===k}">${t} · ${n}</button>`).join('')}
     ${shadTab==='week'?`<span>${fmt(week)} – ${fmt(add(week,6))}</span>`:''}</div>
@@ -143,7 +150,7 @@ function chip(e,style='',segment=null){
   const interval = timed ? `${e.start.slice(11)}–${e.end.slice(11)}` : '';
   const task = e.kind==='task' && !e.ghost;
   const movable=task||e.kind==='event'||e.kind==='shad';
-  const contents = `${e.kind==='shad'?shadMeta(e):''}<span class="ac-title">${title}${e.repeat ? '<span aria-label="Повторяется"> ↻</span>' : ''}</span>${timed ? `<small>${interval}${e.location ? ' · '+esc(e.location) : ''}</small>` : ''}`;
+  const contents = `<span class="ac-title">${title}${e.repeat ? '<span aria-label="Повторяется"> ↻</span>' : ''}</span>${e.kind==='shad'?shadMeta(e):''}${timed ? `<small>${interval}${e.location ? ' · '+esc(e.location) : ''}</small>` : ''}`;
   return `<div class="ac-item c-${esc(color(e.proj))}${timed?' timed':''}${e.done?' done':''}${e.ghost?' ghost':''}" ${attrs} ${style? `style="${style}"` : ''}>
     ${task ? `<button class="ac-check" data-act="toggleTask" data-id="${esc(e.id)}" aria-label="${e.done?'Вернуть задачу':'Выполнить задачу'}" aria-pressed="${!!e.done}">${e.done?'✓':'○'}</button>` : ''}
     ${e.kind==='phagi' ? `<a class="ac-open" href="${esc(phagiHref(e.id))}" title="${title}">${contents}</a>` :
@@ -181,10 +188,15 @@ function sidebar(counts){
   </aside>`;
 }
 function allDay(ds,byDay){
-  return `<div class="ac-all"><span class="ac-axis-label">Весь день</span>${ds.map(d=>
-    `<div class="ac-allday ${d===today()?'now':''}" data-all="${d}">${(byDay.get(d)||[]).filter(e=>e.start.length===10).map(e=>chip(e)).join('')}
-      <button class="ac-all-new" data-act="acNewDay" data-d="${d}" title="Добавить на весь день" aria-label="Добавить на ${esc(fmt(d))}">${icon('plus')}</button></div>`
-  ).join('')}</div>`;
+  const label = allExpanded ? 'Свернуть строку «Весь день»' : 'Развернуть строку «Весь день»';
+  return `<div class="ac-all ${allExpanded?'expanded':'compact'}"><button class="ac-axis-label" data-act="acAllToggle"
+    aria-expanded="${allExpanded}" aria-label="${label}" title="${label}">Весь день <span aria-hidden="true">${allExpanded?'▴':'▾'}</span></button>
+    ${ds.map(d=>{
+      const entries=(byDay.get(d)||[]).filter(e=>e.start.length===10);
+      return `<div class="ac-allday ${d===today()?'now':''}" data-all="${d}">${allExpanded
+        ? entries.map(e=>chip(e)).join('') + `<button class="ac-all-new" data-act="acNewDay" data-d="${d}" aria-label="Добавить на ${esc(fmt(d))}">${icon('plus')}</button>`
+        : `<button class="ac-day-count" data-act="acAllToggle" aria-label="${esc(fmt(d))}, дел на весь день: ${entries.length}. Развернуть">${entries.length}</button>`}</div>`;
+    }).join('')}</div>`;
 }
 function layoutTimed(items,d){
   const segments = items.filter(e=>e.start.length>10).map(e=>({e,
@@ -202,7 +214,6 @@ function layoutTimed(items,d){
   return groups.flatMap(g=>g.segments.map(s=>({...s,cols:g.lanes.length})));
 }
 function timeGrid(ds,byDay){
-  const now = new Date(), current = now.getHours()*hour+now.getMinutes();
   return `<div class="ac-time" style="--ac-days:${ds.length}">
     <div class="ac-sticky">
       <div class="ac-head"><span></span>${ds.map(d=>`<button data-act="acDay" data-d="${d}" class="${d===today()?'now':''}">
@@ -216,7 +227,7 @@ function timeGrid(ds,byDay){
           const travel=s.first ? Math.min(s.start,s.e.travel||0) : 0;
           return (travel ? `<span class="ac-travel" title="Время в пути" style="top:${(s.start-travel)/C.DAY*100}%;height:${travel/C.DAY*100}%"></span>`:'')+chip(s.e,pos,s);
         }).join('')}
-        ${d===today()?`<span class="ac-now" style="top:${current/C.DAY*100}%" aria-hidden="true"></span>`:''}
+
       </div>`).join('')}
     </div></div>`;
 }
@@ -236,15 +247,11 @@ function yearView(byDay){
     return `<section><button data-act="acMonth" data-d="${d}">${B.MONF[i]}</button>${monthGrid(d,byDay)}</section>`;
   }).join('')}</div>`;
 }
-function render(toggle){
+function render(){
   const [from,to]=ranges(), byDay=eachDay(itemsBetween(from,to),from,to), ds=days(from,diff(from,to)+1);
   const panel=shadPanel();
-  const title = mode==='year' ? date.slice(0,4)+' г.' : mode==='day' ? fmt(date)+' '+date.slice(0,4)+' г.' : monthTitle(date)+' г.';
+  const title = mode==='year' ? date.slice(0,4)+' г.' : mode==='day' ? fmt(date)+' '+date.slice(0,4)+' г.' : mode==='week' ? weekTitle(weekFrom||B.weekStart(date)) : monthTitle(date)+' г.';
   return `<div class="page planner ac" data-cal-mode="${mode}">
-    <header class="ac-top">${toggle}<div class="ac-top-tools">
-      <button class="icon-btn" data-act="plFull" aria-label="Полноэкранный календарь" aria-pressed="${!!B.plWide}">${icon(B.plWide?'shrink':'expand')}</button>
-      <button class="icon-btn" data-act="acSearch" aria-label="Поиск по календарю">${icon('search')}</button></div>
-    </header>
     <div class="ac-shell ${side?'with-side':''}">${side?sidebar(byDay):''}
       <div class="ac-main">
         <div class="ac-toolbar">
@@ -272,6 +279,12 @@ function change(d,m=mode,reset=false){
   if (reset){ scroll=null; scrollLeft=0; }
   savePrefs(); B.render(true);
 }
+B.acts.acAllToggle=()=>{
+  allExpanded=!allExpanded;
+  savePrefs();
+  B.render(true);
+  B.$('.ac-axis-label')?.focus({preventScroll:true});
+};
 B.acts.acSidebar=()=>{side=!side;savePrefs();B.render(true)};
 B.acts.acMode=el=>change(date,el.dataset.v,true);
 B.acts.acPick=el=>change(el.dataset.d,mode);
@@ -893,7 +906,7 @@ function mountWeekPan(root,sc){
     const next=cols[day].dataset.col;
     if(next!==(weekFrom||B.weekStart(date))){
       date=next;
-      heading.textContent=monthTitle(date)+' г.';
+      heading.textContent=weekTitle(next);
     }
     weekFrom=next;
     updateVisible(day);
@@ -910,6 +923,8 @@ function mountWeekPan(root,sc){
     },180);
   },{passive:true});
 }
+let stopClock;
+function unmount(){ stopClock?.(); stopClock=null; }
 function mount(){
   const root=B.$('.ac'), sc=root?.querySelector('.ac-scroll');
   if(!sc)return;
@@ -917,6 +932,7 @@ function mount(){
   weekResize?.disconnect(); weekResize=null;
   const axis=root.querySelector('.ac-axis');
   if(axis){
+    stopClock=B.mountCalendarClock(root);
     const workday=8*60;
     sc.scrollTop=scroll??Math.max(0,axis.offsetHeight*workday/C.DAY-20);
     if(mode==='week')mountWeekPan(root,sc); else sc.scrollLeft=scrollLeft;
@@ -957,7 +973,7 @@ function openReminder(id,on){
   editor(x,e);
   return true;
 }
-B.calendarView={render,mount,openReminder,deferRender(){
+B.calendarView={render,mount,unmount,itemsBetween,openReminder,deferRender(){
   if(!dragging&&!weekScrollTimer)return false;
   redrawAfterInteraction=true;
   return true;

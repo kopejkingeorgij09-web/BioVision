@@ -136,6 +136,20 @@ function weekCount(h, today){
   }
   return count;
 }
+let weekOffset = 0;
+B.acts.habitWeek = el => {
+  weekOffset = Math.min(0, weekOffset + Number(el.dataset.step));
+  B.render(true);
+};
+function weekMarks(h, today){
+  const monday = B.add(B.weekStart(today), 7 * weekOffset);
+  return `<span class="habit-week-marks">${B.WD.map((wd,i) => {
+    const day = B.add(monday,i);
+    const v = day <= today && day >= (h.created || '') ? B.habitVal(h, day) : 0;
+    const label = B.fmtW(day) + ' · ' + (v === .5 ? 'Минимум' : v ? 'Выполнено' : 'Без отметки');
+    return `<span class="${v ? 'set' : ''}" title="${label}" aria-label="${label}">${v === .5 ? '◐' : v ? '✓' : '·'}</span>`;
+  }).join('')}</span>`;
+}
 function todayRow(h, date, pins){
   const pinned = pins.includes(h.id);
   const value = B.habitVal(h, date), weekly = h.kind === 'weekly';
@@ -149,9 +163,10 @@ function todayRow(h, date, pins){
   const name = esc(h.name), manual = !h.auto || h.auto === 'cards';
   const state = value === 0.5 ? 'Минимум' : value ? 'Выполнено' : 'Без отметки';
   return `<div class="habit-line">
+<span class="habit-copy"><b>${name}</b><small>${detail.join(' · ')}</small></span>
+    ${weekMarks(h,date)}
     <button class="habit-mark" ${dayAct(h, date)} ${manual ? 'aria-pressed="' + !!value + '"' : ''} aria-label="${name}. ${state}. ${manual ? 'Изменить отметку' : 'Открыть запись'}">
       <span class="habit-box ${value ? 'is-done' : ''} ${value === 0.5 ? 'is-mini' : ''}">${value ? icon('check') : ''}</span>
-      <span class="habit-copy"><b>${name}</b><small>${detail.join(' · ')}</small></span>
     </button>
     <button class="habit-edit habit-pin" data-act="habitPin" data-id="${esc(h.id)}" aria-pressed="${pinned}" aria-label="Закрепить привычку «${name}»" title="${pinned ? 'Открепить' : 'Закрепить'}">${icon('star')}</button>
     <button class="habit-edit" data-act="habitEdit" data-id="${esc(h.id)}" aria-label="Изменить привычку «${name}»">${icon('pen')}</button>
@@ -171,12 +186,12 @@ function todayList(hs, today){
   const count = daily.length ? daily.filter(h => B.habitDone(h, today)).length
     : hs.filter(h => weekCount(h, today) >= (h.target || 3)).length;
   const total = daily.length || hs.length;
-  return `<section class="habit-overview" aria-label="Прогресс привычек">
-    <div><p>${daily.length ? B.fmtW(today) : 'На этой неделе'}</p>
-      <strong>${count}<small> / ${total}</small></strong>
-      <span>${daily.length ? 'ежедневных привычек отмечено' : 'недельных целей достигнуто'}</span></div>
-    ${B.bar(count / total)}
-  </section>
+  const monday = B.add(B.weekStart(today), weekOffset * 7);
+  return `<p class="habit-count">${count} из ${total} ${daily.length ? 'на сегодня' : 'недельных целей'}</p>
+  <div class="habit-week-nav">${icon('cal')}<b>${B.fmtS(monday)} – ${B.fmtS(B.add(monday,6))}</b>
+    <button class="icon-btn" data-act="habitWeek" data-step="-1" aria-label="Предыдущая неделя">${icon('left')}</button>
+    <button class="icon-btn" data-act="habitWeek" data-step="1" aria-label="Следующая неделя" ${weekOffset===0?'disabled':''}>${icon('right')}</button></div>
+  <div class="habit-line habit-labels" aria-hidden="true"><span></span><span class="habit-week-marks">${B.WD.map(w => `<span>${w}</span>`).join('')}</span><span>Сег.</span></div>
   <section class="habit-list" aria-label="Отметки за сегодня">${hs.map(h => todayRow(h, today, pins)).join('')}</section>`;
 }
 function habitHistory(hs){

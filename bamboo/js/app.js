@@ -73,6 +73,7 @@ B.render = force => {
   pending = false;
   const r = route(), key = r.v + '/' + r.arg, same = key === lastKey, y = scrollY;
   const view = B.views[r.v];
+  B.calendarView?.unmount();
   try { main.innerHTML = view.render(r.arg); }
   catch (e) { console.error(e); main.innerHTML = `<div class="page"><section class="card"><h2>Что-то сломалось</h2><pre>${esc(e.stack || e)}</pre></section></div>`; }
   if (view.mount) try { view.mount(r.arg); } catch (e) { console.error(e); }

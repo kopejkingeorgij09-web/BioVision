@@ -290,25 +290,40 @@ B.setShadOver = (n, patch) => {
   applyOver(); changed(); shadWrite(n, v);
 };
 let shadPlanJSON = '', shadPlanLoading = false;
+function showShadPlan(data){
+  if (!data || !Array.isArray(data.webs) || !data.webs.length || !data.courses ||
+      !data.webs.every(w => Number.isInteger(w?.n) && data.courses[w.course] && w.web?.date)) return;
+  const json = JSON.stringify(data);
+  if (json === shadPlanJSON) return;
+  usePlan(data);
+  shadPlanJSON = json;
+  try { localStorage.setItem(LS_SHADPLAN, json); } catch (_) {}
+}
 async function loadShadPlan(){
   if (shadPlanLoading) return;
   shadPlanLoading = true;
-  if (!shadPlanJSON){
-    try {
-      const saved = localStorage.getItem(LS_SHADPLAN);
-      if (saved){ usePlan(JSON.parse(saved)); shadPlanJSON = saved; }
-    } catch (e) {}
-  }
+  const bundled = ['appassets.androidplatform.net', '127.0.0.1:49191'].includes(location.host);
+  const localPlan = '../shad/plan.json?v=2';
   try {
-    const r = await fetch('../shad/plan.json?v=2', {cache: 'no-cache'});
-    if (!r.ok) return;
-    const data = await r.json(), json = JSON.stringify(data);
-    if (json !== shadPlanJSON){
-      usePlan(data);
-      shadPlanJSON = json;
-      localStorage.setItem(LS_SHADPLAN, json);
+    if (!shadPlanJSON){
+      try { showShadPlan(JSON.parse(localStorage.getItem(LS_SHADPLAN))); } catch (_) {}
     }
-  } catch (e) {} finally { shadPlanLoading = false; }
+    if (bundled && !shadPlanJSON){
+      try {
+        const local = await fetch(localPlan);
+        if (local.ok) showShadPlan(await local.json());
+      } catch (_) {}
+    }
+    const url = bundled ? 'https://kopejkingeorgij09-web.github.io/BioVision/shad/plan.json' : localPlan;
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 12000);
+    try {
+      const response = await fetch(url, {cache: 'no-store', credentials: 'omit', signal: abort.signal});
+      if (response.ok) showShadPlan(await response.json());
+    } finally { clearTimeout(timer); }
+  } catch (_) {
+    // Offline: keep the last plan successfully loaded on this device.
+  } finally { shadPlanLoading = false; }
 }
 function onShad(snap){
   const m = {};

@@ -5,13 +5,6 @@ const {esc, icon} = B;
 B.views = B.views || {};
 B.acts.reloadTeaching = () => B.refreshTeaching();
 
-function greet(){
-  const h = new Date().getHours();
-  if (h < 5) return 'Поздно. Разбор и спать';
-  if (h < 12) return 'Доброе утро';
-  if (h < 18) return 'Добрый день';
-  return 'Добрый вечер';
-}
 B.levelCard = (c, compact) => {
   const {next} = B.mileFor(c.level);
   return `<a class="lvl ${compact ? 'compact' : ''}" href="#/forest">
@@ -55,16 +48,12 @@ B.planPicker = date => B.dayList(date, {ph: 'Дело на завтра', empty:
 
 function dayCard(c, d){
   const late = B.tasks().filter(x => !x.done && x.due && x.due < c.today).length;
-  const today = c.today, cal = B.calData;
-  const now = B.ymd(new Date()) + 'T' + B.hm(Date.now());
-  const next = cal?.events().flatMap(e => cal.occurrences(e,today,today))
-    .filter(e => e.end > now && e.start.includes('T')).sort((a,b)=>a.start.localeCompare(b.start))[0];
+  const today = c.today;
   const study = B.shadOn(today);
   return `<section class="card plan">
     <div class="row between"><h2>${icon('list')}Дела на сегодня</h2>${late ? `<span class="tag late">${late} просрочено</span>` : ''}</div>
-    ${next ? `<a class="agenda-next" href="#/tasks/calendar"><small>${next.start <= now ? 'Сейчас' : 'Ближайшее занятие'}</small><b>${esc(next.start.slice(11,16))} · ${esc(next.title)}</b></a>` : ''}
     ${study.map(it=>B.shadRow(it,today)).join('')}
-    ${B.dayList(c.today,{empty: next || study.length ? 'Других дел пока нет.' : ''})}
+    ${B.dayList(c.today,{empty: study.length ? 'Других дел пока нет.' : ''})}
   </section>`;
 }
 
@@ -76,7 +65,7 @@ B.shadRow = (it, date) => {
     <div class="shad-top"><span class="cchip c-${p.c}">${esc(course.name || p.c)}</span><span class="mono">${it.kind === 'web' ? '' : 'ДЗ · '}${esc(p.code)}</span>${it.from ? `<span class="mono muted">${it.from}–${it.to}</span>` : `<span class="muted">${(it.kind === 'web' ? p.wp : p.hp) ? (it.kind === 'hw' ? 'до ' : '') + B.fmtS(it.kind === 'web' ? p.w.date : p.h.date) : 'неделя ' + B.fmtS(it.kind === 'web' ? p.wk : p.hk)}</span>`}</div>
     <button class="study-title" data-act="shadOpen" data-n="${p.n}">${esc(p.t)}</button>
     <div class="row between"><small>${B.SHAD_STAGES[s]}</small>
-    ${s === 2 ? `<a class="btn sm" href="../phagi/?shadHw=${p.n}">Открыть ДЗ на Фагах</a>` : s < 4 ? `<button class="btn sm" data-act="shadSet" data-n="${p.n}" data-s="${s+1}">${['Начать веб','Отметить просмотр','','Закрыть тему'][s]}</button>` : ''}</div>
+    ${s === 2 ? `<a class="btn sm" href="${esc(B.phagiLink({shadHw:p.n}))}">Открыть ДЗ на Фагах</a>` : s < 4 ? `<button class="btn sm" data-act="shadSet" data-n="${p.n}" data-s="${s+1}">${['Начать веб','Отметить просмотр','','Закрыть тему'][s]}</button>` : ''}</div>
   </div>`;
 };
 B.acts.shadSet = el => {
@@ -86,9 +75,12 @@ B.acts.shadSet = el => {
 function shadCard(c){
   const items = B.shadOn(c.today), late = B.shadLate().filter(x => !items.some(y => y.p.n === x.p.n));
   const free = B.shadWeek(B.weekStart(c.today)).filter(it => !it.old && B.shadStage(it.p.n) < it.need).length;
-  if (!late.length && !free) return '';
-  return `<section class="card">
-    <div class="row between"><h2>${icon('chart')}ШАД</h2><a class="muted" href="../shad/">трекер →</a></div>
+  const webs = B.shadWeekAll(B.weekStart(c.today)).filter(it => it.kind === 'web');
+  if (!webs.length && !late.length && !free) return '';
+  const done = webs.filter(it => B.shadStage(it.p.n) >= it.need).length;
+  return `<section class="card shad-summary">
+    <div class="row between"><h2>ШАД</h2><a href="#/tasks/shad">План ШАД →</a></div>
+    ${webs.length ? `<div class="row between"><span>Вебинары недели</span><b>${done} из ${webs.length}</b></div>${B.bar(done/webs.length)}` : ''}
 
     ${free ? `<button class="shad-free btn" data-act="openWeekPool">На этой неделе без дня: ${free}. Расставь в планере →</button>` : ''}
     ${late.length ? `<details><summary>Хвосты ШАД · ${late.length}</summary>${late.map(it => B.shadRow(it, '0')).join('')}</details>` : ''}
@@ -236,6 +228,51 @@ function weekCard(c){
   return html;
 }
 
+function focusCard(today, day){
+  const crown = (day.top || []).map(B.task).find(t => t && !t.deleted && !t.done);
+  const study = B.shadOn(today).filter(it => B.shadStage(it.p.n) < it.need);
+  const task = crown || B.tasks().filter(t => !t.done && t.due === today)
+    .sort((a,b) => (a.pri || 4) - (b.pri || 4))[0];
+  const item = study.find(it => it.kind === 'hw') || study[0];
+  let title, detail, button;
+  if (crown || (task && !item)){
+    title = task.title;
+    detail = [B.proj(task.proj)?.name, task.time, task.est ? B.mins(task.est) : ''].filter(Boolean).join(' · ');
+    button = `<button data-act="openTask" data-id="${esc(task.id)}">Открыть дело</button>`;
+  } else if (item){
+    title = item.p.t;
+    detail = [item.kind === 'hw' ? 'Домашняя работа' : 'Вебинар', B.shad.courses[item.p.c]?.name].filter(Boolean).join(' · ');
+    button = item.kind === 'hw'
+      ? `<a href="${esc(B.phagiLink({shadHw:item.p.n,backDay:today}))}">Открыть домашку</a>`
+      : `<button data-act="shadOpen" data-n="${item.p.n}">Открыть вебинар</button>`;
+  } else {
+    return '';
+  }
+  return `<section class="day-focus"><small>Главное дело</small><h2>${esc(title)}</h2>
+    ${detail ? `<p>${esc(detail)}</p>` : ''}<div>${button}</div></section>`;
+}
+function dayAgenda(today){
+  const rows = (B.calendarView?.itemsBetween(today,today) || []).filter(e => e.start.includes('T'));
+  return `<section class="card day-agenda"><div class="row between"><h2>Расписание</h2>
+    <button class="agenda-link" data-act="todayCalendar" data-d="${today}">В календарь ${icon('right')}</button></div>
+    ${rows.map(e => `<button class="agenda-line" data-act="acOpen" data-k="${e.kind}" data-id="${esc(e.id)}"
+      data-on="${e.on}" data-start="${e.start}" data-end="${e.end}" data-part="${e.part || ''}">
+      <time>${e.start < today ? '00:00' : e.start.slice(11,16)}</time>${icon(e.kind === 'shad' ? 'book' : 'cal')}
+      <span><b>${esc(e.title)}</b>${e.location || e.course ? `<small>${esc(e.location || e.course)}</small>` : ''}</span></button>`).join('')
+      || '<p class="empty sm">На сегодня событий со временем нет.</p>'}</section>`;
+}
+B.acts.todayCalendar = el => {
+  location.hash = '#/tasks/calendar';
+  B.acts.acDay(el);
+};
+function weekStrip(today){
+  const start = B.weekStart(today);
+  return `<nav class="day-week" aria-label="Дни недели">${B.WD.map((wd,i) => {
+    const day = B.add(start,i);
+    return `<button data-act="todayCalendar" data-d="${day}" aria-label="${B.fmtW(day)}" ${day===today?'aria-current="date"':''}>
+      <small>${wd}</small><b>${B.parse(day).getDate()}</b></button>`;
+  }).join('')}</nav>`;
+}
 B.views.today = {
   title: 'Сегодня',
   render(){
@@ -243,14 +280,17 @@ B.views.today = {
     const date = B.parse(c.today), r = c.days[c.today] || {};
     return `<div class="page today">
       <header class="page-h today-h">
-        <div><div class="eyebrow">${B.WDF[B.wd(c.today)]}, ${date.getDate()} ${B.MONG[date.getMonth()]}</div><h1>${greet()}</h1></div>
+        <div><h1>Сегодня</h1><p class="day-date">${B.WDF[B.wd(c.today)]}, ${date.getDate()} ${B.MONG[date.getMonth()]}</p></div>
         <a class="today-stat" href="#/forest" title="Уровень, серия разборов и опыт за сегодня">
           <span>${icon('tree')}<b>${c.level}</b> ур.</span><span>${icon('flame')}<b>${c.live}</b></span><span><b>${r.xp > 0 ? '+' : ''}${r.xp || 0}</b> XP</span>
         </a>
       </header>
+      ${weekStrip(c.today)}
       ${weekCard(c)}
       <div class="cols">
         <div class="col">
+          ${focusCard(c.today, d)}
+          ${dayAgenda(c.today)}
           ${dayCard(c, d)}
           ${new Date().getHours() >= 19 || new Date().getHours() < 4 ? reviewCard(c,d) : ''}
           ${B.alberts?.card() || ''}

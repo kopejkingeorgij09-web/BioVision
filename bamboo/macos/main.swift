@@ -52,6 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         configuration.userContentController.addUserScript(WKUserScript(source: "window.ZovDesktop={postMessage:function(x){window.webkit.messageHandlers.nativeUpdate.postMessage(x)}};", injectionTime: .atDocumentStart, forMainFrameOnly: true))
         web = WKWebView(frame: .zero, configuration: configuration)
         web.navigationDelegate = self;web.uiDelegate=self
+        NSWorkspace.shared.notificationCenter.addObserver(self, selector:#selector(clockDidWake(_:)), name:NSWorkspace.didWakeNotification, object:nil)
         window = NSWindow(contentRect: NSRect(x:0,y:0,width:1180,height:820), styleMask:[.titled,.closable,.miniaturizable,.resizable], backing:.buffered,defer:false)
         window.title = "Зов леса"; window.minSize = NSSize(width:420,height:600); window.contentView = web; window.center(); window.makeKeyAndOrderFront(nil)
         let menu=NSMenu(),app=NSMenu(),item=NSMenuItem();item.submenu=app;menu.addItem(item)
@@ -65,21 +66,78 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         do { try server.start { [weak self] url in self?.web.load(URLRequest(url:url)) } }
         catch { status("error","Не удалось запустить локальный интерфейс: \(error.localizedDescription)") }
     }
+    private func refreshClock() {
+        web?.evaluateJavaScript("window.dispatchEvent(new Event('zov-clock-resume'));true",completionHandler:nil)
+    }
+    @objc func clockDidWake(_ notification:Notification){ refreshClock() }
+    func applicationDidBecomeActive(_ notification:Notification){ refreshClock() }
     private var attempts=0
     func webView(_ webView:WKWebView,didFinish navigation:WKNavigation!){
         if ProcessInfo.processInfo.arguments.contains("--self-test"){self.testUI()}
     }
     func testUI(){
         attempts+=1
-        web.evaluateJavaScript("!!window.B?.alberts?.book && window.B.shad.plan.length===102"){value,error in
+        web.evaluateJavaScript("!!window.B?.alberts?.book && window.B.shad.plan.length > 0 && window.B.shad.plan.every(p => Number.isInteger(p.n) && p.w.date && p.h.date)"){value,error in
             if value as? Bool != true {if self.attempts<80{DispatchQueue.main.asyncAfter(deadline:.now()+0.25){self.testUI()}}else{fputs("FAIL: bundled Mac UI did not load\n",stderr);exit(1)};return}
             self.web.evaluateJavaScript("B.put('study_alberts',AlbertsPlan.log(B.alberts.book,B.alberts.state(),35,B.today()));location.hash='#/tasks/alberts';B.render(true);JSON.stringify({pages:B.alberts.pagesOn(B.today()),habit:B.habitDone(B.get('h_read'),B.today()),title:document.querySelector('.alberts-hero h2')?.textContent,updates:!!B.nativeUpdates})"){value,error in
                 guard error==nil,let text=value as? String,text.contains("\"pages\":18"),text.contains("\"habit\":true"),text.contains("\"updates\":true") else{fputs("FAIL: Mac reading/update bridge \(String(describing:value)) \(String(describing:error))\n",stderr);exit(1)}
+                self.testCalendarLayout()
+            }
+        }
+    }
+    private func testCalendarLayout() {
+        let checks = #"""
+        (() => {
+          const $ = s => document.querySelector(s);
+          const check = (ok, why) => { if (!ok) throw Error(why); };
+          const date=B.today();
+          B.put('e_docktest',{id:'docktest',title:'Проверка календаря',start:date,end:B.add(date,1)});
+          location.hash='#/tasks/calendar'; B.render(true);
+          B.acts.acMode({dataset:{v:'week'}});
+          const cell = () => $('[data-all="'+date+'"]');
+          const line=$('.ac-col[data-col="'+date+'"] .ac-now');
+          if(date===B.ymd(new Date())){
+            check(!!line,'current-day clock');
+            const now=new Date(), seconds=now.getHours()*3600+now.getMinutes()*60+now.getSeconds();
+            line.style.top='0%';
+            window.dispatchEvent(new Event('zov-clock-resume'));
+            check(Math.abs(parseFloat(line.style.top)*864-seconds)<2,'clock after wake');
+          }
+          const count = +cell().querySelector('.ac-day-count').textContent;
+          check(count>=1 && !cell().querySelector('.ac-item'),'compact count');
+          $('.ac-axis-label').click();
+          check(cell().querySelectorAll('.ac-item').length===count,'expanded items');
+          $('.ac-axis-label').click();
+          check(+cell().querySelector('.ac-day-count').textContent===count,'collapse');
+          check($('.ac-heading h1').textContent.includes('–'),'week dates');
+          function drag(x,y) {
+            const h=$('.dock-handle'), r=h.getBoundingClientRect();
+            for(const [type,cx,cy] of [['pointerdown',r.x+8,r.y+8],['pointermove',x,y],['pointerup',x,y]]){
+              h.dispatchEvent(new PointerEvent(type,{bubbles:true,pointerId:9,isPrimary:true,button:0,clientX:cx,clientY:cy}));
+            }
+          }
+          const frame=()=>$('.planner-frame'), box=()=>frame().getBoundingClientRect();
+          drag(box().left+4,box().top+160);
+          check(frame().dataset.dock==='left' && $('.planner-nav').getBoundingClientRect().right <= $('.page.ac').getBoundingClientRect().left+1,'left rail');
+          check($('.planner-nav .pl-views').children.length===5 && $('.planner-nav [data-act="acSearch"]'),'controls');
+          drag(box().left+200,box().top+5);
+          check(frame().dataset.dock==='top','top dock');
+          $('.dock-handle').click();
+          check(JSON.parse(localStorage.getItem('bamboo-planner')).dock==='left','saved position');
+          $('.planner-nav [data-act="plFull"]').click(); check(B.plWide,'hide menu');
+          $('.planner-nav [data-act="plFull"]').click();
+          $('.planner-nav [data-act="acSearch"]').click(); check(B.sheetOpen(),'calendar search');
+          B.closeSheet();
+          return true;
+        })()
+        """#
+        web.evaluateJavaScript(checks){ value,error in
+            guard value as? Bool == true else {fputs("FAIL: calendar layout \(String(describing:error))\n",stderr);exit(1)}
+            print("PASS: WKWebView, all-day counts, expand and collapse, dock drag in both directions, search, sidebar and stored position")
                 DispatchQueue.main.asyncAfter(deadline:.now()+0.5){self.web.takeSnapshot(with:nil){image,error in
                     if let image=image,let tiff=image.tiffRepresentation,let bitmap=NSBitmapImageRep(data:tiff),let png=bitmap.representation(using:.png,properties:[:]){try? png.write(to:URL(fileURLWithPath:NSTemporaryDirectory()+"Zov-Lesa-macOS-preview.png"))}
                     print("PASS: native macOS WKWebView, bundled assets, Alberts reading log, Molbio habit, update bridge");exit(0)
                 }}
-            }
         }
     }
     private var quitting=false

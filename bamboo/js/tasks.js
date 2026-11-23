@@ -233,20 +233,18 @@ function monthWeekCell(ws, withShad, cur){
   </div>`;
 }
 
-const viewToggle = () => `<div class="toggle pl-views">${[['week', 'week', 'Неделя'], ['month', 'grid', 'Месяц'], ['shad', 'chart', 'ШАД'], ['alberts', 'book', 'Альбертс'], ['calendar', 'cal', 'Календарь']].map(([v, ic, l]) => `<button class="${S.view === v ? 'on' : ''}" data-act="plView" data-v="${v}" title="${v === 'shad' ? 'Темы и расписание ШАДа' : l}">${icon(ic)}<span>${l}</span></button>`).join('')}</div>`;
+const viewToggle = () => `<div class="toggle pl-views">${[['week', 'week', 'Неделя'], ['month', 'grid', 'Месяц'], ['shad', 'chart', 'ШАД'], ['alberts', 'book', 'Альбертс'], ['calendar', 'cal', 'Календарь']].map(([v, ic, l]) => `<button class="${S.view === v ? 'on' : ''}" data-act="plView" data-v="${v}" aria-label="${l}" aria-pressed="${S.view===v}" title="${v === 'shad' ? 'Темы и расписание ШАДа' : l}">${icon(ic)}<span>${l}</span></button>`).join('')}</div>`;
 function calName(){ if (S.cal === 'all') return 'Все календари'; const p = B.proj(S.cal); return p ? p.name : 'Все календари'; }
 
-B.views.tasks = {
-  title: 'Задачи',
-  render(arg){
+function plannerContent(arg){
     if (arg === 'alberts' || arg === 'shad' || arg === 'plan' || arg === 'week' || arg === 'month' || arg === 'calendar'){ S.view = arg === 'plan' ? 'shad' : arg; saveS(); }
     else if (arg && B.proj(arg)){ S.cal = arg; saveS(); }
     if (S.cal !== 'all' && !B.proj(S.cal)){ S.cal = 'all'; saveS(); }
-    if (S.view === 'calendar') return B.calendarView.render(viewToggle());
-    if (S.view === 'alberts') return `<div class="page planner is-alberts"><header class="pl-h"><h1>Трек Альбертса</h1><div class="pl-tools">${viewToggle()}</div></header>${B.alberts.view()}</div>`;
+    if (S.view === 'calendar') return B.calendarView.render();
+    if (S.view === 'alberts') return `<div class="page planner is-alberts"><header class="pl-h"><h1>Трек Альбертса</h1></header>${B.alberts.view()}</div>`;
     const month = S.view === 'month', t = B.today();
     if (S.view === 'shad') return `<div class="page planner is-shad">
-      <header class="pl-h"><h1>План ШАДа</h1><div class="pl-tools">${viewToggle()}</div></header>
+      <header class="pl-h"><h1>План ШАДа</h1></header>
       ${B.shadPlanView ? B.shadPlanView() : ''}
     </div>`;
     if (month && anchor && anchor.slice(8) !== '01') anchor = anchor.slice(0, 8) + '01';
@@ -259,10 +257,7 @@ B.views.tasks = {
         <h1>${B.MONF[ref.getMonth()]} ${ref.getFullYear()}${month ? '' : ` <span class="pl-wn">№${isoWeek(B.add(anchor || B.weekStart(t), 3))}</span>`}</h1>
         <div class="pl-tools">
           <button class="pl-cal" data-act="plCals">${p ? `<i class="pdot c-${p.color || 'ink'}"></i>` : icon('cal')}<span>${esc(calName())}</span>${icon('down')}</button>
-          ${viewToggle()}
           <div class="pl-fs" role="group" aria-label="Размер текста"><button data-act="plFs" data-k="-1" title="Текст мельче" ${fsI === 0 ? 'disabled' : ''}>A</button><button data-act="plFs" data-k="1" title="Текст крупнее" ${fsI === FS.length - 1 ? 'disabled' : ''}>A</button></div>
-          <a class="icon-btn" href="#/search" title="Поиск" aria-label="Поиск">${icon('search')}</a>
-          <button class="icon-btn pl-full ${B.plWide ? 'on' : ''}" data-act="plFull" title="${B.plWide ? 'Показать меню (⌥⇧)' : 'Во весь экран: спрятать меню (⌥⇧)'}" aria-label="${B.plWide ? 'Показать меню' : 'Во весь экран'}" aria-pressed="${B.plWide}">${icon(B.plWide ? 'shrink' : 'expand')}</button>
           ${isNow ? '' : `<button class="btn sm ghost" data-act="plToday">Сегодня</button>`}
           <button class="icon-btn dark" data-act="plShift" data-k="-1" aria-label="Назад">${icon('left')}</button>
           <button class="icon-btn dark" data-act="plShift" data-k="1" aria-label="Вперёд">${icon('right')}</button>
@@ -270,8 +265,69 @@ B.views.tasks = {
       </header>
       ${month ? monthView() : weekView()}
     </div>`;
+}
+
+function plannerNav(){
+  const menuLabel = B.plWide ? 'Показать боковое меню' : 'Скрыть боковое меню';
+  const dockLabel = S.dock === 'left' ? 'Переместить панель наверх' : 'Переместить панель влево';
+  return `<nav class="planner-nav" aria-label="Разделы планера">
+    <button class="icon-btn dock-handle" type="button" title="${dockLabel}. Можно перетащить" aria-label="${dockLabel}"><span aria-hidden="true">⠿</span></button>
+    ${viewToggle()}
+    <div class="dock-tools"><button class="icon-btn pl-full" data-act="plFull" title="${menuLabel}" aria-label="${menuLabel}" aria-pressed="${!!B.plWide}">${icon(B.plWide?'shrink':'expand')}</button>
+    ${S.view==='calendar' ? `<button class="icon-btn" data-act="acSearch" title="Поиск по календарю" aria-label="Поиск по календарю">${icon('search')}</button>` : `<a class="icon-btn" href="#/search" title="Поиск" aria-label="Поиск">${icon('search')}</a>`}</div></nav>`;
+}
+
+function mountDock(){
+  const frame=B.$('.planner-frame'), handle=frame.querySelector('.dock-handle');
+  let drag=null, suppressClick=false;
+  function dock(position){
+    S.dock=position;saveS();B.render(true);B.$('.dock-handle')?.focus({preventScroll:true});
+  }
+  function target(e){
+    const r=frame.getBoundingClientRect();
+    const x=e.clientX-r.left, y=e.clientY-Math.max(0,r.top);
+    if(x<=88 && (y>65 || x<y))return 'left';
+    if(y<=80)return 'top';
+    return '';
+  }
+  handle.addEventListener('pointerdown',e=>{
+    if(!e.isPrimary||e.button!==0)return;
+    suppressClick=false;
+    drag={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false};
+    if(e.isTrusted)handle.setPointerCapture(e.pointerId);
+  });
+  handle.addEventListener('pointermove',e=>{
+    if(!drag||drag.id!==e.pointerId)return;
+    if(Math.hypot(e.clientX-drag.x,e.clientY-drag.y)>5)drag.moved=true;
+    if(drag.moved)frame.dataset.drop=target(e);
+  });
+  handle.addEventListener('pointerup',e=>{
+    if(!drag||drag.id!==e.pointerId)return;
+    const moved=drag.moved;
+    drag=null;delete frame.dataset.drop;
+    if(moved){
+      suppressClick=true;
+      const dest=target(e);
+      if(dest && dest!==frame.dataset.dock)dock(dest);
+    }
+  });
+  handle.addEventListener('lostpointercapture',()=>{drag=null;delete frame.dataset.drop;});
+  handle.addEventListener('pointercancel',()=>{drag=null;delete frame.dataset.drop;});
+  handle.addEventListener('click',e=>{
+    if(e.detail && suppressClick){suppressClick=false;return;}
+    dock(S.dock==='left'?'top':'left');
+  });
+}
+
+B.views.tasks = {
+  title:'Задачи',
+  render(arg){
+    const content=plannerContent(arg);
+    return `<div class="planner-frame" data-dock="${S.dock==='left'?'left':'top'}">${plannerNav()}${content}</div>`;
   },
   mount(){
+    mountDock();
+
     if (S.view === 'calendar') return B.calendarView.mount();
     const inp = B.$('.pl-in');
     if (inp){

@@ -254,7 +254,7 @@
 }
 .ac-item[data-k=shad] .ac-shad-meta { font-size:10px }
 .ac-item.timed[data-k=shad] .ac-title {
-  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
   white-space:normal;overflow-wrap:anywhere;
 }
 .ac-shad-editor { display:grid;gap:14px;min-width:0 }
@@ -285,3 +285,43 @@
   .ac-shad-card { flex-basis:min(210px,78%) }
   .ac-shad-editor input { font-size:16px }
 }
+
+/* Перемещаемая навигация планера */
+.planner-frame{position:relative;min-width:0}
+.planner-nav{display:flex;gap:6px;align-items:center;margin:0 auto;padding:10px 16px 0;max-width:1500px}
+.planner-nav button,.planner-nav a{flex-shrink:0}
+.planner-frame>.page{min-width:0}
+.dock-tools{margin-left:auto;display:flex;align-items:center;gap:3px}
+.dock-handle{touch-action:none;cursor:grab;font-size:23px;user-select:none;-webkit-user-select:none}
+.dock-handle:active{cursor:grabbing}
+.planner-frame[data-drop=left]::after,.planner-frame[data-drop=top]::after{content:"";position:absolute;z-index:20;pointer-events:none;background:var(--accent);border-radius:9px}
+.planner-frame[data-drop=left]::after{inset:5px auto 5px 1px;width:5px}
+.planner-frame[data-drop=top]::after{inset:1px 5px auto;height:5px}
+.planner-frame[data-dock=left]{display:grid;grid-template-columns:48px minmax(0,1fr);align-items:start}
+.planner-frame[data-dock=left]>.page{width:100%;padding-left:8px;padding-top:8px}
+.planner-frame[data-dock=left] .planner-nav{position:sticky;top:8px;max-height:calc(100dvh - 20px);overflow:auto;scrollbar-width:thin;flex-direction:column;gap:5px;padding:4px;margin:6px 0 0 3px;border:1px solid var(--rule);border-radius:12px;background:var(--sheet)}
+.planner-frame[data-dock=left] :is(.pl-views,.dock-tools){flex-direction:column;flex-wrap:nowrap;margin:0}
+.planner-frame[data-dock=left] .pl-views{border:0;padding:0;background:transparent}
+.planner-frame[data-dock=left] .planner-nav .pl-views button span{display:none}
+.planner-frame[data-dock=left] .planner-nav :is(button,a){width:34px;min-width:34px;height:34px;padding:0;display:flex;align-items:center;justify-content:center}
+.planner-frame[data-dock=left] .planner-nav .pl-views .ic{display:block}
+@media(min-width:960px){
+  .planner-frame[data-dock=left] .ac-scroll{max-height:calc(100dvh - 128px)}
+  .planner-nav{padding-inline:24px}
+}
+@media(max-width:699px){
+  .planner-nav{padding:6px 8px 0;gap:3px}
+  .planner-nav .pl-views{flex-wrap:nowrap}
+  .planner-nav .pl-views button span{display:none}
+  .planner-nav .pl-views button{min-height:32px;padding-inline:7px}
+  .planner-nav .pl-views button.on span{display:inline}
+  .planner-frame[data-dock=left] .planner-nav{top:56px}
+}
+@media(max-width:959px){.planner-nav .pl-full{display:none!important}}
+.ac-all .ac-axis-label{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;line-height:1.2;font-weight:650;padding:3px 1px;color:var(--ac-muted)}
+.ac-axis-label span{font-size:11px}
+.ac-all.compact .ac-allday{display:grid;min-height:30px;padding:0}
+.ac-day-count{width:100%;min-height:30px;font-size:12px;font-variant-numeric:tabular-nums}
+.ac-day-count:hover,.ac-axis-label:hover{background:var(--ac-control)}
+.ac-open .ac-title{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal;overflow-wrap:anywhere;flex-shrink:0}
+.ac-month .ac-title{-webkit-line-clamp:1}

@@ -214,7 +214,6 @@ function layoutTimed(items,d){
   return groups.flatMap(g=>g.segments.map(s=>({...s,cols:g.lanes.length})));
 }
 function timeGrid(ds,byDay){
-  const now = new Date(), current = now.getHours()*hour+now.getMinutes();
   return `<div class="ac-time" style="--ac-days:${ds.length}">
     <div class="ac-sticky">
       <div class="ac-head"><span></span>${ds.map(d=>`<button data-act="acDay" data-d="${d}" class="${d===today()?'now':''}">
@@ -228,7 +227,7 @@ function timeGrid(ds,byDay){
           const travel=s.first ? Math.min(s.start,s.e.travel||0) : 0;
           return (travel ? `<span class="ac-travel" title="Время в пути" style="top:${(s.start-travel)/C.DAY*100}%;height:${travel/C.DAY*100}%"></span>`:'')+chip(s.e,pos,s);
         }).join('')}
-        ${d===today()?`<span class="ac-now" style="top:${current/C.DAY*100}%" aria-hidden="true"></span>`:''}
+
       </div>`).join('')}
     </div></div>`;
 }
@@ -924,6 +923,8 @@ function mountWeekPan(root,sc){
     },180);
   },{passive:true});
 }
+let stopClock;
+function unmount(){ stopClock?.(); stopClock=null; }
 function mount(){
   const root=B.$('.ac'), sc=root?.querySelector('.ac-scroll');
   if(!sc)return;
@@ -931,6 +932,7 @@ function mount(){
   weekResize?.disconnect(); weekResize=null;
   const axis=root.querySelector('.ac-axis');
   if(axis){
+    stopClock=B.mountCalendarClock(root);
     const workday=8*60;
     sc.scrollTop=scroll??Math.max(0,axis.offsetHeight*workday/C.DAY-20);
     if(mode==='week')mountWeekPan(root,sc); else sc.scrollLeft=scrollLeft;
@@ -971,7 +973,7 @@ function openReminder(id,on){
   editor(x,e);
   return true;
 }
-B.calendarView={render,mount,itemsBetween,openReminder,deferRender(){
+B.calendarView={render,mount,unmount,itemsBetween,openReminder,deferRender(){
   if(!dragging&&!weekScrollTimer)return false;
   redrawAfterInteraction=true;
   return true;

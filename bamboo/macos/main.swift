@@ -52,6 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         configuration.userContentController.addUserScript(WKUserScript(source: "window.ZovDesktop={postMessage:function(x){window.webkit.messageHandlers.nativeUpdate.postMessage(x)}};", injectionTime: .atDocumentStart, forMainFrameOnly: true))
         web = WKWebView(frame: .zero, configuration: configuration)
         web.navigationDelegate = self;web.uiDelegate=self
+        NSWorkspace.shared.notificationCenter.addObserver(self, selector:#selector(clockDidWake(_:)), name:NSWorkspace.didWakeNotification, object:nil)
         window = NSWindow(contentRect: NSRect(x:0,y:0,width:1180,height:820), styleMask:[.titled,.closable,.miniaturizable,.resizable], backing:.buffered,defer:false)
         window.title = "Зов леса"; window.minSize = NSSize(width:420,height:600); window.contentView = web; window.center(); window.makeKeyAndOrderFront(nil)
         let menu=NSMenu(),app=NSMenu(),item=NSMenuItem();item.submenu=app;menu.addItem(item)
@@ -65,6 +66,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         do { try server.start { [weak self] url in self?.web.load(URLRequest(url:url)) } }
         catch { status("error","Не удалось запустить локальный интерфейс: \(error.localizedDescription)") }
     }
+    private func refreshClock() {
+        web?.evaluateJavaScript("window.dispatchEvent(new Event('zov-clock-resume'));true",completionHandler:nil)
+    }
+    @objc func clockDidWake(_ notification:Notification){ refreshClock() }
+    func applicationDidBecomeActive(_ notification:Notification){ refreshClock() }
     private var attempts=0
     func webView(_ webView:WKWebView,didFinish navigation:WKNavigation!){
         if ProcessInfo.processInfo.arguments.contains("--self-test"){self.testUI()}
@@ -89,6 +95,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
           location.hash='#/tasks/calendar'; B.render(true);
           B.acts.acMode({dataset:{v:'week'}});
           const cell = () => $('[data-all="'+date+'"]');
+          const line=$('.ac-col[data-col="'+date+'"] .ac-now');
+          if(date===B.ymd(new Date())){
+            check(!!line,'current-day clock');
+            const now=new Date(), seconds=now.getHours()*3600+now.getMinutes()*60+now.getSeconds();
+            line.style.top='0%';
+            window.dispatchEvent(new Event('zov-clock-resume'));
+            check(Math.abs(parseFloat(line.style.top)*864-seconds)<2,'clock after wake');
+          }
           const count = +cell().querySelector('.ac-day-count').textContent;
           check(count>=1 && !cell().querySelector('.ac-item'),'compact count');
           $('.ac-axis-label').click();

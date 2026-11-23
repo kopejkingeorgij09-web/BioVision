@@ -245,7 +245,7 @@ B.taskRow = (t, o = {}) => {
       ${subs.length && o.bar !== false ? B.bar(sd / subs.length, 'thin') : ''}
     </button>
     ${!t.done && o.flag !== false ? `<button class="icon-btn sm flag p${t.pri || 4}" data-act="prio" data-id="${t.id}" title="Важность: ${PRI[t.pri || 4]}. Нажми, чтобы поменять" aria-label="Важность">${icon('flag')}</button>` : ''}
-    ${o.crownDate && (!t.done || crowned) ? `<button class="icon-btn sm crown ${crowned ? 'on' : ''}" data-act="crown" data-d="${o.crownDate}" data-id="${t.id}" title="${crowned ? 'Снять корону' : 'Сделать главным делом дня'}" aria-label="Главное">${icon('crown')}</button>` : ''}
+    ${o.crownDate && (!t.done || crowned) ? `<button class="icon-btn sm crown ${crowned ? 'on' : ''}" data-act="crown" data-d="${o.crownDate}" data-id="${t.id}" title="${crowned ? 'Снять корону' : 'Сделать главным делом дня'}" aria-pressed="${Boolean(crowned)}" aria-label="${crowned ? 'Снять корону' : 'Сделать главным'} · ${esc(t.title)}">${icon('crown')}</button>` : ''}
     ${late && o.postpone !== false ? `<button class="icon-btn" data-act="postpone" data-id="${t.id}" title="Перенести с причиной">${icon('later')}</button>` : ''}
   </div>`;
 };

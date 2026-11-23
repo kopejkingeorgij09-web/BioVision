@@ -18,8 +18,8 @@ B.levelCard = (c, compact) => {
   </a>`;
 };
 
-/* редактор плана на любой день: до трёх главных дел и «если-то» к каждому (когда и где) */
-/* список дел на день с коронами: коронованные (главные, до трёх) наверху, остальные ниже, по важности.
+/* редактор плана на любой день: главное дело и «если-то» к каждому (когда и где) */
+/* список дел на день с коронами: коронованные (главные) наверху, остальные ниже, по важности.
    Используется на «Сегодня» и в вечернем разборе для завтрашнего дня. */
 let qCrown = false, qPri = 4;
 B.dayList = (date, opts = {}) => {
@@ -62,7 +62,7 @@ B.shadRow = (it, date) => {
   const p = it.p, s = B.shadStage(p.n), course = B.shad.courses[p.c] || {};
   const ok = s >= it.need, late = !ok && date < B.today();
   return `<div class="shad-row ${ok ? 'ok' : ''} ${late ? 'late' : ''}">
-    <div class="shad-top"><span class="cchip c-${p.c}">${esc(course.name || p.c)}</span><span class="mono">${it.kind === 'web' ? '' : 'ДЗ · '}${esc(p.code)}</span>${it.from ? `<span class="mono muted">${it.from}–${it.to}</span>` : `<span class="muted">${(it.kind === 'web' ? p.wp : p.hp) ? (it.kind === 'hw' ? 'до ' : '') + B.fmtS(it.kind === 'web' ? p.w.date : p.h.date) : 'неделя ' + B.fmtS(it.kind === 'web' ? p.wk : p.hk)}</span>`}</div>
+    <div class="shad-top"><span class="cchip c-${p.c}">${esc(course.name || p.c)}</span><span class="mono">${it.kind === 'web' ? '' : 'ДЗ · '}${esc(p.code)}</span>${it.from ? `<span class="mono muted">${it.from}–${it.to}</span>` : `<span class="muted">${(it.kind === 'web' ? p.wp : p.hp) ? (it.kind === 'hw' ? 'до ' : '') + B.fmtS(it.kind === 'web' ? p.w.date : p.h.date) : 'неделя ' + B.fmtS(it.kind === 'web' ? p.wk : p.hk)}</span>`}${date===B.today()&&!ok?crownButton(date,'shad:'+it.kind+':'+p.n,p.t):''}</div>
     <button class="study-title" data-act="shadOpen" data-n="${p.n}">${esc(p.t)}</button>
     <div class="row between"><small>${B.SHAD_STAGES[s]}</small>
     ${s === 2 ? `<a class="btn sm" href="${esc(B.phagiLink({shadHw:p.n}))}">Открыть ДЗ на Фагах</a>` : s < 4 ? `<button class="btn sm" data-act="shadSet" data-n="${p.n}" data-s="${s+1}">${['Начать веб','Отметить просмотр','','Закрыть тему'][s]}</button>` : ''}</div>
@@ -228,37 +228,55 @@ function weekCard(c){
   return html;
 }
 
-function focusCard(today, day){
+function agendaKey(e){
+  return e.kind==='shad' ? 'shad:'+e.part+':'+e.id : e.kind+':'+e.id;
+}
+function crownButton(date,key,label){
+  const day=B.day(date), task=key.startsWith('task:'), id=task?key.slice(5):key;
+  const on=task?(day.top||[]).includes(id):day.focus===key;
+  const title=(on?'Снять корону':'Сделать главным')+' · '+label;
+  return `<button class="icon-btn sm crown ${on?'on':''}" data-act="${task?'crown':'crownItem'}" data-d="${date}" data-id="${esc(id)}" aria-pressed="${on}" aria-label="${esc(title)}" title="${esc(title)}">${icon('crown')}</button>`;
+}
+B.acts.crownItem=el=>B.editDay(el.dataset.d,d=>{
+  d.focus=d.focus===el.dataset.id?'':el.dataset.id;
+  d.top=[];
+});
+function agendaAttrs(e){
+  return `data-act="acOpen" data-k="${e.kind}" data-id="${esc(e.id)}" data-on="${e.on}" data-start="${e.start}" data-end="${e.end}" data-part="${e.part || ''}"`;
+}
+function focusCard(today, day, rows){
   const crown = (day.top || []).map(B.task).find(t => t && !t.deleted && !t.done);
   const study = B.shadOn(today).filter(it => B.shadStage(it.p.n) < it.need);
-  const task = crown || B.tasks().filter(t => !t.done && t.due === today)
-    .sort((a,b) => (a.pri || 4) - (b.pri || 4))[0];
-  const item = study.find(it => it.kind === 'hw') || study[0];
+  const chosen = study.find(it => day.focus==='shad:'+it.kind+':'+it.p.n);
+  const event = rows.find(e => e.kind==='event' && day.focus===agendaKey(e));
+  const item = chosen || study.find(it => it.kind==='hw') || study[0];
+  const task = crown || B.tasks().filter(t => !t.done && t.due===today)
+    .sort((a,b)=>(a.pri||4)-(b.pri||4))[0];
   let title, detail, button;
-  if (crown || (task && !item)){
-    title = task.title;
-    detail = [B.proj(task.proj)?.name, task.time, task.est ? B.mins(task.est) : ''].filter(Boolean).join(' · ');
-    button = `<button data-act="openTask" data-id="${esc(task.id)}">Открыть дело</button>`;
-  } else if (item){
-    title = item.p.t;
-    detail = [item.kind === 'hw' ? 'Домашняя работа' : 'Вебинар', B.shad.courses[item.p.c]?.name].filter(Boolean).join(' · ');
-    button = item.kind === 'hw'
-      ? `<a href="${esc(B.phagiLink({shadHw:item.p.n,backDay:today}))}">Открыть домашку</a>`
-      : `<button data-act="shadOpen" data-n="${item.p.n}">Открыть вебинар</button>`;
-  } else {
-    return '';
-  }
-  return `<section class="day-focus"><small>Главное дело</small><h2>${esc(title)}</h2>
-    ${detail ? `<p>${esc(detail)}</p>` : ''}<div>${button}</div></section>`;
+  if(event){
+    title=event.title;
+    detail=[event.start.slice(11),event.location].filter(Boolean).join(' · ');
+    button=`<button ${agendaAttrs(event)}>Открыть событие →</button>`;
+  } else if(crown || (task && !item)){
+    title=task.title;
+    detail=[B.proj(task.proj)?.name,task.time,task.est?B.mins(task.est):''].filter(Boolean).join(' · ');
+    button=`<button data-act="openTask" data-id="${esc(task.id)}">Открыть дело →</button>`;
+  } else if(item){
+    title=item.p.t;
+    detail=[item.kind==='hw'?'Домашняя работа':'Вебинар', B.shad.courses[item.p.c]?.name].filter(Boolean).join(' · ');
+    button=item.kind==='hw'?`<a href="${esc(B.phagiLink({shadHw:item.p.n,backDay:today}))}">Открыть домашку →</a>`:
+      `<button data-act="shadOpen" data-n="${item.p.n}">Открыть вебинар →</button>`;
+  } else return '';
+  return `<section class="card day-focus"><small>${icon('crown')} Главное дело${event||chosen||crown?'':' · по плану'}</small><h2>${esc(title)}</h2>
+    ${detail?`<p>${esc(detail)}</p>`:''}<div>${button}</div></section>`;
 }
-function dayAgenda(today){
-  const rows = (B.calendarView?.itemsBetween(today,today) || []).filter(e => e.start.includes('T'));
+function dayAgenda(today,rows){
   return `<section class="card day-agenda"><div class="row between"><h2>Расписание</h2>
     <button class="agenda-link" data-act="todayCalendar" data-d="${today}">В календарь ${icon('right')}</button></div>
-    ${rows.map(e => `<button class="agenda-line" data-act="acOpen" data-k="${e.kind}" data-id="${esc(e.id)}"
-      data-on="${e.on}" data-start="${e.start}" data-end="${e.end}" data-part="${e.part || ''}">
-      <time>${e.start < today ? '00:00' : e.start.slice(11,16)}</time>${icon(e.kind === 'shad' ? 'book' : 'cal')}
-      <span><b>${esc(e.title)}</b>${e.location || e.course ? `<small>${esc(e.location || e.course)}</small>` : ''}</span></button>`).join('')
+    ${rows.map(e=>`<div class="agenda-entry"><button class="agenda-line" ${agendaAttrs(e)}>
+      <time>${e.start < today?'00:00':e.start.slice(11,16)}</time>${icon(e.kind==='shad'?'book':'cal')}
+      <span><b>${esc(e.title)}</b>${e.location||e.course?`<small>${esc(e.location||e.course)}</small>`:''}</span></button>
+      ${e.done?'':crownButton(today,agendaKey(e),e.title)}</div>`).join('')
       || '<p class="empty sm">На сегодня событий со временем нет.</p>'}</section>`;
 }
 B.acts.todayCalendar = el => {
@@ -277,6 +295,7 @@ B.views.today = {
   title: 'Сегодня',
   render(){
     const c = B.calc(), d = B.day(c.today);
+    const rows=(B.calendarView?.itemsBetween(c.today,c.today)||[]).filter(e=>e.start.includes('T'));
     const date = B.parse(c.today), r = c.days[c.today] || {};
     return `<div class="page today">
       <header class="page-h today-h">
@@ -289,11 +308,11 @@ B.views.today = {
       ${weekCard(c)}
       <div class="cols">
         <div class="col">
-          ${focusCard(c.today, d)}
-          ${dayAgenda(c.today)}
+          ${focusCard(c.today, d, rows)}
+          ${B.alberts?.card() || ''}
+          ${dayAgenda(c.today, rows)}
           ${dayCard(c, d)}
           ${new Date().getHours() >= 19 || new Date().getHours() < 4 ? reviewCard(c,d) : ''}
-          ${B.alberts?.card() || ''}
         </div>
         <div class="col">
           ${habitsCard(c)}
@@ -338,21 +357,19 @@ document.addEventListener('pointerup', () => {
 
 /* план дня */
 const pdate = el => el.dataset.d || B.today();
-/* корона: сделать дело главным на день (не больше трёх) или снять */
+/* корона: сделать дело главным на день или снять */
 B.acts.crown = async el => {
   const t = pdate(el), id = el.dataset.id, d = B.day(t);
   if ((d.top || []).includes(id)){ B.editDay(t, x => { x.top = (x.top || []).filter(i => i !== id); }); return; }
-  const live = (d.top || []).filter(i => { const k = B.task(i); return k && !k.deleted; });
-  if (live.length >= 3){ B.toast('Корон уже три. Сними одну, чтобы отметить другое дело'); return; }
   const tk = B.task(id); if (!tk) return;
   // просроченное дело главным на более поздний день — это перенос, нужна причина
   if (!tk.done && tk.due && tk.due < B.today() && t > tk.due){
     const why = await B.askReason(tk, t); if (!why) return;
     B.updTask(tk.id, {due: t, postpones: (tk.postpones || []).concat({from: tk.due, to: t, why, at: Date.now()})}, true);
   }
-  B.editDay(t, x => { x.top = (x.top || []).filter(i => { const k = B.task(i); return k && !k.deleted; }).concat(id); x.planAt = x.planAt || Date.now(); });
+  B.editDay(t, x => { x.top = [id]; x.focus = ''; x.planAt = x.planAt || Date.now(); });
   const k = B.task(id); if (k && (!k.due || k.due > t)) B.updTask(id, {due: t});
-  if (live.length === 0) B.toast(`${B.icon('crown')} Отмечено как важное. Нажми «когда и где», чтобы назначить время`);
+  B.toast('Главное дело выбрано');
 };
 B.acts.topAdd = el => B.acts.crown(el);
 B.acts.qCrown = () => { qCrown = !qCrown; B.render(true); };

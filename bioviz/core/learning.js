@@ -18,6 +18,13 @@ function measure(){const now=Date.now(),elapsed=Math.min(15,(now-lastTick)/1000)
 setInterval(tick,10000);addEventListener('visibilitychange',tick);addEventListener('bv-before-route',tick);
 function forecast(id,total){const days=new Set(),pages=new Set(),firstRead=new Map();let seconds=0,first=null;const cutoff=day(new Date(Date.now()-13*86400000));
  for(const k of keys('reading:day:'+id+':')){const d=S.get(k,null);if(!d)continue;const date=k.slice(('reading:day:'+id+':').length).slice(0,10);for(const p of d.pages||[]){pages.add(p);if(!firstRead.has(p)||date<firstRead.get(p))firstRead.set(p,date);}if(date>=cutoff){seconds+=d.seconds||0;if(d.seconds>=30)days.add(date);if(!first||date<first)first=date}}
+ if(id==='alberts'){
+  const mark=S.get('reading:zov:alberts',null);
+  for(let p=18;p<=Math.min(mark?.current||0,total);p++)pages.add(p);
+  for(const r of Array.isArray(mark?.records)?mark.records:[]){
+   for(let p=Math.max(18,r.from);p<=Math.min(total,r.to);p++)if(!firstRead.has(p)||r.date<firstRead.get(p))firstRead.set(p,r.date);
+  }
+ }
  const span=first?Math.min(14,Math.max(1,Math.floor((Date.parse(day())-Date.parse(first))/86400000)+1)):0;
  // Rate uses newly completed pages in the same calendar window, with duplicates removed.
  const recent=new Set([...firstRead].filter(([,date])=>date>=cutoff).map(([p])=>p));

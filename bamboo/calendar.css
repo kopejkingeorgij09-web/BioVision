@@ -94,9 +94,8 @@
 .ac-item.ghost { opacity:.55;border-left-style:dashed }
 .ac-resize { position:absolute;left:0;right:0;height:5px;z-index:2;cursor:ns-resize }
 .ac-resize.start { top:0 }.ac-resize.end { bottom:0 }
-.ac-preview,.ac-travel { position:absolute;left:2px;right:2px;border-radius:4px;pointer-events:none }
+.ac-preview { position:absolute;left:2px;right:2px;border-radius:4px;pointer-events:none }
 .ac-preview { background:color-mix(in srgb,var(--accent) 30%,transparent);z-index:4;border:1px solid var(--accent);padding:2px 4px;font-size:10px;color:var(--ink);overflow:hidden;white-space:nowrap }
-.ac-travel { background:repeating-linear-gradient(135deg,var(--ac-line) 0 4px,transparent 4px 8px) }
 .ac-drag-target { background-color:var(--accent-soft)!important }
 .ac-side { min-width:0;padding:12px 10px;border-right:1px solid var(--ac-line);background:color-mix(in srgb,var(--paper-2) 50%,var(--ac-bg)) }
 .ac-mini-title,.ac-filter-title { display:flex;align-items:center;gap:3px;justify-content:space-between;font-size:13px }
@@ -325,3 +324,5 @@
 .ac-day-count:hover,.ac-axis-label:hover{background:var(--ac-control)}
 .ac-open .ac-title{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal;overflow-wrap:anywhere;flex-shrink:0}
 .ac-month .ac-title{-webkit-line-clamp:1}
+
+.ac-times{display:grid;gap:6px}.ac-times input{min-width:0;width:100%;box-sizing:border-box}

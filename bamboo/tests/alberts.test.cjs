@@ -21,3 +21,18 @@ test('catch-up uses remaining days and keeps the original weekly goals',()=>{
  assert.equal(model.status(book,state,'2027-01-01').expired,true);assert.equal(model.status(book,state,'2027-01-01').daily,0);
  assert.equal(model.status(book,{...state,current:796},'2026-12-31').complete,true);
 });
+
+test('unfinished target survives Monday and deadline; gaps and bookmarks never close it',()=>{
+ const manual=model.log(book,state,34,'2026-11-17');
+ const reader={t:200,page:220,pages:{34:'2026-11-18',35:'2026-11-18',130:'2026-11-18'}};
+ const merged=model.withReader(book,manual,reader);
+ for(const day of ['2026-11-23','2027-01-01']){
+  const s=model.status(book,merged,day);
+  assert.equal(s.current,35);assert.equal(s.resume,220);assert.equal(s.week.pageTo,136);
+  assert.equal(s.weekDone,19);assert.equal(s.done,19);
+ }
+ assert.equal(model.pagesOn(merged,'2026-11-18'),2);
+ const advanced=model.log(book,manual,136,'2026-11-23');
+ const next=model.status(book,model.withReader(book,{...advanced,markedAt:201},reader),'2026-11-23');
+ assert.equal(next.resume,137);assert.equal(next.week.pageFrom,137);assert.equal(next.weekDone,0);
+});

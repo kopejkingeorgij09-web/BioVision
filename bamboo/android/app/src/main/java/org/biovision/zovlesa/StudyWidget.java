@@ -90,7 +90,7 @@ public class StudyWidget extends AppWidgetProvider {
         String date=today.toString();
         for(int i=0;plan!=null&&i<plan.length();i++){
             JSONObject w=plan.optJSONObject(i);
-            if(w!=null && w.optString("from").compareTo(date)<=0 && w.optString("to").compareTo(date)>=0){week=w;break;}
+            if(w!=null && current<w.optInt("pageTo") && date.compareTo(plan.optJSONObject(0).optString("from"))>=0){week=w;break;}
         }
         out.empty="";
         if(bookmark){
@@ -100,11 +100,11 @@ public class StudyWidget extends AppWidgetProvider {
         }
         if(week!=null && !complete){
             int n=week.optInt("pages");
-            out.progress(Math.max(0,Math.min(n,current-week.optInt("pageFrom")+1)),n,"стр. за неделю · цель до стр. "+week.optInt("pageTo"));
+            out.progress(book.optInt("weekDone"),n,"стр. за неделю · цель до стр. "+week.optInt("pageTo"));
         }else out.progress(book.optInt("done"),book.optInt("total"),complete?"Том 1 прочитан":"страниц в первом томе");
         out.cards.add(new Card(chapter,complete?"Открыть книгу":"Продолжить со стр. "+next,"",read));
         if(week!=null && !complete){
-            int remaining=Math.max(0,week.optInt("pageTo")-current);
+            int remaining=Math.max(0,week.optInt("pages")-book.optInt("weekDone"));
             out.cards.add(new Card(remaining==0?"Цель недели достигнута":"До цели недели · "+remaining+" стр.",
                 "Прочитано в томе: "+book.optInt("done")+" из "+book.optInt("total")+" стр.","",out.primary));
         }

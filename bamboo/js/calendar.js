@@ -224,8 +224,7 @@ function timeGrid(ds,byDay){
       ${ds.map(d=>`<div class="ac-col ${d===today()?'now':''}" data-col="${d}" aria-label="${esc(fmt(d))}">
         ${layoutTimed(byDay.get(d)||[],d).map(s=>{
           const pos=`--top:${s.start/C.DAY*100}%;--span:${(s.end-s.start)/C.DAY*100}%;--left:${s.col/s.cols*100}%;--width:${100/s.cols}%`;
-          const travel=s.first ? Math.min(s.start,s.e.travel||0) : 0;
-          return (travel ? `<span class="ac-travel" title="Время в пути" style="top:${(s.start-travel)/C.DAY*100}%;height:${travel/C.DAY*100}%"></span>`:'')+chip(s.e,pos,s);
+          return chip(s.e,pos,s);
         }).join('')}
 
       </div>`).join('')}
@@ -355,7 +354,9 @@ function editor(e, original=null, task=false, anchor=null, selected=false){
     <form id="acEditor" class="ac-editor ac-quick ${floating?'ac-floating':''}">
       ${original?'':`<div class="ac-modes ac-types" role="group" aria-label="Тип записи"><button type="button" data-act="acType" data-v="event" aria-pressed="${!task}">Событие</button><button type="button" data-act="acType" data-v="task" aria-pressed="${task}">Задача</button></div>`}
       <input aria-label="Название" class="ac-quick-name" name="title" value="${esc(e.title)}" placeholder="${task?'Новая задача':'Новое событие'}" maxlength="240" required autofocus>
-      <p class="ac-interval">${esc(intervalLabel(e,task))}</p>
+      ${allDayOf(e)?`<p class="ac-interval">${esc(intervalLabel(e,task))}</p>`:`<div class="ac-times">
+        <label class="field">Начало<input type="datetime-local" name="startAt" value="${e.start}" required></label>
+        <label class="field">Конец<input type="datetime-local" name="endAt" value="${e.end}" required></label></div>`}
       <label class="ac-project c-${esc(color(projectOf(e)))}"><span class="ac-project-dot" aria-hidden="true"></span>
         <select name="project" aria-label="Календарь">${projectOptions(e)}</select></label>
       ${original?.repeat?`<label class="field">Изменить<select name="scope">${scopeOptions()}</select></label>`:''}
@@ -378,10 +379,7 @@ function editor(e, original=null, task=false, anchor=null, selected=false){
         <label class="field ac-repeat-date" ${r.until?'':'hidden'}>Последняя дата<input type="date" name="until" value="${r.until||''}"></label>
         <label class="field ac-repeat-count" ${r.count?'':'hidden'}>Число событий<input type="number" name="count" value="${r.count||10}" min="1" max="10000"></label>
       </div>
-      <div class="ac-edit-row">
-        <label class="field">Место<input name="place" value="${esc(e.location||'')}" maxlength="240"></label>
-        <label class="field">Время в пути, мин<input type="number" name="travel" min="0" max="1440" value="${e.travel||0}"></label>
-      </div>
+      <label class="field">Место<input name="place" value="${esc(e.location||'')}" maxlength="240"></label>
       <label class="field">Ссылка<input name="url" type="url" value="${esc(e.url||'')}" placeholder="https://"></label>
       ${/^https?:\/\//i.test(e.url||'')?`<a class="link" href="${esc(e.url)}" target="_blank" rel="noopener noreferrer">Открыть ссылку</a>`:''}
       <label class="field">Вложения<input type="file" name="files" multiple><small>До 700 КБ на файл, фотографии сжимаются.</small></label>
@@ -422,7 +420,7 @@ function editor(e, original=null, task=false, anchor=null, selected=false){
   form.addEventListener('submit',ev=>{ev.preventDefault();submitEditor(form);});
 }
 function draftFrom(form,ctx){
-  const f=form.elements, {start,end}=ctx.e;
+  const f=form.elements, start=f.startAt?.value??ctx.e.start, end=f.endAt?.value??ctx.e.end;
   if (!C.valid(start)||!C.valid(end)||end<=start) throw Error('Конец должен быть позже начала.');
   const draft={title:f.title.value.trim(),proj:f.project.value||'inbox',start,end,notes:f.notes.value.trim()};
   if (!draft.title) throw Error('Введи название.');
@@ -438,7 +436,7 @@ function draftFrom(form,ctx){
   const repeat=freq?{freq,every:Number(f.every.value)||1,until,count:f.repeatEnd.value==='count'?Number(f.count.value)||1:0,
     days:weekDays,monthDays,pos:weekdays?Number(f.position.value):0,
     month:freq==='yearly'&&monthDays.length+weekDays.length ? Number(start.slice(5,7)) : 0}:null;
-  return {...draft,repeat,location:f.place.value.trim(),travel:Number(f.travel.value)||0,url:f.url.value.trim(),
+  return {...draft,repeat,location:f.place.value.trim(),url:f.url.value.trim(),
     alerts:f.androidAlert?B.androidReminders.eventAlerts(f.androidAlert,ctx.e):ctx.e.alerts||[]};
 }
 function writeOccurrence(original, on, draft, scope){
@@ -497,7 +495,7 @@ async function submitEditor(form){
 }
 B.acts.acType=el=>{
   const f=B.$('#acEditor').elements, {e,anchor,selected}=editContext;
-  editor({...e,title:f.title.value,proj:f.project.value,notes:f.notes.value},null,el.dataset.v==='task',anchor,selected);
+  editor({...e,start:f.startAt?.value||e.start,end:f.endAt?.value||e.end,title:f.title.value,proj:f.project.value,notes:f.notes.value},null,el.dataset.v==='task',anchor,selected);
 };
 B.acts.acAdd=()=>editor(newTimed(date));
 B.acts.acNewDay=el=>editor(newAll(el.dataset.d),null,false,near(el),true);
@@ -571,7 +569,7 @@ function shadEditor(id,part){
 B.acts.acDuplicate=()=>{
   const ctx=editContext; if(!ctx) return;
   const e=ctx.e;
-  editor({...newDraft(e.start,e.end),title:e.title,proj:e.proj,notes:e.notes,location:e.location,url:e.url,travel:e.travel,alerts:e.alerts,attachments:e.attachments});
+  editor({...newDraft(e.start,e.end),title:e.title,proj:e.proj,notes:e.notes,location:e.location,url:e.url,alerts:e.alerts,attachments:e.attachments});
 };
 B.acts.acDelete=async()=>{
   const {e,original}=editContext||{};

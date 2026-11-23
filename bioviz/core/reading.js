@@ -28,7 +28,15 @@ async function local(method,value){const d=await db();return new Promise((resolv
  req.onsuccess=()=>{result=req.result};tx.oncomplete=()=>resolve(result);
  tx.onerror=tx.onabort=()=>reject(tx.error||new Error('Не удалось сохранить PDF на устройстве.'));
 })}
-function progress(id){return store.get('reading:progress:'+id,{page:1})}
+function progress(id){
+ const saved=store.get('reading:progress:'+id,{page:1});
+ if(id==='alberts'){
+  const mark=store.get('reading:zov:alberts',null);
+  if(mark&&Number.isInteger(mark.current)&&mark.t>(saved.t||0))
+   return {...saved,topic:null,ratio:0,offset:0,mode:'pdf',page:Math.min(796,mark.current+1)};
+ }
+ return saved;
+}
 let warned=false;
 function saveProgress(id,patch){const next={...progress(id),...patch,t:Date.now()};
  try{store.set('reading:progress:'+id,next)}catch(e){if(!warned){warned=true;BV.toast('Браузер не сохранил место чтения. Проверь доступное место и настройки хранения.',6000)}}
@@ -62,7 +70,7 @@ async function library(token){
  const p=progress('alberts'),total=allTopics(m).filter(t=>t.level===3).length;
  page.innerHTML=crumbs()+`<header class="hero"><h1>Фундаментальное чтиво</h1></header>
  <div class="rd-tools">${btn('Личный код','personal')}<a class="btn ghost" href="#/reading/practice/mistakes">Стопка ошибок</a></div>
- <section class="rd-card rd-book" aria-labelledby="rd-alberts"><div class="rd-cover" aria-hidden="true"><small>Альбертс и соавторы</small><b>Молекулярная<br>биология<br>клетки</b><span>Том 1 · 5-е издание</span></div><div class="rd-book-info"><p class="eyebrow">Альбертс · Том 1</p><h2 id="rd-alberts">Молекулярная биология клетки</h2><div class="rd-stats"><span>7 глав</span><span>${total} микротем</span><span>${m.pages} страниц оригинала</span></div><div class="rd-tools"><a class="btn" href="${href(p.topic||'1-intro')}">${p.topic?'Продолжить чтение':'Открыть книгу'}</a><a class="btn ghost" href="#/reading/practice">Банк заданий</a></div>${p.topic?'<p class="rd-sub">Страница '+p.page+'</p>':''}<button class="rd-tempo" data-rd="tempo" data-book="alberts" data-total="${m.pages}">${BV.learning.summary('alberts',m.pages)}</button></div></section>
+ <section class="rd-card rd-book" aria-labelledby="rd-alberts"><div class="rd-cover" aria-hidden="true"><small>Альбертс и соавторы</small><b>Молекулярная<br>биология<br>клетки</b><span>Том 1 · 5-е издание</span></div><div class="rd-book-info"><p class="eyebrow">Альбертс · Том 1</p><h2 id="rd-alberts">Молекулярная биология клетки</h2><div class="rd-stats"><span>7 глав</span><span>${total} микротем</span><span>${m.pages} страниц оригинала</span></div><div class="rd-tools"><a class="btn" href="${p.mode==='pdf'?'#/reading/alberts/pdf/'+Number(p.page):href(p.topic||'1-intro')}">${p.topic||p.mode==='pdf'?'Продолжить чтение':'Открыть книгу'}</a><a class="btn ghost" href="#/reading/practice">Банк заданий</a></div>${p.topic||p.mode==='pdf'?'<p class="rd-sub">Страница '+p.page+'</p>':''}<button class="rd-tempo" data-rd="tempo" data-book="alberts" data-total="${m.pages}">${BV.learning.summary('alberts',m.pages)}</button></div></section>
  <section class="rd-upload" aria-labelledby="rd-upload-title"><h2 id="rd-upload-title">Твоя полка</h2><label class="btn">Добавить PDF<input type="file" accept="application/pdf,.pdf" data-upload multiple hidden></label><details class="rd-sub"><summary>О хранении PDF</summary><p>Файлы хранятся на устройстве. Для чтения на другом добавь тот же PDF — личный код перенесёт прогресс и закладки. Очистка данных сайта удалит локальные файлы.</p></details><p class="rd-status" data-upload-status role="status" aria-live="polite"></p></section>
  <div class="rd-local" data-local><p class="rd-sub">Загружаю твою полку…</p></div>`;
  const input=$('[data-upload]',page),drop=$('.rd-upload',page);

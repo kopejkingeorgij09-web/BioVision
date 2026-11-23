@@ -97,7 +97,6 @@ function exportICS(items){
     if (e.location) lines.push('LOCATION:' + escape(e.location));
     if (e.notes) lines.push('DESCRIPTION:' + escape(e.notes));
     if (e.url) lines.push('URL:' + escape(e.url));
-    if (e.travel) lines.push('X-ZOV-TRAVEL:' + e.travel);
     if (e.repeat){
       const r = e.repeat;
       const until = r.until ? ';UNTIL=' + basic(e.start.length === 10 ? r.until : r.until + 'T23:59') : '';
@@ -206,7 +205,7 @@ function importICS(source){
       const skip = excluded.flatMap(x => x.value.split(',').map(v => dateOf(readDate(v, x.zone))));
       items.push({title,start,end,repeat,skip,alerts: [...new Set(alerts)].slice(0, 2),
         location: unescape(get('LOCATION')),notes: unescape(get('DESCRIPTION')),url: unescape(get('URL')),
-        travel: Math.max(0, Number(get('X-ZOV-TRAVEL')) || 0),icsUid: uid && (on ? uid + '/' + on : uid)});
+        icsUid: uid && (on ? uid + '/' + on : uid)});
     } catch (_) { rejected.push(title); }
   }
   detached.forEach(({uid,on}) => { const series = uid && items.find(e => e.icsUid === uid && e.repeat); if (series && !series.skip.includes(on)) series.skip.push(on); });

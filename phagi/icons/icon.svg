@@ -1,12 +1,81 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-<rect width="512" height="512" fill="#0E4A38"/>
-<g transform="translate(256 380) scale(4.8)">
-<path d="M5 -1.5 L14 -4 L19 6 M-5 -1.5 L-14 -4 L-19 6 M3 -1 L9 6 M-3 -1 L-9 6" fill="none" stroke="#F1F6F2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-<rect x="-2.5" y="-23" width="5" height="20" rx="1.2" fill="#F1F6F2"/>
-<path d="M-2.5 -5.5H2.5M-2.5 -8H2.5M-2.5 -10.5H2.5M-2.5 -13H2.5M-2.5 -15.5H2.5M-2.5 -18H2.5M-2.5 -20.5H2.5" stroke="#0E4A38" stroke-opacity=".5" stroke-width=".8"/>
-<rect x="-7.5" y="-3.2" width="15" height="3.2" rx="1.2" fill="#F1F6F2"/>
-<rect x="-4.5" y="-26" width="9" height="3.2" rx="1" fill="#F1F6F2"/>
-<polygon points="0,-50 10.4,-44 10.4,-32 0,-26 -10.4,-32 -10.4,-44" fill="#7FD6A8" stroke="#F1F6F2" stroke-width="1.6" stroke-linejoin="round"/>
-<path d="M0 -38L0 -50M0 -38L10.4 -32M0 -38L-10.4 -32" stroke="#0E4A38" stroke-opacity=".45" stroke-width=".9"/>
-<path d="M-5 -40q2.5 -3 5 0t5 0M-5 -35q2.5 -3 5 0t5 0" fill="none" stroke="#C2366B" stroke-width="1.4" stroke-linecap="round"/>
-</g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><radialGradient id="dish"><stop stop-color="#254940"/><stop offset="1" stop-color="#112e2a"/></radialGradient></defs><rect width="512" height="512" fill="url(#dish)"/><svg xmlns="http://www.w3.org/2000/svg" width="402" height="402" viewBox="3 0 108 110" aria-hidden="true" focusable="false" x="55" y="55">
+      <g fill="rgb(237, 182, 106)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1"><ellipse cx="54" cy="31" rx="35" ry="30" opacity="0.07" fill="rgb(237, 182, 106)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" display="inline" fill-opacity="1"></ellipse><ellipse cx="54" cy="31" rx="30" ry="26" opacity="0.09" fill="rgb(237, 182, 106)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" display="inline" fill-opacity="1"></ellipse></g>
+      <ellipse cx="57" cy="105" rx="20" ry="2.8" fill="rgb(36, 99, 92)" opacity="0.16" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" display="inline" fill-opacity="1"></ellipse>
+      <g fill="rgb(0, 0, 0)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1"><g fill="rgb(0, 0, 0)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1">
+        <g fill="rgb(0, 0, 0)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1">
+      <path d="M51 83L43 72L33 84" fill="none" stroke="rgb(71, 116, 106)" stroke-width="2.4px" stroke-linecap="round" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+      <path d="M51 83L43 72L33 84" fill="none" stroke="rgb(189, 208, 168)" stroke-width="0.9px" stroke-linecap="round" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+      <circle cx="43" cy="72" r="1.65" fill="rgb(235, 199, 124)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1"></circle>
+      <circle cx="33" cy="84" r="1.4" fill="rgb(51, 108, 103)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1"></circle>
+    </g><g fill="rgb(0, 0, 0)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1">
+      <path d="M61 83L71 71L83 82" fill="none" stroke="rgb(71, 116, 106)" stroke-width="2.4px" stroke-linecap="round" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+      <path d="M61 83L71 71L83 82" fill="none" stroke="rgb(189, 208, 168)" stroke-width="0.9px" stroke-linecap="round" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+      <circle cx="71" cy="71" r="1.65" fill="rgb(235, 199, 124)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1"></circle>
+      <circle cx="83" cy="82" r="1.4" fill="rgb(51, 108, 103)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1"></circle>
+    </g>
+        <g stroke-linejoin="round" fill="rgb(0, 0, 0)" stroke="none" stroke-width="1px" stroke-linecap="butt" opacity="1" display="inline" fill-opacity="1">
+          <path fill="rgb(120, 175, 164)" stroke="rgb(35, 78, 80)" stroke-width="2.5px" d="M50 52L59 51 61 79 57 84 52 79Z" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+          <path fill="rgb(208, 230, 204)" d="M52 55L54 55 56 80 53.7 79Z" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+          <path fill="rgb(56, 123, 118)" d="M57.5 54L59.2 53 61 78.5 58.5 80.5Z" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+          <g fill="none" stroke="rgb(53, 108, 106)" stroke-width="2.55px" stroke-linecap="round" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"><path d="M51 59l8-2M51.3 64l8-2M52 69l8-2M52.4 74l8-2M53 79l7.5-2" fill="none" stroke="rgb(53, 108, 106)" stroke-width="2.55px" stroke-linecap="round" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path></g>
+          <path fill="rgb(243, 206, 132)" stroke="rgb(52, 88, 90)" stroke-width="1.9px" d="M46 51l12.2-2.5 5.1 2.5-1.6 4.2-13.3 2.1-3.1-2.1Z" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+          <path fill="rgb(219, 173, 98)" d="m47.2 54.5 14.7-2.7-.8 2.1-12.5 2.2Z" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+        </g>
+        <g fill="rgb(0, 0, 0)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1">
+      <path d="M49 83L32 76L18 92" fill="none" stroke="rgb(36, 76, 78)" stroke-width="3.5px" stroke-linecap="round" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+      <path d="M49 83L32 76L18 92" fill="none" stroke="rgb(162, 203, 185)" stroke-width="1.5px" stroke-linecap="round" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+      <circle cx="32" cy="76" r="1.65" fill="rgb(235, 199, 124)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1"></circle>
+      <circle cx="18" cy="92" r="1.4" fill="rgb(51, 108, 103)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1"></circle>
+    </g><g fill="rgb(0, 0, 0)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1">
+      <path d="M63 83L82 76L97 91" fill="none" stroke="rgb(36, 76, 78)" stroke-width="3.5px" stroke-linecap="round" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+      <path d="M63 83L82 76L97 91" fill="none" stroke="rgb(162, 203, 185)" stroke-width="1.5px" stroke-linecap="round" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+      <circle cx="82" cy="76" r="1.65" fill="rgb(235, 199, 124)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1"></circle>
+      <circle cx="97" cy="91" r="1.4" fill="rgb(51, 108, 103)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1"></circle>
+    </g><g fill="rgb(0, 0, 0)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1">
+      <path d="M51 85L41 93L33 105" fill="none" stroke="rgb(36, 76, 78)" stroke-width="3.5px" stroke-linecap="round" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+      <path d="M51 85L41 93L33 105" fill="none" stroke="rgb(162, 203, 185)" stroke-width="1.5px" stroke-linecap="round" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+      <circle cx="41" cy="93" r="1.65" fill="rgb(235, 199, 124)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1"></circle>
+      <circle cx="33" cy="105" r="1.4" fill="rgb(51, 108, 103)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1"></circle>
+    </g><g fill="rgb(0, 0, 0)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1">
+      <path d="M62 85L74 92L82 104" fill="none" stroke="rgb(36, 76, 78)" stroke-width="3.5px" stroke-linecap="round" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+      <path d="M62 85L74 92L82 104" fill="none" stroke="rgb(162, 203, 185)" stroke-width="1.5px" stroke-linecap="round" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+      <circle cx="74" cy="92" r="1.65" fill="rgb(235, 199, 124)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1"></circle>
+      <circle cx="82" cy="104" r="1.4" fill="rgb(51, 108, 103)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1"></circle>
+    </g>
+        <path fill="rgb(185, 210, 179)" stroke="rgb(35, 78, 80)" stroke-width="2px" stroke-linejoin="round" d="M47 80.8l11-2 8 3.3-1.8 3.6-10.6 2.3-7.6-3.9Z" stroke-linecap="butt" opacity="1" display="inline" fill-opacity="1"></path>
+        <path d="m48.3 82.3 7.1 2.4 8.9-2" fill="none" stroke="rgb(255, 240, 187)" stroke-width="1.5px" stroke-linecap="round" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1"></path>
+        <path d="m54 87 2.4 5.1 2-6.1" fill="rgb(67, 115, 110)" stroke="rgb(35, 78, 80)" stroke-width="1.2px" stroke-linejoin="round" stroke-linecap="butt" opacity="1" display="inline" fill-opacity="1"></path>
+        <g stroke-linejoin="round" fill="rgb(0, 0, 0)" stroke="none" stroke-width="1px" stroke-linecap="butt" opacity="1" display="inline" fill-opacity="1">
+    <path fill="rgb(25, 63, 66)" stroke="rgb(23, 60, 64)" stroke-width="3.3px" d="M39 14L55 7 69 12 79 24 78 39 66 51 53 55 39 49 31 37 31 23Z" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+    <path fill="rgb(112, 184, 171)" d="M39 14L55 7 51 16 39 22 31 23Z" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+    <path fill="rgb(185, 221, 208)" d="M55 7L69 12 63 18 51 16Z" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+    <path fill="rgb(74, 152, 144)" d="M69 12L79 24 70 25 63 18Z" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+    <path fill="rgb(55, 123, 120)" d="M79 24L78 39 69 38 70 25Z" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+    <path fill="rgb(36, 91, 95)" d="M78 39L66 51 61 44 69 38Z" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+    <path fill="rgb(55, 134, 125)" d="M66 51L53 55 51 46 61 44Z" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+    <path fill="rgb(89, 158, 141)" d="M53 55L39 49 42 41 51 46Z" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+    <path fill="rgb(77, 148, 136)" d="M39 49L31 37 39 34 42 41Z" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+    <path fill="rgb(146, 198, 181)" d="M31 37L31 23 39 22 39 34Z" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+    <path fill="rgb(242, 182, 96)" d="M39 22L51 16 63 18 70 25 69 38 61 44 51 46 42 41 39 34Z" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+    <path fill="rgb(255, 221, 160)" d="M39 22L51 16 63 18 51 22 41 30Z" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+    <path fill="rgb(213, 141, 80)" d="M69 34L69 38 61 44 51 46 42 41 53 42 63 39Z" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+    <path fill="none" stroke="rgb(243, 255, 242)" stroke-width="1.6px" stroke-linecap="round" d="M34 26L35 23 41 17M47 14L53 11" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+    <g fill="rgb(41, 73, 74)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1">
+      <path d="M46 29c.3-2.4 3.4-2.4 3.8-.4l.1 2c-.2 2.3-3.4 2.5-3.8.2Z" fill="rgb(41, 73, 74)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+      <path d="M59 28c.3-2.3 3.3-2.6 3.7-.5l.1 1.9c-.1 2.3-3.3 2.6-3.7.4Z" fill="rgb(41, 73, 74)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+    </g>
+    <g fill="none" stroke="rgb(107, 96, 66)" stroke-linecap="round" stroke-width="1.45px" stroke-linejoin="round" opacity="0" display="inline" fill-opacity="1">
+      <path d="m44.6 25.2 4.6-.2m10-1.7 4.1 1.1" fill="none" stroke="rgb(107, 96, 66)" stroke-width="1.45px" stroke-linecap="round" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+    </g>
+    <g fill="none" stroke="rgb(41, 73, 74)" stroke-width="2.4px" stroke-linecap="round" stroke-linejoin="round" opacity="0" display="inline" fill-opacity="1">
+      <path d="M44.8 30q2-4.2 5.1-.9m8 .2q2-4.1 5.3-1.1" fill="none" stroke="rgb(41, 73, 74)" stroke-width="2.4px" stroke-linecap="round" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+    </g>
+    <g fill="rgb(217, 135, 90)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="round" opacity="0" display="inline" fill-opacity="1"><ellipse cx="44.2" cy="34" rx="2.6" ry="1.2" fill="rgb(217, 135, 90)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></ellipse><ellipse cx="65.4" cy="32" rx="2.3" ry="1.1" fill="rgb(217, 135, 90)" stroke="none" stroke-width="1px" stroke-linecap="butt" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></ellipse></g>
+    <path fill="none" stroke="rgb(121, 89, 53)" stroke-width="1.45px" stroke-linecap="round" d="M52 35q2.9 2.7 5.7-.5" stroke-linejoin="round" opacity="1" display="inline" fill-opacity="1"></path>
+  </g>
+      </g></g>
+      <g fill="none" stroke="rgb(222, 172, 93)" stroke-width="1.7px" stroke-linecap="round" stroke-linejoin="miter" opacity="0" display="inline" fill-opacity="1">
+        <path d="m87 17 .7-4M91 20l3.4-2M92 24l3.4.4" fill="none" stroke="rgb(222, 172, 93)" stroke-width="1.7px" stroke-linecap="round" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1"></path>
+        <path d="m22 34-2.6-1.7M23.2 29.4l-.7-2.6" fill="none" stroke="rgb(222, 172, 93)" stroke-width="1.7px" stroke-linecap="round" stroke-linejoin="miter" opacity="1" display="inline" fill-opacity="1"></path>
+      </g>
+    </svg></svg>

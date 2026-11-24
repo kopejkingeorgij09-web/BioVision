@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="lesson-workspace.css?v=1">
 <script src="lesson-files.js?v=2"></script>
 <meta charset="utf-8">
-<meta name="ph-ver" content="2026-11-24-classroom">
+<meta name="ph-ver" content="2026-11-24-calendar-hours">
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Фаги естественных наук</title>
@@ -1817,10 +1817,18 @@ function occs(from,to){
   }
   if(!T())for(const e of S.mine)if(e.date>=from&&e.date<=to)out.push({type:'mine',ev:e,date:e.date});
   for(const t of myTasks())if(t.due&&t.kind!=='material'&&t.due>=from&&t.due<=to)out.push({type:'due',task:t,date:t.due});
-  const tm=o=>o.type==='due'?'99':(o.ev.start||'98');
+  const tm=o=>o.type==='due'?(o.task.studySlot?.from||'99'):(o.ev.start||'98');
   return out.sort((a,b)=>a.date.localeCompare(b.date)||tm(a).localeCompare(tm(b)));
 }
-const occLabel=o=>o.type==='due'?'ДЗ: '+o.task.title:((o.ev.start?o.ev.start+' ':'')+o.ev.title+(o.type==='ev'&&evFiles(o.ev,o.date).length?' 📎':''));
+function calendarHours(o){
+  const due=o.type==='due', source=due?o.task.studySlot:o.ev;
+  const start=due?source?.from:source?.start, end=due?source?.to:source?.end;
+  if(!start)return '';
+  const endDay=source?.endDate;
+  const suffix=endDay&&endDay!==o.date?' ('+fmtDay(endDay)+')':end&&end<start?' (+1 день)':'';
+  return end?start+'–'+end+suffix:start;
+}
+const occLabel=o=>[calendarHours(o),o.type==='due'?'ДЗ: '+o.task.title:o.ev.title+(o.type==='ev'&&evFiles(o.ev,o.date).length?' 📎':'')].filter(Boolean).join(' ');
 function hwState(t){ // '' не сдано, done сдано, chk проверено, part часть класса сдала
   if(!t||t.kind==='material')return{c:''};
   if(!T()){const k=status(t,meId()).k;return{c:k==='graded'?'done chk':k==='sub'?'done':''}}
@@ -1991,18 +1999,18 @@ function plannerDay(date, items) {
   const title=pd(date).toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
   const list=items.map(o=>{
     const due=o.type==='due', entry=due?o.task:o.ev, color=occColor(o);
-    const time=due?'Срок':entry.start||'Весь день';
+    const time=calendarHours(o)||(due?'Срок':'Весь день');
     const label=due?'Домашнее задание':o.type==='mine'?'Личное событие':SUBJ[entry.subject]?.n||'Занятие';
     const flags=[label,o.cancel?'Отменено':'',due?hwTip(o).replace(/^ \(|\)$/g,''):''].filter(Boolean);
     const r=o.type==='ev'&&!T()?myRsvp(meId(),entry.id,date):null;
     if(r)flags.push(RS[r.st]);
-    return `<button class="planner-event${o.cancel?' cancelled':''}" ${occAttrs(o)} style="--entry:${color}"><span class="event-time">${esc(time)}${!due&&entry.end?`<small>${esc(entry.end)}</small>`:''}</span><span class="event-label"><strong>${esc(entry.title)}</strong><small>${esc(flags.join(' · '))}</small></span><span class="event-open" aria-hidden="true">›</span></button>`;
+    return `<button class="planner-event${o.cancel?' cancelled':''}" ${occAttrs(o)} style="--entry:${color}"><span class="event-time">${esc(time)}</span><span class="event-label"><strong>${esc(entry.title)}</strong><small>${esc(flags.join(' · '))}</small></span><span class="event-open" aria-hidden="true">›</span></button>`;
   }).join('');
   return `<section class="planner-agenda" aria-label="События дня"><h2>${esc(title)}</h2>${list||'<p class="study-empty">Событий нет.</p>'}</section>`;
 }
 function monthOccurrence(o){
   const due=o.type==='due', entry=due?o.task:o.ev;
-  const time=due?'ДЗ':entry.start||'';
+  const time=[due?'ДЗ':'',calendarHours(o)].filter(Boolean).join(' ');
   const details=[fmtDayW(o.date),occLabel(o)+hwTip(o),o.cancel?'Отменено':'',o.type==='mine'?'Личное событие':''].filter(Boolean).join(', ');
   return `<button type="button" class="calendar-entry${due?' deadline':''}${o.cancel?' cancelled':''}" style="--entry:${occColor(o)}" ${occAttrs(o)} title="${esc(details)}" aria-label="${esc(details)}">${time?`<span class="calendar-time">${esc(time)}</span>`:''}<span class="calendar-entry-title">${esc(entry.title)}</span></button>`;
 }
@@ -2138,7 +2146,7 @@ function taskHTML(){
   const links=(t.links||[]).filter(okUrl),max=maxOf(t);
   const lessonEv=t.lesson&&S.events.find(e=>e.id===t.lesson.eventId);
   let html=`<button class="back" data-act="go" data-v="tasks">← К заданиям</button>
-  <section class="sheet"><div class="row" style="justify-content:space-between"><span>${subj(t.subject)}${byTag(t)}</span><span class="muted small">${t.kind==='material'?'Материал':(t.kind==='test'?'Тест с автопроверкой, ':'')+(t.kind==='material'?'':(t.due?'срок '+fmtDay(t.due):'без срока'))}${max&&t.kind!=='material'?', максимум '+esc(max)+' б.':''}${t.kind==='test'&&t.time?', на время: '+t.time+' мин':''}</span></div>
+  <section class="sheet"><div class="row" style="justify-content:space-between"><span>${subj(t.subject)}${byTag(t)}</span><span class="muted small">${t.kind==='material'?'Материал':(t.kind==='test'?'Тест с автопроверкой, ':'')+(t.kind==='material'?'':(t.due?'срок '+fmtDay(t.due)+(t.studySlot?.from?' · '+esc(calendarHours({type:'due',task:t,date:t.due})):''):'без срока'))}${max&&t.kind!=='material'?', максимум '+esc(max)+' б.':''}${t.kind==='test'&&t.time?', на время: '+t.time+' мин':''}</span></div>
   <h1 style="font:700 22px/1.25 var(--d);color:var(--ink);margin:10px 0 12px">${esc(t.title)}</h1>
   ${lessonEv?`<p class="small"><button class="back" style="margin:0;color:var(--ink)" data-act="occ" data-k="ev" data-id="${lessonEv.id}" data-d="${t.lesson.date}">К занятию «${esc(lessonEv.title)}», ${fmtDay(t.lesson.date)}</button></p>`:''}
   ${t.body?`<div class="body">${rich(t.body)}</div>`:''}
@@ -3761,7 +3769,7 @@ function openTaskDialog(t,preset={}){
 ${esc(TEST_HINT)}</div>${S.assets?`<label class="upl" style="margin:-4px 0 12px"><input type="file" accept="image/*" data-dact="qimg"><span class="btn ghost sm">Вставить картинку в вопрос</span></label>`:''}</div>
   ${S.assets?`<div style="margin-bottom:12px"><span class="small muted">Файлы к заданию</span><div id="tfiles">${filesHTML(t&&t.files,'data-dact="rmtf"')}</div><label class="upl"><input type="file" multiple data-dact="addtf"><span class="btn ghost sm">Прикрепить файл или картинку</span></label></div>`:''}
   <label id="linksbox">Ссылки, по одной в строке<textarea name="links" rows="2" placeholder="https://">${esc(t?(t.links||[]).join('\n'):'')}</textarea></label>
-  <div class="row"><label class="grow">Срок сдачи<input type="date" name="due" value="${esc(t?t.due:(preset.due||''))}" ${syncedDue?'readonly aria-describedby="forest-due-note"':''}>${syncedDue?'<span class="muted small" id="forest-due-note">Дата ДЗ из «Зова леса».</span>':''}</label><label class="grow" id="maxbox" ${kind==='test'?'hidden':''}>Максимальный балл<input type="number" name="max" min="1" max="100" value="${esc(t?(t.max??''):'5')}"></label></div>
+  <div class="row"><label class="grow">Срок сдачи<input type="date" name="due" value="${esc(t?t.due:(preset.due||''))}" ${syncedDue?'readonly aria-describedby="forest-due-note"':''}>${syncedDue?'<span class="muted small" id="forest-due-note">Расписание ДЗ из «Зова леса».</span>':''}</label><label class="grow" id="maxbox" ${kind==='test'?'hidden':''}>Максимальный балл<input type="number" name="max" min="1" max="100" value="${esc(t?(t.max??''):'5')}"></label></div>
   ${toBox(to)}
   <p class="err"></p>
   <div class="actions"><button class="btn ghost" data-dact="cancel">Отмена</button><button class="btn" data-dact="save">${t?'Сохранить':'Создать'}</button></div>`,{

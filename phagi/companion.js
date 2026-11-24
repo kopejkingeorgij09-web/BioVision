@@ -108,35 +108,66 @@ function phageRenderPanel(a) {
 }
 
 function phageAnimate(opening, fresh, done) {
-  const elements = [document.querySelector('#phage-panel .phage-figure'), document.getElementById('phage-note')];
-  const ends = [
-    {opacity:0, transform:'translateY(18px) rotate(-12deg) scale(.48)'},
-    {opacity:0, transform:'translate(-38px, 24px) scale(.68, .48)'}
+  const panel = document.getElementById('phage-panel');
+  const elements = [panel.querySelector('.phage-figure'), document.getElementById('phage-note')];
+  const tucked = [
+    {opacity:0, transform:'translate(-11px, 8px) rotate(-11deg) scale(.54, .58)'},
+    {opacity:0, transform:'perspective(460px) translate(-28px, 4px) rotateY(-76deg) rotateZ(9deg) scale(.24, .12)'}
   ];
-  const rest = {opacity:1, transform:'none'};
+  const settled = {opacity:1, transform:'none'};
   const canAnimate = !phageReducedMotion.matches && typeof elements[0].animate === 'function';
-  const start = canAnimate && !fresh ? elements.map(el => {
+  const interrupted = phageAnimations.length > 0;
+  const current = canAnimate && !fresh ? elements.map(el => {
     const style = getComputedStyle(el);
     return {opacity:style.opacity, transform:style.transform};
-  }) : ends;
+  }) : tucked;
+
   phageAnimations.forEach(animation => animation.cancel());
   phageAnimations = [];
+  delete panel.dataset.motion;
   if (!canAnimate) { done?.(); return; }
 
-  const frames = fresh ? [
-    [ends[0], {opacity:1, transform:'translateY(-18px) rotate(8deg) scale(1.12, 1.06)', offset:.57},
-      {opacity:1, transform:'translateY(3px) rotate(-3deg) scale(1.04, .94)', offset:.79}, rest],
-    [ends[1], {opacity:1, transform:'translate(5px, -4px) scale(1.04, 1.035)', offset:.64}, rest]
-  ] : elements.map((el, index) => [start[index], opening ? rest : ends[index]]);
-  const animations = elements.map((el, index) => el.animate(frames[index], {
-    duration: fresh ? (index ? 475 : 590) : (opening ? 290 : 235),
-    delay: fresh && index ? 74 : 0,
-    easing: opening ? 'cubic-bezier(.2,.72,.26,1)' : 'cubic-bezier(.55,0,.88,.55)',
-    fill:'both'
-  }));
+  let frames;
+  let duration;
+  if (fresh) {
+    panel.dataset.motion = 'launch';
+    duration = 720;
+    frames = [
+      [tucked[0],
+        {offset:.16, opacity:1, transform:'translateY(3px) rotate(-13deg) scale(1.14, .72)', easing:'cubic-bezier(.18,.6,.35,1)'},
+        {offset:.42, transform:'translate(14px, -46px) rotate(21deg) scale(.94, 1.12)', easing:'cubic-bezier(.42,0,.86,.7)'},
+        {offset:.68, transform:'translate(1px, 3px) rotate(-9deg) scale(1.14, .82)', easing:'ease-out'},
+        {offset:.86, transform:'translateY(-8px) rotate(4deg) scale(.99, 1.035)', easing:'ease-in-out'}, settled],
+      [{...tucked[1], offset:0}, {...tucked[1], offset:.29},
+        {offset:.45, opacity:1, transform:'perspective(460px) translate(-12px, 9px) rotateY(-60deg) rotateZ(5deg) scale(.72, .29)', easing:'cubic-bezier(.16,.68,.27,1)'},
+        {offset:.77, transform:'perspective(460px) translate(1px, -4px) rotateY(3deg) rotateZ(-1deg) scale(1.01, 1.035)', easing:'ease-in-out'},
+        settled]
+    ];
+  } else if (!opening && !interrupted) {
+    panel.dataset.motion = 'catch';
+    duration = 480;
+    frames = [
+      [{...current[0], easing:'ease-out'},
+        {offset:.26, transform:'translate(12px, -9px) rotate(19deg) scale(.98, 1.06)', easing:'ease-in-out'},
+        {offset:.56, transform:'translate(-3px, 3px) rotate(-14deg) scale(1.16, .76)', easing:'ease-out'},
+        {offset:.72, opacity:1, transform:'translate(1px, -10px) rotate(7deg) scale(.92, 1.06)', easing:'ease-in'},
+        tucked[0]],
+      [{...current[1], easing:'ease-out'},
+        {offset:.18, transform:'perspective(460px) translate(1px, -5px) rotateY(4deg) rotateZ(-1deg) scale(1.005, 1.025)', easing:'cubic-bezier(.46,0,.72,1)'},
+        {offset:.46, opacity:1, transform:'perspective(460px) translate(-11px, 6px) rotateY(-43deg) rotateZ(8deg) scale(.72, .40)', easing:'ease-in'},
+        {...tucked[1], offset:.72}, tucked[1]]
+    ];
+  } else {
+    duration = 230;
+    frames = current.map((from, index) => [
+      {...from, easing:'cubic-bezier(.24,.65,.36,1)'}, opening ? settled : tucked[index]
+    ]);
+  }
+  const animations = elements.map((el, index) => el.animate(frames[index], {duration, fill:'both'}));
   phageAnimations = animations;
   Promise.all(animations.map(animation => animation.finished)).then(() => {
     if (phageAnimations !== animations) return;
+    delete panel.dataset.motion;
     done?.();
     animations.forEach(animation => animation.cancel());
     phageAnimations = [];

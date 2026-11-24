@@ -12,7 +12,6 @@ const weekBuffer = 14;
 let dragging = false, redrawAfterInteraction = false, weekScrollTimer = 0, weekResize;
 const snap = n => Math.round(n / dragStep) * dragStep;
 const monthStart = d => d.slice(0,7) + '-01';
-const moveMonth = (d,n) => ymd(new Date(parse(d).getFullYear(),parse(d).getMonth()+n,1,12));
 const monthTitle = d => B.MONF[parse(d).getMonth()] + ' ' + d.slice(0,4);
 const labels = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
 const prefsKey = 'bamboo-calendar';
@@ -63,6 +62,7 @@ const ranges = () => {
 function taskItem(t,d,ghost=false){
   const start = t.time ? d+'T'+t.time : d;
   return {kind:'task', id:t.id, proj:projectOf(t), title:t.title, start, on:d, done:t.done, ghost,
+    keepDay:protectedEntry({...t,kind:'task'}),
     end:t.time ? C.at(d,C.minuteOf(start) + Math.max(dragStep,t.est || 30)) : add(d,1)};
 }
 const shadPart = part => part==='web' ? 'Вебинар' : 'ДЗ';
@@ -102,12 +102,17 @@ function shadPanel(){
 B.acts.acShadToggle=()=>{shadTrayOpen=!shadTrayOpen;B.render(true);};
 B.acts.acShadTab=el=>{shadTab=el.dataset.tab;B.render(true);};
 
-function itemsBetween(from,to){
-  const items = C.events().filter(e => visible(projectOf(e))).flatMap(e =>
-    C.occurrences(e,from,to).map(x => ({...x,kind:'event',proj:projectOf(x)})));
+function eventItem(e){
+  const calendarTask=C.isTask(e);
+  return {...e,kind:'event',calendarTask,done:calendarTask && C.done(e),proj:projectOf(e),keepDay:protectedEntry(e)};
+}
+function itemsBetween(from,to,{includeHidden=false}={}){
+  const shown=key=>includeHidden||visible(key);
+  const items = C.events().filter(e => shown(projectOf(e)) && (!C.isTask(e) || shown('@tasks'))).flatMap(e =>
+    C.occurrences(e,from,to).map(eventItem));
   const inView = e => e.start<add(to,1)&&e.end>(e.end.length===10?from:from+'T00:00');
   B.tasks().forEach(t => {
-    if (!C.validDate(t.due) || t.due > to || !visible(projectOf(t)) || !visible('@tasks')) return;
+    if (!C.validDate(t.due) || t.due > to || !shown(projectOf(t)) || !shown('@tasks')) return;
     const item=taskItem(t,t.due);
     if (inView(item)) items.push(item);
     if (!t.rep || t.done) return;
@@ -115,14 +120,14 @@ function itemsBetween(from,to){
       if (d>=from) items.push(taskItem(t,d,true));
     }
   });
-  if (visible('@shad')) for (const p of B.shad.plan){
+  if (shown('@shad')) for (const p of B.shad.plan){
     for(const [part,slot,placed] of [['web',p.w,p.wp],['hw',p.h,p.hp]]){
       if(!placed||!C.validDate(slot?.date))continue;
       const item=shadItem(p,part);
       if(inView(item))items.push(item);
     }
   }
-  if (visible('@phagi')) for (let d=from; d<=to; d=add(d,1)){
+  if (shown('@phagi')) for (let d=from; d<=to; d=add(d,1)){
     for (const it of B.phxOn(d).filter(x=>!x.shad||x.fix)){
       items.push({kind:'phagi',id:it.id,title:it.t,start:d,end:add(d,1),on:d,proj:'@phagi',done:it.done});
     }
@@ -143,8 +148,33 @@ function eachDay(items,from,to){
 }
 const color = proj => proj === '@shad' ? 'blue' : proj === '@phagi' ? 'violet' : B.proj(proj)?.color || 'ink';
 const phagiHref = id => B.phagiTask ? B.phagiTask(id,date) : B.PHAGI;
+function calendarCheck(e){
+  return `<button class="ac-check" data-act="acToggleTask" data-id="${esc(e.id)}" data-on="${e.on}"
+    aria-label="${esc((e.done ? 'Снять отметку · ' : 'Выполнить · ') + e.title)}" aria-pressed="${!!e.done}">${e.done?'✓':'○'}</button>`;
+}
+B.acts.acToggleTask=async el=>{
+  const {id,on}=el.dataset, event=get(id);
+  if(!event || !C.isTask(event) || !C.validDate(on)) return;
+  const item=C.occurrences(event,on,on).find(e=>e.on===on);
+  if(!item) return;
+  const workout=C.workout(item);
+  if(workout && B.workoutText(workout)){
+    if(!await B.confirm('Снять отметку тренировки и удалить её заметку?', 'Снять отметку',true)) return;
+    if(C.workout(item)!==workout) return;
+  }
+  C.toggle(item);
+};
+function itemAttrs(e){
+  return `data-k="${e.kind}" data-id="${esc(e.id)}" data-on="${esc(e.on)}" data-start="${e.start}" data-end="${e.end}" data-part="${esc(e.part || '')}"`;
+}
+function actionButton(e){
+  if(!itemAction(e))return '';
+  const label=esc('Действия · '+(e.title||'Без названия'));
+  return `<button type="button" class="ac-card-menu" data-act="acMenu" ${itemAttrs(e)}
+    aria-label="${label}" title="${label}" aria-haspopup="dialog">${icon('dots')}</button>`;
+}
 function chip(e,style='',segment=null){
-  const attrs = `data-k="${e.kind}" data-id="${esc(e.id)}" data-on="${esc(e.on)}" data-start="${e.start}" data-end="${e.end}" data-part="${esc(e.part || '')}"`;
+  const attrs = itemAttrs(e);
   const timed = !!segment;
   const title = esc(e.title || 'Без названия');
   const interval = timed ? `${e.start.slice(11)}–${e.end.slice(11)}` : '';
@@ -152,12 +182,13 @@ function chip(e,style='',segment=null){
   const movable=task||e.kind==='event'||e.kind==='shad';
   const contents = `<span class="ac-title">${title}${e.repeat ? '<span aria-label="Повторяется"> ↻</span>' : ''}</span>${e.kind==='shad'?shadMeta(e):''}${timed ? `<small>${interval}${e.location ? ' · '+esc(e.location) : ''}</small>` : ''}`;
   return `<div class="ac-item c-${esc(color(e.proj))}${timed?' timed':''}${e.done?' done':''}${e.ghost?' ghost':''}" ${attrs} ${style? `style="${style}"` : ''}>
-    ${task ? `<button class="ac-check" data-act="toggleTask" data-id="${esc(e.id)}" aria-label="${e.done?'Вернуть задачу':'Выполнить задачу'}" aria-pressed="${!!e.done}">${e.done?'✓':'○'}</button>` : ''}
+    ${e.calendarTask ? calendarCheck(e) : task ? `<button class="ac-check" data-act="toggleTask" data-id="${esc(e.id)}" aria-label="${e.done?'Вернуть задачу':'Выполнить задачу'}" aria-pressed="${!!e.done}">${e.done?'✓':'○'}</button>` : ''}
     ${e.kind==='phagi' ? `<a class="ac-open" href="${esc(phagiHref(e.id))}" title="${title}">${contents}</a>` :
       `<button class="ac-open" data-act="acOpen" ${attrs} title="${title}">${contents}</button>`}
     ${timed && movable && segment.last ? '<span class="ac-resize end" data-resize="end" aria-hidden="true"></span>' : ''}
     ${timed && movable && segment.first ? '<span class="ac-resize start" data-resize="start" aria-hidden="true"></span>' : ''}
     ${movable && (!timed || segment.first) ? '<span class="ac-grab" title="Перенести запись" aria-hidden="true">⠿</span>' : ''}
+    ${actionButton(e)}
   </div>`;
 }
 
@@ -216,7 +247,7 @@ function layoutTimed(items,d){
 function timeGrid(ds,byDay){
   return `<div class="ac-time" style="--ac-days:${ds.length}">
     <div class="ac-sticky">
-      <div class="ac-head"><span></span>${ds.map(d=>`<button data-act="acDay" data-d="${d}" class="${d===today()?'now':''}">
+      <div class="ac-head"><span></span>${ds.map(d=>`<button data-act="acDay" data-d="${d}" class="${d===today()?'now ':''}${d===date?'selected':''}" ${d===date?'aria-current="date"':''}>
         <span>${labels[B.wd(d)]}</span> <b>${+d.slice(8)}</b></button>`).join('')}</div>
       ${allDay(ds,byDay)}
     </div>
@@ -234,7 +265,7 @@ function monthView(ds,byDay){
   return `<div class="ac-month"><div class="ac-month-labels">${labels.map(l=>`<span>${l}</span>`).join('')}</div><div class="ac-month-days">
     ${ds.map(d=>{ const list=byDay.get(d)||[];
       return `<section class="ac-month-day ${d.slice(0,7)!==date.slice(0,7)?'other':''}" data-all="${d}">
-        <button data-act="acDay" data-d="${d}" class="${d===today()?'now':''}" aria-label="${esc(fmt(d))}">${+d.slice(8)}</button>
+        <button data-act="acDay" data-d="${d}" class="${d===today()?'now ':''}${d===date?'selected':''}" ${d===date?'aria-current="date"':''} aria-label="${esc(fmt(d))}">${+d.slice(8)}</button>
         ${list.slice(0,3).map(e=>chip(e)).join('')}
         ${list.length>3?`<button class="ac-more" data-act="acDay" data-d="${d}">Ещё ${list.length-3}</button>`:''}
       </section>`;
@@ -269,12 +300,15 @@ function render(){
     </div>
   </div>`;
 }
+function selectDate(d){
+  if(!C.validDate(d))return false;
+  if(d!==date){date=d; weekFrom=null; weekFraction=0;}
+  return true;
+}
 function change(d,m=mode,reset=false){
-  if (!C.validDate(d)) return;
-  if (m!=='week'||mode!=='week'||reset||!weekFrom||d<weekFrom||d>add(weekFrom,6)){
-    weekFrom=null; weekFraction=0;
-  }
-  date=d; mode=m;
+  if(!Object.hasOwn(MODES,m)||!selectDate(d))return;
+  if(mode!==m||reset){weekFrom=null; weekFraction=0;}
+  mode=m;
   if (reset){ scroll=null; scrollLeft=0; }
   savePrefs(); B.render(true);
 }
@@ -290,15 +324,16 @@ B.acts.acPick=el=>change(el.dataset.d,mode);
 B.acts.acDay=el=>change(el.dataset.d,'day',true);
 B.acts.acMonth=el=>change(el.dataset.d,'month',true);
 B.acts.acToday=()=>change(today(),mode,true);
-B.acts.acMiniMove=el=>change(moveMonth(date,+el.dataset.n));
+B.acts.acMiniMove=el=>change(B.addMonth(date,+el.dataset.n));
 B.acts.acShift=el=>{
   const n=+el.dataset.n;
   if(mode==='week'){
-    const d=add(weekFrom||B.weekStart(date),n*7);
-    if(!C.validDate(d))return;
-    date=weekFrom=d; weekFraction=0;
+    const next=add(date,n*7);
+    if(!C.validDate(next))return;
+    if(weekFrom)weekFrom=add(weekFrom,n*7);
+    date=next; weekFraction=0;
     B.render(true);
-  }else change(mode==='day'?add(date,n):moveMonth(date,n*(mode==='year'?12:1)));
+  }else change(mode==='day'?add(date,n):B.addMonth(date,n*(mode==='year'?12:1)));
 };
 B.inputs.acFilter=(el,e)=>{
   if(e.type!=='change')return;
@@ -320,7 +355,7 @@ function newAll(d,end=add(d,1)){ return newDraft(d,end); }
 const allDayOf = e => e.start.length===10;
 const option=(v,label,selected)=>`<option value="${esc(v)}" ${String(v)===String(selected)?'selected':''}>${esc(label)}</option>`;
 const projectOptions = e => projects().map(p=>option(p.id,B.projName(p.id),projectOf(e))).join('');
-const scopeOptions = () => option('one','Это событие','one')+option('future','Это и будущие','one')+option('all','Вся серия','one');
+const scopeOptions = () => option('one','Только эта запись','one')+option('future','Это и будущие','one')+option('all','Вся серия','one');
 const near = el => {
   const box=el.getBoundingClientRect();
   return {x:box.right,y:box.top};
@@ -345,14 +380,16 @@ function markDraft(e,task){
   }
   cell.append(mark);
 }
-function editor(e, original=null, task=false, anchor=null, selected=false){
-  editContext={e,original,task,anchor,selected};
+function editor(e, original=null, anchor=null, selected=false){
+  const task=C.isTask(e);
+  const keepDay=original&&protectedEntry(original);
+  editContext={e,original,task,selected,type:null};
   const r=e.repeat||{}, active=!!r.freq, spanStart=C.dateOf(e.start);
   const monthly = r.freq==='monthly'||r.freq==='yearly', pattern = r.days?.length&&monthly?'weekdays':'dates';
   const floating=!!anchor&&matchMedia('(min-width: 700px) and (pointer: fine)').matches;
   B.sheet(`<h2 class="ac-card-title">Календарь</h2>
     <form id="acEditor" class="ac-editor ac-quick ${floating?'ac-floating':''}">
-      ${original?'':`<div class="ac-modes ac-types" role="group" aria-label="Тип записи"><button type="button" data-act="acType" data-v="event" aria-pressed="${!task}">Событие</button><button type="button" data-act="acType" data-v="task" aria-pressed="${task}">Задача</button></div>`}
+      <div class="ac-modes ac-types" role="group" aria-label="Тип записи"><button type="button" data-act="acType" data-v="event" aria-pressed="${!task}">Событие</button><button type="button" data-act="acType" data-v="task" aria-pressed="${task}">Задача</button></div>
       <input aria-label="Название" class="ac-quick-name" name="title" value="${esc(e.title)}" placeholder="${task?'Новая задача':'Новое событие'}" maxlength="240" required autofocus>
       ${allDayOf(e)?`<p class="ac-interval">${esc(intervalLabel(e,task))}</p>`:`<div class="ac-times">
         <label class="field">Начало<input type="datetime-local" name="startAt" value="${e.start}" required></label>
@@ -361,7 +398,7 @@ function editor(e, original=null, task=false, anchor=null, selected=false){
         <select name="project" aria-label="Календарь">${projectOptions(e)}</select></label>
       ${original?.repeat?`<label class="field">Изменить<select name="scope">${scopeOptions()}</select></label>`:''}
       <details class="ac-extra"><summary>Подробности</summary><div>
-      ${task?'':`      ${B.androidReminders?.eventField(e)||''}
+      ${B.androidReminders?.eventField(e)||''}
       <label class="field">Повтор<select name="frequency">${option('','Никогда',r.freq||'')}${Object.entries(FREQ).map(([k,v])=>option(k,v,r.freq)).join('')}</select></label>
       <div class="ac-repeat" ${active?'':'hidden'}>
         <div class="ac-edit-row">
@@ -385,11 +422,14 @@ function editor(e, original=null, task=false, anchor=null, selected=false){
       <label class="field">Вложения<input type="file" name="files" multiple><small>До 700 КБ на файл, фотографии сжимаются.</small></label>
       ${(e.attachments||[]).map(getFile).filter(f=>f?.data?.startsWith('data:')).map(f=>
         `<div class="ac-attachment"><a href="${esc(f.data)}" download="${esc(f.name)}">${esc(f.name)}</a>
-          <label><input type="checkbox" name="detach" value="${esc(f.id)}"> Убрать</label></div>`).join('')}`}
+          <label><input type="checkbox" name="detach" value="${esc(f.id)}"> Убрать</label></div>`).join('')}
       <label class="field">Заметки<textarea name="notes" rows="2" maxlength="10000">${esc(e.notes||'')}</textarea></label>
+      ${keepDay?'<button type="button" class="btn danger ghost sm" data-act="acDelete">Удалить запись…</button>':''}
       </div></details>
       <p class="ac-error" role="alert" hidden></p>
-      <div class="row between">${original?`<div class="row"><button type="button" class="btn danger ghost sm" data-act="acDelete">Удалить</button><button type="button" class="btn ghost sm" data-act="acDuplicate">Дублировать</button></div>`:'<span></span>'}
+      <div class="row between">${original?`<div class="row">${keepDay
+        ? (allDayOf(e)?'':'<button type="button" class="btn ghost sm" data-act="acEditorUntime">Убрать время</button>')
+        : '<button type="button" class="btn danger ghost sm" data-act="acDelete">Удалить</button>'}<button type="button" class="btn ghost sm" data-act="acDuplicate">Дублировать</button></div>`:'<span></span>'}
         <button type="submit" class="btn primary">Сохранить</button></div>
     </form>`,()=>{
       editContext=null;
@@ -405,17 +445,16 @@ function editor(e, original=null, task=false, anchor=null, selected=false){
   if(selected)markDraft(e,task);
   form.addEventListener('change',ev=>{
     const f=form.elements;
+    if(ev.target===f.frequency||ev.target.closest('.ac-repeat')) editContext.repeatEdited=true;
     if(ev.target===f.project) form.querySelector('.ac-project').className='ac-project c-'+color(f.project.value);
-    if (!task){
-      form.querySelector('.ac-repeat').hidden=!f.frequency.value;
-      const m=f.frequency.value==='monthly'||f.frequency.value==='yearly', w=f.monthPattern.value==='weekdays';
-      form.querySelector('.ac-month-pattern').hidden=!m;
-      form.querySelector('.ac-month-dates').hidden=w;
-      form.querySelector('.ac-month-position').hidden=!w;
-      form.querySelector('.ac-weekdays').hidden=f.frequency.value!=='weekly'&&!(m&&w);
-      form.querySelector('.ac-repeat-date').hidden=f.repeatEnd.value!=='until';
-      form.querySelector('.ac-repeat-count').hidden=f.repeatEnd.value!=='count';
-    }
+    form.querySelector('.ac-repeat').hidden=!f.frequency.value;
+    const m=f.frequency.value==='monthly'||f.frequency.value==='yearly', w=f.monthPattern.value==='weekdays';
+    form.querySelector('.ac-month-pattern').hidden=!m;
+    form.querySelector('.ac-month-dates').hidden=w;
+    form.querySelector('.ac-month-position').hidden=!w;
+    form.querySelector('.ac-weekdays').hidden=f.frequency.value!=='weekly'&&!(m&&w);
+    form.querySelector('.ac-repeat-date').hidden=f.repeatEnd.value!=='until';
+    form.querySelector('.ac-repeat-count').hidden=f.repeatEnd.value!=='count';
   });
   form.addEventListener('submit',ev=>{ev.preventDefault();submitEditor(form);});
 }
@@ -424,7 +463,6 @@ function draftFrom(form,ctx){
   if (!C.valid(start)||!C.valid(end)||end<=start) throw Error('Конец должен быть позже начала.');
   const draft={title:f.title.value.trim(),proj:f.project.value||'inbox',start,end,notes:f.notes.value.trim()};
   if (!draft.title) throw Error('Введи название.');
-  if (ctx.task) return draft;
   const freq=f.frequency.value, until=f.repeatEnd.value==='until'?f.until.value:'';
   if (freq && f.repeatEnd.value==='until' && (!C.validDate(until)||until<C.dateOf(start))) throw Error('Выбери дату окончания повтора после начала.');
   if (f.url.value && !/^https?:\/\//i.test(f.url.value)) throw Error('Ссылка должна начинаться с http:// или https://.');
@@ -436,17 +474,26 @@ function draftFrom(form,ctx){
   const repeat=freq?{freq,every:Number(f.every.value)||1,until,count:f.repeatEnd.value==='count'?Number(f.count.value)||1:0,
     days:weekDays,monthDays,pos:weekdays?Number(f.position.value):0,
     month:freq==='yearly'&&monthDays.length+weekDays.length ? Number(start.slice(5,7)) : 0}:null;
-  return {...draft,repeat,location:f.place.value.trim(),url:f.url.value.trim(),
+  const activity = ctx.e.activity === 'gym' || C.isGym(ctx.e) || C.isGym(draft) ? 'gym' : '';
+  const type = ctx.type || ctx.e.type || (activity ? 'task' : 'event');
+  return {...draft,type,activity,habitId:ctx.e.habitId||'',repeat:ctx.original&&!ctx.repeatEdited?ctx.e.repeat||null:repeat,location:f.place.value.trim(),url:f.url.value.trim(),
     alerts:f.androidAlert?B.androidReminders.eventAlerts(f.androidAlert,ctx.e):ctx.e.alerts||[]};
 }
 function writeOccurrence(original, on, draft, scope){
   const fresh=get(original.id);
   if (!fresh) return;
   const first=C.dateOf(fresh.start), delta=diff(on,C.dateOf(draft.start));
-  if (!fresh.repeat) { save({...fresh,...draft}); return; }
+  if (!fresh.repeat){
+    const next={...fresh,...draft};
+    save(next);
+    C.moveCompletions(fresh,next,on,delta,true);
+    return;
+  }
   if(scope==='one'){
     save({...fresh,skip:[...new Set([...(fresh.skip||[]),on])]});
-    save({...draft,id:B.uid(),repeat:null,skip:[],seriesId:fresh.id,seriesOn:on});
+    const next={...draft,id:B.uid(),repeat:null,skip:[],seriesId:fresh.id,seriesOn:on};
+    save(next);
+    C.moveCompletions(fresh,next,on,delta,true);
     return;
   }
   const repeat=draft.repeat?{...draft.repeat}:null;
@@ -455,12 +502,16 @@ function writeOccurrence(original, on, draft, scope){
     if(repeat?.count && repeat.count===fresh.repeat.count) repeat.count=Math.max(1,repeat.count-C.countBefore(fresh,on));
     save(C.previousOccurrences(fresh,on));
     const id=B.uid();
-    save({...draft,id,repeat,skip:except});
+    const next={...draft,id,repeat,skip:except};
+    save(next);
+    C.moveCompletions(fresh,next,on,delta);
     C.events().filter(e=>e.seriesId===fresh.id&&e.seriesOn>=on).forEach(e=>save({...e,seriesId:id,seriesOn:add(e.seriesOn,delta)}));
     return;
   }
   const offset=diff(on,first);
-  save({...fresh,...draft,start:C.shifted(draft.start,offset),end:C.shifted(draft.end,offset),repeat,skip:except});
+  const next={...fresh,...draft,start:C.shifted(draft.start,offset),end:C.shifted(draft.end,offset),repeat,skip:except};
+  save(next);
+  C.moveCompletions(fresh,next,first,delta);
   if (delta) C.events().filter(e=>e.seriesId===fresh.id).forEach(e=>save({...e,seriesOn:add(e.seriesOn,delta)}));
 }
 async function submitEditor(form){
@@ -469,8 +520,14 @@ async function submitEditor(form){
   submit.disabled=true;
   try {
     const draft=draftFrom(form,ctx), d=C.dateOf(draft.start);
-    if(ctx.task) B.saveTask(B.newTask({title:draft.title,proj:draft.proj,due:d,time:draft.start.slice(11),est:allDayOf(draft)?0:C.span(draft.start,draft.end),notes:draft.notes}));
-    else {
+    const asPlannerTask=!ctx.original && draft.type==='task' && !draft.activity && !draft.habitId &&
+      !draft.repeat && !draft.location && !draft.url && !draft.alerts.length &&
+      !ctx.e.attachments?.length && !form.elements.files.files.length &&
+      (!allDayOf(draft) || draft.end===add(d,1));
+    if(asPlannerTask){
+      B.saveTask(B.newTask({title:draft.title,proj:draft.proj,due:d,time:draft.start.slice(11),
+        est:allDayOf(draft)?0:C.span(draft.start,draft.end),notes:draft.notes}));
+    }else{
       const removed=new Set([...form.querySelectorAll('[name=detach]:checked')].map(el=>el.value));
       const files=[]; let size=0;
       for(const file of form.elements.files.files){
@@ -489,16 +546,21 @@ async function submitEditor(form){
       if(form.elements.androidAlert?.value && form.elements.androidAlert.value!==form.elements.androidAlert.dataset.current)
         B.androidReminders.enable();
     }
-    B.closeSheet(); change(d); B.toast(ctx.task?'Задача сохранена':'Событие сохранено');
+    B.closeSheet(); change(d); B.toast(draft.type==='task'?'Задача сохранена':'Событие сохранено');
   }catch(e){ const err=form.querySelector('.ac-error');err.textContent=e.message;err.hidden=false; }
   finally { submit.disabled=false; }
 }
 B.acts.acType=el=>{
-  const f=B.$('#acEditor').elements, {e,anchor,selected}=editContext;
-  editor({...e,start:f.startAt?.value||e.start,end:f.endAt?.value||e.end,title:f.title.value,proj:f.project.value,notes:f.notes.value},null,el.dataset.v==='task',anchor,selected);
+  if(!editContext) return;
+  editContext.type=el.dataset.v;
+  editContext.task=el.dataset.v==='task';
+  const form=el.closest('form');
+  form.querySelectorAll('[data-act="acType"]').forEach(btn=>btn.setAttribute('aria-pressed',btn===el));
+  form.elements.title.placeholder=editContext.task?'Новая задача':'Новое событие';
+  if(editContext.selected)markDraft({...editContext.e,title:form.elements.title.value},editContext.task);
 };
 B.acts.acAdd=()=>editor(newTimed(date));
-B.acts.acNewDay=el=>editor(newAll(el.dataset.d),null,false,near(el),true);
+B.acts.acNewDay=el=>editor(newAll(el.dataset.d),null,near(el),true);
 function fromNode(el){
   const {k,id,on,start,end,part}=el.dataset;
   return {kind:k,id,on,start,end,part};
@@ -507,7 +569,7 @@ B.acts.acOpen=el=>{
   const x=fromNode(el);
   if(x.kind==='task') return B.openTask(x.id);
   if(x.kind==='shad') return shadEditor(x.id,x.part);
-  const e=get(x.id); if(e) editor({...e,start:x.start,end:x.end,on:x.on},e,false,near(el));
+  const e=get(x.id); if(e) editor({...e,start:x.start,end:x.end,on:x.on},e,near(el));
 };
 B.acts.acShadPick=el=>shadEditor(el.dataset.id,el.dataset.part);
 function shadEditor(id,part){
@@ -569,8 +631,20 @@ function shadEditor(id,part){
 B.acts.acDuplicate=()=>{
   const ctx=editContext; if(!ctx) return;
   const e=ctx.e;
-  editor({...newDraft(e.start,e.end),title:e.title,proj:e.proj,notes:e.notes,location:e.location,url:e.url,alerts:e.alerts,attachments:e.attachments});
+  editor({...newDraft(e.start,e.end),title:e.title,proj:e.proj,type:e.type,activity:e.activity,habitId:e.habitId,notes:e.notes,location:e.location,url:e.url,alerts:e.alerts,attachments:e.attachments});
 };
+function deleteEvent(master,on,scope){
+  const first=C.dateOf(master.start);
+  if(master.repeat && scope==='one') save({...master,skip:[...new Set([...(master.skip||[]),on])]});
+  else {
+    const future=master.repeat&&scope==='future'&&on>first;
+    const related=C.events().filter(x=>x.seriesId===master.id&&(!future||x.seriesOn>=on));
+    if(future) save(C.previousOccurrences(master,on));
+    else B.put('e_'+master.id,null);
+    related.forEach(x=>B.put('e_'+x.id,null));
+    pruneFiles((master.attachments||[]).concat(related.flatMap(x=>x.attachments||[])));
+  }
+}
 B.acts.acDelete=async()=>{
   const {e,original}=editContext||{};
   if(!original) return;
@@ -578,18 +652,111 @@ B.acts.acDelete=async()=>{
   if(!await B.confirm('Удалить «'+esc(e.title)+'»?', 'Удалить',true)) return;
   const master=get(original.id);
   if(!master) return B.closeSheet();
-  const first=C.dateOf(master.start);
-  if(master.repeat && scope==='one') save({...master,skip:[...new Set([...(master.skip||[]),e.on])]});
-  else {
-    const future=master.repeat&&scope==='future'&&e.on>first;
-    const related=C.events().filter(x=>x.seriesId===master.id&&(!future||x.seriesOn>=e.on));
-    if(future) save(C.previousOccurrences(master,e.on));
-    else B.put('e_'+master.id,null);
-    related.forEach(x=>B.put('e_'+x.id,null));
-    pruneFiles((master.attachments||[]).concat(related.flatMap(x=>x.attachments||[])));
-  }
-  B.closeSheet();B.toast('Событие удалено');
+  B.historyStep(()=>deleteEvent(master,e.on,scope));
+  B.closeSheet();B.toast(C.isTask(master)?'Задача удалена':'Событие удалено');
 };
+
+function expandDayHeader(){
+  if ((mode==='day'||mode==='week') && !allExpanded){
+    allExpanded=true;
+    savePrefs();
+  }
+}
+function protectedEntry(e){
+  return e.proj==='shad'||!!e.habitId||
+    ((e.kind==='task'||C.isTask(e))&&(e.activity==='gym'||C.isGym(e)));
+}
+function itemAction(e){
+  if(e.ghost||!['task','event','shad'].includes(e.kind))return '';
+  if(e.kind==='shad'||e.keepDay) return e.start.length>10?'untimed':'';
+  return 'delete';
+}
+function resolveItem({kind,id,on,start,end,part,ghost}){
+  if(ghost||!C.validDate(on))return null;
+  let view, record;
+  if(kind==='task'){
+    record=B.task(id);
+    if(record&&!record.deleted&&record.due===on) view=taskItem(record,on);
+  }else if(kind==='shad'&&(part==='web'||part==='hw')){
+    record=B.shad.plan.find(p=>p.n===Number(id));
+    const placed=part==='web'?record?.wp:record?.hp;
+    if(placed) view=shadItem(record,part);
+  }else if(kind==='event'){
+    record=get(id);
+    const found=record&&C.occurrences(record,on,on).find(e=>e.on===on);
+    if(found) view=eventItem(found);
+  }
+  return view?.on===on&&view.start===start&&view.end===end ? {view,record} : null;
+}
+function moveItem(current,start,end){
+  const {view,record}=current;
+  if(view.kind==='shad') B.calendarMoveShad(Number(view.id),view.part,start,end,{toast:false});
+  else if(view.kind==='task') B.calendarMoveTask(view.id,start,end);
+  else {
+    const estimate=view.calendarTask&&view.start.length===16&&start.length===10
+      ? {planMinutes:C.span(view.start,view.end)} : {};
+    writeOccurrence(record,view.on,{...record,...estimate,start,end},'one');
+  }
+}
+function planSlotEntry(item,start,end){
+  const current=resolveItem(item), on=current?.view.on;
+  if(!on||current.view.done||current.view.start!==on||current.view.end!==add(on,1))return null;
+  if(current.view.kind==='event'&&!current.view.calendarTask)return null;
+  if(!C.valid(start)||!C.valid(end)||start.length!==16||end.length!==16||
+    C.dateOf(start)!==on||end<=start||end>add(on,1)+'T00:00') return null;
+  return current;
+}
+function applyPlanSlot(item,start,end){
+  const current=planSlotEntry(item,start,end);
+  if(!current)return false;
+  moveItem(current,start,end);
+  return true;
+}
+function runItemAction(current){
+  const {view,record}=current, action=itemAction(view);
+  if(action==='untimed'){
+    expandDayHeader();
+    B.historyToast('Перенесено в «Весь день»',()=>moveItem(current,view.on,add(view.on,1)));
+  }else if(action==='delete'&&view.kind==='task'){
+    B.historyToast('Дело удалено',()=>B.removeCalendarTask(record));
+  }else if(action==='delete'){
+    B.historyToast(view.calendarTask?'Задача удалена':'Событие удалено',()=>deleteEvent(record,view.on,'one'));
+  }
+  return !!action;
+}
+B.acts.acMenu=el=>{
+  const current=resolveItem(fromNode(el));
+  const action=current&&itemAction(current.view);
+  if(!action)return;
+  const {view,record}=current, attrs=itemAttrs(view), remove=action==='delete';
+  const scope=record.repeat||record.rep ? '<p class="hint">Действие применяется к записи на '+fmt(view.on)+'.</p>' : '';
+  B.sheet(`<h2>${esc(view.title||'Без названия')}</h2>${scope}<div class="ac-card-actions">
+    <button type="button" class="btn ghost" data-act="acOpen" ${attrs} autofocus>${icon('cal')}Открыть</button>
+    <button type="button" class="btn ${remove?'danger':'primary'}" data-act="acMenuApply" ${attrs}>
+      ${icon(remove?'trash':'clock')}${remove?'Удалить':'Убрать время'}</button>
+  </div>`);
+};
+B.acts.acMenuApply=el=>{
+  const current=resolveItem(fromNode(el));
+  B.closeSheet();
+  if(!current||!runItemAction(current)) B.toast('Запись уже изменилась');
+};
+B.acts.acEditorUntime=()=>{
+  const {original,e}=editContext||{};
+  if(!original)return;
+  const on=e.on;
+  const saved=get(original.id)===original&&C.occurrences(original,on,on).find(item=>item.on===on);
+  const current=saved&&resolveItem({...saved,kind:'event'});
+  B.closeSheet();
+  if(!current||itemAction(current.view)!=='untimed') B.toast('Запись уже изменилась');
+  else runItemAction(current);
+};
+function deleteCalendarItem(node){
+  const current=resolveItem(fromNode(node));
+  if(!current)return false;
+  runItemAction(current);
+  return true;
+}
 
 function searchResults(query){
   const q=query.trim().toLocaleLowerCase('ru');
@@ -608,7 +775,7 @@ function searchResults(query){
   }));
   const list=events.concat(tasks,shad).sort((a,b)=>a.start.localeCompare(b.start));
   return list.length ? `<div class="ac-results">${list.slice(0,80).map(x=>`<button data-act="acSearchGo" data-k="${x.kind}" data-part="${x.part||''}" data-id="${esc(x.id)}">
-    <b>${esc(x.title)}</b><small>${x.context?esc(x.context):(x.kind==='task'?'Задача':'Событие')+' · '+(x.start?fmt(C.dateOf(x.start))+' '+x.start.slice(0,4):'Без даты')}</small></button>`).join('')}</div>`:
+    <b>${esc(x.title)}</b><small>${x.context?esc(x.context):(x.kind==='task'||C.isTask(x)?'Задача':'Событие')+' · '+(x.start?fmt(C.dateOf(x.start))+' '+x.start.slice(0,4):'Без даты')}</small></button>`).join('')}</div>`:
     '<p class="muted">Ничего не найдено.</p>';
 }
 B.acts.acSearch=()=>{
@@ -713,7 +880,7 @@ addEventListener('focus',fireAlerts);
 
 const minuteAt=(col,y,end=false)=>B.clamp(snap((y-col.getBoundingClientRect().top)/col.offsetHeight*C.DAY),0,C.DAY-(end?0:dragStep));
 function rangePointer(e,root){
-  if((e.pointerType==='touch'&&!e.target.closest('.ac-resize,.ac-grab'))||e.button!==0||e.target.closest('.ac-check,a')) return;
+  if((e.pointerType==='touch'&&!e.target.closest('.ac-resize,.ac-grab'))||e.button!==0||e.target.closest('.ac-check,.ac-card-menu,a')) return;
   const col=e.target.closest('[data-col]'), all=e.target.closest('[data-all]');
   const card=e.target.closest('.ac-shad-card');
   if(!col&&!all&&!card) return;
@@ -790,8 +957,8 @@ function rangePointer(e,root){
     if(!x){
       if(col&&selectedCol){
         const next=proposed();
-        if(next) editor(newDraft(next.start,next.end),null,false,anchor,true);
-      }else if(all) editor(newAll(origin<target?origin:target,add(origin<target?target:origin,1)),null,false,anchor,true);
+        if(next) editor(newDraft(next.start,next.end),null,anchor,true);
+      }else if(all) editor(newAll(origin<target?origin:target,add(origin<target?target:origin,1)),null,anchor,true);
       return;
     }
     const next=proposed();
@@ -799,7 +966,7 @@ function rangePointer(e,root){
     if(x.kind==='event'){
       const event=get(x.id); if(!event)return;
       const draft={...event,start:next.start,end:next.end};
-      if(event.repeat) editor({...draft,on:x.on},event,false,anchor,true); else save(draft);
+      if(event.repeat) editor({...draft,on:x.on},event,anchor,true); else writeOccurrence(event,x.on,draft,'all');
     }else if(x.kind==='task') B.calendarMoveTask(x.id,next.start,next.end);
     else if(x.kind==='shad') B.calendarMoveShad(Number(x.id),x.part,next.start,next.end);
   }
@@ -851,7 +1018,7 @@ function mountGestures(sc,weekly){
     }
     if(Math.hypot(dx,dy)<8&&performance.now()-g.start<450&&!g.target.closest('button,a,.ac-item')){
       const col=g.target.closest('[data-col]');
-      if(col)editor(newTimed(col.dataset.col,minuteAt(col,p.clientY)),null,false,null,true);
+      if(col)editor(newTimed(col.dataset.col,minuteAt(col,p.clientY)),null,null,true);
     }
   },{passive:true});
 }
@@ -875,7 +1042,11 @@ function mountWeekPan(root,sc){
     axis=head[0].previousElementSibling.getBoundingClientRect().width;
     // Берём координаты столбцов, поскольку браузеры округляют ширины сетки по-разному.
     offsets=head.map(el=>el.getBoundingClientRect().left-origin);
-    const index=diff(first,weekFrom||B.weekStart(date));
+    const monday=B.weekStart(date), mondayIndex=diff(first,monday);
+    const dayWidth=cols[mondayIndex].getBoundingClientRect().width;
+    const capacity=Math.max(1,Math.floor((viewport-axis+1)/dayWidth));
+    const start=weekFrom||add(monday,Math.max(0,B.wd(date)-capacity+1));
+    const index=diff(first,start);
     const width=cols[index].getBoundingClientRect().width;
     sc.scrollLeft=Math.round(offsets[index]+weekFraction*width);
     left=sc.scrollLeft;
@@ -950,13 +1121,22 @@ function mount(){
     if(e.target.closest('.ac-item,button,a'))return;
     const col=e.target.closest('[data-col]'), all=e.target.closest('[data-all]');
     const anchor={x:e.clientX,y:e.clientY};
-    if(col) editor(newTimed(col.dataset.col,minuteAt(col,e.clientY)),null,false,anchor,true);
-    else if(all) editor(newAll(all.dataset.all),null,false,anchor,true);
+    if(col) editor(newTimed(col.dataset.col,minuteAt(col,e.clientY)),null,anchor,true);
+    else if(all) editor(newAll(all.dataset.all),null,anchor,true);
   });
 }
 document.addEventListener('keydown',e=>{
-  if(!B.$('.ac')||B.sheetOpen()||!B.$('#dlgScrim').hidden||e.target.closest('input,select,textarea,[contenteditable]'))return;
+  const root=B.$('.ac');
+  if(!root||e.defaultPrevented||B.sheetOpen()||!B.$('#dlgScrim').hidden||e.target.closest('input,select,textarea')||e.target.isContentEditable)return;
   if(e.metaKey||e.ctrlKey||e.altKey||e.shiftKey)return;
+  if(e.key==='Delete'||e.key==='Backspace'){
+    if(e.repeat||dragging) return;
+    const item=root.querySelector('.ac-item:hover')||e.target.closest('.ac-item');
+    if(item && root.contains(item) && !item.classList.contains('ghost') && deleteCalendarItem(item)){
+      e.preventDefault(); e.stopImmediatePropagation();
+    }
+    return;
+  }
   const act={ArrowLeft:()=>B.acts.acShift({dataset:{n:'-1'}}),ArrowRight:()=>B.acts.acShift({dataset:{n:'1'}}),
     KeyT:B.acts.acToday,KeyN:B.acts.acAdd,Slash:B.acts.acSearch}[e.code];
   if(act){e.preventDefault();e.stopImmediatePropagation();act();}
@@ -971,7 +1151,9 @@ function openReminder(id,on){
   editor(x,e);
   return true;
 }
-B.calendarView={render,mount,unmount,itemsBetween,openReminder,deferRender(){
+B.calendarView={render,mount,unmount,itemsBetween,openReminder,calendarCheck,actionButton,applyPlanSlot,
+  canApplyPlanSlot:(item,start,end)=>!!planSlotEntry(item,start,end),
+  selectedDate:()=>date,selectDate,deferRender(){
   if(!dragging&&!weekScrollTimer)return false;
   redrawAfterInteraction=true;
   return true;

@@ -29,6 +29,12 @@ B.today = () => B.dayOf(Date.now());
 B.parse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d, 12); };
 B.add = (s, k) => { const d = B.parse(s); d.setDate(d.getDate() + k); return B.ymd(d); };
 B.diff = (a, b) => Math.round((B.parse(b) - B.parse(a)) / 864e5);   // b − a в днях
+B.addMonth = (date, count) => {
+  const current = B.parse(date), next = new Date(current.getFullYear(), current.getMonth() + count, 1, 12);
+  const last = new Date(next.getFullYear(), next.getMonth() + 1, 0, 12).getDate();
+  next.setDate(Math.min(current.getDate(), last));
+  return B.ymd(next);
+};
 B.wd = s => (B.parse(s).getDay() + 6) % 7;                          // 0 = понедельник
 B.weekStart = s => B.add(s, -B.wd(s));
 B.MON = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
@@ -97,16 +103,34 @@ B.list = prefix => { const out = []; for (const k in docs) if (k.startsWith(pref
 /* ---------- отмена и повтор (Cmd+Z / Cmd+Shift+Z) ----------
    Каждая запись помнит, каким документ был до и после. Изменения, сделанные подряд за 0,8 с, отменяются одним шагом. */
 const undoSt = [], redoSt = [];
-let replaying = false, lastRec = 0;
+let replaying = false, lastRec = 0, activeStep = null;
 function record(key, before, after){
   if (replaying) return;
   const now = Date.now(), cl = v => v == null ? null : JSON.parse(JSON.stringify(v));
-  let e = undoSt[undoSt.length - 1];
-  if (!e || now - lastRec > 800){ e = {items: {}}; undoSt.push(e); if (undoSt.length > 100) undoSt.shift(); }
+  let e = activeStep ? activeStep.entry : undoSt[undoSt.length - 1];
+  if (!e || (!activeStep && now - lastRec > 800)){
+    e = {items: {}};
+    if (activeStep) activeStep.entry = e;
+    undoSt.push(e);
+    if (undoSt.length > 100) undoSt.shift();
+  }
   if (!(key in e.items)) e.items[key] = {before: cl(before)};
   e.items[key].after = cl(after);
   lastRec = now; redoSt.length = 0;
 }
+B.historyStep = (fn, onStep) => {
+  if (activeStep) return fn();
+  activeStep = {};
+  try { return fn(); }
+  finally {
+    const entry = activeStep.entry;
+    activeStep = null;
+    if (entry){
+      lastRec = 0;
+      onStep?.(() => undoEntry(entry));
+    }
+  }
+};
 function replay(e, which){
   replaying = true;
   try {
@@ -116,6 +140,30 @@ function replay(e, which){
       else B.put(k, v == null ? null : JSON.parse(JSON.stringify(v)));
     }
   } finally { replaying = false; }
+}
+function matchesHistory(a, b){
+  if (a === b || a == null && b == null) return true;
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) !== Array.isArray(b)) return false;
+  const keys = Object.keys(a).filter(k => Array.isArray(a) || a[k] !== undefined);
+  return keys.length === Object.keys(b).length && keys.every(k => Object.hasOwn(b, k) && matchesHistory(a[k], b[k]));
+}
+function undoEntry(entry){
+  const index = undoSt.indexOf(entry);
+  if (index < 0) return false;
+  const keys = Object.keys(entry.items);
+  if (undoSt.slice(index + 1).some(step => keys.some(k => k in step.items))) return false;
+  const shadMark = v => v && {s:v.s || 0, note:v.note || '', at:v.at || 0, o:v.o || null};
+  if (!keys.every(k => {
+    const expected = entry.items[k].after;
+    return k.startsWith('shad:')
+      ? matchesHistory(shadMark(B.shad.marks[+k.slice(5)]), shadMark(expected))
+      : matchesHistory(docs[k], expected);
+  })) return false;
+  undoSt.splice(index, 1);
+  replay(entry, 'before');
+  redoSt.push(entry);
+  lastRec = 0;
+  return true;
 }
 B.undo = () => { const e = undoSt.pop(); if (!e) return false; replay(e, 'before'); redoSt.push(e); lastRec = 0; return true; };
 B.redo = () => { const e = redoSt.pop(); if (!e) return false; replay(e, 'after'); undoSt.push(e); lastRec = 0; return true; };
@@ -501,6 +549,15 @@ B.dayDates = () => Object.keys(docs).filter(k => k.startsWith('d_')).map(k => k.
 B.datesWith = id => Object.keys(docs).filter(k => k.startsWith('d_') && (docs[k].top || []).includes(id)).map(k => k.slice(2));
 B.saveDay = (date, d, quiet) => B.put('d_' + date, d, quiet);
 B.editDay = (date, fn, quiet) => { const d = JSON.parse(JSON.stringify(B.day(date))); fn(d); B.saveDay(date, d, quiet); };
+B.toggleHabitMark = (id, date) => {
+  const on = !B.day(date).h?.[id];
+  B.editDay(date, d => {
+    d.h = {...d.h};
+    if (on) d.h[id] = 1;
+    else delete d.h[id];
+  });
+  return on;
+};
 B.habits = () => B.list('h_').filter(h => !h.arch).sort((a, b) => (a.order || 0) - (b.order || 0));
 B.habitPins = () => {
   const ids = B.get('habitPins')?.ids;

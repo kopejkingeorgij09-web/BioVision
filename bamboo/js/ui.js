@@ -84,11 +84,16 @@ B.ring = (v, size = 44, cls = '') => {
 };
 
 /* ---------- всплывашка ---------- */
-let toastT;
+let toastT, toastHideT, toastUndo;
 B.toast = (html, ms = 2600) => {
   const el = $('#toast'); el.innerHTML = html; el.hidden = false; el.classList.remove('out');
-  clearTimeout(toastT); toastT = setTimeout(() => { el.classList.add('out'); setTimeout(() => el.hidden = true, 250); }, ms);
+  clearTimeout(toastT); clearTimeout(toastHideT);
+  toastT = setTimeout(() => { el.classList.add('out'); toastHideT = setTimeout(() => el.hidden = true, 250); }, ms);
 };
+B.historyToast = (message, action) => B.historyStep(action, undo => {
+  toastUndo = undo;
+  B.toast(`${esc(message)} <button type="button" class="toast-btn" data-act="undoHistoryStep">Вернуть</button>`, 7500);
+});
 B.xpToast = (n, why) => B.toast(`<b class="${n < 0 ? 'neg' : 'pos'}">${n > 0 ? '+' : ''}${n} XP</b> ${esc(why || '')}`);
 
 /* ---------- лист снизу и диалог ---------- */
@@ -130,7 +135,11 @@ B.confirm = (text, yes = 'Да', danger) => B.dialog(`<p class="dlg-text">${text
 B.acts = {
   closeSheet: () => B.closeSheet(),
   dlgNo: () => B.closeDialog(false),
-  dlgYes: () => B.closeDialog(true)
+  dlgYes: () => B.closeDialog(true),
+  undoHistoryStep: () => {
+    const undo = toastUndo; toastUndo = null;
+    if (undo) B.toast(undo() ? 'Отменено' : 'Запись уже изменилась', 2200);
+  }
 };
 B.inputs = {};
 document.addEventListener('click', e => {
@@ -145,17 +154,18 @@ const onField = e => {
 };
 document.addEventListener('input', onField);
 document.addEventListener('change', onField);
-/* Cmd+Z отменяет, Cmd+Shift+Z (и Ctrl+Y) повторяет. В полях ввода работает обычная отмена текста. */
-document.addEventListener('keydown', e => {
-  if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
-  const z = e.code === 'KeyZ' || e.key === 'z' || e.key === 'Z', y = e.code === 'KeyY' && e.ctrlKey && !e.metaKey;
-  if (!z && !y) return;
+/* Общая отмена для клавиш браузера и меню «Правка» в macOS. */
+B.handleHistory = redo => {
   const a = document.activeElement;
-  if (a && (a.matches('input:not([type=checkbox]):not([type=radio]),textarea,select') || a.isContentEditable)) return;
-  e.preventDefault();
-  const redo = y || e.shiftKey;
+  if (a && (a.matches('input:not([type=checkbox]):not([type=radio]),textarea,select') || a.isContentEditable)) return false;
   if (redo ? B.redo() : B.undo()) B.toast(redo ? 'Повторено' : 'Отменено', 1100);
   else B.toast(redo ? 'Нечего повторять' : 'Нечего отменять', 1100);
+  return true;
+};
+document.addEventListener('keydown', e => {
+  if (!(e.metaKey || e.ctrlKey) || e.altKey || e.defaultPrevented) return;
+  const z = e.code === 'KeyZ' || e.key === 'z' || e.key === 'Z', y = e.code === 'KeyY' && e.ctrlKey && !e.metaKey;
+  if ((z || y) && B.handleHistory(y || e.shiftKey)) e.preventDefault();
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape'){ if (!$('#dlgScrim').hidden) B.closeDialog(false); else if (B.sheetOpen()) B.closeSheet(); }

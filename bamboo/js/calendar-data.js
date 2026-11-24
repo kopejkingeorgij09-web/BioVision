@@ -16,6 +16,53 @@ const valid = value => typeof value === 'string' && validDate(dateOf(value)) &&
   (value.length === 10 || /^T(?:[01]\d|2[0-3]):[0-5]\d$/.test(value.slice(10)));
 const events = () => B.list('e_').filter(e => e && valid(e.start) && valid(e.end) &&
   e.start.length === e.end.length && e.start < e.end);
+const isGym = e => /^зал(?:$|\s*[·:—–-])/iu.test((e.title || '').trim());
+const isTask = e => e.type ? e.type === 'task' : isGym(e);
+const completionId = (id, on) => 'cal_' + id + '_' + on;
+function completionKeys(id, on){
+  const key = completionId(id, on);
+  return ['ec_' + key, 'w_' + key];
+}
+const workout = e => B.get('w_' + completionId(e.id, e.on));
+const linkedHabit = e => e.habitId && B.get('h_' + e.habitId);
+function done(e){
+  if (!e.habitId) return completionKeys(e.id, e.on).some(key => B.get(key));
+  const habit = linkedHabit(e);
+  return !!habit && B.habitDone(habit, e.on);
+}
+function toggle(e){
+  if (e.habitId){
+    const habit = linkedHabit(e);
+    if (habit && !habit.arch && !habit.auto && e.on >= (habit.created || ''))
+      B.toggleHabitMark(habit.id, e.on);
+    return;
+  }
+  const keys = completionKeys(e.id, e.on);
+  const saved = keys.filter(key => B.get(key));
+  if (saved.length){
+    saved.forEach(key => B.put(key, null));
+    return;
+  }
+  const id = completionId(e.id, e.on);
+  const mark = {id, calendarId:e.id, date:e.on, at:Date.now()};
+  if (e.activity === 'gym' || isGym(e)) B.put('w_' + id, {...mark, type:'gym', note:''});
+  else B.put('ec_' + id, mark);
+}
+function moveCompletions(before, after, from, delta, only = false){
+  if (before.id === after.id && !delta) return;
+  for (const prefix of ['ec_', 'w_']){
+    const changed = B.list(prefix + 'cal_' + before.id + '_').filter(mark =>
+      mark.calendarId === before.id && (only ? mark.date === from : mark.date >= from));
+    const moved = changed.flatMap(mark => {
+      const date = add(mark.date, delta);
+      if (!occurrences(after,date,date).some(e => e.on === date)) return [];
+      const id = completionId(after.id,date);
+      return [{was:mark.id, mark:{...mark,id,date,calendarId:after.id}}];
+    });
+    moved.forEach(item => B.put(prefix + item.was, null));
+    moved.forEach(item => B.put(prefix + item.mark.id, item.mark));
+  }
+}
 function monthPattern(r, a, d){
   const day = d.getDate(), last = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
   const monthDays = r.monthDays || [], weekDays = r.days || [];
@@ -211,5 +258,5 @@ function importICS(source){
   detached.forEach(({uid,on}) => { const series = uid && items.find(e => e.icsUid === uid && e.repeat); if (series && !series.skip.includes(on)) series.skip.push(on); });
   return {items,rejected};
 }
-B.calData = {DAY,MIN,dateOf,minuteOf,time,at,span,shifted,valid,validDate,events,occurrences,move,countBefore,previousOccurrences,exportICS,importICS};
+B.calData = {DAY,MIN,dateOf,minuteOf,time,at,span,shifted,valid,validDate,events,isGym,isTask,done,workout,toggle,moveCompletions,occurrences,move,countBefore,previousOccurrences,exportICS,importICS};
 })();

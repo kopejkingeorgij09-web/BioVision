@@ -49,6 +49,24 @@ test('undo only removes an untouched recurrence, rechecking keeps edited instanc
   assert.equal(B.tasks().length,2);
 });
 
+test('action undo keeps unrelated edits and refuses to overwrite a later edit of the same record', () => {
+  const {B} = planner();
+  B.put('event', {start:'09:00', end:'10:00'});
+  let undo;
+  B.historyStep(() => B.put('event', null), restore => {undo = restore;});
+  B.put('task', {title:'Another edit'});
+  assert.equal(undo(), true);
+  assert.equal(B.get('event').start, '09:00');
+  assert.equal(B.get('task').title, 'Another edit');
+  assert.equal(B.redo(), true);
+  assert.equal(B.get('event'), undefined);
+
+  B.historyStep(() => B.put('event', {start:'10:00', end:'11:00'}), restore => {undo = restore;});
+  B.put('event', {start:'11:00', end:'12:00'});
+  assert.equal(undo(), false);
+  assert.equal(B.get('event').start, '11:00');
+});
+
 test('SHAD stage and placement survive backup round trip and legacy import', () => {
   const {B} = planner();
   const mark = {s:2,o:{h:{date:'2026-11-21'}}};
@@ -109,4 +127,68 @@ test('pinning keeps two habits first, supports unpin and frees archived slots', 
   B.put('h_b', {...B.get('h_b'), arch:true});
   tap('c');
   assert.deepEqual(first(), ['a','c']);
+});
+
+test('a gym series records only the completed occurrence in the workout tracker', () => {
+  const {B, page} = planner();
+  page.TextEncoder = TextEncoder;
+  vm.runInContext(fs.readFileSync('bamboo/js/calendar-data.js', 'utf8'), page);
+  const C = B.calData, habit = {auto:'sport'};
+  const event = {id:'gym-series', title:'Зал · силовая тренировка',
+    start:'2026-11-18T14:20', end:'2026-11-18T16:05', repeat:{freq:'weekly',every:1}};
+  const [first, next] = C.occurrences(event,'2026-11-18','2026-11-25');
+
+  assert.equal(C.isTask(first),true);
+  assert.equal(C.isTask({...first,type:'event'}),false);
+  C.toggle(first);
+  assert.equal(C.done(first),true);
+  assert.equal(C.done(next),false);
+  assert.equal(B.habitVal(habit,first.on),1);
+  assert.equal(B.habitVal(habit,next.on),0);
+  assert.equal(B.exportAll().docs['w_cal_gym-series_2026-11-18'].type,'gym');
+
+  const moved = {...first,id:'gym-moved',start:'2026-11-19T18:00',end:'2026-11-19T19:45',repeat:null,on:'2026-11-19'};
+  C.moveCompletions(event,moved,first.on,1,true);
+  assert.equal(C.done(first),false);
+  assert.equal(C.done(moved),true);
+  assert.equal(B.habitVal(habit,moved.on),1);
+  B.put('w_manual',{id:'manual',date:moved.on});
+  C.toggle(moved);
+  assert.equal(C.done(moved),false);
+  assert.equal(B.habitVal(habit,moved.on),1);
+});
+
+test('completing a regular calendar task leaves the workout tracker alone', () => {
+  const {B, page} = planner();
+  page.TextEncoder = TextEncoder;
+  vm.runInContext(fs.readFileSync('bamboo/js/calendar-data.js', 'utf8'), page);
+  const task = {id:'study',title:'Семинар',type:'task',on:'2026-11-18'};
+  B.calData.toggle(task);
+  assert.equal(B.calData.done(task),true);
+  assert.equal(B.habitVal({auto:'sport'},task.on),0);
+  B.calData.toggle(task);
+  assert.equal(B.calData.done(task),false);
+});
+
+test('a calendar entry linked to a daily habit shares the tracker mark for its date', () => {
+  const {B, page} = planner();
+  page.TextEncoder = TextEncoder;
+  vm.runInContext(fs.readFileSync('bamboo/js/calendar-data.js', 'utf8'), page);
+  const C = B.calData, habit = {id:'python',name:'Python · 30–40 мин',created:'2026-11-23'};
+  const monday = {id:'python-mon', habitId:habit.id, title:'Python', type:'task', on:'2026-11-23'};
+  const tuesday = {...monday,id:'python-tue',on:'2026-11-24'};
+  B.put('h_python',habit);
+  B.editDay(monday.on,day=>{day.h = {english:1};});
+  C.toggle(monday);
+  assert.equal(C.done(monday),true);
+  assert.equal(C.done(tuesday),false);
+  assert.equal(B.habitVal(habit,monday.on),1);
+  assert.equal(B.list('ec_').length,0);
+
+  B.toggleHabitMark(habit.id,tuesday.on);
+  assert.equal(C.done(tuesday),true);
+  C.toggle(monday);
+  assert.equal(B.habitVal(habit,monday.on),0);
+  assert.equal(B.day(monday.on).h.english,1);
+  assert.equal(C.done(tuesday),true);
 });

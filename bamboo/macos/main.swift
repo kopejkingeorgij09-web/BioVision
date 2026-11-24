@@ -60,11 +60,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         app.addItem(withTitle:"Проверить обновления…",action:#selector(checkUpdate),keyEquivalent:"").target=self
         app.addItem(.separator());app.addItem(withTitle:"Завершить Зов леса",action:#selector(NSApplication.terminate(_:)),keyEquivalent:"q")
         let edit=NSMenu(title:"Правка"),editItem=NSMenuItem(title:"Правка",action:nil,keyEquivalent:"");editItem.submenu=edit;menu.addItem(editItem)
-        for (title,action,key) in [("Отменить","undo:","z"),("Вырезать","cut:","x"),("Копировать","copy:","c"),("Вставить","paste:","v"),("Выбрать всё","selectAll:","a")] { edit.addItem(withTitle:title,action:Selector(action),keyEquivalent:key) }
+        edit.addItem(withTitle:"Отменить",action:#selector(editHistory(_:)),keyEquivalent:"z").target=self
+        let redo=edit.addItem(withTitle:"Повторить",action:#selector(editHistory(_:)),keyEquivalent:"z")
+        redo.keyEquivalentModifierMask=[.command,.shift]; redo.target=self
+        for (title,action,key) in [("Вырезать","cut:","x"),("Копировать","copy:","c"),("Вставить","paste:","v"),("Выбрать всё","selectAll:","a")] { edit.addItem(withTitle:title,action:Selector(action),keyEquivalent:key) }
         NSApp.applicationIconImage=NSImage(contentsOf:Bundle.main.resourceURL!.appendingPathComponent("Web/bamboo/icons/icon-512.png"));NSApp.mainMenu=menu;NSApp.activate(ignoringOtherApps:true)
         server=LocalWebServer(root:Bundle.main.resourceURL!.appendingPathComponent("Web"))
         do { try server.start { [weak self] url in self?.web.load(URLRequest(url:url)) } }
         catch { status("error","Не удалось запустить локальный интерфейс: \(error.localizedDescription)") }
+    }
+    @objc private func editHistory(_ item:NSMenuItem) {
+        let redo=item.keyEquivalentModifierMask.contains(.shift)
+        web.evaluateJavaScript("window.B?.handleHistory(\(redo)) ?? false") { value, _ in
+            if value as? Bool != true {
+                NSApp.sendAction(Selector(redo ? "redo:" : "undo:"),to:nil,from:item)
+            }
+        }
     }
     private func refreshClock() {
         web?.evaluateJavaScript("window.dispatchEvent(new Event('zov-clock-resume'));true",completionHandler:nil)
@@ -77,9 +88,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     }
     func testUI(){
         attempts+=1
-        web.evaluateJavaScript("!!window.B?.alberts?.book && window.B.shad.plan.length > 0 && window.B.shad.plan.every(p => Number.isInteger(p.n) && p.w.date && p.h.date)"){value,error in
+        web.evaluateJavaScript("!!window.B?.alberts?.book && !!B.get('h_read') && B.shad.plan.length > 0 && B.shad.plan.every(p => Number.isInteger(p.n) && p.w.date && p.h.date)"){value,error in
             if value as? Bool != true {if self.attempts<80{DispatchQueue.main.asyncAfter(deadline:.now()+0.25){self.testUI()}}else{fputs("FAIL: bundled Mac UI did not load\n",stderr);exit(1)};return}
-            self.web.evaluateJavaScript("B.put('study_alberts',AlbertsPlan.log(B.alberts.book,B.alberts.state(),35,B.today()));location.hash='#/tasks/alberts';B.render(true);JSON.stringify({pages:B.alberts.pagesOn(B.today()),habit:B.habitDone(B.get('h_read'),B.today()),title:document.querySelector('.alberts-hero h2')?.textContent,updates:!!B.nativeUpdates})"){value,error in
+            self.web.evaluateJavaScript("B.emit('change');B.put('study_alberts',AlbertsPlan.log(B.alberts.book,B.alberts.state(),35,B.today()));location.hash='#/tasks/alberts';B.render(true);JSON.stringify({pages:B.alberts.pagesOn(B.today()),habit:B.habitDone(B.get('h_read'),B.today()),title:document.querySelector('.alberts-hero h2')?.textContent,updates:!!B.nativeUpdates})"){value,error in
                 guard error==nil,let text=value as? String,text.contains("\"pages\":18"),text.contains("\"habit\":true"),text.contains("\"updates\":true") else{fputs("FAIL: Mac reading/update bridge \(String(describing:value)) \(String(describing:error))\n",stderr);exit(1)}
                 self.testCalendarLayout()
             }
@@ -96,7 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
           B.acts.acMode({dataset:{v:'week'}});
           const cell = () => $('[data-all="'+date+'"]');
           const line=$('.ac-col[data-col="'+date+'"] .ac-now');
-          if(date===B.ymd(new Date())){
+          if(!document.hidden && date===B.ymd(new Date())){
             check(!!line,'current-day clock');
             const now=new Date(), seconds=now.getHours()*3600+now.getMinutes()*60+now.getSeconds();
             line.style.top='0%';
@@ -126,18 +137,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
           check(JSON.parse(localStorage.getItem('bamboo-planner')).dock==='left','saved position');
           $('.planner-nav [data-act="plFull"]').click(); check(B.plWide,'hide menu');
           $('.planner-nav [data-act="plFull"]').click();
-          $('.planner-nav [data-act="acSearch"]').click(); check(B.sheetOpen(),'calendar search');
-          B.closeSheet();
+          const day=B.ymd(new Date());
+          B.put('e_keytest',{id:'keytest',title:'Проверка Delete',start:day+'T10:00',end:day+'T11:00'});
+          B.render(true);
+          const card=$('.ac-item[data-id="keytest"] .ac-open');
+          check(!!card,'keyboard test card');
+          card.focus();
+          card.dispatchEvent(new KeyboardEvent('keydown',{key:'Backspace',bubbles:true,cancelable:true}));
+          check(!B.get('e_keytest'),'Delete on focused card');
           return true;
         })()
         """#
         web.evaluateJavaScript(checks){ value,error in
             guard value as? Bool == true else {fputs("FAIL: calendar layout \(String(describing:error))\n",stderr);exit(1)}
-            print("PASS: WKWebView, all-day counts, expand and collapse, dock drag in both directions, search, sidebar and stored position")
+            print("PASS: WKWebView, all-day counts, expand and collapse, dock drag in both directions, sidebar and stored position")
+            self.testCalendarUndo()
+        }
+    }
+    private func testCalendarUndo() {
+        let commandZ=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:.command,timestamp:0,
+            windowNumber:window.windowNumber,context:nil,characters:"z",charactersIgnoringModifiers:"z",isARepeat:false,keyCode:6)
+        guard let event=commandZ, NSApp.mainMenu?.performKeyEquivalent(with:event) == true else {
+            fputs("FAIL: Command-Z menu shortcut\n",stderr);exit(1)
+        }
+        web.evaluateJavaScript("B.get('e_keytest')?.title === 'Проверка Delete'") { value, error in
+            guard value as? Bool == true else {fputs("FAIL: calendar Command-Z \(String(describing:error))\n",stderr);exit(1)}
+            print("PASS: Calendar Backspace and Command-Z through the macOS Edit menu")
+            self.web.evaluateJavaScript("B.$('.planner-nav [data-act=acSearch]').click();const open=B.sheetOpen();B.closeSheet();open") { value,error in
+                guard value as? Bool == true else {fputs("FAIL: calendar search \(String(describing:error))\n",stderr);exit(1)}
                 DispatchQueue.main.asyncAfter(deadline:.now()+0.5){self.web.takeSnapshot(with:nil){image,error in
                     if let image=image,let tiff=image.tiffRepresentation,let bitmap=NSBitmapImageRep(data:tiff),let png=bitmap.representation(using:.png,properties:[:]){try? png.write(to:URL(fileURLWithPath:NSTemporaryDirectory()+"Zov-Lesa-macOS-preview.png"))}
-                    print("PASS: native macOS WKWebView, bundled assets, Alberts reading log, Molbio habit, update bridge");exit(0)
+                    print("PASS: native macOS WKWebView, calendar search, bundled assets, Alberts reading log, Molbio habit, update bridge");exit(0)
                 }}
+            }
         }
     }
     private var quitting=false

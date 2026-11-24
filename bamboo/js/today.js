@@ -46,10 +46,10 @@ B.dayList = (date, opts = {}) => {
 };
 B.planPicker = date => B.dayList(date, {ph: 'Дело на завтра', empty: 'На завтра пока ничего.'});
 
-function dayCard(c, d){
+function dayCard(c, scheduledShad){
   const late = B.tasks().filter(x => !x.done && x.due && x.due < c.today).length;
   const today = c.today;
-  const study = B.shadOn(today);
+  const study = B.shadOn(today).filter(it=>!scheduledShad.has('shad:'+it.kind+':'+it.p.n));
   return `<section class="card plan">
     <div class="row between"><h2>${icon('list')}Дела на сегодня</h2>${late ? `<span class="tag late">${late} просрочено</span>` : ''}</div>
     ${study.map(it=>B.shadRow(it,today)).join('')}
@@ -200,9 +200,7 @@ document.addEventListener('contextmenu', e => { if (e.target.closest('.hchip,.ha
 B.acts.habitToggle = el => {
   if (lpDone){ lpDone = false; return; }
   const id = el.dataset.id, date = el.dataset.d;
-  let on = false;
-  B.editDay(date, d => { d.h = Object.assign({}, d.h); if (d.h[id]) delete d.h[id]; else { d.h[id] = 1; on = true; } });
-  if (on) B.xpToast(B.XP.habit, 'привычка'); else B.toast('Отметка снята');
+  if (B.toggleHabitMark(id, date)) B.xpToast(B.XP.habit, 'привычка'); else B.toast('Отметка снята');
 };
 
 function habitsCard(c){
@@ -231,6 +229,7 @@ function weekCard(c){
 function agendaKey(e){
   return e.kind==='shad' ? 'shad:'+e.part+':'+e.id : e.kind+':'+e.id;
 }
+const occurrenceKey=e=>agendaKey(e)+':'+e.on;
 function crownButton(date,key,label){
   const day=B.day(date), task=key.startsWith('task:'), id=task?key.slice(5):key;
   const on=task?(day.top||[]).includes(id):day.focus===key;
@@ -248,7 +247,7 @@ function focusCard(today, day, rows){
   const crown = (day.top || []).map(B.task).find(t => t && !t.deleted && !t.done);
   const study = B.shadOn(today).filter(it => B.shadStage(it.p.n) < it.need);
   const chosen = study.find(it => day.focus==='shad:'+it.kind+':'+it.p.n);
-  const event = rows.find(e => e.kind==='event' && day.focus===agendaKey(e));
+  const event = rows.find(e => e.kind==='event' && !e.done && day.focus===agendaKey(e));
   const item = chosen || study.find(it => it.kind==='hw') || study[0];
   const task = crown || B.tasks().filter(t => !t.done && t.due===today)
     .sort((a,b)=>(a.pri||4)-(b.pri||4))[0];
@@ -256,7 +255,7 @@ function focusCard(today, day, rows){
   if(event){
     title=event.title;
     detail=[event.start.slice(11),event.location].filter(Boolean).join(' · ');
-    button=`<button ${agendaAttrs(event)}>Открыть событие →</button>`;
+    button=`<button ${agendaAttrs(event)}>${event.calendarTask?'Открыть задачу':'Открыть событие'} →</button>`;
   } else if(crown || (task && !item)){
     title=task.title;
     detail=[B.proj(task.proj)?.name,task.time,task.est?B.mins(task.est):''].filter(Boolean).join(' · ');
@@ -270,15 +269,185 @@ function focusCard(today, day, rows){
   return `<section class="card day-focus"><small>${icon('crown')} Главное дело${event||chosen||crown?'':' · по плану'}</small><h2>${esc(title)}</h2>
     ${detail?`<p>${esc(detail)}</p>`:''}<div>${button}</div></section>`;
 }
-function dayAgenda(today,rows){
+function agendaShadAction(e, date){
+  if (e.kind!=='shad') return '';
+  const stage=B.shadStage(e.id);
+  if(e.part==='hw' && stage===2){
+    const link=esc(B.phagiLink({shadHw:e.id,backDay:date}));
+    return `<a class="icon-btn" href="${link}" title="Открыть ДЗ" aria-label="Открыть ДЗ">${icon('out')}</a>`;
+  }
+  if(e.part==='hw' && stage===3){
+    return `<button class="icon-btn" data-act="shadSet" data-n="${e.id}" data-s="4" title="Закрыть тему" aria-label="Закрыть тему">${icon('check')}</button>`;
+  }
+  if (e.part==='web' && stage<2){
+    const label=stage===0?'Начать вебинар':'Отметить просмотр';
+    return `<button class="icon-btn" data-act="shadSet" data-n="${e.id}" data-s="${stage+1}" title="${label}" aria-label="${label}">${icon(stage===0?'arrow':'check')}</button>`;
+  }
+  return '';
+}
+function agendaRow(date,e,next,timed){
+  const featured=next===e;
+  const detail=e.kind==='shad'
+    ? [e.part==='hw'?'ДЗ':'Вебинар', e.course].filter(Boolean).join(' · ')
+    : e.location;
+  return `<div class="agenda-entry ${timed?'':'agenda-untimed'}${featured?' agenda-upcoming':''}">
+    <button class="agenda-line" ${agendaAttrs(e)}>
+      ${timed?`<time>${e.start<date?'00:00':e.start.slice(11,16)}</time>`:''}${icon(e.kind==='shad'?'book':e.calendarTask?'list':'cal')}
+      <span>${featured?'<small class="agenda-upcoming-label">Дальше</small>':''}<b>${esc(e.title||'Без названия')}</b>${detail?`<small>${esc(detail)}</small>`:''}</span></button>
+    <div class="agenda-actions">${e.calendarTask?B.calendarView.calendarCheck(e):agendaShadAction(e,date)}
+      ${e.done?'':crownButton(date,agendaKey(e),e.title)}</div>
+  </div>`;
+}
+function dayAgenda(today,rows,untimed){
+  const now=new Date(), at=B.ymd(now)+'T'+B.hm(now.getTime());
+  const next=rows.find(e=>!e.done&&e.start>=at);
   return `<section class="card day-agenda"><div class="row between"><h2>Расписание</h2>
     <button class="agenda-link" data-act="todayCalendar" data-d="${today}">В календарь ${icon('right')}</button></div>
-    ${rows.map(e=>`<div class="agenda-entry"><button class="agenda-line" ${agendaAttrs(e)}>
-      <time>${e.start < today?'00:00':e.start.slice(11,16)}</time>${icon(e.kind==='shad'?'book':'cal')}
-      <span><b>${esc(e.title)}</b>${e.location||e.course?`<small>${esc(e.location||e.course)}</small>`:''}</span></button>
-      ${e.done?'':crownButton(today,agendaKey(e),e.title)}</div>`).join('')
-      || '<p class="empty sm">На сегодня событий со временем нет.</p>'}</section>`;
+    ${rows.map(e=>agendaRow(today,e,next,true)).join('')||'<p class="empty sm">Сегодня нет записей со временем.</p>'}
+    ${untimed.length?`<div class="agenda-without-time"><h3>Без времени</h3>${untimed.map(e=>agendaRow(today,e,null,false)).join('')}</div>`:''}
+  </section>`;
 }
+
+const dayEndDefault='22:30';
+function planMinutes(value){
+  const number=Number(value);
+  return Number.isInteger(number)&&number>0&&number<=1440?number:0;
+}
+function taskMinutes(e, task){
+  if(e.kind==='shad'){
+    const hours=Number(B.shad.hours?.[e.part]||1);
+    return planMinutes(Math.round(hours*12)*5);
+  }
+  return planMinutes(task?.est??e.planMinutes??e.est);
+}
+function dayPlanning(date, estimates=new Map()){
+  const C=B.calData, model=window.ZovDayPlan, calendar=B.calendarView;
+  if(!C||!model||!calendar) return null;
+  const origin=date+'T00:00', now=new Date(), at=B.ymd(now)+'T'+B.hm(now.getTime());
+  const cfg=B.cfg().planningEnd;
+  const endAt=typeof cfg==='string'&&C.valid(date+'T'+cfg)?cfg:dayEndDefault;
+  const start=Math.max(0,C.span(origin,at)+(now.getSeconds()||now.getMilliseconds()?1:0));
+  const end=C.minuteOf(date+'T'+endAt);
+  const entries=calendar.itemsBetween(date,date,{includeHidden:true}).filter(e=>!e.ghost);
+  const busy=entries.filter(e=>e.start.length>10).map(e=>({start:C.span(origin,e.start),end:C.span(origin,e.end)}));
+  const d=B.day(date);
+  const work=entries.filter(e=>!e.done&&e.start===date&&e.end===B.add(date,1)&&
+    (e.kind==='task'||e.kind==='shad'||e.calendarTask)).map(item=>{
+    const key=occurrenceKey(item), task=item.kind==='task'?B.task(item.id):null;
+    const chosen=d.focus===agendaKey(item)||(d.top||[]).includes(task?.id);
+    const priority=chosen?0:task?.pri||4;
+    const base=taskMinutes(item,task);
+    return {item,key,priority,base,minutes:estimates.get(key)||base};
+  }).sort((a,b)=>a.priority-b.priority);
+  return {date,endAt,work,...model.build(start,end,busy,work)};
+}
+function dayPlanningCard(plan){
+  if(!plan) return '';
+  const {free,required,unknown,overlap,endAt,work}=plan, shortage=required-free;
+  return `<section class="card day-planning">
+    <div class="day-planning-head"><h2>${icon('clock')} Остаток дня</h2>
+      <label class="day-planning-end">До <input type="time" aria-label="Планировать до" value="${endAt}" data-in="todayPlanningEnd"></label>
+    </div>
+    <dl class="day-planning-metrics">
+      <div><dt>Свободно по календарю</dt><dd>${B.mins(free)}</dd></div>
+      <div><dt>Дела без времени</dt><dd>${required?B.mins(required):unknown?'—':'0 мин'}${unknown?` <small>${unknown} без оценки</small>`:''}</dd></div>
+    </dl>
+    ${shortage>0?`<p class="day-planning-warning">${icon('flag')} Не хватает ${B.mins(shortage)} для дел с оценкой</p>`:''}
+    ${overlap?`<p class="day-planning-warning">${icon('cal')} Есть пересечения в расписании</p>`:''}
+    ${free&&work.length?`<button class="btn sm" data-act="todayPlanSlots">${icon('cal')} Подобрать время</button>`:''}
+  </section>`;
+}
+B.inputs.todayPlanningEnd=(el,event)=>{
+  if(event.type!=='change') return;
+  if(!B.calData.valid(B.today()+'T'+el.value)){
+    el.value=el.defaultValue;
+    return;
+  }
+  B.setCfg({planningEnd:el.value});
+  el.blur();
+};
+
+let slotsPreview=null;
+function renderSlots(plan, selected, changed=false){
+  const C=B.calData;
+  const slotTime=n=>C.at(plan.date,n).slice(11,16);
+  const section=B.$('#today-slot-results');
+  section.replaceChildren();
+  section.insertAdjacentHTML('beforeend',`
+    ${changed?'<p class="day-planning-warning" role="status">Расписание изменилось. Проверь новые варианты.</p>':''}
+    ${plan.slots.length?`<div class="day-slot-list">${plan.slots.map((slot,i)=>`
+      <label class="day-slot">
+        <input type="checkbox" data-in="todaySlotCheck" value="${i}" ${!selected||selected.has(slot.key)?'checked':''}>
+        <span><b>${esc(slot.item.title||'Без названия')}</b><small>${B.mins(slot.minutes)}</small></span>
+        <time>${slotTime(slot.start)}–${slotTime(slot.end)}</time>
+      </label>`).join('')}</div>`:'<p class="muted">Подходящих интервалов пока нет.</p>'}
+    ${plan.unplaced.length?`<p class="muted">Не помещаются целиком: ${plan.unplaced.map(slot=>esc(slot.item.title||'Без названия')).join(', ')}</p>`:''}
+  `);
+  slotsPreview.plan=plan;
+  B.$('#today-slot-apply').disabled=!section.querySelector('input:checked');
+}
+function selectedSlots(){
+  return [...B.$('#today-slot-results').querySelectorAll('input:checked')].map(input=>slotsPreview.plan.slots[Number(input.value)]);
+}
+function slotSheet(plan){
+  const editing=plan.work.filter(e=>!e.base);
+  B.sheet(`<h2>Предложенное время</h2>
+    <div class="day-slot-preview">
+      <p class="muted">Свободные интервалы до ${plan.endAt}. Выбери, что поставить в календарь.</p>
+      <div id="today-slot-results"></div>
+      ${editing.length?`<details class="day-slot-estimates"${plan.slots.length?'':' open'}>
+        <summary>Добавить оценку времени</summary>
+        ${editing.map(e=>`<label><span>${esc(e.item.title||'Без названия')}</span>
+          <span><input inputmode="numeric" type="number" min="1" max="1440" step="1"
+            data-in="todaySlotEstimate" data-key="${esc(e.key)}" aria-label="Минуты · ${esc(e.item.title||'Без названия')}"> мин</span>
+        </label>`).join('')}
+      </details>`:''}
+      <div class="row end"><button class="btn ghost" data-act="closeSheet">Отмена</button>
+        <button class="btn primary" id="today-slot-apply" data-act="todayApplySlots">Поставить в календарь</button></div>
+    </div>`,()=>{slotsPreview=null;});
+}
+B.acts.todayPlanSlots=()=>{
+  const plan=dayPlanning(B.today());
+  if(!plan?.free||!plan.work.length) return;
+  slotsPreview={plan,estimates:new Map()};
+  slotSheet(plan);
+  renderSlots(plan);
+};
+B.inputs.todaySlotEstimate=(el,event)=>{
+  if(event.type!=='input'||!slotsPreview) return;
+  const old=slotsPreview.plan.slots, selected=new Set(selectedSlots().map(e=>e.key));
+  slotsPreview.estimates.set(el.dataset.key,planMinutes(el.value));
+  const plan=dayPlanning(slotsPreview.plan.date,slotsPreview.estimates);
+  plan.slots.forEach(e=>{if(!old.some(x=>x.key===e.key)) selected.add(e.key);});
+  renderSlots(plan,selected);
+};
+B.inputs.todaySlotCheck=(el)=>{
+  if(slotsPreview) B.$('#today-slot-apply').disabled=!selectedSlots().length;
+};
+B.acts.todayApplySlots=()=>{
+  if(!slotsPreview) return;
+  const selected=selectedSlots();
+  if(!selected.length) return;
+  const {calendarView:calendar,calData:C}=B, date=slotsPreview.plan.date;
+  if(date!==B.today()){
+    B.closeSheet();
+    B.toast('Начался новый день. Открой план ещё раз.');
+    return;
+  }
+  const fresh=dayPlanning(date,slotsPreview.estimates), byKey=new Map(fresh.work.map(e=>[e.key,e]));
+  const slots=selected.map(e=>({
+    ...e,current:byKey.get(e.key), startAt:C.at(date,e.start), endAt:C.at(date,e.end)
+  }));
+  if(slots.some(e=>e.current?.minutes!==e.minutes||e.current?.item.title!==e.item.title||
+    !window.ZovDayPlan.fits(fresh.windows,e.start,e.end)||!calendar.canApplyPlanSlot(e.current.item,e.startAt,e.endAt))){
+    renderSlots(fresh,null,true);
+    return;
+  }
+  B.historyToast('В календаре '+selected.length+' '+B.plural(selected.length,'дело','дела','дел'),()=>{
+    slots.forEach(e=>calendar.applyPlanSlot(e.current.item,e.startAt,e.endAt));
+  });
+  B.closeSheet();
+};
 B.acts.todayCalendar = el => {
   location.hash = '#/tasks/calendar';
   B.acts.acDay(el);
@@ -295,7 +464,11 @@ B.views.today = {
   title: 'Сегодня',
   render(){
     const c = B.calc(), d = B.day(c.today);
-    const rows=(B.calendarView?.itemsBetween(c.today,c.today)||[]).filter(e=>e.start.includes('T'));
+    const entries=(B.calendarView?.itemsBetween(c.today,c.today)||[]).filter(e=>!e.ghost);
+    const rows=entries.filter(e=>e.start.includes('T'));
+    const untimed=entries.filter(e=>e.start.length===10&&(e.kind==='event'||e.kind==='shad'));
+    const scheduledShad=new Set(entries.filter(e=>e.kind==='shad'&&e.on===c.today).map(agendaKey));
+    const plan=dayPlanning(c.today);
     const date = B.parse(c.today), r = c.days[c.today] || {};
     return `<div class="page today">
       <header class="page-h today-h">
@@ -308,10 +481,11 @@ B.views.today = {
       ${weekCard(c)}
       <div class="cols">
         <div class="col">
-          ${focusCard(c.today, d, rows)}
+          ${focusCard(c.today, d, entries)}
           ${B.alberts?.card() || ''}
-          ${dayAgenda(c.today, rows)}
-          ${dayCard(c, d)}
+          ${dayPlanningCard(plan)}
+          ${dayAgenda(c.today, rows, untimed)}
+          ${dayCard(c, scheduledShad)}
           ${new Date().getHours() >= 19 || new Date().getHours() < 4 ? reviewCard(c,d) : ''}
         </div>
         <div class="col">
@@ -325,6 +499,13 @@ B.views.today = {
     </div>`;
   }
 };
+
+function refreshTodayPlanning(){
+  if(!document.hidden&&B.$('.page.today')&&!B.sheetOpen()&&document.activeElement===document.body) B.render();
+}
+setInterval(refreshTodayPlanning,60000);
+addEventListener('focus',refreshTodayPlanning);
+addEventListener('zov-clock-resume',refreshTodayPlanning);
 
 /* перетаскивание дел за ручку: порядок хранится в дне (d.order) */
 let drag = null;

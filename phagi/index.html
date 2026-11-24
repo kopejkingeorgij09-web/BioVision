@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="lesson-workspace.css?v=1">
 <script src="lesson-files.js?v=2"></script>
 <meta charset="utf-8">
-<meta name="ph-ver" content="2026-11-24-study">
+<meta name="ph-ver" content="2026-11-24-classroom">
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Фаги естественных наук</title>
@@ -24,7 +24,7 @@
 :root{
   --bg:#F1F6F2;--card:#FFFFFF;--ink:#0E4A38;--text:#16231E;--muted:#58695F;--line:#D2E1D7;--soft:#E7F0EA;
   --accent:#C2366B;--bio:#2F8A3B;--chem:#B5701A;--math:#5B3FA8;--phys:#1F6FA8;--eng:#0E8A8F;--other:#6B7A73;--focus:#2C7BE5;
-  --hex:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50V16L28 0l28 16v34L28 66v34M28 0v0' fill='none' stroke='%23D6E6DB' stroke-width='1'/%3E%3C/svg%3E");
+
   --r-c:#3F78AD;--r-r:#D06F0A;--r-s:#0E8FA8;--r-e:#8E3FC8;--r-l:#B08000;
   --agar1:#FBF3D2;--agar2:#EEDDA4;--agar3:#D9C27E;--rim:#C9D8CF;--sporec:#B08A3A;
   --f:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -35,38 +35,38 @@
   --agar1:#8A7742;--agar2:#5A4E2A;--agar3:#6E5F33;--rim:#3E564A;--sporec:#E6C878;
   --bg:#0C1512;--card:#15241E;--ink:#7FD6A8;--text:#E3EEE8;--muted:#93A89F;--line:#25382F;--soft:#1A2A24;
   --accent:#FF77A6;--bio:#6BCF77;--chem:#E8A85A;--math:#AF98FF;--phys:#6DB6EC;--eng:#43CFC8;--other:#9AAAA3;--focus:#7DB3FF;
-  --hex:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50V16L28 0l28 16v34L28 66v34' fill='none' stroke='%23172720' stroke-width='1'/%3E%3C/svg%3E");}}
+}}
 :root[data-theme="dark"],:root[data-theme="lumi"],:root[data-theme="amber"]{
   --r-c:#79AEE0;--r-r:#F3A04A;--r-s:#4FC8E0;--r-e:#C08AF0;--r-l:#F2C94C;
   --agar1:#8A7742;--agar2:#5A4E2A;--agar3:#6E5F33;--rim:#3E564A;--sporec:#E6C878;
   --bg:#0C1512;--card:#15241E;--ink:#7FD6A8;--text:#E3EEE8;--muted:#93A89F;--line:#25382F;--soft:#1A2A24;
   --accent:#FF77A6;--bio:#6BCF77;--chem:#E8A85A;--math:#AF98FF;--phys:#6DB6EC;--eng:#43CFC8;--other:#9AAAA3;--focus:#7DB3FF;
-  --hex:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50V16L28 0l28 16v34L28 66v34' fill='none' stroke='%23172720' stroke-width='1'/%3E%3C/svg%3E");}
+}
 :root{color-scheme:light dark}
 :root[data-theme="light"]{color-scheme:light}:root[data-theme="dark"]{color-scheme:dark}
-/* v86 биологические темы: поверх светлого или тёмного набора меняются фон, карточки, чернила, акцент и узор */
+/* v86 биологические темы: поверх светлого или тёмного набора меняются фон, карточки, чернила, акцент */
 :root[data-theme="chloro"]{--bg:#EDF4E0;--card:#FDFFF7;--ink:#2F5D11;--text:#1B2611;--muted:#5D6B4C;--line:#D3E2BC;--soft:#E4EFD2;
   --accent:#C2541E;--bio:#3E8A1F;--focus:#2C7BE5;--rim:#BFD39F;--agar1:#F6F5D2;--agar2:#E3E4A9;--agar3:#CACD80;
-  --hex:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Crect x='2' y='2' width='52' height='46' rx='9' fill='none' stroke='%23CFE3B4'/%3E%3Crect x='-26' y='52' width='52' height='46' rx='9' fill='none' stroke='%23CFE3B4'/%3E%3Crect x='30' y='52' width='52' height='46' rx='9' fill='none' stroke='%23CFE3B4'/%3E%3Cellipse cx='16' cy='17' rx='5' ry='3' fill='%23DCEBC4'/%3E%3Cellipse cx='37' cy='31' rx='5' ry='3' fill='%23DCEBC4'/%3E%3Cellipse cx='10' cy='72' rx='5' ry='3' fill='%23DCEBC4'/%3E%3Cellipse cx='46' cy='84' rx='5' ry='3' fill='%23DCEBC4'/%3E%3C/svg%3E");--sh1:0 1px 2px rgba(40,70,10,.06),0 8px 20px -14px rgba(40,70,10,.25);--sh2:0 2px 4px rgba(40,70,10,.07),0 18px 32px -18px rgba(40,70,10,.34)}
+--sh1:0 1px 2px rgba(40,70,10,.06),0 8px 20px -14px rgba(40,70,10,.25);--sh2:0 2px 4px rgba(40,70,10,.07),0 18px 32px -18px rgba(40,70,10,.34)}
 :root[data-theme="reef"]{--bg:#E9F5F6;--card:#FFFFFF;--ink:#0B5068;--text:#11262E;--muted:#4F6870;--line:#CBE2E6;--soft:#DFF0F2;
   --accent:#E8573A;--bio:#13856F;--focus:#1E6FD9;--rim:#B6D6DC;--agar1:#FFF1DE;--agar2:#FBD9B8;--agar3:#EBB98F;
-  --hex:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cg fill='none' stroke='%23C3E2E6'%3E%3Ccircle cx='28' cy='25' r='15'/%3E%3Ccircle cx='28' cy='25' r='6'/%3E%3Cpath d='M28 10v9M28 31v9M13 25h9M34 25h9M17.4 14.4l6.4 6.4M32.2 29.2l6.4 6.4M17.4 35.6l6.4-6.4M32.2 20.8l6.4-6.4'/%3E%3Ccircle cx='0' cy='75' r='11'/%3E%3Ccircle cx='56' cy='75' r='11'/%3E%3Ccircle cx='0' cy='75' r='4'/%3E%3Ccircle cx='56' cy='75' r='4'/%3E%3C/g%3E%3Ccircle cx='28' cy='72' r='2' fill='%23C3E2E6'/%3E%3Ccircle cx='36' cy='80' r='1.4' fill='%23C3E2E6'/%3E%3C/svg%3E");--sh1:0 1px 2px rgba(8,60,80,.06),0 8px 20px -14px rgba(8,60,80,.25);--sh2:0 2px 4px rgba(8,60,80,.07),0 18px 32px -18px rgba(8,60,80,.34)}
+--sh1:0 1px 2px rgba(8,60,80,.06),0 8px 20px -14px rgba(8,60,80,.25);--sh2:0 2px 4px rgba(8,60,80,.07),0 18px 32px -18px rgba(8,60,80,.34)}
 :root[data-theme="gram"]{--bg:#F5F1FA;--card:#FFFFFF;--ink:#4A2384;--text:#221830;--muted:#665B76;--line:#E0D6EE;--soft:#EEE7F6;
   --accent:#D0386F;--bio:#2F8A3B;--focus:#5B3FD8;--rim:#D6C9E8;--agar1:#FBEFF3;--agar2:#F2D2DE;--agar3:#E0B1C3;
-  --hex:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cg fill='%23E5DAF3'%3E%3Ccircle cx='10' cy='12' r='4'/%3E%3Ccircle cx='18' cy='12' r='4'/%3E%3Ccircle cx='40' cy='60' r='4'/%3E%3Ccircle cx='46' cy='66' r='4'/%3E%3Ccircle cx='52' cy='72' r='4'/%3E%3C/g%3E%3Cg fill='%23F6D6E2'%3E%3Crect x='26' y='28' width='18' height='7' rx='3.5'/%3E%3Crect x='6' y='78' width='18' height='7' rx='3.5' transform='rotate%28-25 15 81%29'/%3E%3C/g%3E%3C/svg%3E");--sh1:0 1px 2px rgba(60,30,100,.06),0 8px 20px -14px rgba(60,30,100,.25);--sh2:0 2px 4px rgba(60,30,100,.07),0 18px 32px -18px rgba(60,30,100,.34)}
+--sh1:0 1px 2px rgba(60,30,100,.06),0 8px 20px -14px rgba(60,30,100,.25);--sh2:0 2px 4px rgba(60,30,100,.07),0 18px 32px -18px rgba(60,30,100,.34)}
 :root[data-theme="lumi"]{--bg:#060C18;--card:#0D1829;--ink:#4FEBCB;--text:#E2ECF7;--muted:#8B9CB4;--line:#1C2C45;--soft:#122038;
   --accent:#8C95FF;--bio:#4FE08A;--eng:#3FE0E8;--focus:#7DB3FF;--rim:#29405F;--agar1:#163A4A;--agar2:#0E2535;--agar3:#12303F;--sporec:#9CF5D8;
-  --hex:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cg fill='%2347E6C8'%3E%3Ccircle cx='9' cy='14' r='1.2' opacity='.35'/%3E%3Ccircle cx='40' cy='30' r='1.6' opacity='.22'/%3E%3Ccircle cx='22' cy='58' r='1' opacity='.4'/%3E%3Ccircle cx='48' cy='82' r='1.3' opacity='.3'/%3E%3Ccircle cx='6' cy='92' r='.9' opacity='.3'/%3E%3C/g%3E%3Cg fill='%237C8CFF'%3E%3Ccircle cx='30' cy='6' r='1' opacity='.3'/%3E%3Ccircle cx='14' cy='38' r='.8' opacity='.35'/%3E%3Ccircle cx='36' cy='70' r='1.1' opacity='.25'/%3E%3C/g%3E%3C/svg%3E")}
+}
 :root[data-theme="amber"]{--bg:#1A1209;--card:#251A0E;--ink:#F2B53D;--text:#F4E9D6;--muted:#B8A385;--line:#3D2B15;--soft:#2E2111;
   --accent:#FF8A5B;--bio:#9BD36A;--focus:#FFC56B;--rim:#5A4020;--agar1:#9A6A22;--agar2:#6A4815;--agar3:#7E5719;--sporec:#FFD98A;
-  --hex:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cg fill='none' stroke='%23432A10'%3E%3Ccircle cx='14' cy='20' r='6'/%3E%3Ccircle cx='42' cy='44' r='3.5'/%3E%3Ccircle cx='22' cy='74' r='9'/%3E%3Ccircle cx='48' cy='90' r='2.5'/%3E%3C/g%3E%3Ccircle cx='12' cy='18' r='1.4' fill='%23573817'/%3E%3Ccircle cx='19' cy='71' r='2' fill='%23573817'/%3E%3C/svg%3E")}
+}
 :root[data-theme="chloro"],:root[data-theme="reef"],:root[data-theme="gram"]{color-scheme:light}
 :root[data-theme="lumi"],:root[data-theme="amber"]{color-scheme:dark}
 :root[data-theme="lumi"] h1{text-shadow:0 0 18px color-mix(in srgb,var(--ink) 35%,transparent)}
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *,*::before,*::after{box-sizing:inherit}
-body{margin:0;color:var(--text);font:16px/1.55 var(--f);background:var(--bg) var(--hex);background-size:42px 75px}
+body{margin:0;color:var(--text);font:16px/1.55 var(--f);background:var(--bg)}
 a{color:var(--ink)}
 :focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 h1,h2,h3{line-height:1.25;margin:0}
@@ -128,7 +128,6 @@ nav button:focus-visible{outline:2px solid var(--focus)}
 /* streak */
 .streak{display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center;padding:22px 24px;margin-bottom:18px;border-radius:22px;border:1px solid var(--line);
   background:radial-gradient(120% 140% at 0% 0%,color-mix(in srgb,var(--bio) 14%,var(--card)) 0%,var(--card) 55%);position:relative;overflow:hidden}
-.streak::after{content:"";position:absolute;right:-40px;top:-40px;width:160px;height:160px;background:var(--hex);background-size:42px 75px;opacity:.5;-webkit-mask:radial-gradient(circle,#000 30%,transparent 70%);mask:radial-gradient(circle,#000 30%,transparent 70%);pointer-events:none}
 .streak.zero{background:var(--card)}
 .st-dish{position:relative}
 .dish{display:block;overflow:visible}
@@ -1135,12 +1134,12 @@ nav:empty{display:none}
 @media (prefers-reduced-motion:reduce){#toast{transition:none}}
 /* Биовиз: визуализации и банк задач прямо в странице (теневой DOM #bvhost, код bioviz/bv.js) */
 :root{--p-ink:var(--ink)}
-#bvhost,#bv-work,#bv-shelf{min-width:0}#bv-work:has(#bvhost[hidden]),#bv-return[hidden],#bv-shelf[hidden]{display:none}#bv-return{margin-bottom:12px}
+#bv-room,#bvhost,#bv-work,#bv-shelf{min-width:0}#bv-room[hidden],#bv-room [hidden]{display:none!important}
 body.bvon #main{display:none}
 body.bvon .top,body.bvon .wrap{max-width:min(1680px,100%)}
 @media(max-width:820px){#bvhost{grid-column:1}}
 /* Биовиз на весь экран: без шапки и меню платформы */
-body.bvfull .top,body.bvfull #nav{display:none}
+body.bvfull .top,body.bvfull #nav,body.bvfull .bv-room-head{display:none}
 body.bvfull .wrap{grid-template-columns:minmax(0,1fr);max-width:none;padding-top:6px;padding-bottom:24px}
 body.bvfull #bvhost{grid-column:1}
 /* карточка Биовиза на главной */
@@ -1186,7 +1185,6 @@ body.bvfull #bvhost{grid-column:1}
 nav button{transition:background .15s,color .15s}
 .hero{position:relative;overflow:hidden;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;padding:22px 26px;margin:4px 0 18px;border-radius:22px;border:1px solid color-mix(in srgb,var(--bio) 22%,var(--line));
   background:radial-gradient(110% 150% at 100% 0%,color-mix(in srgb,var(--accent) 11%,transparent),transparent 58%),linear-gradient(135deg,color-mix(in srgb,var(--bio) 15%,var(--card)),var(--card) 72%);box-shadow:var(--sh1)}
-.hero::after{content:"";position:absolute;right:-50px;bottom:-60px;width:220px;height:220px;background:var(--hex);background-size:42px 75px;opacity:.55;-webkit-mask:radial-gradient(circle,#000 25%,transparent 70%);mask:radial-gradient(circle,#000 25%,transparent 70%);pointer-events:none}
 .hero>*{position:relative;z-index:1;min-width:0}
 .hero .hk{font:700 11px var(--d);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 .hero h1{font:700 28px/1.15 var(--d);color:var(--ink);letter-spacing:-.4px;margin:4px 0 6px}
@@ -1212,7 +1210,7 @@ nav button{transition:background .15s,color .15s}
 /* v85: метки сроков, фильтр по предметам, значки разделов, кнопка «Наверх» */
 ::selection{background:color-mix(in srgb,var(--bio) 30%,transparent)}
 @media (hover:hover) and (pointer:fine){html{scrollbar-color:color-mix(in srgb,var(--ink) 32%,transparent) transparent}}
-.empty{padding:34px 22px;border-radius:18px;background:var(--card) var(--hex);background-size:42px 75px;font-size:15px;line-height:1.5}
+.empty{padding:34px 22px;border-radius:18px;background:var(--card);font-size:15px;line-height:1.5}
 .dtag{display:inline-block;margin-left:6px;padding:1px 9px;border-radius:999px;font-size:12.5px;font-weight:700;vertical-align:1px;white-space:nowrap}
 .dtag.late{background:color-mix(in srgb,var(--accent) 14%,var(--card));color:var(--accent)}
 .dtag.now{background:var(--accent);color:#fff}
@@ -1341,8 +1339,11 @@ nav button{transition:background .15s,color .15s}
 @media (max-width:560px){.tk-sum{grid-template-columns:1fr}.tk-stats{justify-content:flex-start}.tk-focus{grid-template-columns:1fr}.tk-focus .btn{justify-self:start}
   .tk-row{grid-template-columns:40px 1fr}.tk-state{grid-column:2;justify-items:start;grid-auto-flow:column;justify-content:start;align-items:center;gap:8px}}
 </style>
-<link rel="stylesheet" href="academic.css?v=1">
-<link rel="stylesheet" href="learning-lab.css?v=1">
+<link rel="stylesheet" href="academic.css?v=2">
+<link rel="stylesheet" href="bioviz/library.css?v=2">
+<link rel="stylesheet" href="learning-lab.css?v=2">
+<link rel="stylesheet" href="tracker.css?v=1">
+<link rel="stylesheet" href="month-calendar.css?v=1">
 <link rel="stylesheet" href="phage-mascot.css?v=1">
 <link rel="stylesheet" href="companion.css?v=1">
 </head>
@@ -1354,12 +1355,13 @@ nav button{transition:background .15s,color .15s}
   </div>
   <div class="top-r"><button id="srbtn" class="srbtn" type="button" hidden aria-label="Поиск" aria-keyshortcuts="Control+K"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg><span>Поиск</span><kbd>Ctrl K</kbd></button><button id="thbtn" class="thbtn" type="button" aria-label="Тема оформления" title="Тема оформления" aria-haspopup="true" aria-expanded="false" aria-controls="thmenu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 2-2 0-1.4-1.3-1.7-1.3-3 0-1.1.9-2 2-2h2.1A4.2 4.2 0 0 0 21 9.8C21 6 17 3 12 3z"/><circle cx="7.6" cy="11.4" r="1.1"/><circle cx="10.4" cy="7.4" r="1.1"/><circle cx="15.2" cy="7.6" r="1.1"/></svg></button><div id="rolesw" class="rolesw" role="group" aria-label="Режим" hidden><button type="button" data-role="teacher">Учитель</button><button type="button" data-role="student">Ученик</button></div><div id="who"></div></div>
 </header>
-<div class="wrap"><nav id="nav" aria-label="Разделы"></nav><main id="main"></main><section id="bv-shelf" hidden aria-labelledby="bv-library-title">
-<div role="navigation" class="bv-shelf-nav" aria-label="Разделы Биовиза"><button type="button" aria-current="page" onclick="document.getElementById('bv-library-title').focus()">Книги</button><button type="button" data-workspace="viz">Визуализации</button><button type="button" data-workspace="quiz">Банк задач</button></div>
-<div class="bv-shelf-interior"><div class="bv-shelf-heading"><h1 id="bv-library-title" tabindex="-1">Библиотека Биовиза</h1><label class="bv-find" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 5 5"/></svg><input type="search" aria-label="Найти тему в книгах" placeholder="Найти тему в книгах" autocomplete="off"></label></div>
+<div class="wrap"><nav id="nav" aria-label="Разделы"></nav><main id="main"></main><section id="bv-room" hidden aria-label="Биовиз"><header class="bv-room-head"><h1>Биовиз</h1>
+<div role="navigation" class="bv-shelf-nav" aria-label="Разделы Биовиза"><a data-bio="library" href="?bio=library">Книги</a><a data-bio="viz" href="?bio=viz">Визуализации</a><a data-bio="quiz" href="?bio=quiz">Банк задач</a></div></header>
+<section id="bv-shelf" hidden aria-labelledby="bv-library-title">
+<div class="bv-shelf-interior"><div class="bv-shelf-heading"><h2 id="bv-library-title">Учебники</h2><label class="bv-find" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 5 5"/></svg><input type="search" aria-label="Найти тему в книгах" placeholder="Найти тему в книгах" autocomplete="off"></label></div>
 <span class="bv-find-status" aria-live="polite" style="position:absolute;clip-path:inset(50%);width:1px;height:1px;overflow:hidden"></span><div class="bv-results" hidden></div>
-<div class="bv-books"><article class="bv-book" data-book="replication"><div class="bv-book-entry"><a href="bioviz/replication/?from=phagi" class="bv-jacket" data-art="replication" tabindex="-1" aria-hidden="true"><img src="bioviz/replication/media/cover.webp" width="760" height="560" alt="" loading="lazy"></a><div><div class="bv-book-kind">Молекулярная биология</div><h2><a href="bioviz/replication/?from=phagi">Репликация ДНК</a></h2><p>Как начинается синтез ДНК, что происходит на каждой стороне вилки и как расходятся дочерние молекулы.</p><div class="bv-book-actions"><a class="bv-read-link" href="bioviz/replication/?from=phagi">Читать →</a><button type="button" class="bv-contents-toggle" hidden aria-expanded="false" aria-controls="bv-topics-replication">Оглавление</button></div><p class="bv-resume-label" hidden></p></div></div><div class="bv-topics" id="bv-topics-replication" hidden></div></article><article class="bv-book" data-book="repair"><div class="bv-book-entry"><a href="bioviz/repair/?from=phagi" class="bv-jacket" data-art="repair" tabindex="-1" aria-hidden="true"><img src="bioviz/repair/fig/muts.png" width="760" height="560" alt="" loading="lazy"></a><div><div class="bv-book-kind">Молекулярная биология</div><h2><a href="bioviz/repair/?from=phagi">Точность репликации и репарация ДНК</a></h2><p>Как полимераза исправляет ошибку, как клетка выбирает цепь для репарации и что происходит с повреждённой ДНК.</p><div class="bv-book-actions"><a class="bv-read-link" href="bioviz/repair/?from=phagi">Читать →</a><button type="button" class="bv-contents-toggle" hidden aria-expanded="false" aria-controls="bv-topics-repair">Оглавление</button></div><p class="bv-resume-label" hidden></p></div></div><div class="bv-topics" id="bv-topics-repair" hidden></div></article><article class="bv-book" data-book="microbiology"><div class="bv-book-entry"><a href="bioviz/microbiology/?from=phagi" class="bv-jacket" data-art="microbiology" tabindex="-1" aria-hidden="true"><img src="bioviz/microbiology/media/mb-ecoli-sem.jpg" width="600" height="405" alt="" loading="lazy"></a><div><div class="bv-book-kind">Микробиология</div><h2><a href="bioviz/microbiology/?from=phagi">Бактериальная клетка</a></h2><p>Строение, обмен веществ, рост и генетика бактерий. Схемы и микрофотографии сопровождают объяснение механизмов.</p><div class="bv-book-actions"><a class="bv-read-link" href="bioviz/microbiology/?from=phagi">Читать →</a><button type="button" class="bv-contents-toggle" hidden aria-expanded="false" aria-controls="bv-topics-microbiology">Оглавление</button></div><p class="bv-resume-label" hidden></p></div></div><div class="bv-topics" id="bv-topics-microbiology" hidden></div></article></div></div></section>
-<div id="bv-work"><button class="btn ghost sm" hidden id="bv-return">← К книгам</button><div id="bvhost" hidden></div></div></div>
+<div class="bv-books"><article class="bv-book" data-book="replication"><div class="bv-book-entry"><a href="?bio=replication" class="bv-jacket" data-art="replication" tabindex="-1" aria-hidden="true"><img src="bioviz/replication/media/cover.webp" width="760" height="560" alt="" loading="lazy"></a><div><div class="bv-book-kind">Молекулярная биология</div><h2><a href="?bio=replication">Репликация ДНК</a></h2><p>Как начинается синтез ДНК, что происходит на каждой стороне вилки и как расходятся дочерние молекулы.</p><div class="bv-book-actions"><a class="bv-read-link" href="?bio=replication">Читать →</a><button type="button" class="bv-contents-toggle" hidden aria-expanded="false" aria-controls="bv-topics-replication">Оглавление</button></div><p class="bv-resume-label" hidden></p></div></div><div class="bv-topics" id="bv-topics-replication" hidden></div></article><article class="bv-book" data-book="repair"><div class="bv-book-entry"><a href="?bio=repair" class="bv-jacket" data-art="repair" tabindex="-1" aria-hidden="true"><img src="bioviz/repair/fig/muts.png" width="760" height="560" alt="" loading="lazy"></a><div><div class="bv-book-kind">Молекулярная биология</div><h2><a href="?bio=repair">Точность репликации и репарация ДНК</a></h2><p>Как полимераза исправляет ошибку, как клетка выбирает цепь для репарации и что происходит с повреждённой ДНК.</p><div class="bv-book-actions"><a class="bv-read-link" href="?bio=repair">Читать →</a><button type="button" class="bv-contents-toggle" hidden aria-expanded="false" aria-controls="bv-topics-repair">Оглавление</button></div><p class="bv-resume-label" hidden></p></div></div><div class="bv-topics" id="bv-topics-repair" hidden></div></article><article class="bv-book" data-book="microbiology"><div class="bv-book-entry"><a href="?bio=microbiology" class="bv-jacket" data-art="microbiology" tabindex="-1" aria-hidden="true"><img src="bioviz/microbiology/media/mb-ecoli-sem.jpg" width="600" height="405" alt="" loading="lazy"></a><div><div class="bv-book-kind">Микробиология</div><h2><a href="?bio=microbiology">Бактериальная клетка</a></h2><p>Строение, обмен веществ, рост и генетика бактерий. Схемы и микрофотографии сопровождают объяснение механизмов.</p><div class="bv-book-actions"><a class="bv-read-link" href="?bio=microbiology">Читать →</a><button type="button" class="bv-contents-toggle" hidden aria-expanded="false" aria-controls="bv-topics-microbiology">Оглавление</button></div><p class="bv-resume-label" hidden></p></div></div><div class="bv-topics" id="bv-topics-microbiology" hidden></div></article></div></div></section>
+<div id="bv-work" hidden><div id="bvhost" hidden></div></div><div id="bv-reading" hidden></div></section></div>
 <dialog id="dlg"><div id="dlgbox"></div></dialog>
 <dialog id="lab" aria-label="Лаборатория"><div class="vw-h lab-h"><span id="labtabs" class="grow"></span><button class="btn ghost sm" data-lab="close">Закрыть</button></div><div id="labbody"></div></dialog>
 <dialog id="an" aria-label="Пометки на фото"><div class="vw-h an-h"><span class="an-tools"><button class="sw on" data-an="c" data-c="#E0245E" style="--sw:#E0245E" aria-label="Красный"></button><button class="sw" data-an="c" data-c="#1E9E4A" style="--sw:#1E9E4A" aria-label="Зелёный"></button><button class="sw" data-an="c" data-c="#2C6BE5" style="--sw:#2C6BE5" aria-label="Синий"></button><span class="sep"></span><button class="icon on" data-an="w" data-w="3" aria-label="Тонкая линия"><svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="2.2" fill="currentColor"/></svg></button><button class="icon" data-an="w" data-w="8" aria-label="Толстая линия"><svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="5.5" fill="currentColor"/></svg></button><span class="sep"></span><button class="icon" data-an="undo" aria-label="Отменить">↶</button><button class="btn ghost sm" data-an="clear">Стереть всё</button></span><span class="grow"></span><button class="btn ghost sm" data-an="close">Закрыть</button><button class="btn sm" data-an="save">Сохранить</button></div><div id="anbody"></div></dialog>
@@ -1373,6 +1375,7 @@ nav button{transition:background .15s,color .15s}
   <button type="button" data-act="go" data-v="forest" aria-label="Мой лес"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4c-8 0-14 4-14 10a5 5 0 0 0 5 5c6 0 10-6 9-15ZM4 21c3-5 7-9 12-12"/></svg><b>…</b></button>
 </div>
 <button id="totop" type="button" hidden aria-label="Наверх" title="Наверх"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg></button>
+<script src="bioviz/classroom.js?v=1"></script>
 <script>
 /* ---------- helpers ---------- */
 const $=s=>document.querySelector(s);
@@ -1439,7 +1442,7 @@ async function uploadFiles(fileList){
 
 const S={mode:'loading',db:null,user:null,me:null,people:[],tasks:[],posts:[],events:[],mine:[],todos:[],decks:[],
   subs:{},grades:{},srs:{},rsvp:{},fix:{},bverr:{},tdecks:[],dparts:{},ttasks:[],atasks:{},adecks:{},adparts:{},cfg:{},myDeck:null,streak:{},peek:{},peekIn:{},fixPos:0,fixState:null,view:'home',taskId:null,deckId:null,fv:{},watched:new Set(),
-  calMonth:null,calDay:today(),calView:null,actRange:null,actSel:null,actAnim:'',cal3:null,rev:null,
+  calMonth:null,calDay:today(),calView:null,actRange:null,actSel:null,actAnim:'',rev:null,
   track:{},trUid:null,trTab:'plan',trF:'all',trB:'',trS:'',forest:null,forestGlade:0};
 const val=(id,d='')=>(id in S.fv?S.fv[id]:(d??''));
 const meId=()=>S.me&&S.me.id;
@@ -1950,36 +1953,14 @@ function homeHTML(){
   <section class="sheet" style="margin-top:16px"><h2>Объявления</h2>${postsHTML()}</section>`;
 }
 
-/* calendar views: month, week, 3 days, day; the choice is remembered in this browser */
-const CALV=[['week','Неделя'],['month','Месяц'],['day','День']];   // неделя и месяц как планер «Зова леса» (4.11.2026)
+const CALV=[['month','Месяц'],['week','Неделя']];
 function calView(){
-  if(!S.calView){let v=null;try{v=localStorage.getItem('calView')}catch(e){}
-    S.calView=CALV.some(x=>x[0]===v)?v:'week'}
-  return S.calView}
-function calRange(){
-  const v=calView(),d=S.calDay;
-  if(v==='day')return[d,1];
-  if(v==='week')return[addDays(d,-((pd(d).getDay()+6)%7)),7];
-  if(!S.cal3||d<S.cal3||d>addDays(S.cal3,2))S.cal3=d;
-  return[S.cal3,3];
-}
-const hm=s=>{const m=/^(\d{1,2}):(\d{2})/.exec(s||'');return m?Number(m[1])*60+Number(m[2]):null};
-const hmS=n=>String(Math.floor(n/60)%24).padStart(2,'0')+':'+String(n%60).padStart(2,'0');
-function calTitle(from,n){
-  if(calView()==='month')return pd(S.calMonth).toLocaleDateString('ru-RU',{month:'long',year:'numeric'}).replace(/\s*г\.?$/,'');
-  return pd(from).toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
-}
-// side-by-side columns for lessons that overlap in time
-function calLay(list){
-  const ev=list.map(o=>{const s=hm(o.ev.start);let e=hm(o.ev.end);if(e==null||e<=s)e=s+60;return{o,s,e}}).sort((a,b)=>a.s-b.s||b.e-a.e);
-  let grp=[],end=-1;const out=[];
-  const close=()=>{const cols=Math.max(...grp.map(x=>x.c+1));grp.forEach(x=>x.n=cols);out.push(...grp);grp=[]};
-  for(const x of ev){
-    if(grp.length&&x.s>=end){close();end=-1}
-    const used=new Set(grp.filter(g=>g.e>x.s).map(g=>g.c));let c=0;while(used.has(c))c++;
-    x.c=c;grp.push(x);end=Math.max(end,x.e)}
-  if(grp.length)close();
-  return out;
+  if(!S.calView){
+    let stored;
+    try{stored=localStorage.getItem('calView')}catch(e){}
+    S.calView=stored==='week'?'week':'month';
+  }
+  return S.calView;
 }
 /* дела на неделю и «Когда-нибудь»: личные, data/users/<я>/<id> {kind:'todo',text,wk:'<понедельник>'|'',done,doneAt,ord} */
 const tdMon=d=>{const x=pd(d);x.setDate(x.getDate()-((x.getDay()+6)%7));return dkey(x)};
@@ -1999,32 +1980,6 @@ document.addEventListener('keydown',e=>{const t=e.target;if(!t||!t.classList||!t
   if(e.key==='Enter'&&!e.isComposing){e.preventDefault();tdSave(t)}else if(e.key==='Escape'){e.preventDefault();S.tdAdd=null;t.blur();render()}});
 document.addEventListener('focusout',e=>{const t=e.target;if(t&&t.classList&&t.classList.contains('pw-in')){if(t.value.trim())tdSave(t);setTimeout(()=>{if(!document.activeElement||!document.activeElement.classList.contains('pw-in')){S.tdAdd=null;render()}},150)}});
 
-function calGridHTML(from,n,by){
-  const days=Array.from({length:n},(_,i)=>addDays(from,i)),t0=today();
-  const timed=d=>(by[d]||[]).filter(o=>o.type!=='due'&&hm(o.ev.start)!=null);
-  const allday=d=>(by[d]||[]).filter(o=>o.type==='due'||hm(o.ev.start)==null);
-  let h0=8,h1=21;
-  days.forEach(d=>timed(d).forEach(o=>{const s=hm(o.ev.start);let e=hm(o.ev.end);if(e==null||e<=s)e=s+60;h0=Math.min(h0,Math.floor(s/60));h1=Math.max(h1,Math.ceil(e/60))}));
-  h1=Math.min(h1,24);
-  const nowM=(()=>{const x=new Date();return x.getHours()*60+x.getMinutes()})();
-  const head=days.map(d=>{const x=pd(d);return `<button class="tg-dh${d===t0?' today':''}${d===S.calDay?' sel':''}" data-act="calday" data-d="${d}" aria-label="${fmtDayW(d)}"><span>${WD[(x.getDay()+6)%7]}</span><b>${x.getDate()}</b></button>`}).join('');
-  const chip=o=>`<button class="chip${o.type==='due'?' due':''}${hwCls(o)}${o.cancel?' cancel':''}" style="--c:${occColor(o)}" ${occAttrs(o)}${hwN(o)} title="${esc(occLabel(o)+hwTip(o))}">${esc(occLabel(o))}</button>`;
-  const hasAll=days.some(d=>allday(d).length);
-  const all=hasAll?`<div class="tg-al">весь<br>день</div>${days.map(d=>`<div class="tg-ac${d===t0?' today':''}">${allday(d).map(chip).join('')}</div>`).join('')}`:'';
-  const hours=Array.from({length:h1-h0},(_,i)=>`<span style="top:calc(var(--hh) * ${i})">${String(h0+i).padStart(2,'0')}:00</span>`).join('');
-  const block=x=>{const o=x.o,ev=o.ev,top=(x.s-h0*60)/60,ht=Math.max(x.e-x.s,25)/60,fs=o.type==='ev'&&!o.cancel?evFiles(ev,o.date).length:0,r=o.type==='ev'&&!T()?myRsvp(meId(),ev.id,o.date):null;
-    return `<button class="tg-ev${o.cancel?' cancel':''}${o.type==='mine'?' mine':''}${x.e-x.s<45?' short':x.e-x.s<=75?' h1':''}" style="--c:${occColor(o)};top:calc(var(--hh) * ${top});height:calc(var(--hh) * ${ht} - 2px);left:calc(${x.c} * 100% / ${x.n});width:calc(${x.n-x.c===1?'100%':'160%'} / ${x.n} - 3px);z-index:${1+x.c}" ${occAttrs(o)} title="${esc(occLabel(o))}"><b>${esc(ev.title)}${fs?' 📎':''}</b><span>${hmS(x.s)}${ev.end?'–'+esc(ev.end):''}${o.cancel?', отменено':''}${o.type==='mine'?', личное':''}${r?', '+RS[r.st].toLowerCase():''}</span></button>`};
-  const cols=days.map(d=>`<div class="tg-col${d===t0?' today':''}${d===S.calDay?' sel':''}" data-act="calslot" data-d="${d}" data-h0="${h0}">${calLay(timed(d)).map(block).join('')}${d===t0&&nowM>=h0*60&&nowM<=h1*60?`<i class="tg-now" style="top:calc(var(--hh) * ${(nowM-h0*60)/60})"></i>`:''}</div>`).join('');
-  return `<div class="tg n${n}" style="--n:${n};--rows:${h1-h0}"><div class="tg-head"><div class="tg-c"></div>${head}</div>${all?`<div class="tg-all">${all}</div>`:''}<div class="tg-body"><div class="tg-times">${hours}</div>${cols}</div></div>`;
-}
-function plannerWeek(from, by) {
-  const dates = Array.from({length:7}, (_,i)=>addDays(from,i));
-  const strip = dates.map((date,i)=>{
-    const count=(by[date]||[]).length, selected=date===S.calDay;
-    return `<button class="day-pick" data-act="calday" data-d="${date}" aria-pressed="${selected}" aria-label="${fmtDayW(date)}, событий ${count}"><span>${WD[i]}</span><strong>${pd(date).getDate()}</strong><i class="${count?'busy':''}" aria-hidden="true"></i></button>`;
-  }).join('');
-  return `<div class="days-strip" role="group" aria-label="День недели">${strip}</div>`;
-}
 function plannerNotes(week) {
   const lists=[[week,'На этой неделе'],['','Когда-нибудь']];
   return `<details class="study-fold planner-notes" data-k="planner-notes"><summary>Личные дела</summary><div class="planner-notes-grid">${lists.map(([wk,title])=>{
@@ -2045,36 +2000,43 @@ function plannerDay(date, items) {
   }).join('');
   return `<section class="planner-agenda" aria-label="События дня"><h2>${esc(title)}</h2>${list||'<p class="study-empty">Событий нет.</p>'}</section>`;
 }
+function monthOccurrence(o){
+  const due=o.type==='due', entry=due?o.task:o.ev;
+  const time=due?'ДЗ':entry.start||'';
+  const details=[fmtDayW(o.date),occLabel(o)+hwTip(o),o.cancel?'Отменено':'',o.type==='mine'?'Личное событие':''].filter(Boolean).join(', ');
+  return `<button type="button" class="calendar-entry${due?' deadline':''}${o.cancel?' cancelled':''}" style="--entry:${occColor(o)}" ${occAttrs(o)} title="${esc(details)}" aria-label="${esc(details)}">${time?`<span class="calendar-time">${esc(time)}</span>`:''}<span class="calendar-entry-title">${esc(entry.title)}</span></button>`;
+}
+function monthCalendar(from,n,by,t){
+  const weeks=[];
+  for(let i=0;i<n;i+=7){
+    const days=WD.map((wd,j)=>{
+      const date=addDays(from,i+j), day=pd(date).getDate(), events=by[date]||[];
+      const label='Добавить событие, '+fmtDayW(date);
+      const digit=`<button type="button" class="calendar-number" data-act="pwnew" data-d="${date}" title="${esc(label)}" aria-label="${esc(label)}"${date===t?' aria-current="date"':''} style="--column:${j+1}"><span>${day}</span><i aria-hidden="true">+</i></button>`;
+      return `<div class="calendar-day${date.slice(0,7)!==S.calMonth.slice(0,7)?' outside':''}${date===t?' today':''}${events.length?' occupied':''}">${digit}${events.length?`<div class="calendar-group"><time datetime="${date}" class="calendar-agenda-date">${wd}<b>${day}</b></time><div class="calendar-items">${events.map(monthOccurrence).join('')}</div></div>`:''}</div>`;
+    }).join('');
+    weeks.push(`<div class="calendar-week">${days}</div>`);
+  }
+  return `<div class="calendar-month"><div class="calendar-weekdays" aria-hidden="true">${WD.map(d=>`<span>${d}</span>`).join('')}</div>${weeks.join('')}</div>`;
+}
 function calHTML() {
-  const view=calView(), isMonth=view==='month', t=today();
-  let from,n;
-  if(isMonth){
-    if(!S.calMonth)S.calMonth=S.calDay.slice(0,7)+'-01';
-    from=tdMon(S.calMonth);n=42;
-  }else [from,n]=calRange();
+  const isMonth=calView()==='month', t=today();
+  if(!S.calMonth)S.calMonth=S.calDay.slice(0,7)+'-01';
+  const from=tdMon(isMonth?S.calMonth:S.calDay);
+  const monthEnd=pd(S.calMonth);
+  monthEnd.setMonth(monthEnd.getMonth()+1,0);
+  const n=isMonth?Math.ceil((diffDays(from,dkey(monthEnd))+1)/7)*7:7;
   const by={};
   for(const o of occs(from,addDays(from,n-1)))(by[o.date]||=[]).push(o);
-  const selected=isMonth&&S.calDay.slice(0,7)!==S.calMonth.slice(0,7)?S.calMonth:S.calDay;
-  const navUnit={week:['Предыдущая неделя','Следующая неделя'],month:['Предыдущий месяц','Следующий месяц'],day:['Предыдущий день','Следующий день']}[view];
-  const title=view==='week'?new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric'}).formatRange(pd(from),pd(addDays(from,6))).replace(/\s*г\.$/,''):calTitle(from,n);
-  const modes=CALV.map(([id,lbl])=>`<button data-act="calview" data-v="${id}" aria-pressed="${view===id}">${lbl}</button>`).join('');
-  const add=`<button class="btn" data-act="pwnew" data-d="${selected}">${T()?'+ Событие':'+ Своё событие'}</button>`;
-  const tools=`<details class="study-tools" data-k="cal-tools"><summary aria-label="Дополнительные действия расписания" title="Дополнительные действия">•••</summary><div>${T()?'<button data-act="preparelesson">Подготовить урок</button>':''}<button data-act="calfull">${S.calFull?'Выйти из полного экрана':'Во весь экран'}</button></div></details>`;
-  const head=`<header class="study-head"><h1>Расписание</h1><div class="study-head-actions">${add}${tools}</div></header><div class="planner-toolbar"><div class="period-nav"><button class="study-nav-btn" aria-label="${navUnit[0]}" data-act="calnav" data-n="-1">‹</button><h2>${title}</h2><button class="study-nav-btn" aria-label="${navUnit[1]}" data-act="calnav" data-n="1">›</button></div><button class="study-plain" data-act="caltoday">Сегодня</button><div class="study-seg planner-modes" role="group" aria-label="Вид календаря">${modes}</div></div>`;
-  let content='';
-  if(isMonth){
-    const cells=Array.from({length:n},(_,i)=>{
-      const date=addDays(from,i),list=by[date]||[],names=list.slice(0,2).map(o=>esc(occLabel(o))).join(' · ');
-      return `<button class="month-date${date.slice(0,7)!==S.calMonth.slice(0,7)?' outside':''}${date===t?' today':''}" data-act="calday" data-d="${date}" aria-pressed="${date===selected}" aria-label="${fmtDayW(date)}, событий ${list.length}"><strong>${pd(date).getDate()}</strong>${list.length?`<span class="month-event" title="${names}">${esc(occLabel(list[0]))}</span><span class="month-count">${list.length} ${plural(list.length,'событие','события','событий')}</span>`:''}</button>`;
-    }).join('');
-    content=`<div class="calwrap planner-month"><div class="month study-month">${WD.map(x=>`<span class="month-wd">${x}</span>`).join('')}${cells}</div>${plannerDay(selected,by[selected]||[])}</div>`;
-  }else if(view==='week'){
-    const occupied=Object.keys(by).sort();
-    const fullWeek=occupied.length?`<details class="study-fold week-overview" data-k="week-overview"><summary>Все события недели</summary>${occupied.map(d=>plannerDay(d,by[d])).join('')}</details>`:'';
-    content=plannerWeek(from,by)+plannerDay(selected,by[selected]||[])+fullWeek+plannerNotes(from);
-  }else{
-    content=`<div class="calwrap planner-hours">${calGridHTML(from,n,by)}</div>`;
-  }
+  const title=isMonth?pd(S.calMonth).toLocaleDateString('ru-RU',{month:'long',year:'numeric'}).replace(/\s*г\.?$/,''):new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric'}).formatRange(pd(from),pd(addDays(from,6))).replace(/\s*г\.?$/,'');
+  const modes=CALV.map(([id,label])=>`<button data-act="calview" data-v="${id}" aria-pressed="${calView()===id}">${label}</button>`).join('');
+  const add=`<button class="btn" data-act="pwnew" data-d="${S.calDay}">${T()?'+ Событие':'+ Своё событие'}</button>`;
+  const fullLabel=S.calFull?'Выйти из полного экрана':'Во весь экран';
+  const fullPath=S.calFull?'M9 4v5H4m16 0h-5V4M4 15h5v5m6 0v-5h5':'M4 9V4h5m6 0h5v5M4 15v5h5m6 0h5v-5';
+  const full=`<button class="calendar-expand study-nav-btn" type="button" aria-label="${fullLabel}" title="${fullLabel}" aria-pressed="${!!S.calFull}" data-act="calfull"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${fullPath}"/></svg></button>`;
+  const tools=T()?'<details class="study-tools" data-k="cal-tools"><summary aria-label="Дополнительные действия расписания" title="Дополнительные действия">•••</summary><div><button data-act="preparelesson">Подготовить урок</button></div></details>':'';
+  const head=`<header class="study-head"><h1>Расписание</h1><div class="study-head-actions">${add}${full}${tools}</div></header><div class="planner-toolbar"><div class="period-nav"><button class="study-nav-btn" aria-label="${isMonth?'Предыдущий месяц':'Предыдущая неделя'}" data-act="calnav" data-n="-1">‹</button><h2>${title}</h2><button class="study-nav-btn" aria-label="${isMonth?'Следующий месяц':'Следующая неделя'}" data-act="calnav" data-n="1">›</button></div><button class="study-plain" data-act="caltoday">Сегодня</button><div class="study-seg planner-modes" role="group" aria-label="Вид календаря">${modes}</div></div>`;
+  const content=isMonth?monthCalendar(from,n,by,t):`<div class="calendar-week-list">${Object.keys(by).sort().map(d=>plannerDay(d,by[d])).join('')||'<p class="study-empty">На этой неделе событий нет.</p>'}</div>${plannerNotes(from)}`;
   return `<div class="study-view planner">${head}${content}</div>`;
 }
 
@@ -2082,11 +2044,18 @@ function academicSelect(label, action, options, selected) {
   return `<label class="study-select"><span>${esc(label)}</span><select id="study-${action}" data-academic="${action}">${options.map(([value,caption])=>`<option value="${esc(value)}"${String(value)===String(selected||'')?' selected':''}>${esc(caption)}</option>`).join('')}</select></label>`;
 }
 document.addEventListener('click',e=>{
+  const trackerFilters=document.querySelector('.route-filters[open]');
+  if(trackerFilters&&!trackerFilters.contains(e.target))trackerFilters.open=false;
   for(const menu of document.querySelectorAll('.study-tools[open]')){
     if(!menu.contains(e.target)||e.target.closest('button'))menu.open=false;
   }
 });
-const academicFilters={tsubj:'s',tstu:'s',tst:'s',tkuid:'uid',tks:'v',tkb:'v'};
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape'||document.querySelector('dialog[open]'))return;
+  const filters=document.querySelector('.route-filters[open]');
+  if(filters){filters.open=false;filters.querySelector('summary').focus()}
+});
+const academicFilters={tsubj:'s',tstu:'s',tst:'s',tkuid:'uid',tks:'v',tkb:'v',tkf:'v',tksort:'v'};
 document.addEventListener('change',e=>{
   const el=e.target, action=el.dataset?.academic;
   if(!Object.hasOwn(academicFilters,action))return;
@@ -2238,40 +2207,63 @@ function taskHTML(){
   return html+`</section>`;
 }
 
+function deckMark(subject, own){
+  const drawings={
+    bio:'<path d="M7 20c1-6 4.5-11 12-15 0 9-3 13-10 13M9 17l6-7"/>',
+    math:'<path d="M4 19 10 5l10 14H4Zm4.5-5.5 5 .2"/>',
+    chem:IC.bio,phys:'<path d="M2 13c4-11 6-11 10 0s7 10 10-1"/>',
+    eng:'<path d="m3 18 4.5-12 4.5 12M5 14h5m5-2c1-3 6-2 6 1v5m0-5c-7-1-6 7 0 3"/>',
+    other:IC.cards
+  };
+  return `<span class="deck-mark" aria-hidden="true"><svg viewBox="0 0 24 24">${own?IC.file:(drawings[subject]||IC.cards)}</svg></span>`;
+}
+function deckListRow(d,manager,state){
+  const total=(d.cards||[]).length,tag=d.own?'Личная колода':SUBJ[d.subject]?.n||'Другой предмет';
+  const due=state?state.due+state.newToday:0;
+  const meta=manager?(d.to?.length?toNames(d):'Ещё не назначена'):`Выучено ${state.learned} из ${total}`;
+  const note=d.loading?'Загрузка…':manager?`${total} ${plural(total,'карточка','карточки','карточек')}`:due?`${due} на сегодня`:'На сегодня всё';
+  return `<button class="deck-slip" data-act="deck" data-id="${esc(d.id)}" style="--c:${d.own?'var(--accent)':sc(d.subject)}">
+    ${deckMark(d.subject,d.own)}<span class="deck-description"><small>${esc(tag)}</small><strong>${esc(d.title)}</strong><span>${meta}</span></span>
+    <span class="deck-quantity${due?' due':''}">${note}</span><span class="deck-arrow" aria-hidden="true">›</span>
+  </button>`;
+}
 function cardsHTML(){
   const decks=myDecks(),lab=S.cardsTab==='lab',teacher=T();
-  const make=teacher||canAssign()?`<button class="btn" data-act="newdeck">${teacher?'Новая колода':'Колода ученицам'}</button>`:'';
-  const head=`<div class="page-h"><h1>Карточки</h1>${make}</div><div class="jr-tabs" role="group" aria-label="Раздел карточек"><button data-act="cardstab" data-v="decks" aria-pressed="${!lab}">Колоды</button><button data-act="cardstab" data-v="lab" aria-pressed="${lab}">${teacher?'Чашки Петри':forestOn()?'Моя коллекция':'Чашка Петри'}</button></div>`;
+  const tabs=`<div class="library-tabs" role="group" aria-label="Раздел карточек"><button data-act="cardstab" data-v="decks" aria-pressed="${!lab}">Колоды</button><button data-act="cardstab" data-v="lab" aria-pressed="${lab}">${teacher?'Чашки Петри':forestOn()?'Моя коллекция':'Чашка Петри'}</button></div>`;
   if(lab){
-    const cultures=teacher?`<div class="culture-shelf">${S.people.map(p=>`<button class="culture-sample" data-act="stview" data-uid="${esc(p.id)}"><strong>${esc(p.label||'Без имени')}</strong>${streakHTML(p.id,true)}<span class="culture-link" aria-hidden="true">↗</span></button>`).join('')||'<p class="jr-empty">Здесь появятся чашки учениц.</p>'}</div>`:forestModes()+(forestOn()?PhagiForest.render(S.forest,0,true):streakHTML(meId(),false)+peekStrip());
-    return `<div class="cards-library">${head}${cultures}</div>`;
+    const cultures=teacher?S.people.map(p=>{
+      const info=streakInfo(S.streak[p.id]),broken=culture(p.id).broken;
+      return `<button class="culture-sample" data-act="stview" data-uid="${esc(p.id)}"><span class="sample-stage">${dishSVG(p.id,{size:125,ring:false,mode:broken?'dead':'live'}).replace('class="dish dead','class="dish dead still')}</span><span class="sample-caption"><strong>${esc(p.label||'Без имени')}</strong><span>${info.cur} ${plural(info.cur,'день','дня','дней')} подряд · Сегодня ${info.todayN} из ${GOAL}</span></span><span aria-hidden="true" class="sample-open">↗</span></button>`;
+    }).join(''):'';
+    const labContent=teacher?(cultures?`<div class="culture-shelf">${cultures}</div>`:'<p class="jr-empty">Здесь появятся чашки учениц.</p>'):forestModes()+(forestOn()?PhagiForest.render(S.forest,0,true):streakHTML(meId(),false)+peekStrip());
+    return `<div class="cards-library"><div class="page-h"><h1>Карточки</h1></div>${tabs}${labContent}</div>`;
   }
-  const stats=d=>deckStats(d,(S.srs[meId()]||{})[d.id]);
-  const tile=(d,given=false)=>{
-    const total=(d.cards||[]).length,col=d.own?'var(--accent)':sc(d.subject),st=!teacher&&!given?stats(d):null;
-    const tag=d.own?'Личная':SUBJ[d.subject]?.n||'Другой предмет';
-    const meta=`${total} ${plural(total,'карточка','карточки','карточек')}`;
-    let footer;
-    if(st){
-      const due=st.due+st.newToday;
-      footer=`<span class="dk-results"><span>${due?`<b>${due}</b> на сегодня`:'На сегодня всё'}</span><small>Выучено ${st.learned} из ${st.total}</small></span><span class="dk-meter"><i style="width:${st.total?100*st.learned/st.total:0}%"></i></span>`;
-    }else{
-      footer=`<span class="dk-results"><span>${d.to?.length?toNames(d):'Никому не назначена'}</span></span>`;
-    }
-    return `<button class="deck-slip" data-act="deck" data-id="${esc(d.id)}" style="--c:${col}"><span class="dk-meta"><span><i></i>${esc(tag)}</span><small>${meta}</small></span><strong>${esc(d.title)}</strong>${footer}</button>`;
-  };
-  const mx=teacher?null:mixStats(),list=teacher?decks:decks.slice().sort((a,b)=>Number(stats(b).due+stats(b).newToday>0)-Number(stats(a).due+stats(a).newToday>0));
-  let review='';
-  if(mx&&mx.decks.length){
-    const only=mx.decks.length===1?mx.decks[0]:null;
-    const start=only?`data-act="study" data-id="${esc(only.id)}"`:'data-act="studyall"';
-    const subs=mx.bySub.length>1?`<details class="review-subjects" data-k="review-subjects"><summary>По предмету</summary><div>${mx.bySub.map(o=>`<button class="btn ghost sm" data-act="studyall" data-sub="${esc(o.k)}" ${o.todo?'':'disabled'}>${esc(SUBJ[o.k]?.n||'Другой предмет')} · ${o.todo}</button>`).join('')}</div></details>`:'';
-    review=`<section class="review-today"><div><h2>На сегодня</h2><p>${mx.todo?`<b>${mx.todo}</b> ${plural(mx.todo,'карточка','карточки','карточек')} для повторения`:'Все карточки на сегодня повторены'}</p></div>${mx.todo?`<div class="review-actions"><button class="btn" ${start}>Начать повторение</button>${subs}</div>`:''}</section>`;
-  }
+  const make=teacher||canAssign()?`<button class="library-make" data-act="newdeck">+ ${teacher?'Новая колода':'Колода ученицам'}</button>`:'';
+  const mx=teacher?null:mixStats();
+  const only=mx?.decks.length===1?mx.decks[0]:null;
+  const start=only?`data-act="study" data-id="${esc(only.id)}"`:'data-act="studyall"';
+  const count=decks.reduce((sum,d)=>sum+(d.cards||[]).length,0);
+  const loading=decks.some(d=>d.loading);
+  const summary=loading?'Загружаем карточки…':teacher?`${decks.length} ${plural(decks.length,'колода','колоды','колод')} · ${count} ${plural(count,'карточка','карточки','карточек')}`:mx.todo?`На сегодня ${mx.todo} ${plural(mx.todo,'карточка','карточки','карточек')}`:decks.length?'На сегодня всё повторено':'Пока нет назначенных колод';
+  const cover=`<header class="library-cover"><div><h1>Карточки</h1><p>${summary}</p><div class="library-start">${mx?.todo?`<button class="library-study" ${start}>Начать повторение <span aria-hidden="true">→</span></button>`:''}${make}</div></div></header>`;
+  const bySubject=mx?.todo&&mx.bySub.filter(o=>o.todo).length>1?`<details class="study-subjects" data-k="review-subjects"><summary>Повторить по предмету</summary><div>${mx.bySub.filter(o=>o.todo).map(o=>`<button data-act="studyall" data-sub="${esc(o.k)}">${esc(SUBJ[o.k]?.n||'Другое')} · ${o.todo}</button>`).join('')}</div></details>`:'';
+  const states=new Map();
+  if(!teacher)decks.forEach(d=>states.set(d.id,deckStats(d,(S.srs[meId()]||{})[d.id])));
+  const list=decks.slice();
+  if(!teacher)list.sort((a,b)=>{const x=states.get(a.id),y=states.get(b.id);return Number(y.due+y.newToday>0)-Number(x.due+x.newToday>0)});
   const given=canAssign()?S.decks.filter(ownAsg):[];
-  const assigned=given.length?`<h2 class="lib-heading">Выдано ученицам <small>${given.length}</small></h2><div class="deck-shelf">${given.map(d=>tile(d,true)).join('')}</div>`:'';
-  return `<div class="cards-library">${head}${review}<h2 class="lib-heading">${teacher?'Колоды учениц':'Мои колоды'} <small>${list.length}</small></h2>${list.length?`<div class="deck-shelf">${list.map(d=>tile(d)).join('')}</div>`:`<p class="jr-empty">${teacher?'Пока нет колод. Создайте первую кнопкой «Новая колода».':'Пока нет колод для повторения.'}</p>`}${assigned}</div>`;
+  const usedSubjects=new Set([...list,...given].map(d=>SUBJ[d.subject]?d.subject:'other'));
+  const subjects=Object.keys(SUBJ).filter(k=>usedSubjects.has(k));
+  const selected=subjects.includes(S.deckSubject)?S.deckSubject:'';
+  const filter=subjects.length>1?`<label class="deck-filter"><select id="deck-subject" aria-label="Предмет колоды"><option value="">Все предметы</option>${subjects.map(k=>`<option value="${k}" ${selected===k?'selected':''}>${esc(SUBJ[k].n)}</option>`).join('')}</select></label>`:'';
+  const inSubject=d=>!selected||(SUBJ[d.subject]?d.subject:'other')===selected;
+  const shelf=(rows,manager)=>rows.length?`<div class="deck-shelf">${rows.map(d=>deckListRow(d,manager,states.get(d.id))).join('')}</div>`:'<p class="library-empty">Колод пока нет.</p>';
+  const assigned=given.length?`<h2 class="lib-heading">Выдано ученицам</h2>${shelf(given.filter(inSubject),true)}`:'';
+  return `<div class="cards-library">${cover}${tabs}${bySubject}<div class="library-controls"><h2 class="lib-heading">${teacher?'Колоды учениц':'Мои колоды'}</h2>${filter}</div>${shelf(list.filter(inSubject),teacher)}${assigned}</div>`;
 }
+document.addEventListener('change',e=>{
+  if(e.target.id==='deck-subject'){S.deckSubject=e.target.value;render()}
+});
 
 function deckHTML(){
   const d=S.decks.find(x=>x.id===S.deckId);
@@ -2279,20 +2271,20 @@ function deckHTML(){
   let html=`<button class="back" data-act="go" data-v="cards">← К колодам</button>`;
   if(T()||ownAsg(d)){
     const uids=d.to||[];
-    html+=`<section class="sheet"><div class="row" style="justify-content:space-between"><span>${subj(d.subject)}${byTag(d)}${d.typing?'<span class="tpill">⌨ ответ с клавиатуры</span>':''}</span><span class="muted small">${(d.cards||[]).length} ${plural((d.cards||[]).length,'карточка','карточки','карточек')}</span></div>
-    <h1 style="font:700 22px/1.25 var(--d);color:var(--ink);margin:10px 0 14px">${esc(d.title)}</h1>
+    html+=`<section class="sheet deck-intro"><div class="row" style="justify-content:space-between"><span>${subj(d.subject)}${byTag(d)}${d.typing?'<span class="tpill">⌨ ответ с клавиатуры</span>':''}</span><span class="muted small">${(d.cards||[]).length} ${plural((d.cards||[]).length,'карточка','карточки','карточек')}</span></div>
+    <h1>${esc(d.title)}</h1>
     <div class="actions" style="justify-content:flex-start"><button class="btn sm" data-act="adddeck" data-id="${d.id}">Добавить карточки</button><button class="btn ghost sm" data-act="editdeck" data-id="${d.id}">Изменить колоду</button><button class="btn danger sm" data-act="deldeck" data-id="${d.id}">Удалить</button></div></section>
     ${!T()?`<section class="sheet"><h2>Кому дана</h2><p style="margin:0">${toNames(d)}</p><p class="muted small" style="margin:8px 0 0">Прогресс учениц по колоде видит учитель.</p></section>`:`<section class="sheet"><h2>Прогресс</h2>${uids.length?`<div class="tbl-wrap"><table><thead><tr><th>Ученица</th><th>Выучено</th><th>На сегодня</th><th>Новых</th><th>Последнее повторение</th></tr></thead><tbody>${uids.map(uid=>{const stt=(S.srs[uid]||{})[d.id],st=deckStats(d,stt);return `<tr><td>${esc(name(uid))}</td><td>${st.learned} из ${st.total}</td><td>${st.due}</td><td>${st.neu}</td><td>${stt&&stt.updatedAt?fmtTime(stt.updatedAt):'—'}</td></tr>`}).join('')}</tbody></table></div>`:'<p class="muted">Колода никому не назначена.</p>'}</section>`}
     <section class="sheet"><h2>Карточки</h2><div class="tbl-wrap"><table><thead><tr><th>Вопрос</th><th style="text-align:left">Ответ</th></tr></thead><tbody>${(d.cards||[]).slice(0,300).map(c=>`<tr><td style="white-space:normal">${rich(c.f)}</td><td style="white-space:normal;text-align:left">${rich(c.b)}</td></tr>`).join('')}</tbody></table></div></section>`;
-    return html;
+    return `<div class="deck-detail">${html}</div>`;
   }
   const state=(S.srs[meId()]||{})[d.id],st=deckStats(d,state);
-  html+=`<section class="sheet deck-hero" style="--c:${d.own?'var(--accent)':sc(d.subject)}"><div class="deck">${ring(st.total?st.learned/st.total:0,76)}<div class="grow">${subj(d.subject)}<h1 style="font:700 22px/1.25 var(--d);color:var(--ink);margin:6px 0 10px">${esc(d.title)}</h1>
+  html+=`<section class="sheet deck-hero deck-intro" style="--c:${d.own?'var(--accent)':sc(d.subject)}"><div class="deck">${ring(st.total?st.learned/st.total:0,76)}<div class="grow">${subj(d.subject)}<h1>${esc(d.title)}</h1>
   <div class="stats"><span><b>${st.due}</b>повторить</span><span><b>${st.newToday}</b>новых сегодня</span><span><b>${st.learned}</b>выучено</span><span><b>${st.total}</b>всего</span></div></div></div>
   <div class="actions">${st.due+st.newToday?`<button class="btn" data-act="study" data-id="${d.id}">Начать повторение</button>`:`<span class="muted">На сегодня всё. Возвращайся завтра.</span>`}<button class="btn ghost" data-act="study" data-id="${d.id}" data-all="1">Пройти всю колоду</button></div>
   <button class="tsw" data-act="typemode" data-id="${d.id}" aria-pressed="${typeMode(d)}"><span class="sw2" aria-hidden="true"></span><span class="grow"><b>⌨ Писать ответ с клавиатуры</b><span class="muted">Карточка сама проверит ответ и покажет правильный, а оценку ставите как обычно.</span></span></button></section>`;
   if(d.own)html+=`<section class="sheet"><h2>Карточки из ошибок</h2><p class="muted small" style="margin-top:-6px">Колоду видишь только ты. Карточки появляются, когда нажимаешь «В мои карточки» в разборе теста или в стопке ошибок.</p><div class="list">${(d.cards||[]).map(c=>`<div class="item" style="cursor:default;align-items:flex-start"><span class="grow small">${rich(short(c.f,160))}</span><button class="btn ghost sm" data-act="rmcard" data-i="${c.i}">Убрать</button></div>`).join('')}</div></section>`;
-  return html;
+  return `<div class="deck-detail">${html}</div>`;
 }
 
 function reviewHTML(){
@@ -2575,7 +2567,7 @@ function weekHTML(info){
   const t=today(),W=['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];let h='';
   const mon=addDays(t,-((pd(t).getDay()+6)%7));
   for(let i=0;i<7;i++){const d=addDays(mon,i),on=info.ok(d),fz=!on&&!!(info.fz||{})[d],isT=d===t,fut=d>t;
-    h+=`<span class="wday${on?' on':''}${fz?' fz':''}${isT?' today':''}${fut?' fut':''}"${fz?' title="Пропуск, колонии спасла мутация"':''}><svg viewBox="0 0 28 32" aria-hidden="true"><path d="M14 1.5 26.5 8.7v14.6L14 30.5 1.5 23.3V8.7z"/>${on?'<path class="ck" d="M8.5 16.5l3.6 3.6 7.4-7.6"/>':fz?'<path class="ck" d="M14 9.5v7.5M14 21v.5"/>':''}</svg><small>${W[pd(d).getDay()]}</small></span>`}
+    h+=`<span class="wday${on?' on':''}${fz?' fz':''}${isT?' today':''}${fut?' fut':''}"${fz?' title="Пропуск, колонии спасла мутация"':''}><svg viewBox="0 0 28 32" aria-hidden="true"><path d="M14 3a13 13 0 1 1 0 26 13 13 0 0 1 0-26Z"/>${on?'<path class="ck" d="M8.5 16.5l3.6 3.6 7.4-7.6"/>':fz?'<path class="ck" d="M14 9.5v7.5M14 21v.5"/>':''}</svg><small>${W[pd(d).getDay()]}</small></span>`}
   return `<div class="week" aria-label="Эта неделя">${h}</div>`;
 }
 function speciesHTML(n){
@@ -4108,21 +4100,27 @@ const actions={
   remove:async el=>{const uid=el.dataset.uid;if(!await askConfirm(`Убрать ${name(uid)} из класса? Чтобы закрыть доступ полностью, удалите её и в меню «Поделиться».`,'Убрать'))return;await S.db.doc('people/'+uid).delete();
     const drop=[...Object.keys(S.peek[uid]||{}).map(s=>`petri/${uid}/from/${s}`),...Object.keys(S.peek).filter(v=>(S.peek[v]||{})[uid]).map(v=>`petri/${v}/from/${uid}`)];
     for(const path of drop)await S.db.doc(path).delete().catch(()=>{});toast('Ученица убрана')},
-  calnav:el=>{const k=Number(el.dataset.n),v=calView();
-    if(v==='month'){const m=pd(S.calMonth);m.setMonth(m.getMonth()+k);S.calMonth=dkey(m);return}
-    const st=v==='week'?7:1;S.calDay=addDays(S.calDay,k*st);if(S.cal3)S.cal3=addDays(S.cal3,k*st);S.calMonth=null},
-  caltoday:()=>{S.calDay=today();S.calMonth=null;S.cal3=null},
-  calday:el=>{S.calDay=el.dataset.d;const cm=S.calMonth&&pd(S.calMonth),m=pd(S.calDay);if(!cm||m.getMonth()!==cm.getMonth()||m.getFullYear()!==cm.getFullYear())S.calMonth=null},
-  calview:el=>{const v=el.dataset.v,was=calView();if(v===was)return;
-    // leaving the month: if the chosen day is not in the month on screen, jump to that month (today if it is there)
-    if(was==='month'&&S.calMonth&&S.calDay.slice(0,7)!==S.calMonth.slice(0,7))S.calDay=today().slice(0,7)===S.calMonth.slice(0,7)?today():S.calMonth;
-    S.calView=v;S.calMonth=null;S.cal3=null;try{localStorage.setItem('calView',v)}catch(e){}},
-  calslot:el=>{const d=el.dataset.d,y=CALY.y;S.calDay=d;if(y==null)return;
-    const hh=el.offsetHeight/Number(el.closest('.tg').style.getPropertyValue('--rows')||1),m=Number(el.dataset.h0)*60+Math.floor(y/hh*2)*30;
-    openEventDialog(null,{date:d,start:hmS(Math.min(m,23*60+30)),end:hmS(Math.min(m+60,23*60+59))})},
+  calnav:el=>{
+    const step=Number(el.dataset.n);
+    if(calView()==='month'){
+      const next=pd(S.calMonth);
+      next.setMonth(next.getMonth()+step,1);
+      S.calMonth=dkey(next);
+      S.calDay=today().slice(0,7)===S.calMonth.slice(0,7)?today():S.calMonth;
+    }else{
+      S.calDay=addDays(S.calDay,step*7);
+      S.calMonth=null;
+    }
+  },
+  caltoday:()=>{S.calDay=today();S.calMonth=null},
+  calview:el=>{
+    const view=el.dataset.v;
+    if(!CALV.some(([id])=>id===view)||view===calView())return;
+    S.calView=view;S.calMonth=null;
+    try{localStorage.setItem('calView',view)}catch(e){}
+  },
   occ:el=>openOcc(el.dataset.k,el.dataset.id,el.dataset.d),
-  pwnew:el=>{S.calDay=el.dataset.d;openEventDialog(null,{date:el.dataset.d})},
-  pwday:el=>{S.calDay=el.dataset.d;S.calView='day';S.calMonth=null;try{localStorage.setItem('calView','day')}catch(e){}},
+  pwnew:el=>{openEventDialog(null,{date:el.dataset.d})},
   newevent:()=>openEventDialog(null,{date:S.view==='cal'?S.calDay:today()}),
   deck:el=>{S.view='deck';S.deckId=el.dataset.id;window.scrollTo(0,0)},
   newdeck:()=>openDeckDialog(null,'new'),
@@ -4150,14 +4148,11 @@ async function saveSub(id,status,source){
   delete S.fv['ans-'+id];delete S.fv['lnk-'+id];toast(status==='submitted'?'Работа сдана':'Черновик сохранён');
 }
 
-/* calendar: where in the time column the tap landed, swipe to the next / previous days, the red "now" line moves every minute */
-const CALY={y:null};
-document.addEventListener('click',e=>{const c=e.target.closest&&e.target.closest('.tg-col');CALY.y=c&&e.target===c?e.clientY-c.getBoundingClientRect().top:null},true);
+/* Swipe between months or weeks. */
 const CALSW={x:0,y:0,t:0};
-document.addEventListener('touchstart',e=>{const g=e.target.closest&&e.target.closest('.calwrap>.tg,.calwrap>.month');if(!g||e.touches.length!==1){CALSW.t=0;return}CALSW.x=e.touches[0].clientX;CALSW.y=e.touches[0].clientY;CALSW.t=Date.now()},{passive:true});
+document.addEventListener('touchstart',e=>{const g=e.target.closest&&e.target.closest('.calendar-month,.calendar-week-list');if(!g||e.touches.length!==1){CALSW.t=0;return}CALSW.x=e.touches[0].clientX;CALSW.y=e.touches[0].clientY;CALSW.t=Date.now()},{passive:true});
 document.addEventListener('touchend',e=>{if(!CALSW.t||S.view!=='cal'||Date.now()-CALSW.t>700)return;CALSW.t=0;const t=e.changedTouches[0],dx=t.clientX-CALSW.x,dy=t.clientY-CALSW.y;
   if(Math.abs(dx)<60||Math.abs(dx)<Math.abs(dy)*1.6)return;actions.calnav({dataset:{n:dx<0?1:-1}});render()},{passive:true});
-setInterval(()=>{if(S.view==='cal'&&calView()!=='month')render(true)},60000);
 mountPhage();
 
 
@@ -4346,52 +4341,9 @@ $('#thbtn').addEventListener('click',()=>{const m=$('#thmenu');m&&!m.hidden?thCl
 /* ---------- Биовиз: визуализации и банк задач прямо в странице ----------
    Разметка и стили живут в теневом DOM #bvhost (не смешиваются со стилями платформы), код bioviz/bv.js
    грузится один раз при первом открытии и дальше не перезагружается. Когда раздел закрыт, анимации стоят на паузе. */
-const BVS={st:0}; // 0 не загружен, 1 грузится, 2 готов
 function bioHTML(){return '<div data-sig="bv-h"></div>'}
 function bvScript(src){return new Promise((ok,no)=>{const e=document.createElement('script');e.src=src;e.async=false;e.onload=ok;e.onerror=no;document.head.appendChild(e)})}
 function bvTheme(){const h=$('#bvhost');if(h)h.setAttribute('data-theme',document.documentElement.getAttribute('data-eff')||thSys())}
-function bvSync(){
-  const h=$('#bvhost'), shelf=$('#bv-shelf');
-  if(!h||!shelf)return;
-  const on=S.view==='bio'&&(S.mode==='teacher'||S.mode==='student');
-  document.body.classList.toggle('bvon',on);
-  if(on && BVS.want==='replication'){
-    BVS.want=null;
-    location.replace('bioviz/replication/?from=phagi');
-    return;
-  }
-  if(on && BVS.want) BVS.workspace=true;
-  if(!on) BVS.workspace=false;
-  const active=on&&!!BVS.workspace;
-  if(on&&!active){
-    if(!document.getElementById('bv-library-style')){
-      for(const [id,href] of [['bv-library-style','bioviz/library.css?v=1'],['bv-type-style','bioviz/type/type.css?v=1']]){
-        const link=document.createElement('link');link.id=id;link.rel='stylesheet';link.href=href;document.head.append(link);
-      }
-    }
-    if(window.PhagiShelf)PhagiShelf.refresh();
-    else if(!BVS.shelfLoad){
-      BVS.shelfLoad=Promise.all([bvScript('bioviz/book-index.js?v=2'),bvScript('bioviz/book-navigation.js?v=1')])
-        .then(()=>bvScript('bioviz/library.js?v=1')).catch(()=>{BVS.shelfLoad=null;});
-    }
-  }
-  shelf.hidden=!on||active;
-  $('#bv-return').hidden=!active;
-  if(active===!h.hidden){
-    if(active&&BVS.st===2&&BVS.want)bvWant();
-    return;
-  }
-  h.hidden=!active;
-  if(window.BVHOST)BVHOST.on=active;
-  if(!active){if(BVS.st===2)BV.pause();bvFull(false);return;}
-  if(BVS.st===2){BV.resume();bvWant();}else if(!BVS.st)bvLoad();
-}
-$('#bv-shelf').addEventListener('click',e=>{
-  const button=e.target.closest('[data-workspace]');
-  if(!button)return;
-  BVS.want=button.dataset.workspace;bvSync();window.scrollTo(0,0);
-});
-$('#bv-return').onclick=()=>{BVS.workspace=false;BVS.want=null;bvSync();window.scrollTo(0,0);$('#bv-shelf h1').focus();};
 async function bvLoad(){
   const h=$('#bvhost');BVS.st=1;bvTheme();
   const root=h.shadowRoot||h.attachShadow({mode:'open'});
@@ -4404,17 +4356,16 @@ async function bvLoad(){
   try{
     if(!window.THREE)bvScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js').catch(()=>{});
     await bvScript('bioviz/bv.js?v=20261118-replication');
-    // The two books have independent content and load on their own timelines.
-    BVS.st=2;if(!BVHOST.on)BV.pause();else bvWant();bvBackfill();
-    const old=root.querySelector('.nav-item[data-go="prok"]');
-    if(old){const book=document.createElement('a');book.className='nav-item';book.href='bioviz/microbiology/?from=phagi';book.textContent='Микробиология · учебник';old.before(book);}
-    BV.hooks.replication={show(){location.assign('bioviz/replication/?from=phagi');}};
+    BVS.st=2;
+    BV.hooks.replication={show(){if(BVHOST.on)bvOpen('replication');}};
+    if(!BVHOST.on)BV.pause();else bvWant();
+    bvModelTools(root);bvBackfill();
   }catch(e){
     BVS.st=0;root.innerHTML='<div class="ld"></div>';root.querySelector('.ld').innerHTML='Не получилось загрузить Биовиз. Проверьте интернет. <button>Повторить</button>';
     root.querySelector('button').onclick=()=>{document.querySelectorAll('script[src^="bioviz/bv.js"]').forEach(x=>x.remove());bvLoad()};
   }
 }
-new MutationObserver(bvTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-eff']});
+new MutationObserver(()=>{bvTheme();document.getElementById('bv-reader')?.contentWindow?.PhagiBookSession?.theme();}).observe(document.documentElement,{attributes:true,attributeFilter:['data-eff']});
 // ответ в Биовизе: неверный кладём в стопку ошибок ученицы, верный на задание из стопки помечает его исправленным
 function bvErrChanged(){if(BVS.st===2&&window.BV&&BV.tasksSync)BV.tasksSync()}
 function bvAnswer(a){
@@ -4433,12 +4384,23 @@ function bvBackfill(){
   const mine=S.bverr[meId()]||{};BV.tasksPending().filter(a=>!mine[(a.src==='q'?'q':'t')+'_'+a.id]).slice(0,200).forEach(bvAnswer);
 }
 // переход с главной сразу в нужную часть Биовиза
-function bvWant(){const m=BVS.want;BVS.want=null;if(!m||!window.BV)return;
-  if(m==='replication')location.assign('bioviz/replication/?from=phagi');else if(m==='quiz')BV.go('quiz');else if(m==='viz'){const last=BV.store.get('lastMod','tour');BV.go(['quiz','replication'].includes(last)?'tour':last);}else{BV.go('quiz');if(BV.tasksOpen)BV.tasksOpen(m)}}
+function bvWant(){
+  const m=BVS.pending;BVS.pending=null;
+  if(!m||!window.BV)return;
+  if(m==='viz'){
+    const last=BV.store.get('lastMod','tour');
+    BV.go(['quiz','replication'].includes(last)?'tour':last);
+  }else{
+    BV.go('quiz');
+    if(m!=='quiz'&&BV.tasksOpen)BV.tasksOpen(m);
+  }
+}
 // на весь экран: прячем шапку и меню платформы и, если браузер разрешает, включаем полноэкранный режим окна
 function bvFull(on,win){
   const h=$('#bvhost');if(!h)return;const was=document.body.classList.contains('bvfull');
   document.body.classList.toggle('bvfull',on);h.classList.toggle('full',on);
+  const button=h.shadowRoot?.querySelector('[data-classroom-full]');
+  if(button){button.textContent=on?'Свернуть':'На весь экран';button.setAttribute('aria-pressed',String(on));}
   try{if(on&&!was&&!win&&!document.fullscreenElement&&document.documentElement.requestFullscreen)document.documentElement.requestFullscreen({navigationUI:'hide'}).catch(()=>{});
     else if(!on&&document.fullscreenElement)document.exitFullscreen().catch(()=>{})}catch(e){}
   if(on!==was)window.scrollTo(0,0)}
@@ -4536,78 +4498,117 @@ function tkLate(uid){return(S.track[uid]||[]).filter(tkLag).length}
 const tkLs=xs=>xs.filter(x=>x.kind!=='event');
 const tkSorted=xs=>[...xs].sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:(a.kind==='event')-(b.kind==='event'));
 function tkNums(xs){let n=0;const m={};tkSorted(xs).forEach(x=>{if(x.kind!=='event')m[x.id]=++n});return m}
-const tkMon=s=>{const d=pd(s);d.setDate(d.getDate()-((d.getDay()+6)%7));return dkey(d)};
-const tkSh=s=>pd(s).toLocaleDateString('ru-RU',{day:'numeric',month:'short'}).replace('.','');
 const tkWd=s=>pd(s).toLocaleDateString('ru-RU',{weekday:'short'});
 function trackHTML() {
   const uid=tkUid(), all=uid?(S.track[uid]||[]):[], subjects=tkSubjs(all);
   if(!subjects.includes(S.trS))S.trS='';
   const records=S.trS?all.filter(x=>x.kind==='event'||tkS(x)===S.trS):all;
   S.trMix=!S.trS&&subjects.length>1;
-  const add=T()&&uid?`<div class="study-head-actions"><button class="btn" data-act="tknew" data-k="lesson">+ Занятие</button><details class="study-tools" data-k="tracker-tools"><summary title="Дополнительные действия" aria-label="Дополнительные действия трекера">•••</summary><div><button data-act="tknew" data-k="event">Добавить дату олимпиады</button></div></details></div>`:'';
   const who=T()&&S.people.length?academicSelect('Ученица','tkuid',S.people.map(p=>[p.id,p.label||'Без имени']),uid):'';
-  const subj=subjects.length>1?academicSelect('Предмет','tks',[['','Все'],...subjects.map(k=>[k,TK_SJ[k]])],S.trS):'';
-  const tabs=records.length?`<div class="study-seg" role="group" aria-label="Представление трекера">${[['plan','План'],['prog','Прогресс']].map(([k,l])=>`<button data-act="tktab" data-v="${k}" aria-pressed="${S.trTab===k}">${l}</button>`).join('')}</div>`:'';
-  const tools=who||subj||tabs?`<div class="study-filters tracker-tools">${who}${subj}${tabs}</div>`:'';
+  const add=T()&&uid?`<div class="study-head-actions"><button class="btn" data-act="tknew" data-k="lesson">+ Занятие</button><details class="study-tools" data-k="tracker-tools"><summary title="Дополнительные действия" aria-label="Дополнительные действия трекера">•••</summary><div><button data-act="tknew" data-k="event">Добавить дату олимпиады</button></div></details></div>`:'';
+  const head=`<header class="study-head route-head"><h1>Трекер</h1>${who}${add}</header>`;
   let body;
-  if(T()&&!S.people.length)body='<p class="study-empty">В классе пока нет учениц.</p>';
-  else if(!uid||!(uid in S.track))body='<p class="study-empty">Загружаю трекер…</p>';
-  else if(!records.length)body='<p class="study-empty">Занятий в трекере пока нет.</p>';
-  else body=S.trTab==='prog'?tkProg(records):tkPlan(records);
-  return `<div class="study-view tracker"><header class="study-head"><h1>Трекер</h1>${add}</header>${tools}${body}</div>`;
-}
-function tkPlan(xs) {
-  const all=tkSorted(xs), lessons=tkLs(all), closed=lessons.filter(l=>(l.stage|0)===4).length;
-  const used=[...new Set(lessons.map(x=>x.block).filter(Boolean))];
-  if(!used.includes(S.trB))S.trB='';
-  const count=lessons.length;
-  const progress=count?`<div class="track-total"><span><strong>${closed}</strong> из ${count} ${plural(count,'занятия','занятий','занятий')} закрыто</span><progress value="${closed}" max="${count}" aria-label="Доля закрытых занятий"></progress></div>`:'';
-  const late=lessons.filter(tkLag).length;
-  const filters=count?`<div class="tracker-list-tools"><div class="study-seg status-seg" role="group" aria-label="Статус занятия">${[['all','Все'],['ahead','В работе'],['late','Отстают'+(late?' · '+late:'')],['done','Закрыты']].map(([k,l])=>`<button data-act="tkf" data-v="${k}" aria-pressed="${S.trF===k}">${l}</button>`).join('')}</div>${used.length>1?academicSelect('Блок','tkb',[['','Все'],...used.map(k=>[k,tkBn(k,0)])],S.trB):''}</div>`:'';
-  const weeks=new Map();
-  for(const x of all){
-    if(x.kind==='event'){
-      if(S.trF!=='all'||S.trB)continue;
-    }else{
-      if(S.trB&&x.block!==S.trB)continue;
-      if(S.trF==='done'&&Number(x.stage)!==4)continue;
-      if(S.trF==='late'&&!tkLag(x))continue;
-      if(S.trF==='ahead'&&((x.stage|0)===4||tkLag(x)))continue;
-    }
-    const week=tkMon(x.date);
-    if(!weeks.has(week))weeks.set(week,[]);
-    weeks.get(week).push(x);
+  if(T()&&!S.people.length)body='<p class="route-empty">В классе пока нет учениц.</p>';
+  else if(!uid||!(uid in S.track))body='<p class="route-empty" role="status">Загружаю занятия…</p>';
+  else if(!records.length)body=`<div class="route-empty"><strong>Занятий пока нет</strong>${T()?'<p>Добавьте первое занятие, чтобы начать план.</p>':''}</div>`;
+  else {
+    const picks=subjects.length>1?`<div class="route-subjects" role="group" aria-label="Предмет">${['',...subjects].map(k=>`<button id="route-subject-${k||'all'}" data-act="tks" data-v="${k}" aria-pressed="${S.trS===k}">${k?`<i class="route-dot" data-subj="${k}" aria-hidden="true"></i>${TK_SJ[k]}`:'Все предметы'}</button>`).join('')}</div>`:'';
+    const tabs=`<div class="route-tabs" role="group" aria-label="Представление трекера">${[['plan','Занятия'],['prog','Прогресс']].map(([k,l])=>`<button id="route-tab-${k}" data-act="tktab" data-v="${k}" aria-pressed="${S.trTab===k}">${l}</button>`).join('')}</div>`;
+    body=picks+tkOverview(records)+`<section class="route-sheet">${S.trTab==='prog'?tabs+tkProg(records):tkPlan(records,tabs)}</section>`;
   }
-  const thisWeek=tkMon(today());
-  const list=[...weeks].map(([wk,items],index)=>{
-    const historic=wk<thisWeek&&items.every(x=>x.kind==='event'||(x.stage|0)===4);
-    const open=!historic||index===weeks.size-1||S.trF!=='all'||S.trB;
-    const period=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',year:'numeric'}).formatRange(pd(wk),pd(addDays(wk,6)));
-    return `<details class="study-fold tracker-week" data-k="tracker-${esc(tkUid())}-${esc(S.trS)}-${esc(S.trF)}-${wk}"${open?' open':''}><summary><span>${esc(period)}</span><small>${wk===thisWeek?'Текущая неделя':''}</small></summary>${items.map(tkRow).join('')}</details>`;
+  return `<div class="study-view tracker route-tracker">${head}${body}</div>`;
+}
+
+function tkOverview(xs) {
+  const lessons=tkLs(tkSorted(xs));
+  if(!lessons.length)return '';
+  const completed=lessons.filter(x=>Number(x.stage)===4).length, total=lessons.length;
+  const percent=Math.round(completed/total*100);
+  const current=lessons.filter(x=>(x.stage|0)>0&&(x.stage|0)<4).at(-1);
+  const missed=lessons.find(x=>tkLag(x));
+  const upcoming=lessons.find(x=>x.date>=today()&&(x.stage|0)<4);
+  const focus=current||missed||upcoming||lessons.at(-1);
+  const label=current?'В работе':missed?'Требует внимания':upcoming?'Ближайшее занятие':'Последнее пройденное занятие';
+  const meta=[TK_SJ[tkS(focus)],fmtDay(focus.date),focus.time].filter(Boolean);
+  return `<section class="route-overview" aria-label="Обзор занятий">
+    <div class="route-focus"><span class="route-caption">${label}</span><button data-act="tkopen" data-id="${esc(focus.id)}"><strong>${esc(focus.title)}</strong><span aria-hidden="true">↗</span></button><small>${esc(meta.join(' · '))}</small></div>
+    <div class="route-metric"><div class="route-ring" role="meter" aria-label="Пройдено занятий" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}" style="--amount:${percent}%"><span aria-hidden="true">${percent}<small>%</small></span></div><div><strong>Пройдено</strong><small>${completed} из ${total} ${plural(total,'занятия','занятий','занятий')}</small></div></div>
+  </section>`;
+}
+
+function tkPlan(xs,tabs) {
+  const all=tkSorted(xs), lessons=tkLs(all), blocks=[...new Set(lessons.map(x=>x.block).filter(Boolean))];
+  if(!blocks.includes(S.trB))S.trB='';
+  const statusLabels={all:'Все статусы',ahead:'В работе',planned:'Предстоят',late:'С отставанием',done:'Завершены'};
+  const sort=S.trSort||'near';
+  const active=[S.trF!=='all',Boolean(S.trB),sort!=='near'].filter(Boolean).length;
+  const filters=`<details class="route-filters" data-k="route-filters"><summary>Параметры${active?` <b>${active}</b>`:''}<span aria-hidden="true">⌄</span></summary><div>
+    ${lessons.length?academicSelect('Статус','tkf',Object.entries(statusLabels),S.trF):''}
+    ${blocks.length>1?academicSelect('Раздел','tkb',[['','Все разделы'],...blocks.map(k=>[k,tkBn(k,0)])],S.trB):''}
+    ${academicSelect('Сортировка','tksort',[['near','От сегодняшней даты'],['desc','Сначала новые'],['asc','Сначала ранние']],sort)}
+    ${active?'<button class="route-reset" data-act="tkreset">Сбросить</button>':''}</div></details>`;
+  const periods=new Map();
+  for(const x of all){
+    const event=x.kind==='event', st=x.stage|0;
+    if(event&&(S.trF!=='all'||S.trB))continue;
+    if(!event){
+      if(S.trB&&x.block!==S.trB)continue;
+      if(S.trF==='done'&&st!==4)continue;
+      if(S.trF==='late'&&!tkLag(x))continue;
+      if(S.trF==='ahead'&&(st===0||st===4))continue;
+      if(S.trF==='planned'&&(st!==0||tkLag(x)))continue;
+    }
+    const month=x.date.slice(0,7);
+    if(!periods.has(month))periods.set(month,[]);
+    periods.get(month).push(x);
+  }
+  const todayKey=today(),monthKey=todayKey.slice(0,7);
+  const compareDates=(a,b)=>{
+    if(sort==='asc')return a.localeCompare(b);
+    if(sort==='desc')return b.localeCompare(a);
+    const pivot=a.length===7?monthKey:todayKey;
+    if((a>=pivot)!==(b>=pivot))return a>=pivot?-1:1;
+    return a>=pivot?a.localeCompare(b):b.localeCompare(a);
+  };
+  const months=[...periods.keys()].sort(compareDates);
+  const list=months.map((month,index)=>{
+    const items=periods.get(month).sort((a,b)=>compareDates(a.date,b.date));
+    const caption=pd(month+'-01').toLocaleDateString('ru-RU',{month:'long',year:'numeric'}).replace(/\s*г\.$/,'');
+    const key=[tkUid(),S.trS,S.trF,S.trB,sort,month].map(esc).join('-');
+    return `<details class="route-month" data-k="route-${key}"${index===0||months.length<=2||active?' open':''}><summary><strong>${esc(caption)}</strong><span>${items.length} ${plural(items.length,'запись','записи','записей')}</span></summary><div class="route-entries">${items.map(tkRow).join('')}</div></details>`;
   }).join('');
-  return progress+filters+(list||'<p class="study-empty">По выбранным фильтрам занятий нет.</p>');
+  return `<div class="route-toolbar">${tabs}${filters}</div>${list||'<div class="route-empty"><strong>Нет занятий с такими параметрами</strong><button class="route-reset" data-act="tkreset">Показать все занятия</button></div>'}`;
 }
+
 function tkRow(x) {
-  const event=x.kind==='event', stage=x.stage|0, delay=tkLag(x);
-  const status=event?'Олимпиада':delay?'Отстаёт · '+delay:tkStL(x)[stage];
-  const date=pd(x.date), meta=event?(x.end?'До '+fmtDay(x.end):''):[S.trMix?TK_SJ[tkS(x)]:'',tkBn(x.block,1),x.time].filter(Boolean).join(' · ');
-  return `<button data-act="tkopen" data-id="${esc(x.id)}" class="track-entry"><span class="track-day"><strong>${date.getDate()}</strong>${esc(tkWd(x.date))}</span><span class="track-name"><strong>${esc(x.title)}</strong>${meta?`<small>${esc(meta)}</small>`:''}</span><span class="track-status${delay?' late':stage===4?' complete':''}">${esc(status)}</span></button>`;
+  const event=x.kind==='event',stage=x.stage|0,lag=tkLag(x);
+  const status=event?'Олимпиада':lag?'Отставание · '+lag:tkStL(x)[stage];
+  const state=event?'event':lag?'late':stage===4?'done':stage>0?'active':'waiting';
+  const meta=event?(x.end?'До '+fmtDay(x.end):''):[S.trMix?TK_SJ[tkS(x)]:'',tkBn(x.block,1),x.time].filter(Boolean).join(' · ');
+  return `<button class="route-entry" data-act="tkopen" data-id="${esc(x.id)}">
+    <time datetime="${esc(x.date)}"><b>${pd(x.date).getDate()}</b><small>${esc(tkWd(x.date))}</small></time>
+    <span class="route-name"><strong>${esc(x.title)}</strong>${meta?`<small>${esc(meta)}</small>`:''}</span>
+    <span class="route-state" data-state="${state}"><i aria-hidden="true"></i>${esc(status)}</span><span class="route-arrow" aria-hidden="true">›</span>
+  </button>`;
 }
+
 function tkProg(xs) {
   const lessons=tkLs(xs), blocks=new Map(), stages=new Map();
   for(const x of lessons){
-    const key=x.block||'';
-    if(!blocks.has(key))blocks.set(key,[]);
-    blocks.get(key).push(x);
+    const block=x.block||'';
+    if(!blocks.has(block))blocks.set(block,[]);
+    blocks.get(block).push(x);
     const stage=tkStL(x)[x.stage|0];stages.set(stage,(stages.get(stage)||0)+1);
   }
   const blockRows=[...blocks].map(([block,items])=>{
-    const done=items.filter(x=>(x.stage|0)===4).length;
-    return `<div class="track-block"><span>${esc(tkBn(block,0))}</span><small>${done} / ${items.length}</small><progress aria-label="${esc(tkBn(block,0))}" max="${items.length}" value="${done}"></progress></div>`;
+    const done=items.filter(x=>(x.stage|0)===4).length, subject=tkS(items[0]);
+    return `<div class="route-block" data-subj="${subject}"><span>${esc(tkBn(block,0))}</span><small>${done} / ${items.length}</small><progress aria-label="${esc(tkBn(block,0))}" max="${items.length}" value="${done}"></progress></div>`;
   }).join('');
-  const events=tkSorted(xs).filter(x=>x.kind==='event'),notes=tkSorted(lessons).filter(x=>x.note);
-  const openList=(title,key,items,renderItem)=>items.length?`<details class="study-fold tracker-details" data-k="tracker-${esc(tkUid())}-${key}"><summary><span>${title}</span><small>${items.length}</small></summary>${items.map(renderItem).join('')}</details>`:'';
-  return `${blockRows?`<section class="tracker-blocks"><h2>Пройдено по блокам</h2>${blockRows}</section>`:''}${stages.size?`<section class="study-fold stage-summary"><h2>Этапы занятий</h2><dl>${[...stages].map(([l,n])=>`<div><dt>${esc(l)}</dt><dd>${n}</dd></div>`).join('')}</dl></section>`:''}${openList('Даты олимпиад','events',events,tkRow)}${openList('Заметки','notes',notes,x=>`<button class="track-note" data-act="tkopen" data-id="${esc(x.id)}"><strong>${esc(x.title)}</strong><span>${esc(x.note)}</span></button>`)}`;
+  const counts=[...new Set([...TK_ST,...TK_SH])].filter(k=>stages.has(k)).map(k=>`<div><dt>${esc(k)}</dt><dd>${stages.get(k)}</dd></div>`).join('');
+  const stats=lessons.length?`<div class="route-analysis"><section><h2>По разделам</h2>${blockRows}</section><section><h2>Этапы занятий</h2><dl>${counts}</dl></section></div>`:'';
+  const ordered=tkSorted(xs), events=ordered.filter(x=>x.kind==='event'),notes=ordered.filter(x=>x.kind!=='event'&&x.note);
+  const fold=(title,key,items,renderItem)=>items.length?`<details class="route-month" data-k="route-${esc(tkUid())}-${esc(S.trS)}-${key}"><summary><strong>${title}</strong><span>${items.length}</span></summary>${items.map(renderItem).join('')}</details>`:'';
+  return stats+fold('Даты олимпиад','events',events,tkRow)+fold('Заметки','notes',notes,x=>`<button class="route-note" data-act="tkopen" data-id="${esc(x.id)}"><strong>${esc(x.title)}</strong><small>${esc(x.note)}</small></button>`);
 }
 
 const tdFind=id=>(S.todos||[]).find(x=>x.id===id);
@@ -4617,7 +4618,6 @@ Object.assign(actions,{
   tdmv:async el=>{const x=tdFind(el.dataset.id);if(!x)return;const wk=x.wk?'':(calView()==='month'?tdMon(today()):tdMon(S.calDay));
     await S.db.doc(`data/users/${meId()}/${x.id}`).update({wk,updatedAt:now()});toast(wk?'Перенесено на неделю':'Перенесено в «Когда-нибудь»')},
   tddel:async el=>{const x=tdFind(el.dataset.id);if(!x)return;await S.db.doc(`data/users/${meId()}/${x.id}`).delete();toast('Удалено')},
-  pwweek:el=>{S.calDay=el.dataset.d;S.calView='week';S.calMonth=null;try{localStorage.setItem('calView','week')}catch(e){}},
   calfull:()=>{calFullSet(!S.calFull)}
 });
 /* расписание во весь экран: шапка и меню платформы прячутся, Esc возвращает */
@@ -4674,11 +4674,13 @@ function tkOpen(id,kind){
   });
 }
 Object.assign(actions,{
-  tkuid:el=>{S.trUid=el.dataset.uid;S.trF='all';S.trB='';S.trS=''},
+  tkuid:el=>{S.trUid=el.dataset.uid;S.trF='all';S.trB='';S.trS='';S.trSort='near'},
   tks:el=>{S.trS=el.dataset.v||'';S.trB=''},
   tktab:el=>{S.trTab=el.dataset.v==='prog'?'prog':'plan'},
   tkf:el=>{S.trF=el.dataset.v},
   tkb:el=>{S.trB=el.dataset.v||''},
+  tksort:el=>{S.trSort=el.dataset.v},
+  tkreset:()=>{S.trF='all';S.trB='';S.trSort='near'},
   tkopen:el=>tkOpen(el.dataset.id),
   tknew:el=>tkOpen(null,el.dataset.k),
   tkadv:async el=>{const uid=tkUid(),x=(S.track[uid]||[]).find(i=>i.id===el.dataset.id);if(!x)return;
@@ -4723,8 +4725,7 @@ $('#rolesw').addEventListener('click',e=>{const b=e.target.closest('button[data-
   S.dual=!!S.me.isOwner||!!S.me.teach||devT;
   S.mode=S.me.isOwner&&roleGet()!=='student'?'teacher':'student';
   if(routePending && S.me.isOwner && ['teacher','student'].includes(lessonRoute.get('role'))) S.mode=lessonRoute.get('role');
-  if(!routePending && lessonRoute.get('bio')==='library')S.view='bio';
-  if(!routePending && lessonRoute.get('bio')==='replication'){BVS.want='replication';S.view='bio'}
+  if(!routePending && bvRoute())S.view='bio';
   const shadHw=new URLSearchParams(location.search).get('shadHw');
   if(!T()&&/^(?:[1-9][0-9]?|10[0-2])$/.test(shadHw||'')){S.shadHw=Number(shadHw);S.view='tasks'}
   subscribe();render();

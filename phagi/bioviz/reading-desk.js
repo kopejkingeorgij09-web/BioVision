@@ -220,14 +220,14 @@
     if(!micro){
       const target=document.getElementById(id), section=target?.closest('.unit');
       const actual=section?.id || (id==='start' && book.groups.some(g=>g.topics.some(t=>t[0]==='start'))?id:book.first);
-      if(push && fragment()!==id)history.pushState(null,'','#'+encodeURIComponent(id));
+      if(push && fragment()!==id)PhagiChapterLink('#'+encodeURIComponent(id));
       showPage(actual);
       if(place)restore(place);
       else if(target && section && target!==section)target.scrollIntoView({block:'start',behavior:'instant'});
       else window.scrollTo({top:0,behavior:'instant'});
     }else{
       if(route!==id)MicroBookPage.open(id,{hash:push,focus:false});
-      else if(push && fragment()!==id)history.pushState(null,'','#'+encodeURIComponent(id));
+      else if(push && fragment()!==id)PhagiChapterLink('#'+encodeURIComponent(id));
       if(place)restore(place);else window.scrollTo({top:0,behavior:'instant'});
     }
     if(focus)activePage?.querySelector('[data-desk-heading]')?.focus({preventScroll:true});
@@ -433,6 +433,27 @@
   requestAnimationFrame(revealCurrent);
   window.addEventListener('scroll',schedule,{passive:true});window.addEventListener('resize',schedule);
   window.addEventListener('pagehide',persist);document.addEventListener('visibilitychange',()=>{if(document.hidden)persist();});
+  if(root.classList.contains('in-classroom')){
+    const home=bar.querySelector('.desk-home');
+    home.target='_top';
+    home.addEventListener('click',e=>{
+      if(e.button!==0||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;
+      e.preventDefault();parent.PhagiBioReader.home(window);
+    });
+    settings.querySelector('option[value="auto"]').textContent='Как на платформе';
+    window.PhagiBookSession={
+      save:persist,
+      theme:applySettings,
+      navigate(hash,token){
+        const wanted=hash||'#'+book.first;
+        const mark=token && storedMarks().find(m=>m.token===token);
+        if(wanted===location.hash && !mark)return;
+        history.replaceState(null,'',wanted);
+        navTo(fragment()||book.first,mark||null,false,false);
+      }
+    };
+    parent.PhagiBioReader.chapter(window,location.hash||'#'+encodeURIComponent(route),true);
+  }
   root.dataset.readingReady='true';root.classList.remove('desk-opening');
   meter();
 })();

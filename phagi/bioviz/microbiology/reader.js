@@ -79,7 +79,7 @@ else if(id==='sources')main.innerHTML='<div class="mb-eyebrow">ПРОВЕРЯЕ�
 else if(id==='glossary')main.innerHTML='<div class="mb-eyebrow">ТЕРМИНЫ ДЛЯ ВОЗВРАЩЕНИЯ</div><h1>Словарь</h1><dl class="mb-glossary">'+Object.entries(glossary).map(([k,v])=>'<div><dt>'+esc(k)+'</dt><dd>'+esc(v)+'</dd></div>').join('')+'</dl>';
 else main.innerHTML='<div class="mb-eyebrow">МАРШРУТ ЧТЕНИЯ</div><h1>От объяснения к воспроизведению</h1><ol class="mb-steps"><li>Прочитай главную мысль и рассмотри схему.</li><li>Разбери теорию; предскажи результат до изменения параметра модели.</li><li>Сравни схему с микрофотографией и методом наблюдения.</li><li>Ответь на вопрос без подсказки, затем сверь разбор.</li><li>После главы открой блок «По памяти» и восстанови шесть механизмов.</li></ol>'+button('home','К главам →');
 nav();main.querySelectorAll('[data-model]').forEach(el=>window.MicroModels.mount(el,el.dataset.model));
-if(!opt.embedded&&hash){const h='#'+encodeURIComponent(id);if(location.hash!==h)history.pushState(null,'',h);}
+if(!opt.embedded&&hash){const h='#'+encodeURIComponent(id);if(location.hash!==h){if(window.PhagiChapterLink)PhagiChapterLink(h);else history.pushState(null,'',h);}}
 root.querySelector('.mb-scroll-progress i').style.width='0%';
 document.dispatchEvent(new Event('micro-route'));
 if(focus){main.focus({preventScroll:true});if(opt.embedded)root.scrollIntoView({block:'start',behavior:'instant'});else window.scrollTo(0,0);}
@@ -90,7 +90,7 @@ target.disabled=true;target.textContent='Сохраняю…';try{
 if(!('caches'in window)||!('serviceWorker'in navigator))throw Error('offline unavailable');
 await navigator.serviceWorker.register(new URL('../../sw.js',assets));await navigator.serviceWorker.ready;
 const cache=await caches.open('microbook-v2'),v='20261112';
-const urls=['','index.html','content.js?v='+v,'enrichment.js?v='+v,'sources.js?v='+v,'olympiad.js?v='+v,'models.js?v='+v,'diagrams.js?v='+v,'reader.js?v=20261118-edition2','../book-entry.js?v=2','../book-index.js?v=1','../book-navigation.js?v=1','../reading-desk.css?v=4','../reading-desk.js?v=4','../type/type.css?v=1','../type/pt-serif-cyrillic.woff2','../type/pt-serif-latin.woff2','?from=phagi','embed.js?v='+v,'style.css?v='+v].map(s=>new URL(s,assets).href).concat(photos.map(photoURL));
+const urls=['','index.html','content.js?v='+v,'enrichment.js?v='+v,'sources.js?v='+v,'olympiad.js?v='+v,'models.js?v='+v,'diagrams.js?v='+v,'reader.js?v=20261124-classroom','../book-entry.js?v=4','../book-index.js?v=2','../book-navigation.js?v=1','../reading-desk.css?v=5','../reading-desk.js?v=6','../type/type.css?v=1','../type/pt-serif-cyrillic.woff2','../type/pt-serif-latin.woff2','?from=phagi','?from=phagi&embed=classroom','embed.js?v='+v,'style.css?v='+v].map(s=>new URL(s,assets).href).concat(photos.map(photoURL));
 await cache.addAll(urls);target.textContent='✓ Учебник сохранён';target.title='Теория, схемы и все микрофотографии сохранены; видео загружается отдельно';
 }catch{target.textContent='Не удалось сохранить — повторить';target.title='Проверь соединение и свободное место';}target.disabled=false;
 }
@@ -104,7 +104,7 @@ if(action==='motion'){const figure=target.closest('.mb-diagram'),off=figure.data
 if(action==='close-photo')dialog.close();
 if(action==='offline')await saveOffline(target);
 if(action==='done'){saved.done=saved.done.includes(route)?saved.done.filter(x=>x!==route):[...saved.done,route];write();target.setAttribute('aria-pressed',String(saved.done.includes(route)));target.textContent=saved.done.includes(route)?'✓ Отмечено прочитанным':'Отметить прочитанным';nav();}
-if(action==='copy-link'){const u=new URL('index.html',assets);if(document.documentElement.classList.contains('reading-desk'))u.search='?from=phagi';u.hash=route;const toast=root.querySelector('.mb-toast');try{await navigator.clipboard.writeText(u.href);toast.textContent='Ссылка скопирована';}catch{toast.textContent='Ссылка: '+u.href;}}
+if(action==='copy-link'){const inside=document.documentElement.classList.contains('in-classroom');const u=inside?new URL('../../?bio=microbiology',assets):new URL('index.html',assets);if(!inside&&document.documentElement.classList.contains('reading-desk'))u.search='?from=phagi';u.hash=route;const toast=root.querySelector('.mb-toast');try{await navigator.clipboard.writeText(u.href);toast.textContent='Ссылка скопирована';}catch{toast.textContent='Ссылка: '+u.href;}}
 });
 dialog.addEventListener('close',()=>lastFocus?.focus?.());
 root.addEventListener('input',e=>{if(e.target.matches('[data-photo-zoom]'))dialog.querySelector('.mb-dialog-image img').style.width=e.target.value+'%';

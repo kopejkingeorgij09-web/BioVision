@@ -214,3 +214,8 @@ body:has(:is(.desk-drawer,.desk-dialog,.desk-lightbox)[open]){overflow:hidden}
   .reading-desk .layout .unit[hidden]{display:block!important;break-before:page}
   .reading-desk .unit>p,.reading-desk #microbook .mb-body p{font-size:12pt}
 }
+
+/* Inside the classroom the reader shares the surrounding paper and navigation. */
+html.in-classroom .desk-bar{padding-inline:clamp(12px,2vw,24px);gap:12px}
+html.in-classroom .desk-home{font-size:14px}
+html.in-classroom .desk-bar-title{font-family:var(--desk-ui)}

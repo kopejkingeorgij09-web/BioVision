@@ -5,8 +5,7 @@
   const books=shelf.querySelector('.bv-books'), results=shelf.querySelector('.bv-results'), field=shelf.querySelector('input');
   const all=Object.keys(PhagiBookIndex).flatMap(items);
   function link(key,id,mark) {
-    const url=new URL('bioviz/'+key+'/',location.href);
-    url.searchParams.set('from','phagi');
+    const url=bvUrl(key);
     if(mark)url.searchParams.set('mark',mark);
     url.hash=id;
     return url.href;

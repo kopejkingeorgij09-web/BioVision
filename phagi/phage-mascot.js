@@ -3,81 +3,65 @@ window.PhagiMascot = (() => {
   'use strict';
 
   const modes = new Set(['idle', 'notice', 'urgent', 'celebrate']);
-  const variants = {badge:42, portrait:116, brand:42};
-  // Three pairs of long jointed tail fibres, seen at different depths.
+  const variants = {badge:52, portrait:116, brand:42};
   const fibres = [
-    ['back',  51,83, 43,72, 33,84],
-    ['back',  61,83, 71,71, 83,82],
-    ['middle',49,83, 32,76, 18,92],
-    ['middle',63,83, 82,76, 97,91],
-    ['front', 51,85, 41,93, 33,105],
-    ['front', 62,85, 74,92, 82,104]
+    {depth:'back', side:'left', start:'52 80', elbow:'31 69', end:'20 77', hook:'17 82'},
+    {depth:'back', side:'right', start:'62 79', elbow:'79 66', end:'91 73', hook:'96 78'},
+    {depth:'middle', side:'left', start:'50 82', elbow:'22 83', end:'9 98', hook:'7 103'},
+    {depth:'middle', side:'right', start:'63 81', elbow:'89 80', end:'103 92', hook:'107 97'},
+    {depth:'front', side:'left', start:'53 85', elbow:'38 95', end:'33 107', hook:'29 110'},
+    {depth:'front', side:'right', start:'60 84', elbow:'74 94', end:'79 106', hook:'84 109'}
   ];
-  function fibre([depth,x,y,elbowX,elbowY,toX,toY], side) {
-    return `<g class="pm-fibre pm-${depth} pm-${side%2?'right':'left'}">
-      <path class="pm-fibre-edge" d="M${x} ${y}L${elbowX} ${elbowY}L${toX} ${toY}"/>
-      <path class="pm-fibre-light" d="M${x} ${y}L${elbowX} ${elbowY}L${toX} ${toY}"/>
-      <circle class="pm-joint" cx="${elbowX}" cy="${elbowY}" r="1.65"/>
-      <circle class="pm-tip" cx="${toX}" cy="${toY}" r="1.4"/>
+  function fibre({depth, side, start, elbow, end, hook}) {
+    const path = `M${start}L${elbow} ${end} ${hook}`;
+    const [x,y] = elbow.split(' ');
+    return `<g class="pm-fibre pm-${depth} pm-${side}">
+      <path class="pm-fibre-edge" d="${path}"/>
+      <path class="pm-fibre-light" d="${path}"/>
+      <circle class="pm-joint" cx="${x}" cy="${y}" r="1.45"/>
     </g>`;
   }
   const rear = fibres.slice(0,2).map(fibre).join('');
   const legs = fibres.slice(2).map(fibre).join('');
   const capsid = `<g class="pm-head" stroke-linejoin="round">
-    <path fill="#193f42" stroke="#173c40" stroke-width="3.3" d="M39 14L55 7 69 12 79 24 78 39 66 51 53 55 39 49 31 37 31 23Z"/>
-    <path fill="#70b8ab" d="M39 14L55 7 51 16 39 22 31 23Z"/>
-    <path fill="#b9ddd0" d="M55 7L69 12 63 18 51 16Z"/>
-    <path fill="#4a9890" d="M69 12L79 24 70 25 63 18Z"/>
-    <path fill="#377b78" d="M79 24L78 39 69 38 70 25Z"/>
-    <path fill="#245b5f" d="M78 39L66 51 61 44 69 38Z"/>
-    <path fill="#37867d" d="M66 51L53 55 51 46 61 44Z"/>
-    <path fill="#599e8d" d="M53 55L39 49 42 41 51 46Z"/>
-    <path fill="#4d9488" d="M39 49L31 37 39 34 42 41Z"/>
-    <path fill="#92c6b5" d="M31 37L31 23 39 22 39 34Z"/>
-    <path class="pm-face" fill="#f2b660" d="M39 22L51 16 63 18 70 25 69 38 61 44 51 46 42 41 39 34Z"/>
-    <path fill="#ffdda0" d="M39 22L51 16 63 18 51 22 41 30Z"/>
-    <path fill="#d58d50" d="M69 34L69 38 61 44 51 46 42 41 53 42 63 39Z"/>
-    <path class="pm-glint" fill="none" stroke="#f3fff2" stroke-width="1.6" stroke-linecap="round" d="M34 26L35 23 41 17M47 14L53 11"/>
-    <g class="pm-eyes" fill="#29494a">
-      <path d="M46 29c.3-2.4 3.4-2.4 3.8-.4l.1 2c-.2 2.3-3.4 2.5-3.8.2Z"/>
-      <path d="M59 28c.3-2.3 3.3-2.6 3.7-.5l.1 1.9c-.1 2.3-3.3 2.6-3.7.4Z"/>
-    </g>
-    <g class="pm-expression pm-alert-brows" fill="none" stroke="#6b6042" stroke-linecap="round" stroke-width="1.45">
-      <path d="m44.6 25.2 4.6-.2m10-1.7 4.1 1.1"/>
-    </g>
-    <g class="pm-expression pm-joy-eyes" fill="none" stroke="#29494a" stroke-width="2.4" stroke-linecap="round">
-      <path d="M44.8 30q2-4.2 5.1-.9m8 .2q2-4.1 5.3-1.1"/>
-    </g>
-    <g class="pm-expression pm-cheeks" fill="#d9875a"><ellipse cx="44.2" cy="34" rx="2.6" ry="1.2"/><ellipse cx="65.4" cy="32" rx="2.3" ry="1.1"/></g>
-    <path class="pm-smile" fill="none" stroke="#795935" stroke-width="1.45" stroke-linecap="round" d="M52 35q2.9 2.7 5.7-.5"/>
+    <path fill="#416f75" stroke="#16464e" stroke-width="2.2" d="M37 18L51 5 63 6 77 16 83 33 76 47 63 57 48 54 35 46 29 33Z"/>
+    <path fill="#89d0be" d="M37 18L51 5 63 6 57 16 44 26 29 33Z"/>
+    <path fill="#5faaa6" d="M63 6L77 16 83 33 69 25 57 16Z"/>
+    <path fill="#3b777e" d="M69 25L83 33 76 47 65 42Z"/>
+    <path fill="#559696" d="M29 33L44 26 48 42 35 46Z"/>
+    <path fill="#71b9ac" d="M44 26L57 16 69 25 65 42 48 42Z"/>
+    <path fill="#28606a" d="M65 42L76 47 63 57 48 54 48 42Z"/>
+    <path fill="#478f92" d="M48 42L65 42 55 49 48 54 35 46Z"/>
+    <path fill="#95cebc" d="M57 16L69 25 56 23 44 26Z"/>
+    <path fill="#6daea2" d="M44 26L56 23 65 42 48 42Z"/>
+    <path fill="#407f85" d="M56 23L69 25 65 42Z"/>
+    <path fill="none" stroke="#d9f4e9" stroke-width="1.15" opacity=".65" d="M30 32L44 26 57 16 63 6M37 18L44 26 48 42 65 42 69 25 77 16M35 46L48 42M65 42L63 57"/>
+    <path fill="none" stroke="#23656b" stroke-width=".8" opacity=".58" d="M37 18L49 17 51 5M49 17L57 16 56 23 48 42 55 49 65 42M77 16L73 21 83 33 65 42"/>
+    <path fill="none" stroke="#e6fff3" stroke-width="1.65" stroke-linecap="round" d="M38 18L48 9M35 23L32 29"/>
   </g>`;
+  const sheath = `<g stroke-linejoin="round">
+    <path fill="#8cc5b2" stroke="#21535a" stroke-width="1.9" d="M47 52L62 49 68 53 65 57 59 58 61 80 56 84 51 79 50 58 46 56Z"/>
+    <path fill="#427f7e" d="M56 57L59 56 61 80 56 84 55 77Z"/>
+    <path fill="#e0ebe0" opacity=".8" d="M51 57L53 57 55 77 53 77Z"/>
+    <path fill="none" stroke="#2c656a" stroke-width="1.8" stroke-linecap="round" d="M51 60L59 58M51 64L59 62M52 68L60 66M52 72L60 70M52 76L60 74M53 80L60 78"/>
+    <path fill="none" stroke="#bce5d3" stroke-width="1" d="M47 54L62 51 66 53M52 62L59 60M53 70L60 68M54 78L60 76"/>
+  </g>`;
+
   function svg(options={}) {
-    const mode=modes.has(options.mode)?options.mode:'idle';
-    const variant=Object.hasOwn(variants,options.variant)?options.variant:'badge';
-    const size=variants[variant];
-    return `<svg class="phage-mascot pm-v-${variant} pm-m-${mode}" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="3 0 108 110" aria-hidden="true" focusable="false">
-      <g class="pm-aura" fill="#edb66a"><ellipse cx="54" cy="31" rx="35" ry="30" opacity=".07"/><ellipse cx="54" cy="31" rx="30" ry="26" opacity=".09"/></g>
-      <ellipse class="pm-shadow" cx="57" cy="105" rx="20" ry="2.8" fill="#24635c" opacity=".16"/>
+    const mode = modes.has(options.mode) ? options.mode : 'idle';
+    const variant = Object.hasOwn(variants,options.variant) ? options.variant : 'badge';
+    const size = variants[variant];
+    return `<svg class="phage-mascot pm-v-${variant} pm-m-${mode}" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="2 0 110 114" aria-hidden="true" focusable="false">
+      <ellipse class="pm-shadow" cx="57" cy="109" rx="31" ry="3" fill="#367b74" opacity=".17"/>
       <g class="pm-float"><g class="pm-pose">
         ${rear}
-        <g class="pm-sheath" stroke-linejoin="round">
-          <path fill="#78afa4" stroke="#234e50" stroke-width="2.5" d="M50 52L59 51 61 79 57 84 52 79Z"/>
-          <path fill="#d0e6cc" d="M52 55L54 55 56 80 53.7 79Z"/>
-          <path fill="#387b76" d="M57.5 54L59.2 53 61 78.5 58.5 80.5Z"/>
-          <g fill="none" stroke="#356c6a" stroke-width="2.55" stroke-linecap="round"><path d="M51 59l8-2M51.3 64l8-2M52 69l8-2M52.4 74l8-2M53 79l7.5-2"/></g>
-          <path fill="#f3ce84" stroke="#34585a" stroke-width="1.9" d="M46 51l12.2-2.5 5.1 2.5-1.6 4.2-13.3 2.1-3.1-2.1Z"/>
-          <path fill="#dbad62" d="m47.2 54.5 14.7-2.7-.8 2.1-12.5 2.2Z"/>
-        </g>
+        ${sheath}
         ${legs}
-        <path fill="#b9d2b3" stroke="#234e50" stroke-width="2" stroke-linejoin="round" d="M47 80.8l11-2 8 3.3-1.8 3.6-10.6 2.3-7.6-3.9Z"/>
-        <path d="m48.3 82.3 7.1 2.4 8.9-2" fill="none" stroke="#fff0bb" stroke-width="1.5" stroke-linecap="round"/>
-        <path d="m54 87 2.4 5.1 2-6.1" fill="#43736e" stroke="#234e50" stroke-width="1.2" stroke-linejoin="round"/>
+        <path fill="#90bdb0" stroke="#2d646a" stroke-width="1.9" stroke-linejoin="round" d="M46 81L56 77 67 81 64 86 55 89 46 85Z"/>
+        <path fill="none" stroke="#d9eee1" stroke-width="1.25" stroke-linecap="round" d="M48 81L56 83 65 81"/>
+        <path fill="#69a89d" stroke="#2d646a" stroke-width="1.15" stroke-linejoin="round" d="M53 88L60 86 57 95 55 94Z"/>
         ${capsid}
       </g></g>
-      <g class="pm-sparks" fill="none" stroke="#deac5d" stroke-width="1.7" stroke-linecap="round">
-        <path d="m87 17 .7-4M91 20l3.4-2M92 24l3.4.4"/>
-        <path d="m22 34-2.6-1.7M23.2 29.4l-.7-2.6"/>
-      </g>
     </svg>`;
   }
   return Object.freeze({svg});

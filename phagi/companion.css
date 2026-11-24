@@ -45,8 +45,8 @@
 }
 .phage-figure { display: block; position: relative; transform-origin: 50% 86%; pointer-events: none; }
 .phage-figure svg { display: block; width: 100%; height: auto; }
-.phage-burst {
-  display: none; position: absolute; left: 50%; top: 48%; width: 0; height: 0;
+.phage-wake {
+  display: none; position: absolute; left: 54%; top: 59%; width: 0; height: 0;
   pointer-events: none;
 }
 .phage-note {
@@ -87,32 +87,68 @@
   #phage-fab,#phage-brand { transition: transform .22s ease,box-shadow .25s; }
   #phage-fab:hover,#phage-brand:hover { transform:translateY(-2px); }
   #phage-brand:active,#phage-fab:active { transform:scale(.93); }
-  #phage-panel[data-state="open"] .phage-burst { display: block; }
-  .phage-burst::before {
-    content: ""; position: absolute; inset: -35px; border: 1px solid currentColor; border-radius: 50%;
-    box-shadow: 0 0 22px color-mix(in srgb, currentColor 65%, transparent), inset 0 0 14px currentColor;
-    animation: phage-wave .58s ease-out both;
+  #phage-panel[data-motion] .phage-wake { display: block; }
+  .phage-wake i {
+    position: absolute; inset: -37px -45px; border: 2px solid transparent;
+    border-top-color: currentColor; border-right-color: currentColor; border-radius: 50%;
+    filter: drop-shadow(0 0 4px currentColor); opacity: 0;
   }
-  .phage-burst i {
-    position: absolute; inset: -2px; width: 4px; height: 4px; border-radius: 1px;
-    background: currentColor; box-shadow: 0 0 7px currentColor;
-    animation: phage-spark .65s cubic-bezier(.14,.7,.25,1) both;
+  .phage-wake i:nth-child(1) { --tilt: -47deg; --lag: 0ms; }
+  .phage-wake i:nth-child(2) { --tilt: -21deg; --lag: 45ms; inset: -27px -38px; color: #8e9eff; }
+  .phage-wake i:nth-child(3) { --tilt: -73deg; --lag: 83ms; inset: -31px -34px; color: #f7c36f; border-width: 1px; }
+  [data-motion="launch"] .phage-wake i { animation: phage-wake-out 390ms ease-out calc(105ms + var(--lag)) both; }
+  [data-motion="catch"] .phage-wake i { animation: phage-wake-in 265ms ease-in calc(68ms + var(--lag)) both; }
+
+  #phage-panel[data-motion="launch"] .pm-head { animation: phage-look 720ms ease-out; }
+  #phage-panel[data-motion="catch"] .pm-head { animation: phage-nod 480ms ease-out; }
+  #phage-panel[data-motion="launch"] .pm-fibre { animation: phage-step 720ms ease-in-out; }
+  #phage-panel[data-motion="catch"] .pm-fibre { animation: phage-grab 480ms ease-in-out; }
+  #phage-panel .pm-left { --curl: -1; }
+  #phage-panel .pm-right { --curl: 1; }
+
+  #phage-panel[data-motion] .phage-note::after {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    background: linear-gradient(113deg, transparent 25%, color-mix(in srgb, var(--ink) 30%, transparent) 47%, transparent 66%);
+    background-size: 230% 100%;
+    box-shadow: inset 1px 0 0 var(--ink), inset 12px 0 23px -21px var(--ink);
   }
-  .phage-burst i:nth-child(1) { --angle: -136deg; --reach: 46px; }
-  .phage-burst i:nth-child(2) { --angle: -104deg; --reach: 66px; color: #f7c36f; }
-  .phage-burst i:nth-child(3) { --angle: -68deg; --reach: 70px; }
-  .phage-burst i:nth-child(4) { --angle: -31deg; --reach: 61px; color: #f7c36f; }
-  .phage-burst i:nth-child(5) { --angle: 11deg; --reach: 50px; }
-  .phage-burst i:nth-child(6) { --angle: 145deg; --reach: 38px; color: #f7c36f; }
-  @keyframes phage-wave {
-    0% { opacity: 0; transform: scale(.35); }
-    26% { opacity: .75; }
-    100% { opacity: 0; transform: scale(1.8); }
+  [data-motion="launch"] .phage-note::after { animation: phage-scan 430ms ease-out 240ms both; }
+  [data-motion="catch"] .phage-note::after { animation: phage-scan 220ms ease-in 70ms reverse both; }
+
+  @keyframes phage-wake-out {
+    0% { opacity:0; transform:translate(-11px, 13px) rotate(var(--tilt)) scale(.38, .32); }
+    28% { opacity:.9; }
+    100% { opacity:0; transform:translate(15px, -32px) rotate(calc(var(--tilt) + 105deg)) scale(1.12, .94); }
   }
-  @keyframes phage-spark {
-    0% { opacity: 0; transform: rotate(var(--angle)) translateX(15px) rotate(45deg) scale(.4); }
-    24% { opacity: .95; }
-    100% { opacity: 0; transform: rotate(var(--angle)) translateX(var(--reach)) rotate(45deg) scale(.55); }
+  @keyframes phage-wake-in {
+    0% { opacity:0; transform:translate(31px, -4px) rotate(calc(var(--tilt) + 100deg)) scale(1.06, .73); }
+    36% { opacity:.9; }
+    100% { opacity:0; transform:translate(-12px, 24px) rotate(var(--tilt)) scale(.27, .29); }
+  }
+  @keyframes phage-look {
+    16% { transform:translateY(2px) rotate(-12deg); }
+    43% { transform:rotate(13deg); }
+    69% { transform:translateY(2px) rotate(-8deg); }
+  }
+  @keyframes phage-nod {
+    25% { transform:translateX(2px) rotate(10deg); }
+    56% { transform:translateY(4px) rotate(-18deg); }
+    76% { transform:rotate(5deg); }
+  }
+  @keyframes phage-step {
+    16%,68% { transform:rotate(calc(var(--curl) * 13deg)) scaleY(.91); }
+    42% { transform:rotate(calc(var(--curl) * -24deg)) scaleY(1.08); }
+    85% { transform:rotate(calc(var(--curl) * -6deg)); }
+  }
+  @keyframes phage-grab {
+    26% { transform:rotate(17deg); }
+    56% { transform:rotate(calc(var(--curl) * -27deg)) scaleY(.78); }
+    77% { transform:rotate(calc(var(--curl) * 12deg)); }
+  }
+  @keyframes phage-scan {
+    0% { opacity:0; background-position:100% 50%; }
+    25% { opacity:.85; }
+    100% { opacity:0; background-position:0 50%; }
   }
   #phage-party { animation: phage-note-in .32s cubic-bezier(.18,.75,.2,1) both; }
   #phage-party i { animation: phage-speck 1.5s ease-out .2s 2; }

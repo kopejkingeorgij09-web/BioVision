@@ -1043,7 +1043,8 @@ function mountWeekPan(root,sc){
     // Берём координаты столбцов, поскольку браузеры округляют ширины сетки по-разному.
     offsets=head.map(el=>el.getBoundingClientRect().left-origin);
     const monday=B.weekStart(date), mondayIndex=diff(first,monday);
-    const capacity=Math.max(1,Math.floor((viewport-axis+1)/cols[mondayIndex].offsetWidth));
+    const dayWidth=cols[mondayIndex].getBoundingClientRect().width;
+    const capacity=Math.max(1,Math.floor((viewport-axis+1)/dayWidth));
     const start=weekFrom||add(monday,Math.max(0,B.wd(date)-capacity+1));
     const index=diff(first,start);
     const width=cols[index].getBoundingClientRect().width;

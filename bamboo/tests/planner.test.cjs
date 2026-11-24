@@ -49,6 +49,24 @@ test('undo only removes an untouched recurrence, rechecking keeps edited instanc
   assert.equal(B.tasks().length,2);
 });
 
+test('action undo keeps unrelated edits and refuses to overwrite a later edit of the same record', () => {
+  const {B} = planner();
+  B.put('event', {start:'09:00', end:'10:00'});
+  let undo;
+  B.historyStep(() => B.put('event', null), restore => {undo = restore;});
+  B.put('task', {title:'Another edit'});
+  assert.equal(undo(), true);
+  assert.equal(B.get('event').start, '09:00');
+  assert.equal(B.get('task').title, 'Another edit');
+  assert.equal(B.redo(), true);
+  assert.equal(B.get('event'), undefined);
+
+  B.historyStep(() => B.put('event', {start:'10:00', end:'11:00'}), restore => {undo = restore;});
+  B.put('event', {start:'11:00', end:'12:00'});
+  assert.equal(undo(), false);
+  assert.equal(B.get('event').start, '11:00');
+});
+
 test('SHAD stage and placement survive backup round trip and legacy import', () => {
   const {B} = planner();
   const mark = {s:2,o:{h:{date:'2026-11-21'}}};

@@ -1,6 +1,8 @@
 // Classroom reminders share the same task and correction status as the gradebook.
 let phagePrevious = null, phageReward = null, phageBadgeKey = null;
 let phageTimer = null, phageOpener = null, phagePanelKey = null;
+let phageAnimations = [];
+const phageReducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
 function phageReady() {
   const id = meId();
@@ -50,7 +52,7 @@ function phageSync() {
   if (!fab) return;
   if (!phageReady()) {
     fab.hidden = true;
-    if (T() && !document.getElementById('phage-panel').hidden) phageRenderPanel(null);
+    if (T() && document.getElementById('phage-panel').dataset.state === 'open') phageRenderPanel(null);
     return;
   }
   const a = phageAgenda();
@@ -67,16 +69,17 @@ function phageSync() {
     fab.innerHTML = PhagiMascot.svg({mode:mood,variant:'badge'})+
       '<span class="phage-count">'+(phageReward?'✦':a.count)+'</span>';
   }
-  if (!document.getElementById('phage-panel').hidden) phageRenderPanel(a);
+  if (document.getElementById('phage-panel').dataset.state === 'open') phageRenderPanel(a);
 }
 function phageRenderPanel(a) {
-  const panel = document.getElementById('phage-panel');
+  const figure = document.querySelector('#phage-panel .phage-figure');
+  const note = document.getElementById('phage-note');
   const teacher = T();
   const rows = teacher ? pending() : [];
   const tasks = teacher ? [] : [...a.late,...a.soon];
   const key = teacher ? 'teacher:'+rows.length : JSON.stringify([tasks.map(t=>[t.id,t.title,t.due]),a.tests,a.bio,a.age]);
   if (key === phagePanelKey) return;
-  const active = panel.contains(document.activeElement) ? document.activeElement.dataset : null;
+  const active = note.contains(document.activeElement) ? document.activeElement.dataset : null;
   phagePanelKey = key;
   const mood = teacher ? (rows.length ? 'notice' : 'idle') : phageMood(a);
   const title = teacher ? (rows.length ? 'Работы на проверку' : 'Все работы проверены') :
@@ -93,13 +96,61 @@ function phageRenderPanel(a) {
   if (!teacher && a.tests) links += action('fix','Ошибки в тестах',String(a.tests));
   if (!teacher && a.bio) links += action('bv','Ошибки в Биовизе',String(a.bio));
   if (!teacher && tasks.length > 4) links += action('tasks','Все задания',String(tasks.length));
-  const note = teacher || tasks.length ? '' : !a.count ? 'Ближайших сроков и ошибок для разбора нет.' : '';
-  panel.innerHTML = '<div class="phage-portrait">'+PhagiMascot.svg({mode:mood,variant:'portrait'})+'</div>'+
-    '<div class="phage-note"><button type="button" class="phage-close" data-phage="later" aria-label="Закрыть напоминания">×</button>'+
-    '<h2>'+title+'</h2>'+(note?'<p>'+note+'</p>':'')+'<div class="phage-actions">'+links+'</div>'+
-    '<button class="phage-later" type="button" data-phage="later">Закрыть</button></div>';
-  if (active?.phage) [...panel.querySelectorAll('[data-phage]')].find(el=>el.dataset.phage===active.phage && el.dataset.id===active.id)?.focus({preventScroll:true});
+  const message = !teacher && !tasks.length && !a.count ? 'Ближайших сроков и ошибок для разбора нет.' : '';
+  if (figure.dataset.mood !== mood) {
+    figure.dataset.mood = mood;
+    figure.innerHTML = PhagiMascot.svg({mode:mood,variant:'portrait'});
+  }
+  note.innerHTML = '<button type="button" class="phage-close" data-phage="later" aria-label="Закрыть напоминания">×</button>'+
+    '<h2>'+title+'</h2>'+(message?'<p>'+message+'</p>':'')+'<div class="phage-actions">'+links+'</div>'+
+    '<button class="phage-later" type="button" data-phage="later">Закрыть</button>';
+  if (active?.phage) [...note.querySelectorAll('[data-phage]')].find(el=>el.dataset.phage===active.phage && el.dataset.id===active.id)?.focus({preventScroll:true});
 }
+
+function phageAnimate(opening, fresh, done) {
+  const elements = [document.querySelector('#phage-panel .phage-figure'), document.getElementById('phage-note')];
+  const ends = [
+    {opacity:0, transform:'translateY(18px) rotate(-12deg) scale(.48)'},
+    {opacity:0, transform:'translate(-38px, 24px) scale(.68, .48)'}
+  ];
+  const rest = {opacity:1, transform:'none'};
+  const canAnimate = !phageReducedMotion.matches && typeof elements[0].animate === 'function';
+  const start = canAnimate && !fresh ? elements.map(el => {
+    const style = getComputedStyle(el);
+    return {opacity:style.opacity, transform:style.transform};
+  }) : ends;
+  phageAnimations.forEach(animation => animation.cancel());
+  phageAnimations = [];
+  if (!canAnimate) { done?.(); return; }
+
+  const frames = fresh ? [
+    [ends[0], {opacity:1, transform:'translateY(-18px) rotate(8deg) scale(1.12, 1.06)', offset:.57},
+      {opacity:1, transform:'translateY(3px) rotate(-3deg) scale(1.04, .94)', offset:.79}, rest],
+    [ends[1], {opacity:1, transform:'translate(5px, -4px) scale(1.04, 1.035)', offset:.64}, rest]
+  ] : elements.map((el, index) => [start[index], opening ? rest : ends[index]]);
+  const animations = elements.map((el, index) => el.animate(frames[index], {
+    duration: fresh ? (index ? 475 : 590) : (opening ? 290 : 235),
+    delay: fresh && index ? 74 : 0,
+    easing: opening ? 'cubic-bezier(.2,.72,.26,1)' : 'cubic-bezier(.55,0,.88,.55)',
+    fill:'both'
+  }));
+  phageAnimations = animations;
+  Promise.all(animations.map(animation => animation.finished)).then(() => {
+    if (phageAnimations !== animations) return;
+    done?.();
+    animations.forEach(animation => animation.cancel());
+    phageAnimations = [];
+  }, () => {});
+}
+
+function phageSetExpanded(expanded) {
+  for (const id of ['phage-brand','phage-fab','phage-portrait']) {
+    document.getElementById(id).setAttribute('aria-expanded', String(expanded));
+  }
+  document.getElementById('phage-portrait').setAttribute('aria-label',
+    expanded ? 'Свернуть напоминания' : 'Открыть напоминания');
+}
+
 function phageAuto(delay) {
   clearTimeout(phageTimer);
   phageTimer = setTimeout(()=>{
@@ -110,12 +161,32 @@ function phageAuto(delay) {
 }
 function phageHide(restore=false) {
   const panel = document.getElementById('phage-panel');
-  if (panel.hidden) return;
-  clearTimeout(phageTimer); panel.hidden=true; panel.replaceChildren(); phagePanelKey=null;
-  document.body.classList.remove('phage-open');
-  for (const id of ['phage-brand','phage-fab']) document.getElementById(id)?.setAttribute('aria-expanded','false');
-  if (restore) (phageOpener?.hidden ? document.getElementById('phage-brand') : phageOpener)?.focus({preventScroll:true});
+  if (panel.dataset.state !== 'open') return;
+  const note = document.getElementById('phage-note');
+  const portrait = document.getElementById('phage-portrait');
+  clearTimeout(phageTimer);
+  panel.dataset.state = 'closing';
+  phageSetExpanded(false);
+  if (restore && (panel.contains(document.activeElement) || document.activeElement === document.body)) {
+    const target = phageOpener?.id === 'phage-brand' ? phageOpener : portrait;
+    target.focus({preventScroll:true});
+  }
+  note.inert = true;
+
+  phageAnimate(false, false, () => {
+    const returnFocus = document.activeElement === portrait;
+    panel.hidden = true;
+    delete panel.dataset.state;
+    document.body.classList.remove('phage-open');
+    note.replaceChildren();
+    phagePanelKey = null;
+    if (returnFocus) {
+      const target = phageOpener && !phageOpener.hidden ? phageOpener : document.getElementById('phage-brand');
+      target.focus({preventScroll:true});
+    }
+  });
 }
+
 function phageCelebrate(title) {
   document.getElementById('phage-party')?.remove();
   const host=document.createElement('div');host.id='phage-party';host.setAttribute('role','status');
@@ -125,18 +196,30 @@ function phageCelebrate(title) {
 function mountPhage() {
   const brand=document.getElementById('phage-brand'),fab=document.getElementById('phage-fab'),panel=document.getElementById('phage-panel');
   brand.innerHTML=PhagiMascot.svg({mode:'idle',variant:'brand'});
-  function open(e) {
+  const portrait = document.getElementById('phage-portrait');
+  const note = document.getElementById('phage-note');
+  function toggle(e) {
+    if (panel.dataset.state === 'open') { phageHide(true); return; }
     if (!T() && !phageReady()) return;
-    if (!panel.hidden) {phageHide(true);return;}
-    if (phageReward) {const title=phageReward;phageReward=null;phageSync();phageCelebrate(title);if(e.currentTarget===fab){if(fab.hidden)brand.focus({preventScroll:true});return;}}
-    phageOpener=e.currentTarget;panel.hidden=false;phagePanelKey=null;
-    phageRenderPanel(T()?null:phageAgenda());document.body.classList.add('phage-open');
-    brand.setAttribute('aria-expanded','true');fab.setAttribute('aria-expanded','true');
-    if(e.detail===0)panel.querySelector('.phage-close').focus({preventScroll:true});
-    phageAuto(!T() && phageAgenda().age>=7?45000:25000);
+    const fresh = panel.hidden;
+    if (fresh && phageReward) {
+      const title=phageReward;phageReward=null;phageSync();phageCelebrate(title);
+      if(e.currentTarget===fab){if(fab.hidden)brand.focus({preventScroll:true});return;}
+    }
+    if (e.currentTarget !== portrait) phageOpener = e.currentTarget;
+    const agenda = T() ? null : phageAgenda();
+    phageRenderPanel(agenda);
+    panel.hidden = false;
+    panel.dataset.state = 'open';
+    note.inert = false;
+    document.body.classList.add('phage-open');
+    phageSetExpanded(true);
+    phageAnimate(true, fresh);
+    if (e.detail === 0) note.querySelector('.phage-close').focus({preventScroll:true});
+    phageAuto(agenda?.age >= 7 ? 45000 : 25000);
   }
-  brand.addEventListener('click',open);fab.addEventListener('click',open);
-  panel.addEventListener('click',e=>{
+  for (const button of [brand, fab, portrait]) button.addEventListener('click',toggle);
+  note.addEventListener('click',e=>{
     const b=e.target.closest('[data-phage]');if(!b)return;
     phageHide(b.dataset.phage==='later');
     switch(b.dataset.phage){
@@ -149,7 +232,7 @@ function mountPhage() {
     }
     window.scrollTo(0,0);render();
   });
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!panel.hidden&&!document.querySelector('dialog[open]'))phageHide(true);});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&panel.dataset.state==='open'&&!document.querySelector('dialog[open]'))phageHide(true);});
   setInterval(()=>{if(!document.hidden)phageSync();},3000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)phageSync();});
 }

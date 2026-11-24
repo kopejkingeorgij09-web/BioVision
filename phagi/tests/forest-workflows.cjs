@@ -138,6 +138,7 @@ async function main() {
         document.querySelector('.forest-notice-visible')?.textContent===`+${value} · лес тебя не забудет!`,points);
       const showCard = async (p, id) => {
         await nav(p,'cards');
+        await p.locator('[data-act=cardstab][data-v=decks]').click();
         await p.locator(`[data-act=deck][data-id="${id}"]`).click();
         await p.locator('[data-act=study][data-all]').click();
         await p.locator('#showbtn').click();
@@ -147,8 +148,9 @@ async function main() {
       try {
         await ready(page);
         await nav(page,'cards');
+        await page.locator('[data-act=cardstab][data-v=lab]').click();
         assert.equal(await page.locator('#motivation-bacteria').getAttribute('aria-pressed'),'true');
-        assert.equal(await page.getByText('Чашка Петри',{exact:true}).isVisible(),true);
+        assert.equal(await page.getByRole('heading',{name:'Чашка Петри',exact:true}).isVisible(),true);
         await page.locator('#motivation-forest').click();
         await total(page,0);
         await page.locator('[data-v=forest].forest-scene-link').click();
@@ -234,10 +236,11 @@ async function main() {
 
         await nav(page,'forest');
         await page.locator('#motivation-bacteria').click();
-        await page.getByRole('heading',{name:'Турнир фагов'}).waitFor();
+        await page.getByRole('heading',{name:'Карточки',exact:true}).waitFor();
         assert.equal(await page.locator('#forest-corner').isVisible(),false);
         await page.locator('#motivation-forest').click();
         await total(page,33);
+        await page.locator('[data-v=forest].forest-scene-link').click();
         await page.waitForFunction(()=>[...document.querySelectorAll('.forest-plant img')].every(img=>img.complete&&img.naturalWidth));
         if (process.env.PHAGI_FOREST_SCREENSHOT) await page.screenshot({path:`${process.env.PHAGI_FOREST_SCREENSHOT}-${width}.png`});
 

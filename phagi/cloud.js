@@ -49,7 +49,7 @@ function css(){if(document.getElementById('ph-css'))return;const s=document.crea
 `;document.head.append(s)}
 
 function loginScreen(teach){css();const d=document.createElement('div');d.id='ph-login';
-  d.innerHTML=`<form><h1>Фаги естественных наук</h1><p>${teach?'Введите код учителя, чтобы перейти в режим учителя. Ответы и прогресс ученика сохранены.':'Введите код, который дал учитель. Он выглядит так: FAG-XXXX-XXXX.'}</p>
+  d.innerHTML=`<form><div class="phage-welcome" aria-hidden="true">${PhagiMascot.svg({mode:'idle',variant:'portrait'})}</div><h1>Фаги естественных наук</h1><p>${teach?'Введите код учителя, чтобы перейти в режим учителя. Ответы и прогресс ученика сохранены.':'Введите код, который дал учитель. Он выглядит так: FAG-XXXX-XXXX.'}</p>
   <input id="ph-code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="FAG-XXXX-XXXX" aria-label="Код входа">
   <button type="submit">Войти</button><div class="err" role="alert"></div></form>`;
   document.body.append(d);const f=d.querySelector('form'),inp=d.querySelector('input'),er=d.querySelector('.err');inp.focus();
@@ -228,36 +228,7 @@ const gate=ready.then(m=>{if(m)return m;
   return new Promise(()=>{})});
 gate.then(()=>{const go=()=>bar();document.readyState==='loading'?document.addEventListener('DOMContentLoaded',go):go()});
 
-const islandCode=getCode();
-function islandAuth(){
-  if(!me?.id||!islandCode||getCode()!==islandCode)throw {code:'profile_changed',message:'Профиль изменился. Открой игру заново.'};
-  return {p_code:islandCode};
-}
-const islandPath=()=>'data/users/'+me.id+'/oplot/saves/main';
 window.PHCLOUD={rpc,
-  async oplotLoad(){
-    let previousRevision=-1;
-    for(;;){
-      const doc=await rpc('ph_oplot_load',{...islandAuth(),p_path:islandPath()});
-      if(!doc?._raidPending)return doc;
-      if(!Number.isSafeInteger(doc.rev)||doc.rev<=previousRevision)throw Error('Не удалось обновить ночной дозор');
-      previousRevision=doc.rev;
-    }
-  },
-  oplotStore:(rev,op,data,keepalive=false)=>rpc('ph_oplot_store',{...islandAuth(),p_path:islandPath(),p_data:data,p_rev:rev,p_op:op},keepalive),
-  async oplotDelivery(op,remember=false){
-    if(typeof op!=='string'||!/^[a-zA-Z0-9_-]{1,96}$/.test(op))throw bad('Некорректная квитанция');
-    const args={...islandAuth(),p_path:'data/users/'+me.id+'/oplot/deliveries/'+op};
-    if(!remember)return (await rpc('ph_get',args))?.delivered===true;
-    const r=await rpc('ph_set_if',{...args,p_data:{rev:1,op,delivered:true},p_rev:null,p_op:null});
-    if(!r?.ok&&r?.cur?.delivered!==true)throw Error('Не удалось сохранить квитанцию');
-    return true;
-  },
-  oplotRaids:()=>rpc('ph_oplot_raids',islandAuth()),
-  oplotPractice:(day,island)=>rpc('ph_oplot_practice',{...islandAuth(),p_day:day,p_island:island}),
-  oplotScout:()=>rpc('ph_oplot_scout',islandAuth()),
-  oplotWallet:()=>rpc('ph_oplot_wallet',islandAuth()),
-  oplotBuy:(item,op)=>rpc('ph_oplot_buy',{...islandAuth(),p_item:item,p_op:op}),
   teacherLogin:()=>loginScreen(true),get me(){return me},sync,codes:()=>me&&me.isOwner&&codes()};
 /* ---------- файлы (28.10.2026): фото и PDF к работам и заданиям ----------
    Хранятся в той же базе, кусками по ~300 КБ (base64): заголовок <путь>/<id> {name,type,size,parts}, куски <путь>/<id>~k {d}.
@@ -302,7 +273,7 @@ const assets={
       for(let k=0;k<h.parts;k++){const c=await rpc('ph_get',{p_code:getCode(),p_path:path+'~'+k});if(!c)return null;data+=c.d}
       const bin=atob(data),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return window.URL.createObjectURL(new Blob([u],{type:h.type}))})();
     fCache.set(id,p);const u=await p.catch(()=>null);fCache.set(id,u);if(!u)fCache.delete(id);return u}};
-/* fetch('_blob/<id>') для файлов из базы (29.10): просмотрщик файлов, PDF тетрадей и пометки на фото берут файл через fetch,
+/* fetch('_blob/<id>') для файлов из базы (29.10): просмотрщик файлов и пометки на фото берут файл через fetch,
    а GitHub Pages такого файла не знает. Здесь он собирается из базы; остальные запросы идут как обычно */
 const nativeFetch=window.fetch.bind(window);
 window.fetch=function(u,o){const s=typeof u==='string'?u:u&&u.url||'',m=/(?:^|\/)_blob\/([^/?#]+)$/.exec(s.split(/[?#]/)[0]);

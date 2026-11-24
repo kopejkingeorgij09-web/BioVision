@@ -58,12 +58,11 @@ function phageSync() {
   const a = phageAgenda();
   phageTrackProgress(a);
   const mood = phageReward ? 'celebrate' : phageMood(a);
-  const key = [mood,a.count,a.late.length,a.age >= 3,a.errors,phageReward].join('|');
+  const key = [mood,a.count,a.late.length,a.errors,phageReward].join('|');
   if (key !== phageBadgeKey) {
     phageBadgeKey = key;
     fab.hidden = !phageReward && a.count === 0;
     fab.dataset.mood = mood;
-    fab.dataset.urgency = a.age >= 7 ? 'week' : a.age >= 3 ? 'several' : 'recent';
     fab.title = phageReward || ('Напоминания · '+a.count);
     fab.setAttribute('aria-label', 'Бактериофаг. '+fab.title);
     fab.innerHTML = PhagiMascot.svg({mode:mood,variant:'badge'})+
@@ -111,8 +110,8 @@ function phageAnimate(opening, fresh, done) {
   const panel = document.getElementById('phage-panel');
   const elements = [panel.querySelector('.phage-figure'), document.getElementById('phage-note')];
   const tucked = [
-    {opacity:0, transform:'translate(-11px, 8px) rotate(-11deg) scale(.54, .58)'},
-    {opacity:0, transform:'perspective(460px) translate(-28px, 4px) rotateY(-76deg) rotateZ(9deg) scale(.24, .12)'}
+    {opacity:0, transform:'translate(-19%, 4%) rotate(-31deg) scale(.47, .54)'},
+    {opacity:0, transform:'perspective(580px) translate(-48px, 5px) rotateY(-89deg) rotateZ(17deg) scale(.24, .12)'}
   ];
   const settled = {opacity:1, transform:'none'};
   const canAnimate = !phageReducedMotion.matches && typeof elements[0].animate === 'function';
@@ -131,38 +130,39 @@ function phageAnimate(opening, fresh, done) {
   let duration;
   if (fresh) {
     panel.dataset.motion = 'launch';
-    duration = 720;
+    duration = 550;
     frames = [
       [tucked[0],
-        {offset:.16, opacity:1, transform:'translateY(3px) rotate(-13deg) scale(1.14, .72)', easing:'cubic-bezier(.18,.6,.35,1)'},
-        {offset:.42, transform:'translate(14px, -46px) rotate(21deg) scale(.94, 1.12)', easing:'cubic-bezier(.42,0,.86,.7)'},
-        {offset:.68, transform:'translate(1px, 3px) rotate(-9deg) scale(1.14, .82)', easing:'ease-out'},
-        {offset:.86, transform:'translateY(-8px) rotate(4deg) scale(.99, 1.035)', easing:'ease-in-out'}, settled],
-      [{...tucked[1], offset:0}, {...tucked[1], offset:.29},
-        {offset:.45, opacity:1, transform:'perspective(460px) translate(-12px, 9px) rotateY(-60deg) rotateZ(5deg) scale(.72, .29)', easing:'cubic-bezier(.16,.68,.27,1)'},
-        {offset:.77, transform:'perspective(460px) translate(1px, -4px) rotateY(3deg) rotateZ(-1deg) scale(1.01, 1.035)', easing:'ease-in-out'},
+        {offset:.13, opacity:1, transform:'translate(-4%, 6%) rotate(-21deg) scale(1.23, .65)', easing:'cubic-bezier(.18,.6,.35,1)'},
+        {offset:.39, transform:'translate(21%, -72%) rotate(31deg) scale(1.02, 1.21)', easing:'cubic-bezier(.42,0,.86,.7)'},
+        {offset:.69, transform:'translate(4%, 4%) rotate(-13deg) scale(1.21, .77)', easing:'ease-out'},
+        {offset:.86, transform:'translateY(-12%) rotate(6deg) scale(.97, 1.09)', easing:'ease-in-out'}, settled],
+      [{...tucked[1], offset:0}, {...tucked[1], offset:.21},
+        {offset:.40, opacity:1, transform:'perspective(580px) translate(-22px, 8px) rotateY(-70deg) rotateZ(10deg) scale(.77, .36)', easing:'cubic-bezier(.16,.68,.27,1)'},
+        {offset:.76, transform:'perspective(580px) translate(0, -7px) rotateY(6deg) rotateZ(-2deg) scale(1.015, 1.085)', easing:'ease-in-out'},
         settled]
     ];
   } else if (!opening && !interrupted) {
     panel.dataset.motion = 'catch';
-    duration = 480;
+    duration = 350;
     frames = [
       [{...current[0], easing:'ease-out'},
-        {offset:.26, transform:'translate(12px, -9px) rotate(19deg) scale(.98, 1.06)', easing:'ease-in-out'},
-        {offset:.56, transform:'translate(-3px, 3px) rotate(-14deg) scale(1.16, .76)', easing:'ease-out'},
-        {offset:.72, opacity:1, transform:'translate(1px, -10px) rotate(7deg) scale(.92, 1.06)', easing:'ease-in'},
+        {offset:.26, transform:'translate(19%, -17%) rotate(29deg) scale(.98, 1.13)', easing:'ease-in-out'},
+        {offset:.53, transform:'translate(-8%, 6%) rotate(-22deg) scale(1.22, .72)', easing:'ease-out'},
+        {offset:.69, opacity:1, transform:'translate(-2%, -16%) rotate(12deg) scale(.86, 1.12)', easing:'ease-in'},
         tucked[0]],
       [{...current[1], easing:'ease-out'},
-        {offset:.18, transform:'perspective(460px) translate(1px, -5px) rotateY(4deg) rotateZ(-1deg) scale(1.005, 1.025)', easing:'cubic-bezier(.46,0,.72,1)'},
-        {offset:.46, opacity:1, transform:'perspective(460px) translate(-11px, 6px) rotateY(-43deg) rotateZ(8deg) scale(.72, .40)', easing:'ease-in'},
-        {...tucked[1], offset:.72}, tucked[1]]
+        {offset:.18, transform:'perspective(580px) translate(0, -6px) rotateY(7deg) rotateZ(-2deg) scale(1.005, 1.055)', easing:'cubic-bezier(.46,0,.72,1)'},
+        {offset:.46, opacity:1, transform:'perspective(580px) translate(-25px, 10px) rotateY(-61deg) rotateZ(10deg) scale(.66, .37)', easing:'ease-in'},
+        {...tucked[1], offset:.68}, tucked[1]]
     ];
   } else {
-    duration = 230;
+    duration = 170;
     frames = current.map((from, index) => [
       {...from, easing:'cubic-bezier(.24,.65,.36,1)'}, opening ? settled : tucked[index]
     ]);
   }
+  panel.style.setProperty('--phage-duration', duration+'ms');
   const animations = elements.map((el, index) => el.animate(frames[index], {duration, fill:'both'}));
   phageAnimations = animations;
   Promise.all(animations.map(animation => animation.finished)).then(() => {

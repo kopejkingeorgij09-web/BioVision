@@ -1,49 +1,33 @@
 .phage-mascot {display:inline-block;vertical-align:middle;max-width:100%;flex:none;overflow:visible}
-.phage-mascot .pm-float,.phage-mascot .pm-pose,.phage-mascot .pm-head,.phage-mascot .pm-eyes,
-.phage-mascot .pm-fibre,.phage-mascot .pm-shadow,.phage-mascot .pm-aura,.phage-mascot .pm-sparks {transform-box:view-box}
+.phage-mascot .pm-float,.phage-mascot .pm-pose,.phage-mascot .pm-head,
+.phage-mascot .pm-fibre,.phage-mascot .pm-shadow {transform-box:view-box}
 .phage-mascot .pm-float {transform-origin:55px 56px;animation:phage-drift 6.8s ease-in-out infinite}
 .phage-mascot .pm-pose {transform-origin:56px 80px}
 .phage-mascot .pm-head {transform-origin:54px 53px}
-.phage-mascot .pm-eyes {transform-origin:54px 30px;animation:phage-blink 8.2s linear infinite}
 .phage-mascot .pm-fibre {transform-origin:56px 83px}
 .phage-mascot .pm-fibre-edge,.phage-mascot .pm-fibre-light {fill:none;stroke-linejoin:round;stroke-linecap:round}
-.phage-mascot .pm-fibre-edge {stroke:#244c4e;stroke-width:3.5}
-.phage-mascot .pm-fibre-light {stroke:#a2cbb9;stroke-width:1.5}
-.phage-mascot .pm-joint {fill:#ebc77c}
-.phage-mascot .pm-tip {fill:#336c67}
-.phage-mascot .pm-back .pm-fibre-edge {stroke:#47746a;stroke-width:2.4}
-.phage-mascot .pm-back .pm-fibre-light {stroke:#bdd0a8;stroke-width:.9}
+.phage-mascot .pm-fibre-edge {stroke:#244c4e;stroke-width:3}
+.phage-mascot .pm-fibre-light {stroke:#b1d7c8;stroke-width:1.25}
+.phage-mascot .pm-joint {fill:#91b7b1}
+.phage-mascot .pm-back .pm-fibre-edge {stroke:#35686c;stroke-width:2.45}
+.phage-mascot .pm-back .pm-fibre-light {stroke:#8ab6a8;stroke-width:.85}
 .phage-mascot .pm-left {animation:phage-joint-left 6.8s ease-in-out infinite}
 .phage-mascot .pm-right {animation:phage-joint-right 6.8s ease-in-out infinite}
-.phage-mascot .pm-face {animation:phage-amber 6.8s ease-in-out infinite}
-.phage-mascot .pm-shadow {transform-origin:57px 105px;animation:phage-shadow 6.8s ease-in-out infinite}
-.phage-mascot .pm-aura {transform-origin:54px 31px;animation:phage-light 6.8s ease-in-out infinite}
-.phage-mascot .pm-sparks {opacity:0;transform-origin:55px 30px}
-.phage-mascot .pm-expression {opacity:0}
+.phage-mascot .pm-shadow {transform-origin:57px 109px;animation:phage-shadow 6.8s ease-in-out infinite}
 .phage-mascot.pm-m-urgent .pm-alert-brows,.phage-mascot.pm-m-celebrate .pm-joy-eyes {opacity:1}
-.phage-mascot.pm-m-celebrate .pm-eyes {opacity:0}
-.phage-mascot.pm-m-celebrate .pm-cheeks {opacity:.85}
 .phage-mascot.pm-m-notice .pm-pose {animation:phage-listen 4.6s ease-in-out infinite}
-.phage-mascot.pm-m-notice .pm-sparks {opacity:.7}
 .phage-mascot.pm-m-urgent .pm-pose {animation:phage-alert 3.8s ease-in-out infinite}
-.phage-mascot.pm-m-urgent .pm-sparks {opacity:1;stroke:#dc804e}
-.phage-mascot.pm-m-urgent .pm-face {fill:#f2aa63;animation:none}
 .phage-mascot.pm-m-celebrate .pm-pose {animation:phage-hop 1.55s cubic-bezier(.42,0,.27,1) 2}
-.phage-mascot.pm-m-celebrate .pm-sparks {opacity:.8;animation:phage-glimmer 2.8s ease-in-out infinite}
 .phage-mascot.pm-v-badge .pm-fibre-edge,.phage-mascot.pm-v-brand .pm-fibre-edge {stroke-width:4}
 .phage-mascot.pm-v-badge .pm-fibre-light,.phage-mascot.pm-v-brand .pm-fibre-light {stroke-width:1.75}
 .phage-mascot.pm-v-brand .pm-float,.phage-mascot.pm-v-brand .pm-fibre,.phage-mascot.pm-v-brand .pm-shadow {animation:none}
 @keyframes phage-drift {0%,100%{transform:translate(0,.3px) rotate(-2deg)}50%{transform:translate(.8px,-2.2px) rotate(1.2deg)}}
 @keyframes phage-joint-left {0%,100%{transform:rotate(-1deg)}50%{transform:rotate(2.3deg)}}
 @keyframes phage-joint-right {0%,100%{transform:rotate(1.4deg)}50%{transform:rotate(-2.1deg)}}
-@keyframes phage-amber {0%,100%{fill:#edb365}50%{fill:#f8c879}}
-@keyframes phage-light {0%,100%{opacity:.65;transform:scale(.95)}50%{opacity:1;transform:scale(1.07)}}
 @keyframes phage-shadow {0%,100%{opacity:.15;transform:scaleX(1)}50%{opacity:.10;transform:scaleX(.91)}}
-@keyframes phage-blink {0%,44%,46.8%,100%{transform:scaleY(1)}45.4%{transform:scaleY(.12)}}
 @keyframes phage-listen {0%,54%,100%{transform:rotate(-1deg)}18%,40%{transform:rotate(5deg)}}
 @keyframes phage-alert {0%,35%,100%{transform:rotate(1.2deg)}12%{transform:rotate(5deg)}23%{transform:rotate(-1deg)}}
 @keyframes phage-hop {0%,75%,100%{transform:translateY(0) rotate(0)}18%{transform:translateY(1px) rotate(-2deg)}42%{transform:translateY(-4.7px) rotate(5deg)}}
-@keyframes phage-glimmer {0%,100%{opacity:.55;transform:scale(.98)}50%{opacity:1;transform:scale(1.04)}}
 @media (prefers-reduced-motion:reduce) {
   .phage-mascot * {animation:none!important;transition:none!important}
 }

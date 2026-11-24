@@ -110,3 +110,44 @@ test('pinning keeps two habits first, supports unpin and frees archived slots', 
   tap('c');
   assert.deepEqual(first(), ['a','c']);
 });
+
+test('a gym series records only the completed occurrence in the workout tracker', () => {
+  const {B, page} = planner();
+  page.TextEncoder = TextEncoder;
+  vm.runInContext(fs.readFileSync('bamboo/js/calendar-data.js', 'utf8'), page);
+  const C = B.calData, habit = {auto:'sport'};
+  const event = {id:'gym-series', title:'Зал · силовая тренировка',
+    start:'2026-11-18T14:20', end:'2026-11-18T16:05', repeat:{freq:'weekly',every:1}};
+  const [first, next] = C.occurrences(event,'2026-11-18','2026-11-25');
+
+  assert.equal(C.isTask(first),true);
+  assert.equal(C.isTask({...first,type:'event'}),false);
+  C.toggle(first);
+  assert.equal(C.done(first),true);
+  assert.equal(C.done(next),false);
+  assert.equal(B.habitVal(habit,first.on),1);
+  assert.equal(B.habitVal(habit,next.on),0);
+  assert.equal(B.exportAll().docs['w_cal_gym-series_2026-11-18'].type,'gym');
+
+  const moved = {...first,id:'gym-moved',start:'2026-11-19T18:00',end:'2026-11-19T19:45',repeat:null,on:'2026-11-19'};
+  C.moveCompletions(event,moved,first.on,1,true);
+  assert.equal(C.done(first),false);
+  assert.equal(C.done(moved),true);
+  assert.equal(B.habitVal(habit,moved.on),1);
+  B.put('w_manual',{id:'manual',date:moved.on});
+  C.toggle(moved);
+  assert.equal(C.done(moved),false);
+  assert.equal(B.habitVal(habit,moved.on),1);
+});
+
+test('completing a regular calendar task leaves the workout tracker alone', () => {
+  const {B, page} = planner();
+  page.TextEncoder = TextEncoder;
+  vm.runInContext(fs.readFileSync('bamboo/js/calendar-data.js', 'utf8'), page);
+  const task = {id:'study',title:'Семинар',type:'task',on:'2026-11-18'};
+  B.calData.toggle(task);
+  assert.equal(B.calData.done(task),true);
+  assert.equal(B.habitVal({auto:'sport'},task.on),0);
+  B.calData.toggle(task);
+  assert.equal(B.calData.done(task),false);
+});

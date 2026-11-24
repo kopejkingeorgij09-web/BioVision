@@ -248,7 +248,7 @@ function focusCard(today, day, rows){
   const crown = (day.top || []).map(B.task).find(t => t && !t.deleted && !t.done);
   const study = B.shadOn(today).filter(it => B.shadStage(it.p.n) < it.need);
   const chosen = study.find(it => day.focus==='shad:'+it.kind+':'+it.p.n);
-  const event = rows.find(e => e.kind==='event' && day.focus===agendaKey(e));
+  const event = rows.find(e => e.kind==='event' && !e.done && day.focus===agendaKey(e));
   const item = chosen || study.find(it => it.kind==='hw') || study[0];
   const task = crown || B.tasks().filter(t => !t.done && t.due===today)
     .sort((a,b)=>(a.pri||4)-(b.pri||4))[0];
@@ -256,7 +256,7 @@ function focusCard(today, day, rows){
   if(event){
     title=event.title;
     detail=[event.start.slice(11),event.location].filter(Boolean).join(' · ');
-    button=`<button ${agendaAttrs(event)}>Открыть событие →</button>`;
+    button=`<button ${agendaAttrs(event)}>${event.calendarTask?'Открыть задачу':'Открыть событие'} →</button>`;
   } else if(crown || (task && !item)){
     title=task.title;
     detail=[B.proj(task.proj)?.name,task.time,task.est?B.mins(task.est):''].filter(Boolean).join(' · ');
@@ -276,7 +276,8 @@ function dayAgenda(today,rows){
     ${rows.map(e=>`<div class="agenda-entry"><button class="agenda-line" ${agendaAttrs(e)}>
       <time>${e.start < today?'00:00':e.start.slice(11,16)}</time>${icon(e.kind==='shad'?'book':'cal')}
       <span><b>${esc(e.title)}</b>${e.location||e.course?`<small>${esc(e.location||e.course)}</small>`:''}</span></button>
-      ${e.done?'':crownButton(today,agendaKey(e),e.title)}</div>`).join('')
+      <div class="row">${e.calendarTask?B.calendarView.calendarCheck(e):''}
+      ${e.done?'':crownButton(today,agendaKey(e),e.title)}</div></div>`).join('')
       || '<p class="empty sm">На сегодня событий со временем нет.</p>'}</section>`;
 }
 B.acts.todayCalendar = el => {

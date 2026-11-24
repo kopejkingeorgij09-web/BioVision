@@ -103,8 +103,9 @@ B.acts.acShadToggle=()=>{shadTrayOpen=!shadTrayOpen;B.render(true);};
 B.acts.acShadTab=el=>{shadTab=el.dataset.tab;B.render(true);};
 
 function itemsBetween(from,to){
-  const items = C.events().filter(e => visible(projectOf(e))).flatMap(e =>
-    C.occurrences(e,from,to).map(x => ({...x,kind:'event',proj:projectOf(x)})));
+  const items = C.events().filter(e => visible(projectOf(e)) && (!C.isTask(e) || visible('@tasks'))).flatMap(e =>
+    C.occurrences(e,from,to).map(x => ({...x,kind:'event',calendarTask:C.isTask(x),
+      done:C.isTask(x) && C.done(x),proj:projectOf(x)})));
   const inView = e => e.start<add(to,1)&&e.end>(e.end.length===10?from:from+'T00:00');
   B.tasks().forEach(t => {
     if (!C.validDate(t.due) || t.due > to || !visible(projectOf(t)) || !visible('@tasks')) return;
@@ -143,6 +144,22 @@ function eachDay(items,from,to){
 }
 const color = proj => proj === '@shad' ? 'blue' : proj === '@phagi' ? 'violet' : B.proj(proj)?.color || 'ink';
 const phagiHref = id => B.phagiTask ? B.phagiTask(id,date) : B.PHAGI;
+function calendarCheck(e){
+  return `<button class="ac-check" data-act="acToggleTask" data-id="${esc(e.id)}" data-on="${e.on}"
+    aria-label="${esc((e.done ? 'Снять отметку · ' : 'Выполнить · ') + e.title)}" aria-pressed="${!!e.done}">${e.done?'✓':'○'}</button>`;
+}
+B.acts.acToggleTask=async el=>{
+  const {id,on}=el.dataset, event=get(id);
+  if(!event || !C.isTask(event) || !C.validDate(on)) return;
+  const item=C.occurrences(event,on,on).find(e=>e.on===on);
+  if(!item) return;
+  const workout=C.workout(item);
+  if(workout && B.workoutText(workout)){
+    if(!await B.confirm('Снять отметку тренировки и удалить её заметку?', 'Снять отметку',true)) return;
+    if(C.workout(item)!==workout) return;
+  }
+  C.toggle(item);
+};
 function chip(e,style='',segment=null){
   const attrs = `data-k="${e.kind}" data-id="${esc(e.id)}" data-on="${esc(e.on)}" data-start="${e.start}" data-end="${e.end}" data-part="${esc(e.part || '')}"`;
   const timed = !!segment;
@@ -152,7 +169,7 @@ function chip(e,style='',segment=null){
   const movable=task||e.kind==='event'||e.kind==='shad';
   const contents = `<span class="ac-title">${title}${e.repeat ? '<span aria-label="Повторяется"> ↻</span>' : ''}</span>${e.kind==='shad'?shadMeta(e):''}${timed ? `<small>${interval}${e.location ? ' · '+esc(e.location) : ''}</small>` : ''}`;
   return `<div class="ac-item c-${esc(color(e.proj))}${timed?' timed':''}${e.done?' done':''}${e.ghost?' ghost':''}" ${attrs} ${style? `style="${style}"` : ''}>
-    ${task ? `<button class="ac-check" data-act="toggleTask" data-id="${esc(e.id)}" aria-label="${e.done?'Вернуть задачу':'Выполнить задачу'}" aria-pressed="${!!e.done}">${e.done?'✓':'○'}</button>` : ''}
+    ${e.calendarTask ? calendarCheck(e) : task ? `<button class="ac-check" data-act="toggleTask" data-id="${esc(e.id)}" aria-label="${e.done?'Вернуть задачу':'Выполнить задачу'}" aria-pressed="${!!e.done}">${e.done?'✓':'○'}</button>` : ''}
     ${e.kind==='phagi' ? `<a class="ac-open" href="${esc(phagiHref(e.id))}" title="${title}">${contents}</a>` :
       `<button class="ac-open" data-act="acOpen" ${attrs} title="${title}">${contents}</button>`}
     ${timed && movable && segment.last ? '<span class="ac-resize end" data-resize="end" aria-hidden="true"></span>' : ''}
@@ -320,7 +337,7 @@ function newAll(d,end=add(d,1)){ return newDraft(d,end); }
 const allDayOf = e => e.start.length===10;
 const option=(v,label,selected)=>`<option value="${esc(v)}" ${String(v)===String(selected)?'selected':''}>${esc(label)}</option>`;
 const projectOptions = e => projects().map(p=>option(p.id,B.projName(p.id),projectOf(e))).join('');
-const scopeOptions = () => option('one','Это событие','one')+option('future','Это и будущие','one')+option('all','Вся серия','one');
+const scopeOptions = () => option('one','Только эта запись','one')+option('future','Это и будущие','one')+option('all','Вся серия','one');
 const near = el => {
   const box=el.getBoundingClientRect();
   return {x:box.right,y:box.top};
@@ -345,14 +362,15 @@ function markDraft(e,task){
   }
   cell.append(mark);
 }
-function editor(e, original=null, task=false, anchor=null, selected=false){
-  editContext={e,original,task,anchor,selected};
+function editor(e, original=null, anchor=null, selected=false){
+  const task=C.isTask(e);
+  editContext={e,original,task,selected,type:null};
   const r=e.repeat||{}, active=!!r.freq, spanStart=C.dateOf(e.start);
   const monthly = r.freq==='monthly'||r.freq==='yearly', pattern = r.days?.length&&monthly?'weekdays':'dates';
   const floating=!!anchor&&matchMedia('(min-width: 700px) and (pointer: fine)').matches;
   B.sheet(`<h2 class="ac-card-title">Календарь</h2>
     <form id="acEditor" class="ac-editor ac-quick ${floating?'ac-floating':''}">
-      ${original?'':`<div class="ac-modes ac-types" role="group" aria-label="Тип записи"><button type="button" data-act="acType" data-v="event" aria-pressed="${!task}">Событие</button><button type="button" data-act="acType" data-v="task" aria-pressed="${task}">Задача</button></div>`}
+      <div class="ac-modes ac-types" role="group" aria-label="Тип записи"><button type="button" data-act="acType" data-v="event" aria-pressed="${!task}">Событие</button><button type="button" data-act="acType" data-v="task" aria-pressed="${task}">Задача</button></div>
       <input aria-label="Название" class="ac-quick-name" name="title" value="${esc(e.title)}" placeholder="${task?'Новая задача':'Новое событие'}" maxlength="240" required autofocus>
       ${allDayOf(e)?`<p class="ac-interval">${esc(intervalLabel(e,task))}</p>`:`<div class="ac-times">
         <label class="field">Начало<input type="datetime-local" name="startAt" value="${e.start}" required></label>
@@ -361,7 +379,7 @@ function editor(e, original=null, task=false, anchor=null, selected=false){
         <select name="project" aria-label="Календарь">${projectOptions(e)}</select></label>
       ${original?.repeat?`<label class="field">Изменить<select name="scope">${scopeOptions()}</select></label>`:''}
       <details class="ac-extra"><summary>Подробности</summary><div>
-      ${task?'':`      ${B.androidReminders?.eventField(e)||''}
+      ${B.androidReminders?.eventField(e)||''}
       <label class="field">Повтор<select name="frequency">${option('','Никогда',r.freq||'')}${Object.entries(FREQ).map(([k,v])=>option(k,v,r.freq)).join('')}</select></label>
       <div class="ac-repeat" ${active?'':'hidden'}>
         <div class="ac-edit-row">
@@ -385,7 +403,7 @@ function editor(e, original=null, task=false, anchor=null, selected=false){
       <label class="field">Вложения<input type="file" name="files" multiple><small>До 700 КБ на файл, фотографии сжимаются.</small></label>
       ${(e.attachments||[]).map(getFile).filter(f=>f?.data?.startsWith('data:')).map(f=>
         `<div class="ac-attachment"><a href="${esc(f.data)}" download="${esc(f.name)}">${esc(f.name)}</a>
-          <label><input type="checkbox" name="detach" value="${esc(f.id)}"> Убрать</label></div>`).join('')}`}
+          <label><input type="checkbox" name="detach" value="${esc(f.id)}"> Убрать</label></div>`).join('')}
       <label class="field">Заметки<textarea name="notes" rows="2" maxlength="10000">${esc(e.notes||'')}</textarea></label>
       </div></details>
       <p class="ac-error" role="alert" hidden></p>
@@ -405,17 +423,16 @@ function editor(e, original=null, task=false, anchor=null, selected=false){
   if(selected)markDraft(e,task);
   form.addEventListener('change',ev=>{
     const f=form.elements;
+    if(ev.target===f.frequency||ev.target.closest('.ac-repeat')) editContext.repeatEdited=true;
     if(ev.target===f.project) form.querySelector('.ac-project').className='ac-project c-'+color(f.project.value);
-    if (!task){
-      form.querySelector('.ac-repeat').hidden=!f.frequency.value;
-      const m=f.frequency.value==='monthly'||f.frequency.value==='yearly', w=f.monthPattern.value==='weekdays';
-      form.querySelector('.ac-month-pattern').hidden=!m;
-      form.querySelector('.ac-month-dates').hidden=w;
-      form.querySelector('.ac-month-position').hidden=!w;
-      form.querySelector('.ac-weekdays').hidden=f.frequency.value!=='weekly'&&!(m&&w);
-      form.querySelector('.ac-repeat-date').hidden=f.repeatEnd.value!=='until';
-      form.querySelector('.ac-repeat-count').hidden=f.repeatEnd.value!=='count';
-    }
+    form.querySelector('.ac-repeat').hidden=!f.frequency.value;
+    const m=f.frequency.value==='monthly'||f.frequency.value==='yearly', w=f.monthPattern.value==='weekdays';
+    form.querySelector('.ac-month-pattern').hidden=!m;
+    form.querySelector('.ac-month-dates').hidden=w;
+    form.querySelector('.ac-month-position').hidden=!w;
+    form.querySelector('.ac-weekdays').hidden=f.frequency.value!=='weekly'&&!(m&&w);
+    form.querySelector('.ac-repeat-date').hidden=f.repeatEnd.value!=='until';
+    form.querySelector('.ac-repeat-count').hidden=f.repeatEnd.value!=='count';
   });
   form.addEventListener('submit',ev=>{ev.preventDefault();submitEditor(form);});
 }
@@ -424,7 +441,6 @@ function draftFrom(form,ctx){
   if (!C.valid(start)||!C.valid(end)||end<=start) throw Error('Конец должен быть позже начала.');
   const draft={title:f.title.value.trim(),proj:f.project.value||'inbox',start,end,notes:f.notes.value.trim()};
   if (!draft.title) throw Error('Введи название.');
-  if (ctx.task) return draft;
   const freq=f.frequency.value, until=f.repeatEnd.value==='until'?f.until.value:'';
   if (freq && f.repeatEnd.value==='until' && (!C.validDate(until)||until<C.dateOf(start))) throw Error('Выбери дату окончания повтора после начала.');
   if (f.url.value && !/^https?:\/\//i.test(f.url.value)) throw Error('Ссылка должна начинаться с http:// или https://.');
@@ -436,17 +452,26 @@ function draftFrom(form,ctx){
   const repeat=freq?{freq,every:Number(f.every.value)||1,until,count:f.repeatEnd.value==='count'?Number(f.count.value)||1:0,
     days:weekDays,monthDays,pos:weekdays?Number(f.position.value):0,
     month:freq==='yearly'&&monthDays.length+weekDays.length ? Number(start.slice(5,7)) : 0}:null;
-  return {...draft,repeat,location:f.place.value.trim(),url:f.url.value.trim(),
+  const activity = ctx.e.activity === 'gym' || C.isGym(ctx.e) || C.isGym(draft) ? 'gym' : '';
+  const type = ctx.type || ctx.e.type || (activity ? 'task' : 'event');
+  return {...draft,type,activity,repeat:ctx.original&&!ctx.repeatEdited?ctx.e.repeat||null:repeat,location:f.place.value.trim(),url:f.url.value.trim(),
     alerts:f.androidAlert?B.androidReminders.eventAlerts(f.androidAlert,ctx.e):ctx.e.alerts||[]};
 }
 function writeOccurrence(original, on, draft, scope){
   const fresh=get(original.id);
   if (!fresh) return;
   const first=C.dateOf(fresh.start), delta=diff(on,C.dateOf(draft.start));
-  if (!fresh.repeat) { save({...fresh,...draft}); return; }
+  if (!fresh.repeat){
+    const next={...fresh,...draft};
+    save(next);
+    C.moveCompletions(fresh,next,on,delta,true);
+    return;
+  }
   if(scope==='one'){
     save({...fresh,skip:[...new Set([...(fresh.skip||[]),on])]});
-    save({...draft,id:B.uid(),repeat:null,skip:[],seriesId:fresh.id,seriesOn:on});
+    const next={...draft,id:B.uid(),repeat:null,skip:[],seriesId:fresh.id,seriesOn:on};
+    save(next);
+    C.moveCompletions(fresh,next,on,delta,true);
     return;
   }
   const repeat=draft.repeat?{...draft.repeat}:null;
@@ -455,12 +480,16 @@ function writeOccurrence(original, on, draft, scope){
     if(repeat?.count && repeat.count===fresh.repeat.count) repeat.count=Math.max(1,repeat.count-C.countBefore(fresh,on));
     save(C.previousOccurrences(fresh,on));
     const id=B.uid();
-    save({...draft,id,repeat,skip:except});
+    const next={...draft,id,repeat,skip:except};
+    save(next);
+    C.moveCompletions(fresh,next,on,delta);
     C.events().filter(e=>e.seriesId===fresh.id&&e.seriesOn>=on).forEach(e=>save({...e,seriesId:id,seriesOn:add(e.seriesOn,delta)}));
     return;
   }
   const offset=diff(on,first);
-  save({...fresh,...draft,start:C.shifted(draft.start,offset),end:C.shifted(draft.end,offset),repeat,skip:except});
+  const next={...fresh,...draft,start:C.shifted(draft.start,offset),end:C.shifted(draft.end,offset),repeat,skip:except};
+  save(next);
+  C.moveCompletions(fresh,next,first,delta);
   if (delta) C.events().filter(e=>e.seriesId===fresh.id).forEach(e=>save({...e,seriesOn:add(e.seriesOn,delta)}));
 }
 async function submitEditor(form){
@@ -469,8 +498,14 @@ async function submitEditor(form){
   submit.disabled=true;
   try {
     const draft=draftFrom(form,ctx), d=C.dateOf(draft.start);
-    if(ctx.task) B.saveTask(B.newTask({title:draft.title,proj:draft.proj,due:d,time:draft.start.slice(11),est:allDayOf(draft)?0:C.span(draft.start,draft.end),notes:draft.notes}));
-    else {
+    const asPlannerTask=!ctx.original && draft.type==='task' && !draft.activity &&
+      !draft.repeat && !draft.location && !draft.url && !draft.alerts.length &&
+      !ctx.e.attachments?.length && !form.elements.files.files.length &&
+      (!allDayOf(draft) || draft.end===add(d,1));
+    if(asPlannerTask){
+      B.saveTask(B.newTask({title:draft.title,proj:draft.proj,due:d,time:draft.start.slice(11),
+        est:allDayOf(draft)?0:C.span(draft.start,draft.end),notes:draft.notes}));
+    }else{
       const removed=new Set([...form.querySelectorAll('[name=detach]:checked')].map(el=>el.value));
       const files=[]; let size=0;
       for(const file of form.elements.files.files){
@@ -489,16 +524,21 @@ async function submitEditor(form){
       if(form.elements.androidAlert?.value && form.elements.androidAlert.value!==form.elements.androidAlert.dataset.current)
         B.androidReminders.enable();
     }
-    B.closeSheet(); change(d); B.toast(ctx.task?'Задача сохранена':'Событие сохранено');
+    B.closeSheet(); change(d); B.toast(draft.type==='task'?'Задача сохранена':'Событие сохранено');
   }catch(e){ const err=form.querySelector('.ac-error');err.textContent=e.message;err.hidden=false; }
   finally { submit.disabled=false; }
 }
 B.acts.acType=el=>{
-  const f=B.$('#acEditor').elements, {e,anchor,selected}=editContext;
-  editor({...e,start:f.startAt?.value||e.start,end:f.endAt?.value||e.end,title:f.title.value,proj:f.project.value,notes:f.notes.value},null,el.dataset.v==='task',anchor,selected);
+  if(!editContext) return;
+  editContext.type=el.dataset.v;
+  editContext.task=el.dataset.v==='task';
+  const form=el.closest('form');
+  form.querySelectorAll('[data-act="acType"]').forEach(btn=>btn.setAttribute('aria-pressed',btn===el));
+  form.elements.title.placeholder=editContext.task?'Новая задача':'Новое событие';
+  if(editContext.selected)markDraft({...editContext.e,title:form.elements.title.value},editContext.task);
 };
 B.acts.acAdd=()=>editor(newTimed(date));
-B.acts.acNewDay=el=>editor(newAll(el.dataset.d),null,false,near(el),true);
+B.acts.acNewDay=el=>editor(newAll(el.dataset.d),null,near(el),true);
 function fromNode(el){
   const {k,id,on,start,end,part}=el.dataset;
   return {kind:k,id,on,start,end,part};
@@ -507,7 +547,7 @@ B.acts.acOpen=el=>{
   const x=fromNode(el);
   if(x.kind==='task') return B.openTask(x.id);
   if(x.kind==='shad') return shadEditor(x.id,x.part);
-  const e=get(x.id); if(e) editor({...e,start:x.start,end:x.end,on:x.on},e,false,near(el));
+  const e=get(x.id); if(e) editor({...e,start:x.start,end:x.end,on:x.on},e,near(el));
 };
 B.acts.acShadPick=el=>shadEditor(el.dataset.id,el.dataset.part);
 function shadEditor(id,part){
@@ -569,7 +609,7 @@ function shadEditor(id,part){
 B.acts.acDuplicate=()=>{
   const ctx=editContext; if(!ctx) return;
   const e=ctx.e;
-  editor({...newDraft(e.start,e.end),title:e.title,proj:e.proj,notes:e.notes,location:e.location,url:e.url,alerts:e.alerts,attachments:e.attachments});
+  editor({...newDraft(e.start,e.end),title:e.title,proj:e.proj,type:e.type,activity:e.activity,notes:e.notes,location:e.location,url:e.url,alerts:e.alerts,attachments:e.attachments});
 };
 B.acts.acDelete=async()=>{
   const {e,original}=editContext||{};
@@ -588,7 +628,7 @@ B.acts.acDelete=async()=>{
     related.forEach(x=>B.put('e_'+x.id,null));
     pruneFiles((master.attachments||[]).concat(related.flatMap(x=>x.attachments||[])));
   }
-  B.closeSheet();B.toast('Событие удалено');
+  B.closeSheet();B.toast(C.isTask(master)?'Задача удалена':'Событие удалено');
 };
 
 function searchResults(query){
@@ -608,7 +648,7 @@ function searchResults(query){
   }));
   const list=events.concat(tasks,shad).sort((a,b)=>a.start.localeCompare(b.start));
   return list.length ? `<div class="ac-results">${list.slice(0,80).map(x=>`<button data-act="acSearchGo" data-k="${x.kind}" data-part="${x.part||''}" data-id="${esc(x.id)}">
-    <b>${esc(x.title)}</b><small>${x.context?esc(x.context):(x.kind==='task'?'Задача':'Событие')+' · '+(x.start?fmt(C.dateOf(x.start))+' '+x.start.slice(0,4):'Без даты')}</small></button>`).join('')}</div>`:
+    <b>${esc(x.title)}</b><small>${x.context?esc(x.context):(x.kind==='task'||C.isTask(x)?'Задача':'Событие')+' · '+(x.start?fmt(C.dateOf(x.start))+' '+x.start.slice(0,4):'Без даты')}</small></button>`).join('')}</div>`:
     '<p class="muted">Ничего не найдено.</p>';
 }
 B.acts.acSearch=()=>{
@@ -790,8 +830,8 @@ function rangePointer(e,root){
     if(!x){
       if(col&&selectedCol){
         const next=proposed();
-        if(next) editor(newDraft(next.start,next.end),null,false,anchor,true);
-      }else if(all) editor(newAll(origin<target?origin:target,add(origin<target?target:origin,1)),null,false,anchor,true);
+        if(next) editor(newDraft(next.start,next.end),null,anchor,true);
+      }else if(all) editor(newAll(origin<target?origin:target,add(origin<target?target:origin,1)),null,anchor,true);
       return;
     }
     const next=proposed();
@@ -799,7 +839,7 @@ function rangePointer(e,root){
     if(x.kind==='event'){
       const event=get(x.id); if(!event)return;
       const draft={...event,start:next.start,end:next.end};
-      if(event.repeat) editor({...draft,on:x.on},event,false,anchor,true); else save(draft);
+      if(event.repeat) editor({...draft,on:x.on},event,anchor,true); else writeOccurrence(event,x.on,draft,'all');
     }else if(x.kind==='task') B.calendarMoveTask(x.id,next.start,next.end);
     else if(x.kind==='shad') B.calendarMoveShad(Number(x.id),x.part,next.start,next.end);
   }
@@ -851,7 +891,7 @@ function mountGestures(sc,weekly){
     }
     if(Math.hypot(dx,dy)<8&&performance.now()-g.start<450&&!g.target.closest('button,a,.ac-item')){
       const col=g.target.closest('[data-col]');
-      if(col)editor(newTimed(col.dataset.col,minuteAt(col,p.clientY)),null,false,null,true);
+      if(col)editor(newTimed(col.dataset.col,minuteAt(col,p.clientY)),null,null,true);
     }
   },{passive:true});
 }
@@ -950,8 +990,8 @@ function mount(){
     if(e.target.closest('.ac-item,button,a'))return;
     const col=e.target.closest('[data-col]'), all=e.target.closest('[data-all]');
     const anchor={x:e.clientX,y:e.clientY};
-    if(col) editor(newTimed(col.dataset.col,minuteAt(col,e.clientY)),null,false,anchor,true);
-    else if(all) editor(newAll(all.dataset.all),null,false,anchor,true);
+    if(col) editor(newTimed(col.dataset.col,minuteAt(col,e.clientY)),null,anchor,true);
+    else if(all) editor(newAll(all.dataset.all),null,anchor,true);
   });
 }
 document.addEventListener('keydown',e=>{
@@ -971,7 +1011,7 @@ function openReminder(id,on){
   editor(x,e);
   return true;
 }
-B.calendarView={render,mount,unmount,itemsBetween,openReminder,deferRender(){
+B.calendarView={render,mount,unmount,itemsBetween,openReminder,calendarCheck,deferRender(){
   if(!dragging&&!weekScrollTimer)return false;
   redrawAfterInteraction=true;
   return true;

@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const {chromium, webkit} = require('playwright');
 const site = process.argv[2] || 'http://127.0.0.1:18748/phagi/';
-const day = '2026-11-17';
+const day = new Date().toLocaleDateString('sv-SE');
 const eventId = 'regression-lesson';
 const path = 'events/' + eventId;
 const topic = {date:day,title:'Проверка вложений',subject:'bio',repeat:'none',to:[],skip:[],
@@ -41,7 +41,9 @@ async function check(browser, width, dark) {
     await page.waitForFunction(id=>typeof S!=='undefined' && S.assets && T() && S.events.some(e=>e.id===id),eventId);
   }
   async function open(){
-    await page.evaluate(([id,d])=>openOcc('ev',id,d),[eventId,day]);
+    await page.locator('#nav [data-v="cal"]').click();
+    await page.getByRole('button',{name:'Месяц',exact:true}).click();
+    await page.locator(`.calendar-entry[data-id="${eventId}"][data-d="${day}"]`).click();
     await page.locator('[data-dact="addocc"]').waitFor({state:'attached'});
   }
   async function waitUntil(test) {
@@ -65,7 +67,7 @@ async function check(browser, width, dark) {
     await waitUntil(()=>docs.get(path).ofiles[day].length===2);
     // The row was committed, but the browser lost the acknowledgement.
     await page.reload({waitUntil:'domcontentloaded'});await ready();await open();
-    await page.waitForFunction(id=>S.events.find(e=>e.id===id)?.ofiles['2026-11-17'].length===2,eventId);
+    await page.waitForFunction(([id,date])=>S.events.find(e=>e.id===id)?.ofiles[date]?.length===2,[eventId,day]);
     assert.equal(docs.get(path).ofiles[day].length,2);
     const id=docs.get(path).ofiles[day][1].id;
     const header=docs.get('files/'+id);

@@ -1,0 +1,82 @@
+/* A calendar week shares one row on the desktop and one agenda on narrow screens. */
+.study-view.planner{max-width:none}
+.planner .planner-toolbar{margin-bottom:16px}
+.planner .period-nav h2{font-weight:600}
+.calendar-month{
+  --calendar-hairline:color-mix(in srgb,var(--ink) 14%,var(--card));
+  --calendar-band:color-mix(in srgb,var(--ink) 3%,var(--card));
+  border:1px solid var(--calendar-hairline);
+  border-radius:14px;
+  overflow:hidden;
+  background:var(--card);
+}
+.calendar-weekdays,.calendar-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.calendar-weekdays{background:var(--calendar-band)}
+.calendar-weekdays span{padding:10px 12px;color:var(--muted);font:600 12px/1.3 var(--f)}
+.calendar-week{border-top:1px solid var(--calendar-hairline)}
+.calendar-day{min-width:0;min-height:clamp(110px,13vh,175px);padding:5px;box-sizing:border-box}
+.calendar-day+.calendar-day{border-left:1px solid var(--calendar-hairline)}
+.calendar-day.outside{background:var(--calendar-band)}
+.calendar-day.today{background:color-mix(in srgb,var(--study-accent) 5%,var(--card))}
+.calendar-number{
+  display:flex;align-items:center;justify-content:space-between;
+  width:100%;border:0;border-radius:6px;padding:3px 4px;margin-bottom:2px;
+  background:transparent;color:var(--ink);cursor:pointer;
+  font:600 15px/1.2 var(--f);font-variant-numeric:tabular-nums;
+}
+.calendar-number span{display:grid;place-items:center;min-width:26px;height:26px;border-radius:50%}
+.outside .calendar-number{color:var(--muted)}
+.calendar-number[aria-current="date"] span{background:var(--ink);color:var(--card)}
+.calendar-number i{color:var(--muted);font:500 17px/1 var(--f);opacity:0}
+.calendar-number:hover,.calendar-number:focus-visible{background:var(--soft)}
+.calendar-number:is(:hover,:focus-visible) i{opacity:1}
+.calendar-agenda-date{display:none}
+.calendar-items{display:grid;gap:3px;min-width:0}
+.calendar-entry{
+  width:100%;min-width:0;padding:5px 6px;
+  background:color-mix(in srgb,var(--entry) 8%,var(--card));
+  color:var(--ink);border:0;border-inline-start:2px solid var(--entry);border-radius:4px;
+  text-align:left;font:500 12px/1.35 var(--f);cursor:pointer;
+}
+.calendar-entry:hover,.calendar-entry:focus-visible{background:color-mix(in srgb,var(--entry) 18%,var(--card))}
+.calendar-entry-title{overflow-wrap:anywhere}
+.calendar-time{white-space:nowrap;font-size:.9em;font-weight:650;font-variant-numeric:tabular-nums;margin-inline-end:.42em;color:color-mix(in srgb,var(--entry) 55%,var(--ink))}
+.calendar-entry.cancelled .calendar-entry-title{text-decoration:line-through}
+.planner .calendar-week-list{margin:0 0 18px}
+.calendar-week-list .planner-agenda{margin:0;padding:14px 0 6px;border-top:1px solid var(--line)}
+.calendar-week-list .planner-agenda h2{font-size:15px}
+.calendar-week-list .planner-event{border-top:0}
+.calendar-month button:focus-visible{outline-offset:-2px}
+@media(min-width:1050px){
+  body:has(#main .planner) .wrap{max-width:min(1840px,100%)}
+  body.calfull:has(#main .planner) .wrap{max-width:100%}
+}
+@media(max-width:800px){
+  .calendar-weekdays span{text-align:center;padding:8px 1px}
+  .calendar-week{grid-auto-flow:row}
+  .calendar-day{display:contents}
+  .calendar-number{
+    grid-row:1;grid-column:var(--column);justify-content:center;
+    padding:4px 0;margin:0;min-height:38px;position:relative;
+  }
+  .calendar-number i{display:none}
+  .occupied .calendar-number::after{
+    content:"";position:absolute;bottom:2px;width:4px;height:4px;border-radius:50%;background:var(--muted)
+  }
+  .calendar-group{grid-column:1/-1;display:grid;grid-template-columns:36px minmax(0,1fr);gap:6px;padding:3px 8px 4px}
+  .calendar-group:last-child{margin-bottom:2px}
+  .calendar-agenda-date{display:flex;flex-direction:column;align-items:center;gap:1px;padding-top:3px;color:var(--muted);font:500 11px/1.2 var(--f)}
+  .calendar-agenda-date b{color:var(--text);font-size:14px}
+  .calendar-items{gap:3px}
+  .calendar-entry{font-size:13px;padding:6px 8px;min-height:30px}
+  .calendar-number[aria-current="date"]::after{background:var(--study-accent)}
+}
+@media(min-width:801px){
+  .calendar-week:not(:has(.occupied)) .calendar-day{min-height:clamp(66px,8.5vh,105px)}
+}
+@media(min-width:801px) and (max-width:1099px){
+  .calendar-day{padding:3px}
+  .calendar-entry{padding:4px}
+}
+.calendar-expand.study-nav-btn{display:grid;place-items:center;width:40px;height:40px;padding:9px;border-radius:10px}
+.calendar-expand svg{width:18px;height:18px}

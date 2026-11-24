@@ -1,10 +1,11 @@
 // Service worker: нужен, чтобы сайт можно было установить как приложение.
 // Стратегия «сначала сеть»: всегда свежая версия, кеш только на случай отсутствия интернета.
 // Запросы к другим доменам (Supabase, шрифты) не трогаем.
-const CACHE = 'phagi-v41-study';
+const CACHE = 'phagi-v42-classroom';
 const SHELL = [
   './', './phage-mascot.js?v=1', './phage-mascot.css?v=1', './companion.js?v=1', './companion.css?v=1',
-  './cloud.js?v=17', './academic.css?v=1', './learning-lab.css?v=1',
+  './cloud.js?v=17', './academic.css?v=2', './learning-lab.css?v=2', './month-calendar.css?v=1', './tracker.css?v=1', './cards-study.webp',
+  './bioviz/classroom.js?v=1', './bioviz/library.css?v=2', './bioviz/library.js?v=2', './bioviz/classroom-models.css?v=1',
   './lesson-workspace.js?v=1', './prepare-lesson.js?v=1', './lesson-files.js?v=2',
   './lesson-workspace.css?v=1', './forest/progress.js?v=1', './forest/scene.js?v=1',
   './forest/forest.css?v=1'

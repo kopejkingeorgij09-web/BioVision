@@ -4,12 +4,29 @@
   if(params.get('from')!=='phagi' || params.has('widget'))return;
   const base=new URL('.',document.currentScript.src);
   const page=document.documentElement;
+  const inClassroom=params.get('embed')==='classroom' && window.frameElement?.id==='bv-reader';
+  if(inClassroom)page.classList.add('in-classroom');
+  window.PhagiChapterLink=fragment=>{
+    if(inClassroom){
+      history.replaceState(null,'',fragment);
+      parent.PhagiBioReader.chapter(window,fragment);
+    }else history.pushState(null,'',fragment);
+  };
   window.PhagiBookAppearance=prefs=>{
     page.style.setProperty('--desk-size',([17,19,21,23].includes(prefs.size)?prefs.size:19)+'px');
     page.dataset.deskFace=prefs.face==='sans'?'sans':'serif';
     page.dataset.deskWidth=prefs.width==='wide'?'wide':'standard';
-    const theme=['light','dark'].includes(prefs.theme)?prefs.theme:(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+    const hostTheme=inClassroom?parent.document.documentElement.dataset.eff:null;
+    const theme=['light','dark'].includes(prefs.theme)?prefs.theme:hostTheme||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
     page.dataset.deskTheme=theme;
+    if(inClassroom){
+      const colors=getComputedStyle(parent.document.documentElement);
+      const palette={'--desk-bg':'--card','--desk-surface':'--card','--desk-ink':'--text','--desk-line':'--line','--desk-muted':'--muted','--desk-accent':'--ink','--desk-tint':'--soft','--desk-rail':'--bg','--desk-focus':'--focus'};
+      for(const [token,host] of Object.entries(palette)){
+        if(!prefs.theme||prefs.theme==='auto')page.style.setProperty(token,colors.getPropertyValue(host));
+        else page.style.removeProperty(token);
+      }
+    }
     return theme;
   };
   let prefs={};try{prefs=JSON.parse(localStorage.getItem('phagi.reading.settings'))||{};}catch{}
@@ -31,10 +48,10 @@
     window.ReplicationBook?.showSequence();
     if(window.MicroBookPage)MicroBookPage.open(document.getElementById('microbook').dataset.route,{hash:false,focus:false});
   }
-  for(const path of ['type/type.css?v=1','reading-desk.css?v=4']){
+  for(const path of ['type/type.css?v=1','reading-desk.css?v=5']){
     const link=document.createElement('link');link.rel='stylesheet';link.href=new URL(path,base);document.head.append(link);
   }
-  const scripts=['book-index.js?v=2','book-navigation.js?v=1','reading-desk.js?v=5'].map(path=>new URL(path,base).href);
+  const scripts=['book-index.js?v=2','book-navigation.js?v=1','reading-desk.js?v=6'].map(path=>new URL(path,base).href);
   for(const src of scripts){
     const link=document.createElement('link');link.rel='preload';link.as='script';link.href=src;document.head.append(link);
   }

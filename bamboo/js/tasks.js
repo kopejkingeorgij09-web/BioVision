@@ -11,7 +11,11 @@ let S = {view: 'week', cal: 'all'};
 try { S = Object.assign(S, JSON.parse(localStorage.getItem(LS) || '{}')); } catch (e) {}
 const saveS = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} };
 let poolOpen = false;
-let anchor = null;          // понедельник показанной недели или первое число месяца
+let listDay = null;
+const selectedDay = () => B.calendarView?.selectedDate?.() || listDay || B.today();
+function selectPlannerDay(day){
+  if(day && B.calendarView?.selectDate?.(day) !== false) listDay=day;
+}
 let adding = null;          // в какой день открыто поле ввода ('' — «Когда-нибудь»)
 
 /* ---------- цвета ---------- */
@@ -41,12 +45,8 @@ const baseSetDone = B.setDone;
 B.setDone = (t, v) => {
   const nt = baseSetDone(t, v);
   if (v && t.rep && t.due && !t.repNext){
-    const due = B.nextRep(t.due, t.rep), id = B.uid();
-    const shift = B.diff(t.due, due);
-    let remind = null;
-    if (t.remind && t.remind.at){ const d = new Date(t.remind.at); d.setDate(d.getDate() + shift); remind = {at: localISO(d)}; }
-    B.saveTask(B.newTask({id, title: t.title, proj: t.proj, pri: t.pri, due, time: t.time, color: t.color, rep: t.rep, notes: t.notes,
-      subs: (t.subs || []).map(s => ({id: B.uid(), t: s.t, done: false})), remind, ord: t.ord, repPristine: true, repFrom: t.id}), true);
+    const id = createNextRepeat(t);
+    if (!id) return nt;
     B.saveTask(Object.assign({}, nt, {repNext: id}));
     return B.task(t.id);
   }
@@ -60,6 +60,30 @@ B.setDone = (t, v) => {
   return nt;
 };
 const localISO = d => `${B.ymd(d)}T${B.pad(d.getHours())}:${B.pad(d.getMinutes())}`;
+function createNextRepeat(t, extra={}){
+  const due = B.nextRep(t.due, t.rep);
+  if (!due) return null;
+  let remind = null;
+  if (t.remind?.at){
+    const d = new Date(t.remind.at);
+    d.setDate(d.getDate() + B.diff(t.due, due));
+    remind = {at:localISO(d)};
+  }
+  const next = B.newTask({title:t.title, proj:t.proj, pri:t.pri, due, time:t.time, color:t.color, rep:t.rep, notes:t.notes,
+    subs:(t.subs || []).map(s=>({id:B.uid(), t:s.t, done:false})), remind, ord:t.ord, repPristine:true, repFrom:t.id, ...extra});
+  B.saveTask(next,true);
+  return next.id;
+}
+B.removeCalendarTask = t => {
+  if (t.rep && !t.done && !B.task(t.repNext)){
+    const previous = t.repFrom && B.task(t.repFrom);
+    const origin = previous?.repNext === t.id ? previous.id : t.id;
+    const next = createNextRepeat(t, {est:t.est || 0, repPristine:false, repFrom:origin});
+    if (next && origin !== t.id) B.saveTask({...previous, repNext:next},true);
+  }
+  B.delTask(t.id);
+  B.list('f_').filter(f=>f.task===t.id).forEach(f=>B.put('f_'+f.id,null));
+};
 
 /* ---------- выборки ---------- */
 const childIds = id => [id].concat(B.projects().filter(p => p.parent === id).map(p => p.id));
@@ -151,24 +175,27 @@ function loadOf(date, gh){
   const n = onDate(date).filter(x => !x.done).length + ((gh && gh[date]) || []).length + shad + ph;
   return {n, cls: n >= OVER ? 'over' : n >= BUSY ? 'busy' : ''};
 }
-function dayCol(date, min, gh){
+function dayCol(date, min, gh, activeDay){
   if (innerWidth < 760) min = 2;
   const t = B.today(), cls = date === t ? 'now' : date < t ? 'was' : '', ld = loadOf(date, gh);
   return `<section class="pl-day ${cls} ${ld.cls}" data-day="${date}">
-    <header class="pl-dh" ${ld.cls ? `title="${ld.n} ${B.plural(ld.n, 'дело', 'дела', 'дел')} на день${ld.cls === 'over' ? ', перегруз' : ''}"` : ''}><b>${dLabel(date)}</b><span>${ld.cls ? `<i class="pl-load">${ld.n}</i>` : ''}${date === t ? 'Сегодня' : WDS[B.wd(date)]}</span></header>
+    <header class="pl-dh" ${ld.cls ? `title="${ld.n} ${B.plural(ld.n, 'дело', 'дела', 'дел')} на день${ld.cls === 'over' ? ', перегруз' : ''}"` : ''}>
+      <button type="button" class="pl-day-select" data-act="plSelectDay" data-d="${date}" aria-label="Выбрать ${B.fmtW(date)}" aria-pressed="${activeDay===date}">
+        <b>${dLabel(date)}</b><span>${ld.cls ? `<i class="pl-load">${ld.n}</i>` : ''}${date === t ? 'Сегодня' : WDS[B.wd(date)]}</span>
+      </button></header>
     ${dayList(date, onDate(date), min, gh[date])}
   </section>`;
 }
 
-function weekView(){
-  const ws = anchor || B.weekStart(B.today()), days = Array.from({length: 7}, (_, i) => B.add(ws, i));
+function weekView(activeDay){
+  const ws = B.weekStart(activeDay), days = Array.from({length: 7}, (_, i) => B.add(ws, i));
   const gh = ghosts(days[0], days[6]);
   const withShad = (S.cal === 'all' || S.cal === 'shad') && B.shad.plan.length, cols = withShad ? 2 : 3;
   const sd = someday(), count = sd.length + (withShad ? B.shadSomeday().length : 0), rows = innerWidth < 760 ? count + 2 : Math.max(4, Math.ceil((count + 1) / cols) + 1);
   const mobilePool = withShad && innerWidth < 760;
   return `${mobilePool ? shadBox(ws,true) : ''}<div class="pl-week">
-      ${days.slice(0, 5).map(d => dayCol(d, 9, gh)).join('')}
-      <div class="pl-wkend">${dayCol(days[5], 4, gh)}${dayCol(days[6], 4, gh)}</div>
+      ${days.slice(0, 5).map(d => dayCol(d, 9, gh, activeDay)).join('')}
+      <div class="pl-wkend">${dayCol(days[5], 4, gh, activeDay)}${dayCol(days[6], 4, gh, activeDay)}</div>
     </div>
     <div class="pl-bottom ${withShad ? 'two' : ''}">
       <section class="pl-some">
@@ -196,8 +223,8 @@ function shadBox(ws, mobile = false){
 /* на компьютере клетки месяца растут по высоте и показывают все дела, на телефоне до 4 и «ещё N» */
 const monthCap = () => matchMedia('(min-width:960px)').matches ? Infinity : 4;
 matchMedia('(min-width:960px)').addEventListener('change', e => { if (S.view === 'month' && location.hash.startsWith('#/tasks')) B.render(); });
-function monthView(){
-  const a = B.parse(anchor || B.today().slice(0, 8) + '01'), first = B.ymd(new Date(a.getFullYear(), a.getMonth(), 1, 12));
+function monthView(activeDay){
+  const a = B.parse(activeDay), first = B.ymd(new Date(a.getFullYear(), a.getMonth(), 1, 12));
   const last = B.ymd(new Date(a.getFullYear(), a.getMonth() + 1, 0, 12));
   const from = B.weekStart(first), to = B.add(B.weekStart(last), 6), t = B.today(), cw = B.weekStart(t);
   const gh = ghosts(from, to), withShad = (S.cal === 'all' || S.cal === 'shad') && B.shad.plan.length;
@@ -209,7 +236,7 @@ function monthView(){
     const all = list.length + g.length + shad.length + ph.length, show = monthCap();
     const out = d.slice(0, 7) !== first.slice(0, 7), ws = B.weekStart(d);
     cells += `<div class="pl-mc ${d === t ? 'now' : ''} ${out ? 'out' : ''} ${past ? 'was' : ''} ${ws === cw ? 'cw' : ''} ${B.wd(d) > 4 ? 'we' : ''}">
-      ${(() => { const ld = loadOf(d, gh); return `<button class="pl-md ${ld.cls}" data-act="plGoWeek" data-d="${d}" title="Открыть неделю${ld.cls ? ` · ${ld.n} ${B.plural(ld.n, 'дело', 'дела', 'дел')}` : ''}">${B.parse(d).getDate()}</button>`; })()}
+      ${(() => { const ld = loadOf(d, gh); return `<button class="pl-md ${ld.cls}" data-act="plGoWeek" data-d="${d}" ${d===activeDay?'aria-current="date"':''} title="Открыть неделю${ld.cls ? ` · ${ld.n} ${B.plural(ld.n, 'дело', 'дела', 'дел')}` : ''}">${B.parse(d).getDate()}</button>`; })()}
       <div class="pl-list" data-d="${d}">${list.slice(0, show).map(x => row(x, {dot: false})).join('')}${g.slice(0, Math.max(0, show - list.length)).map(x => row(x, {ghost: true, dot: false})).join('')}${all <= show ? shad.slice(0, show - list.length - g.length).map(shadRow).join('') + ph.map(B.phRow).join('') : ''}
         ${all > show ? `<button class="pl-more" data-act="plGoWeek" data-d="${d}">ещё ${all - show}</button>` : ''}
         ${doneN ? `<button class="pl-more pl-donen" data-act="plGoWeek" data-d="${d}" title="Сделано за день">✓ ${doneN}</button>` : ''}
@@ -247,14 +274,13 @@ function plannerContent(arg){
       <header class="pl-h"><h1>План ШАДа</h1></header>
       ${B.shadPlanView ? B.shadPlanView() : ''}
     </div>`;
-    if (month && anchor && anchor.slice(8) !== '01') anchor = anchor.slice(0, 8) + '01';
-    if (!month && anchor && B.wd(anchor) !== 0) anchor = B.weekStart(anchor);
-    const ref = B.parse(month ? (anchor || t.slice(0, 8) + '01') : B.add(anchor || B.weekStart(t), 3));
+    const day = selectedDay(), reference = month ? day : B.add(B.weekStart(day), 3);
+    const ref = B.parse(reference);
     const p = S.cal !== 'all' ? B.proj(S.cal) : null;
-    const isNow = month ? !anchor || anchor.slice(0, 7) === t.slice(0, 7) : !anchor || anchor === B.weekStart(t);
+    const isNow = month ? day.slice(0, 7) === t.slice(0, 7) : B.weekStart(day) === B.weekStart(t);
     return `<div class="page planner ${month ? 'is-month' : 'is-week'}" style="--plfs:${FS[fsI]}">
       <header class="pl-h">
-        <h1>${B.MONF[ref.getMonth()]} ${ref.getFullYear()}${month ? '' : ` <span class="pl-wn">№${isoWeek(B.add(anchor || B.weekStart(t), 3))}</span>`}</h1>
+        <h1>${B.MONF[ref.getMonth()]} ${ref.getFullYear()}${month ? '' : ` <span class="pl-wn">№${isoWeek(reference)}</span>`}</h1>
         <div class="pl-tools">
           <button class="pl-cal" data-act="plCals">${p ? `<i class="pdot c-${p.color || 'ink'}"></i>` : icon('cal')}<span>${esc(calName())}</span>${icon('down')}</button>
           <div class="pl-fs" role="group" aria-label="Размер текста"><button data-act="plFs" data-k="-1" title="Текст мельче" ${fsI === 0 ? 'disabled' : ''}>A</button><button data-act="plFs" data-k="1" title="Текст крупнее" ${fsI === FS.length - 1 ? 'disabled' : ''}>A</button></div>
@@ -263,7 +289,7 @@ function plannerContent(arg){
           <button class="icon-btn dark" data-act="plShift" data-k="1" aria-label="Вперёд">${icon('right')}</button>
         </div>
       </header>
-      ${month ? monthView() : weekView()}
+      ${month ? monthView(day) : weekView(day)}
     </div>`;
 }
 
@@ -357,7 +383,7 @@ function addFrom(inp, again){
   B.render(true);
   if (adding != null){ const i = B.$('.pl-in'); if (i) i.focus({preventScroll: true}); }
 }
-B.acts.plAdd = el => { adding = el.dataset.d; B.render(true); };
+B.acts.plAdd = el => { adding = el.dataset.d; selectPlannerDay(adding); B.render(true); };
 /* полноэкранный планер на компьютере: левое меню прячется, неделя и месяц занимают всю ширину */
 const LS_FULL = 'bamboo-planner-full';
 try { B.plWide = localStorage.getItem(LS_FULL) === '1'; } catch (e) { B.plWide = false; }
@@ -371,16 +397,21 @@ function navigateView(view){
   const hash = '#/tasks/' + view;
   if (location.hash === hash) B.render(true); else location.hash = hash;
 }
-B.acts.plAddDay = el => { anchor = B.weekStart(el.dataset.d); adding = el.dataset.d; navigateView('week'); };
-B.acts.plGoWeek = el => { anchor = B.weekStart(el.dataset.d); navigateView('week'); };
+B.acts.plAddDay = el => { adding = el.dataset.d; selectPlannerDay(adding); navigateView('week'); };
+B.acts.plGoWeek = el => { selectPlannerDay(el.dataset.d); navigateView('week'); };
+B.acts.plSelectDay = el => {
+  const day = el.dataset.d;
+  selectPlannerDay(day); B.render(true);
+  B.$(`.pl-day-select[data-d="${day}"]`)?.focus({preventScroll:true});
+};
 B.acts.plView = el => navigateView(el.dataset.v);
 B.acts.poolToggle = () => { poolOpen = !poolOpen; B.render(true); };
-B.acts.openWeekPool = () => { poolOpen = true; anchor = null; S.cal = 'all'; navigateView('week'); };
-B.acts.plToday = () => { anchor = null; B.render(true); };
+B.acts.openWeekPool = () => { poolOpen = true; selectPlannerDay(B.today()); S.cal = 'all'; navigateView('week'); };
+B.acts.plToday = () => { selectPlannerDay(B.today()); B.render(true); };
 B.acts.plShift = el => {
-  const k = +el.dataset.k, t = B.today();
-  if (S.view === 'month'){ const a = B.parse(anchor || t.slice(0, 8) + '01'); anchor = B.ymd(new Date(a.getFullYear(), a.getMonth() + k, 1, 12)); }
-  else anchor = B.add(anchor || B.weekStart(t), 7 * k);
+  const k = +el.dataset.k, day = selectedDay();
+  if (S.view === 'month') selectPlannerDay(B.addMonth(day,k));
+  else selectPlannerDay(B.add(day,7*k));
   B.render(true);
 };
 
@@ -531,7 +562,7 @@ function drop(st, target){
   if (was !== to) B.toast(to ? `Перенесено на ${B.fmtW(to)}` : 'Перенесено в «Когда-нибудь»', 1400);
 }
 /* перенос веба (вместе с ним сдвигается срок ДЗ) или только срока ДЗ */
-function moveShad(n, kind, to, slot, shiftHomework=true){
+function moveShad(n, kind, to, slot, shiftHomework=true, toast=true){
   const p = B.shad.plan.find(x => x.n === n); if (!p) return;
   const key = kind === 'web' ? 'w' : 'h', old = p[key];
   if (!old || (!slot && (key==='w'?p.wp:p.hp) && old.date===to)) return;
@@ -544,12 +575,13 @@ function moveShad(n, kind, to, slot, shiftHomework=true){
     if (p.h.endDate) patch.h.endDate=B.add(p.h.endDate,k);
   }
   B.setShadOver(n,patch);
+  if (!toast) return;
   if (slot?.from) B.toast(`${esc(p.code || 'ШАД')} · ${B.fmtW(to)}, ${slot.from}–${slot.to}`);
   else B.toast(`${esc(p.code || 'ШАД')} · ${B.fmtW(to)}`);
 }
-B.calendarMoveShad = (n,kind,start,end) => {
+B.calendarMoveShad = (n,kind,start,end,{toast=true}={}) => {
   const date=start.slice(0,10), from=start.slice(11);
-  moveShad(n,kind,date,{from,to:from?end.slice(11):'',endDate:from&&end.slice(0,10)!==date?end.slice(0,10):''},false);
+  moveShad(n,kind,date,{from,to:from?end.slice(11):'',endDate:from&&end.slice(0,10)!==date?end.slice(0,10):''},false,toast);
 };
 /* перенос с записью в историю: дело, переехавшее на более поздний день, считается переносом (без штрафа) */
 function moveTask(t, to, order, slot){

@@ -1,4 +1,5 @@
 """Exercise the distributed, signed APKs on the CI emulator when a release is staged."""
+import hashlib
 import json
 import re
 import subprocess
@@ -14,17 +15,26 @@ if feed["version"] != version:
 
 package = "org.biovision.zovlesa"
 target = releases / feed["url"].rsplit("/", 1)[1]
+assert target.name == f"Zov-Lesa-Android-{version}.apk"
+assert target.stat().st_size == feed["size"]
+assert hashlib.sha256(target.read_bytes()).hexdigest() == feed["sha256"]
 def numbers(path):
     return tuple(map(int, path.stem.removeprefix("Zov-Lesa-Android-").split(".")))
 
-previous = max((p for p in releases.glob("Zov-Lesa-Android-*.apk") if numbers(p) < numbers(target)), key=numbers)
+previous = sorted(
+    (p for p in releases.glob("Zov-Lesa-Android-*.apk") if numbers(p) < numbers(target)),
+    key=numbers,
+)[-2:]
+assert previous, "No earlier signed package to upgrade"
 def adb(*args):
     return subprocess.check_output(["adb", *map(str, args)], text=True)
 
-adb("uninstall", package)  # Remove only the instrumentation build on the disposable emulator.
-assert "Success" in adb("install", previous)
-assert "Success" in adb("install", "-r", target)
-info = adb("shell", "dumpsys", "package", package)
-assert f"versionName={version}" in info and f"versionCode={feed['build']} " in info
-assert "Status: ok" in adb("shell", "am", "start", "-W", "-n", package+"/.MainActivity")
-print(f"Verified in-place upgrade from {previous.name} to {target.name}")
+for old in previous:
+    adb("uninstall", package)  # Disposable emulator only; the upgrade below retains app data.
+    assert "Success" in adb("install", old)
+    assert "Status: ok" in adb("shell", "am", "start", "-W", "-n", package + "/.MainActivity")
+    assert "Success" in adb("install", "-r", target)
+    info = adb("shell", "dumpsys", "package", package)
+    assert f"versionName={version}" in info and f"versionCode={feed['build']} " in info
+    assert "Status: ok" in adb("shell", "am", "start", "-W", "-n", package + "/.MainActivity")
+    print(f"Verified in-place upgrade from {old.name} to {target.name}")

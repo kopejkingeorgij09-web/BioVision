@@ -12,7 +12,6 @@ const weekBuffer = 14;
 let dragging = false, redrawAfterInteraction = false, weekScrollTimer = 0, weekResize;
 const snap = n => Math.round(n / dragStep) * dragStep;
 const monthStart = d => d.slice(0,7) + '-01';
-const moveMonth = (d,n) => ymd(new Date(parse(d).getFullYear(),parse(d).getMonth()+n,1,12));
 const monthTitle = d => B.MONF[parse(d).getMonth()] + ' ' + d.slice(0,4);
 const labels = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
 const prefsKey = 'bamboo-calendar';
@@ -63,6 +62,7 @@ const ranges = () => {
 function taskItem(t,d,ghost=false){
   const start = t.time ? d+'T'+t.time : d;
   return {kind:'task', id:t.id, proj:projectOf(t), title:t.title, start, on:d, done:t.done, ghost,
+    keepDay:protectedEntry({...t,kind:'task'}),
     end:t.time ? C.at(d,C.minuteOf(start) + Math.max(dragStep,t.est || 30)) : add(d,1)};
 }
 const shadPart = part => part==='web' ? 'Вебинар' : 'ДЗ';
@@ -102,13 +102,17 @@ function shadPanel(){
 B.acts.acShadToggle=()=>{shadTrayOpen=!shadTrayOpen;B.render(true);};
 B.acts.acShadTab=el=>{shadTab=el.dataset.tab;B.render(true);};
 
-function itemsBetween(from,to){
-  const items = C.events().filter(e => visible(projectOf(e)) && (!C.isTask(e) || visible('@tasks'))).flatMap(e =>
-    C.occurrences(e,from,to).map(x => ({...x,kind:'event',calendarTask:C.isTask(x),
-      done:C.isTask(x) && C.done(x),proj:projectOf(x)})));
+function eventItem(e){
+  const calendarTask=C.isTask(e);
+  return {...e,kind:'event',calendarTask,done:calendarTask && C.done(e),proj:projectOf(e),keepDay:protectedEntry(e)};
+}
+function itemsBetween(from,to,{includeHidden=false}={}){
+  const shown=key=>includeHidden||visible(key);
+  const items = C.events().filter(e => shown(projectOf(e)) && (!C.isTask(e) || shown('@tasks'))).flatMap(e =>
+    C.occurrences(e,from,to).map(eventItem));
   const inView = e => e.start<add(to,1)&&e.end>(e.end.length===10?from:from+'T00:00');
   B.tasks().forEach(t => {
-    if (!C.validDate(t.due) || t.due > to || !visible(projectOf(t)) || !visible('@tasks')) return;
+    if (!C.validDate(t.due) || t.due > to || !shown(projectOf(t)) || !shown('@tasks')) return;
     const item=taskItem(t,t.due);
     if (inView(item)) items.push(item);
     if (!t.rep || t.done) return;
@@ -116,14 +120,14 @@ function itemsBetween(from,to){
       if (d>=from) items.push(taskItem(t,d,true));
     }
   });
-  if (visible('@shad')) for (const p of B.shad.plan){
+  if (shown('@shad')) for (const p of B.shad.plan){
     for(const [part,slot,placed] of [['web',p.w,p.wp],['hw',p.h,p.hp]]){
       if(!placed||!C.validDate(slot?.date))continue;
       const item=shadItem(p,part);
       if(inView(item))items.push(item);
     }
   }
-  if (visible('@phagi')) for (let d=from; d<=to; d=add(d,1)){
+  if (shown('@phagi')) for (let d=from; d<=to; d=add(d,1)){
     for (const it of B.phxOn(d).filter(x=>!x.shad||x.fix)){
       items.push({kind:'phagi',id:it.id,title:it.t,start:d,end:add(d,1),on:d,proj:'@phagi',done:it.done});
     }
@@ -160,8 +164,17 @@ B.acts.acToggleTask=async el=>{
   }
   C.toggle(item);
 };
+function itemAttrs(e){
+  return `data-k="${e.kind}" data-id="${esc(e.id)}" data-on="${esc(e.on)}" data-start="${e.start}" data-end="${e.end}" data-part="${esc(e.part || '')}"`;
+}
+function actionButton(e){
+  if(!itemAction(e))return '';
+  const label=esc('Действия · '+(e.title||'Без названия'));
+  return `<button type="button" class="ac-card-menu" data-act="acMenu" ${itemAttrs(e)}
+    aria-label="${label}" title="${label}" aria-haspopup="dialog">${icon('dots')}</button>`;
+}
 function chip(e,style='',segment=null){
-  const attrs = `data-k="${e.kind}" data-id="${esc(e.id)}" data-on="${esc(e.on)}" data-start="${e.start}" data-end="${e.end}" data-part="${esc(e.part || '')}"`;
+  const attrs = itemAttrs(e);
   const timed = !!segment;
   const title = esc(e.title || 'Без названия');
   const interval = timed ? `${e.start.slice(11)}–${e.end.slice(11)}` : '';
@@ -175,6 +188,7 @@ function chip(e,style='',segment=null){
     ${timed && movable && segment.last ? '<span class="ac-resize end" data-resize="end" aria-hidden="true"></span>' : ''}
     ${timed && movable && segment.first ? '<span class="ac-resize start" data-resize="start" aria-hidden="true"></span>' : ''}
     ${movable && (!timed || segment.first) ? '<span class="ac-grab" title="Перенести запись" aria-hidden="true">⠿</span>' : ''}
+    ${actionButton(e)}
   </div>`;
 }
 
@@ -233,7 +247,7 @@ function layoutTimed(items,d){
 function timeGrid(ds,byDay){
   return `<div class="ac-time" style="--ac-days:${ds.length}">
     <div class="ac-sticky">
-      <div class="ac-head"><span></span>${ds.map(d=>`<button data-act="acDay" data-d="${d}" class="${d===today()?'now':''}">
+      <div class="ac-head"><span></span>${ds.map(d=>`<button data-act="acDay" data-d="${d}" class="${d===today()?'now ':''}${d===date?'selected':''}" ${d===date?'aria-current="date"':''}>
         <span>${labels[B.wd(d)]}</span> <b>${+d.slice(8)}</b></button>`).join('')}</div>
       ${allDay(ds,byDay)}
     </div>
@@ -251,7 +265,7 @@ function monthView(ds,byDay){
   return `<div class="ac-month"><div class="ac-month-labels">${labels.map(l=>`<span>${l}</span>`).join('')}</div><div class="ac-month-days">
     ${ds.map(d=>{ const list=byDay.get(d)||[];
       return `<section class="ac-month-day ${d.slice(0,7)!==date.slice(0,7)?'other':''}" data-all="${d}">
-        <button data-act="acDay" data-d="${d}" class="${d===today()?'now':''}" aria-label="${esc(fmt(d))}">${+d.slice(8)}</button>
+        <button data-act="acDay" data-d="${d}" class="${d===today()?'now ':''}${d===date?'selected':''}" ${d===date?'aria-current="date"':''} aria-label="${esc(fmt(d))}">${+d.slice(8)}</button>
         ${list.slice(0,3).map(e=>chip(e)).join('')}
         ${list.length>3?`<button class="ac-more" data-act="acDay" data-d="${d}">Ещё ${list.length-3}</button>`:''}
       </section>`;
@@ -286,12 +300,15 @@ function render(){
     </div>
   </div>`;
 }
+function selectDate(d){
+  if(!C.validDate(d))return false;
+  if(d!==date){date=d; weekFrom=null; weekFraction=0;}
+  return true;
+}
 function change(d,m=mode,reset=false){
-  if (!C.validDate(d)) return;
-  if (m!=='week'||mode!=='week'||reset||!weekFrom||d<weekFrom||d>add(weekFrom,6)){
-    weekFrom=null; weekFraction=0;
-  }
-  date=d; mode=m;
+  if(!Object.hasOwn(MODES,m)||!selectDate(d))return;
+  if(mode!==m||reset){weekFrom=null; weekFraction=0;}
+  mode=m;
   if (reset){ scroll=null; scrollLeft=0; }
   savePrefs(); B.render(true);
 }
@@ -307,15 +324,16 @@ B.acts.acPick=el=>change(el.dataset.d,mode);
 B.acts.acDay=el=>change(el.dataset.d,'day',true);
 B.acts.acMonth=el=>change(el.dataset.d,'month',true);
 B.acts.acToday=()=>change(today(),mode,true);
-B.acts.acMiniMove=el=>change(moveMonth(date,+el.dataset.n));
+B.acts.acMiniMove=el=>change(B.addMonth(date,+el.dataset.n));
 B.acts.acShift=el=>{
   const n=+el.dataset.n;
   if(mode==='week'){
-    const d=add(weekFrom||B.weekStart(date),n*7);
-    if(!C.validDate(d))return;
-    date=weekFrom=d; weekFraction=0;
+    const next=add(date,n*7);
+    if(!C.validDate(next))return;
+    if(weekFrom)weekFrom=add(weekFrom,n*7);
+    date=next; weekFraction=0;
     B.render(true);
-  }else change(mode==='day'?add(date,n):moveMonth(date,n*(mode==='year'?12:1)));
+  }else change(mode==='day'?add(date,n):B.addMonth(date,n*(mode==='year'?12:1)));
 };
 B.inputs.acFilter=(el,e)=>{
   if(e.type!=='change')return;
@@ -364,6 +382,7 @@ function markDraft(e,task){
 }
 function editor(e, original=null, anchor=null, selected=false){
   const task=C.isTask(e);
+  const keepDay=original&&protectedEntry(original);
   editContext={e,original,task,selected,type:null};
   const r=e.repeat||{}, active=!!r.freq, spanStart=C.dateOf(e.start);
   const monthly = r.freq==='monthly'||r.freq==='yearly', pattern = r.days?.length&&monthly?'weekdays':'dates';
@@ -405,9 +424,12 @@ function editor(e, original=null, anchor=null, selected=false){
         `<div class="ac-attachment"><a href="${esc(f.data)}" download="${esc(f.name)}">${esc(f.name)}</a>
           <label><input type="checkbox" name="detach" value="${esc(f.id)}"> Убрать</label></div>`).join('')}
       <label class="field">Заметки<textarea name="notes" rows="2" maxlength="10000">${esc(e.notes||'')}</textarea></label>
+      ${keepDay?'<button type="button" class="btn danger ghost sm" data-act="acDelete">Удалить запись…</button>':''}
       </div></details>
       <p class="ac-error" role="alert" hidden></p>
-      <div class="row between">${original?`<div class="row"><button type="button" class="btn danger ghost sm" data-act="acDelete">Удалить</button><button type="button" class="btn ghost sm" data-act="acDuplicate">Дублировать</button></div>`:'<span></span>'}
+      <div class="row between">${original?`<div class="row">${keepDay
+        ? (allDayOf(e)?'':'<button type="button" class="btn ghost sm" data-act="acEditorUntime">Убрать время</button>')
+        : '<button type="button" class="btn danger ghost sm" data-act="acDelete">Удалить</button>'}<button type="button" class="btn ghost sm" data-act="acDuplicate">Дублировать</button></div>`:'<span></span>'}
         <button type="submit" class="btn primary">Сохранить</button></div>
     </form>`,()=>{
       editContext=null;
@@ -634,44 +656,105 @@ B.acts.acDelete=async()=>{
   B.closeSheet();B.toast(C.isTask(master)?'Задача удалена':'Событие удалено');
 };
 
-function moveToDayHeader(move){
-  B.historyStep(move);
+function expandDayHeader(){
   if ((mode==='day'||mode==='week') && !allExpanded){
     allExpanded=true;
     savePrefs();
   }
-  B.toast('Перенесено в «Весь день»');
 }
-function deleteCalendarItem(node){
-  const {kind,id,on,start,part}=fromNode(node);
-  const timed=start.length>10, end=add(on,1);
-  if(kind==='shad'){
-    if(timed) moveToDayHeader(()=>B.calendarMoveShad(Number(id),part,on,end));
-    return true;
-  }
+function protectedEntry(e){
+  return e.proj==='shad'||!!e.habitId||
+    ((e.kind==='task'||C.isTask(e))&&(e.activity==='gym'||C.isGym(e)));
+}
+function itemAction(e){
+  if(e.ghost||!['task','event','shad'].includes(e.kind))return '';
+  if(e.kind==='shad'||e.keepDay) return e.start.length>10?'untimed':'';
+  return 'delete';
+}
+function resolveItem({kind,id,on,start,end,part,ghost}){
+  if(ghost||!C.validDate(on))return null;
+  let view, record;
   if(kind==='task'){
-    const task=B.task(id);
-    if(!task || task.deleted || task.due!==on) return false;
-    if(task.proj==='shad'||task.habitId){
-      if(timed) moveToDayHeader(()=>B.calendarMoveTask(id,on,end));
-    }else{
-      B.historyStep(()=>{
-        B.delTask(id);
-        B.list('f_').filter(f=>f.task===id).forEach(f=>B.put('f_'+f.id,null));
-      });
-      B.toast('Задача удалена');
-    }
-    return true;
+    record=B.task(id);
+    if(record&&!record.deleted&&record.due===on) view=taskItem(record,on);
+  }else if(kind==='shad'&&(part==='web'||part==='hw')){
+    record=B.shad.plan.find(p=>p.n===Number(id));
+    const placed=part==='web'?record?.wp:record?.hp;
+    if(placed) view=shadItem(record,part);
+  }else if(kind==='event'){
+    record=get(id);
+    const found=record&&C.occurrences(record,on,on).find(e=>e.on===on);
+    if(found) view=eventItem(found);
   }
-  if(kind!=='event') return false;
-  const event=get(id);
-  if(!event || !C.occurrences(event,on,on).some(item=>item.on===on)) return false;
-  if(event.proj==='shad'||event.habitId||(C.isTask(event)&&(event.activity==='gym'||C.isGym(event)))){
-    if(timed) moveToDayHeader(()=>writeOccurrence(event,on,{...event,start:on,end},'one'));
-  }else{
-    B.historyStep(()=>deleteEvent(event,on,'one'));
-    B.toast(C.isTask(event)?'Задача удалена':'Событие удалено');
+  return view?.on===on&&view.start===start&&view.end===end ? {view,record} : null;
+}
+function moveItem(current,start,end){
+  const {view,record}=current;
+  if(view.kind==='shad') B.calendarMoveShad(Number(view.id),view.part,start,end,{toast:false});
+  else if(view.kind==='task') B.calendarMoveTask(view.id,start,end);
+  else {
+    const estimate=view.calendarTask&&view.start.length===16&&start.length===10
+      ? {planMinutes:C.span(view.start,view.end)} : {};
+    writeOccurrence(record,view.on,{...record,...estimate,start,end},'one');
   }
+}
+function planSlotEntry(item,start,end){
+  const current=resolveItem(item), on=current?.view.on;
+  if(!on||current.view.done||current.view.start!==on||current.view.end!==add(on,1))return null;
+  if(current.view.kind==='event'&&!current.view.calendarTask)return null;
+  if(!C.valid(start)||!C.valid(end)||start.length!==16||end.length!==16||
+    C.dateOf(start)!==on||end<=start||end>add(on,1)+'T00:00') return null;
+  return current;
+}
+function applyPlanSlot(item,start,end){
+  const current=planSlotEntry(item,start,end);
+  if(!current)return false;
+  moveItem(current,start,end);
+  return true;
+}
+function runItemAction(current){
+  const {view,record}=current, action=itemAction(view);
+  if(action==='untimed'){
+    expandDayHeader();
+    B.historyToast('Перенесено в «Весь день»',()=>moveItem(current,view.on,add(view.on,1)));
+  }else if(action==='delete'&&view.kind==='task'){
+    B.historyToast('Дело удалено',()=>B.removeCalendarTask(record));
+  }else if(action==='delete'){
+    B.historyToast(view.calendarTask?'Задача удалена':'Событие удалено',()=>deleteEvent(record,view.on,'one'));
+  }
+  return !!action;
+}
+B.acts.acMenu=el=>{
+  const current=resolveItem(fromNode(el));
+  const action=current&&itemAction(current.view);
+  if(!action)return;
+  const {view,record}=current, attrs=itemAttrs(view), remove=action==='delete';
+  const scope=record.repeat||record.rep ? '<p class="hint">Действие применяется к записи на '+fmt(view.on)+'.</p>' : '';
+  B.sheet(`<h2>${esc(view.title||'Без названия')}</h2>${scope}<div class="ac-card-actions">
+    <button type="button" class="btn ghost" data-act="acOpen" ${attrs} autofocus>${icon('cal')}Открыть</button>
+    <button type="button" class="btn ${remove?'danger':'primary'}" data-act="acMenuApply" ${attrs}>
+      ${icon(remove?'trash':'clock')}${remove?'Удалить':'Убрать время'}</button>
+  </div>`);
+};
+B.acts.acMenuApply=el=>{
+  const current=resolveItem(fromNode(el));
+  B.closeSheet();
+  if(!current||!runItemAction(current)) B.toast('Запись уже изменилась');
+};
+B.acts.acEditorUntime=()=>{
+  const {original,e}=editContext||{};
+  if(!original)return;
+  const on=e.on;
+  const saved=get(original.id)===original&&C.occurrences(original,on,on).find(item=>item.on===on);
+  const current=saved&&resolveItem({...saved,kind:'event'});
+  B.closeSheet();
+  if(!current||itemAction(current.view)!=='untimed') B.toast('Запись уже изменилась');
+  else runItemAction(current);
+};
+function deleteCalendarItem(node){
+  const current=resolveItem(fromNode(node));
+  if(!current)return false;
+  runItemAction(current);
   return true;
 }
 
@@ -797,7 +880,7 @@ addEventListener('focus',fireAlerts);
 
 const minuteAt=(col,y,end=false)=>B.clamp(snap((y-col.getBoundingClientRect().top)/col.offsetHeight*C.DAY),0,C.DAY-(end?0:dragStep));
 function rangePointer(e,root){
-  if((e.pointerType==='touch'&&!e.target.closest('.ac-resize,.ac-grab'))||e.button!==0||e.target.closest('.ac-check,a')) return;
+  if((e.pointerType==='touch'&&!e.target.closest('.ac-resize,.ac-grab'))||e.button!==0||e.target.closest('.ac-check,.ac-card-menu,a')) return;
   const col=e.target.closest('[data-col]'), all=e.target.closest('[data-all]');
   const card=e.target.closest('.ac-shad-card');
   if(!col&&!all&&!card) return;
@@ -959,7 +1042,10 @@ function mountWeekPan(root,sc){
     axis=head[0].previousElementSibling.getBoundingClientRect().width;
     // Берём координаты столбцов, поскольку браузеры округляют ширины сетки по-разному.
     offsets=head.map(el=>el.getBoundingClientRect().left-origin);
-    const index=diff(first,weekFrom||B.weekStart(date));
+    const monday=B.weekStart(date), mondayIndex=diff(first,monday);
+    const capacity=Math.max(1,Math.floor((viewport-axis+1)/cols[mondayIndex].offsetWidth));
+    const start=weekFrom||add(monday,Math.max(0,B.wd(date)-capacity+1));
+    const index=diff(first,start);
     const width=cols[index].getBoundingClientRect().width;
     sc.scrollLeft=Math.round(offsets[index]+weekFraction*width);
     left=sc.scrollLeft;
@@ -1064,7 +1150,9 @@ function openReminder(id,on){
   editor(x,e);
   return true;
 }
-B.calendarView={render,mount,unmount,itemsBetween,openReminder,calendarCheck,deferRender(){
+B.calendarView={render,mount,unmount,itemsBetween,openReminder,calendarCheck,actionButton,applyPlanSlot,
+  canApplyPlanSlot:(item,start,end)=>!!planSlotEntry(item,start,end),
+  selectedDate:()=>date,selectDate,deferRender(){
   if(!dragging&&!weekScrollTimer)return false;
   redrawAfterInteraction=true;
   return true;

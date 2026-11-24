@@ -97,16 +97,30 @@ B.list = prefix => { const out = []; for (const k in docs) if (k.startsWith(pref
 /* ---------- отмена и повтор (Cmd+Z / Cmd+Shift+Z) ----------
    Каждая запись помнит, каким документ был до и после. Изменения, сделанные подряд за 0,8 с, отменяются одним шагом. */
 const undoSt = [], redoSt = [];
-let replaying = false, lastRec = 0;
+let replaying = false, lastRec = 0, activeStep = null;
 function record(key, before, after){
   if (replaying) return;
   const now = Date.now(), cl = v => v == null ? null : JSON.parse(JSON.stringify(v));
-  let e = undoSt[undoSt.length - 1];
-  if (!e || now - lastRec > 800){ e = {items: {}}; undoSt.push(e); if (undoSt.length > 100) undoSt.shift(); }
+  let e = activeStep ? activeStep.entry : undoSt[undoSt.length - 1];
+  if (!e || (!activeStep && now - lastRec > 800)){
+    e = {items: {}};
+    if (activeStep) activeStep.entry = e;
+    undoSt.push(e);
+    if (undoSt.length > 100) undoSt.shift();
+  }
   if (!(key in e.items)) e.items[key] = {before: cl(before)};
   e.items[key].after = cl(after);
   lastRec = now; redoSt.length = 0;
 }
+B.historyStep = fn => {
+  if (activeStep) return fn();
+  activeStep = {};
+  try { return fn(); }
+  finally {
+    if (activeStep.entry) lastRec = 0;
+    activeStep = null;
+  }
+};
 function replay(e, which){
   replaying = true;
   try {

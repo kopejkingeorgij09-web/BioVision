@@ -773,6 +773,7 @@ document.addEventListener('mouseover', e => { const r = e.target.closest('[data-
 document.addEventListener('mouseleave', () => { hoverId = null; });
 document.addEventListener('keydown', e => {
   if ((e.key !== 'Delete' && e.key !== 'Backspace') || !target() || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.defaultPrevented || B.$('.page.ac')) return;
   const a = document.activeElement;
   if (a && (a.matches('input,textarea,select') || a.isContentEditable)) return;
   if (B.sheetOpen() || !B.$('#dlgScrim').hidden) return;

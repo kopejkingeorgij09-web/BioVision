@@ -611,6 +611,18 @@ B.acts.acDuplicate=()=>{
   const e=ctx.e;
   editor({...newDraft(e.start,e.end),title:e.title,proj:e.proj,type:e.type,activity:e.activity,habitId:e.habitId,notes:e.notes,location:e.location,url:e.url,alerts:e.alerts,attachments:e.attachments});
 };
+function deleteEvent(master,on,scope){
+  const first=C.dateOf(master.start);
+  if(master.repeat && scope==='one') save({...master,skip:[...new Set([...(master.skip||[]),on])]});
+  else {
+    const future=master.repeat&&scope==='future'&&on>first;
+    const related=C.events().filter(x=>x.seriesId===master.id&&(!future||x.seriesOn>=on));
+    if(future) save(C.previousOccurrences(master,on));
+    else B.put('e_'+master.id,null);
+    related.forEach(x=>B.put('e_'+x.id,null));
+    pruneFiles((master.attachments||[]).concat(related.flatMap(x=>x.attachments||[])));
+  }
+}
 B.acts.acDelete=async()=>{
   const {e,original}=editContext||{};
   if(!original) return;
@@ -618,18 +630,50 @@ B.acts.acDelete=async()=>{
   if(!await B.confirm('Удалить «'+esc(e.title)+'»?', 'Удалить',true)) return;
   const master=get(original.id);
   if(!master) return B.closeSheet();
-  const first=C.dateOf(master.start);
-  if(master.repeat && scope==='one') save({...master,skip:[...new Set([...(master.skip||[]),e.on])]});
-  else {
-    const future=master.repeat&&scope==='future'&&e.on>first;
-    const related=C.events().filter(x=>x.seriesId===master.id&&(!future||x.seriesOn>=e.on));
-    if(future) save(C.previousOccurrences(master,e.on));
-    else B.put('e_'+master.id,null);
-    related.forEach(x=>B.put('e_'+x.id,null));
-    pruneFiles((master.attachments||[]).concat(related.flatMap(x=>x.attachments||[])));
-  }
+  B.historyStep(()=>deleteEvent(master,e.on,scope));
   B.closeSheet();B.toast(C.isTask(master)?'Задача удалена':'Событие удалено');
 };
+
+function moveToDayHeader(move){
+  B.historyStep(move);
+  if ((mode==='day'||mode==='week') && !allExpanded){
+    allExpanded=true;
+    savePrefs();
+  }
+  B.toast('Перенесено в «Весь день»');
+}
+function deleteCalendarItem(node){
+  const {kind,id,on,start,part}=fromNode(node);
+  const timed=start.length>10, end=add(on,1);
+  if(kind==='shad'){
+    if(timed) moveToDayHeader(()=>B.calendarMoveShad(Number(id),part,on,end));
+    return true;
+  }
+  if(kind==='task'){
+    const task=B.task(id);
+    if(!task || task.deleted || task.due!==on) return false;
+    if(task.proj==='shad'||task.habitId){
+      if(timed) moveToDayHeader(()=>B.calendarMoveTask(id,on,end));
+    }else{
+      B.historyStep(()=>{
+        B.delTask(id);
+        B.list('f_').filter(f=>f.task===id).forEach(f=>B.put('f_'+f.id,null));
+      });
+      B.toast('Задача удалена');
+    }
+    return true;
+  }
+  if(kind!=='event') return false;
+  const event=get(id);
+  if(!event || !C.occurrences(event,on,on).some(item=>item.on===on)) return false;
+  if(event.proj==='shad'||event.habitId||(C.isTask(event)&&(event.activity==='gym'||C.isGym(event)))){
+    if(timed) moveToDayHeader(()=>writeOccurrence(event,on,{...event,start:on,end},'one'));
+  }else{
+    B.historyStep(()=>deleteEvent(event,on,'one'));
+    B.toast(C.isTask(event)?'Задача удалена':'Событие удалено');
+  }
+  return true;
+}
 
 function searchResults(query){
   const q=query.trim().toLocaleLowerCase('ru');
@@ -995,8 +1039,17 @@ function mount(){
   });
 }
 document.addEventListener('keydown',e=>{
-  if(!B.$('.ac')||B.sheetOpen()||!B.$('#dlgScrim').hidden||e.target.closest('input,select,textarea,[contenteditable]'))return;
+  const root=B.$('.ac');
+  if(!root||e.defaultPrevented||B.sheetOpen()||!B.$('#dlgScrim').hidden||e.target.closest('input,select,textarea')||e.target.isContentEditable)return;
   if(e.metaKey||e.ctrlKey||e.altKey||e.shiftKey)return;
+  if(e.key==='Delete'||e.key==='Backspace'){
+    if(e.repeat||dragging) return;
+    const item=root.querySelector('.ac-item:hover')||e.target.closest('.ac-item');
+    if(item && root.contains(item) && !item.classList.contains('ghost') && deleteCalendarItem(item)){
+      e.preventDefault(); e.stopImmediatePropagation();
+    }
+    return;
+  }
   const act={ArrowLeft:()=>B.acts.acShift({dataset:{n:'-1'}}),ArrowRight:()=>B.acts.acShift({dataset:{n:'1'}}),
     KeyT:B.acts.acToday,KeyN:B.acts.acAdd,Slash:B.acts.acSearch}[e.code];
   if(act){e.preventDefault();e.stopImmediatePropagation();act();}

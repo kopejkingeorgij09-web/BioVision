@@ -151,3 +151,26 @@ test('completing a regular calendar task leaves the workout tracker alone', () =
   B.calData.toggle(task);
   assert.equal(B.calData.done(task),false);
 });
+
+test('a calendar entry linked to a daily habit shares the tracker mark for its date', () => {
+  const {B, page} = planner();
+  page.TextEncoder = TextEncoder;
+  vm.runInContext(fs.readFileSync('bamboo/js/calendar-data.js', 'utf8'), page);
+  const C = B.calData, habit = {id:'python',name:'Python · 30–40 мин',created:'2026-11-23'};
+  const monday = {id:'python-mon', habitId:habit.id, title:'Python', type:'task', on:'2026-11-23'};
+  const tuesday = {...monday,id:'python-tue',on:'2026-11-24'};
+  B.put('h_python',habit);
+  B.editDay(monday.on,day=>{day.h = {english:1};});
+  C.toggle(monday);
+  assert.equal(C.done(monday),true);
+  assert.equal(C.done(tuesday),false);
+  assert.equal(B.habitVal(habit,monday.on),1);
+  assert.equal(B.list('ec_').length,0);
+
+  B.toggleHabitMark(habit.id,tuesday.on);
+  assert.equal(C.done(tuesday),true);
+  C.toggle(monday);
+  assert.equal(B.habitVal(habit,monday.on),0);
+  assert.equal(B.day(monday.on).h.english,1);
+  assert.equal(C.done(tuesday),true);
+});

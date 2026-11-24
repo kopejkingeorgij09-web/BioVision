@@ -454,7 +454,7 @@ function draftFrom(form,ctx){
     month:freq==='yearly'&&monthDays.length+weekDays.length ? Number(start.slice(5,7)) : 0}:null;
   const activity = ctx.e.activity === 'gym' || C.isGym(ctx.e) || C.isGym(draft) ? 'gym' : '';
   const type = ctx.type || ctx.e.type || (activity ? 'task' : 'event');
-  return {...draft,type,activity,repeat:ctx.original&&!ctx.repeatEdited?ctx.e.repeat||null:repeat,location:f.place.value.trim(),url:f.url.value.trim(),
+  return {...draft,type,activity,habitId:ctx.e.habitId||'',repeat:ctx.original&&!ctx.repeatEdited?ctx.e.repeat||null:repeat,location:f.place.value.trim(),url:f.url.value.trim(),
     alerts:f.androidAlert?B.androidReminders.eventAlerts(f.androidAlert,ctx.e):ctx.e.alerts||[]};
 }
 function writeOccurrence(original, on, draft, scope){
@@ -498,7 +498,7 @@ async function submitEditor(form){
   submit.disabled=true;
   try {
     const draft=draftFrom(form,ctx), d=C.dateOf(draft.start);
-    const asPlannerTask=!ctx.original && draft.type==='task' && !draft.activity &&
+    const asPlannerTask=!ctx.original && draft.type==='task' && !draft.activity && !draft.habitId &&
       !draft.repeat && !draft.location && !draft.url && !draft.alerts.length &&
       !ctx.e.attachments?.length && !form.elements.files.files.length &&
       (!allDayOf(draft) || draft.end===add(d,1));
@@ -609,7 +609,7 @@ function shadEditor(id,part){
 B.acts.acDuplicate=()=>{
   const ctx=editContext; if(!ctx) return;
   const e=ctx.e;
-  editor({...newDraft(e.start,e.end),title:e.title,proj:e.proj,type:e.type,activity:e.activity,notes:e.notes,location:e.location,url:e.url,alerts:e.alerts,attachments:e.attachments});
+  editor({...newDraft(e.start,e.end),title:e.title,proj:e.proj,type:e.type,activity:e.activity,habitId:e.habitId,notes:e.notes,location:e.location,url:e.url,alerts:e.alerts,attachments:e.attachments});
 };
 B.acts.acDelete=async()=>{
   const {e,original}=editContext||{};

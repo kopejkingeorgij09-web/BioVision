@@ -200,9 +200,7 @@ document.addEventListener('contextmenu', e => { if (e.target.closest('.hchip,.ha
 B.acts.habitToggle = el => {
   if (lpDone){ lpDone = false; return; }
   const id = el.dataset.id, date = el.dataset.d;
-  let on = false;
-  B.editDay(date, d => { d.h = Object.assign({}, d.h); if (d.h[id]) delete d.h[id]; else { d.h[id] = 1; on = true; } });
-  if (on) B.xpToast(B.XP.habit, 'привычка'); else B.toast('Отметка снята');
+  if (B.toggleHabitMark(id, date)) B.xpToast(B.XP.habit, 'привычка'); else B.toast('Отметка снята');
 };
 
 function habitsCard(c){

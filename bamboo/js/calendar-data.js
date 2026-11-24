@@ -24,8 +24,19 @@ function completionKeys(id, on){
   return ['ec_' + key, 'w_' + key];
 }
 const workout = e => B.get('w_' + completionId(e.id, e.on));
-const done = e => completionKeys(e.id, e.on).some(key => B.get(key));
+const linkedHabit = e => e.habitId && B.get('h_' + e.habitId);
+function done(e){
+  if (!e.habitId) return completionKeys(e.id, e.on).some(key => B.get(key));
+  const habit = linkedHabit(e);
+  return !!habit && B.habitDone(habit, e.on);
+}
 function toggle(e){
+  if (e.habitId){
+    const habit = linkedHabit(e);
+    if (habit && !habit.arch && !habit.auto && e.on >= (habit.created || ''))
+      B.toggleHabitMark(habit.id, e.on);
+    return;
+  }
   const keys = completionKeys(e.id, e.on);
   const saved = keys.filter(key => B.get(key));
   if (saved.length){

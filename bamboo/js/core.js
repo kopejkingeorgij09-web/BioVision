@@ -501,6 +501,15 @@ B.dayDates = () => Object.keys(docs).filter(k => k.startsWith('d_')).map(k => k.
 B.datesWith = id => Object.keys(docs).filter(k => k.startsWith('d_') && (docs[k].top || []).includes(id)).map(k => k.slice(2));
 B.saveDay = (date, d, quiet) => B.put('d_' + date, d, quiet);
 B.editDay = (date, fn, quiet) => { const d = JSON.parse(JSON.stringify(B.day(date))); fn(d); B.saveDay(date, d, quiet); };
+B.toggleHabitMark = (id, date) => {
+  const on = !B.day(date).h?.[id];
+  B.editDay(date, d => {
+    d.h = {...d.h};
+    if (on) d.h[id] = 1;
+    else delete d.h[id];
+  });
+  return on;
+};
 B.habits = () => B.list('h_').filter(h => !h.arch).sort((a, b) => (a.order || 0) - (b.order || 0));
 B.habitPins = () => {
   const ids = B.get('habitPins')?.ids;

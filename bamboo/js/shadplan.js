@@ -41,7 +41,7 @@ function row(p){
 }
 
 B.shadPlanView = () => {
-  const plan = B.shad.plan.filter(p => p.w && p.w.date).slice().sort((a, b) => a.wk.localeCompare(b.wk) || a.n - b.n);
+  const plan = B.shad.plan.filter(p => p.w && p.w.date).slice().sort((a, b) => a.w.date.localeCompare(b.w.date));
   if (!plan.length) return `<section class="card sp"><h2>${icon('chart')}План ШАДа</h2><p class="muted">План ещё не загрузился. Он берётся из трекера ШАДа, нужен интернет при первом открытии.</p></section>`;
   const done = plan.filter(p => B.shadStage(p.n) >= 4).length, lateN = plan.filter(p => lateOf(p)).length;
   const t = B.today(), next = plan.find(p => B.shadStage(p.n) < 4);

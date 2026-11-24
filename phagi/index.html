@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <script src="phage-mascot.js?v=1"></script>
-<script src="companion.js?v=1"></script>
+<script src="companion.js?v=2"></script>
 <script src="cloud.js?v=17"></script>
 <script src="forest/progress.js?v=1"></script>
 <script src="forest/scene.js?v=1"></script>
@@ -1345,7 +1345,7 @@ nav button{transition:background .15s,color .15s}
 <link rel="stylesheet" href="tracker.css?v=1">
 <link rel="stylesheet" href="month-calendar.css?v=1">
 <link rel="stylesheet" href="phage-mascot.css?v=1">
-<link rel="stylesheet" href="companion.css?v=1">
+<link rel="stylesheet" href="companion.css?v=2">
 </head>
 <body>
 <header class="top">
@@ -1368,7 +1368,13 @@ nav button{transition:background .15s,color .15s}
 <dialog id="vw" aria-label="Просмотр файла"><div class="vw-h"><b id="vwname" class="grow"></b><button class="icon" data-vw="out" aria-label="Уменьшить">−</button><button class="icon" data-vw="in" aria-label="Увеличить">+</button><button class="btn ghost sm" data-vw="dl" id="vwdl" hidden>Скачать</button><button class="btn sm" data-vw="close">Закрыть</button></div><div id="vwbody"></div></dialog>
 <dialog id="sr" aria-label="Поиск"><div class="sr-h"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg><input id="srq" type="search" enterkeyhint="search" autocomplete="off" spellcheck="false" placeholder="Карточки, задания, файлы, занятия…" aria-label="Что найти"><button class="sr-x" data-sr="clear" aria-label="Стереть" hidden>×</button><button class="btn ghost sm" data-sr="close">Закрыть</button></div><div id="srbody"></div></dialog>
 <button id="phage-fab" type="button" hidden aria-label="Напоминания бактериофага" aria-controls="phage-panel" aria-expanded="false"></button>
-<section id="phage-panel" hidden aria-label="Напоминания бактериофага"></section>
+<section id="phage-panel" hidden aria-label="Напоминания бактериофага">
+  <button id="phage-portrait" class="phage-portrait" type="button" aria-label="Свернуть напоминания" aria-controls="phage-note" aria-expanded="false">
+    <span class="phage-burst" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+    <span class="phage-figure" aria-hidden="true"></span>
+  </button>
+  <div id="phage-note" class="phage-note"></div>
+</section>
 <div id="toast" role="status"></div>
 <div id="forest-corner" class="forest-corner" hidden>
   <div class="forest-notice" role="status" aria-atomic="true"></div>

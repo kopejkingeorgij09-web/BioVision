@@ -106,6 +106,25 @@ function eventItem(e){
   const calendarTask=C.isTask(e);
   return {...e,kind:'event',calendarTask,done:calendarTask && C.done(e),proj:projectOf(e),keepDay:protectedEntry(e)};
 }
+function plannerOrigin(e){
+  if(e.plannerOrigin) return e.plannerOrigin;
+  if(e.icsUid || /^mirea(?:[-_:]|$)/i.test(e.id) || /^РТУ МИРЭА\s*·/im.test(e.notes || '')) return 'import';
+  return 'personal';
+}
+function plannerEventDays(from,to,accept){
+  const events=C.events().filter(e=>plannerOrigin(e)==='personal' && accept({proj:projectOf(e)}));
+  const entries=events.flatMap(e=>C.occurrences(e,from,to).map(eventItem));
+  entries.sort((a,b)=>a.start.localeCompare(b.start)||a.title.localeCompare(b.title,'ru'));
+  return eachDay(entries,from,to);
+}
+function plannerRow(e,day){
+  const time=e.start.startsWith(day+'T')?e.start.slice(11):'';
+  return `<div class="pl-t ${e.done?'done':''}">
+    <button class="pl-open" data-act="acOpen" ${itemAttrs(e)} title="${esc(e.title)}">
+      <i class="pdot c-${esc(color(e.proj))}"></i>${time?`<span class="pl-time">${time}</span>`:''}<span class="pl-tt">${esc(e.title)}</span>
+    </button>${e.calendarTask?calendarCheck(e):''}
+  </div>`;
+}
 function itemsBetween(from,to,{includeHidden=false}={}){
   const shown=key=>includeHidden||visible(key);
   const items = C.events().filter(e => shown(projectOf(e)) && (!C.isTask(e) || shown('@tasks'))).flatMap(e =>
@@ -450,7 +469,7 @@ function editor(e, original=null, selected=false){
 function draftFrom(form,ctx){
   const f=form.elements, start=f.startAt?.value??ctx.e.start, end=f.endAt?.value??ctx.e.end;
   if (!C.valid(start)||!C.valid(end)||end<=start) throw Error('Конец должен быть позже начала.');
-  const draft={title:f.title.value.trim(),proj:f.project.value||'inbox',start,end,notes:f.notes.value.trim()};
+  const draft={plannerOrigin:ctx.original?plannerOrigin(ctx.original):'personal',title:f.title.value.trim(),proj:f.project.value||'inbox',start,end,notes:f.notes.value.trim()};
   if (!draft.title) throw Error('Введи название.');
   const freq=f.frequency.value, until=f.repeatEnd.value==='until'?f.until.value:'';
   if (freq && f.repeatEnd.value==='until' && (!C.validDate(until)||until<C.dateOf(start))) throw Error('Выбери дату окончания повтора после начала.');
@@ -817,7 +836,7 @@ B.acts.acImport=()=>{
       if(e.icsUid) ids.add(e.icsUid);
       return true;
     });
-    items.forEach(e=>save({...e,id:B.uid(),proj}));
+    items.forEach(e=>save({...e,id:B.uid(),proj,plannerOrigin:'import'}));
     B.closeSheet();
     if(items.length) change(C.dateOf(items[0].start),'month',true);
     B.toast(`Добавлено: ${items.length}. Уже в календаре: ${result.items.length-items.length}.`);
@@ -1138,7 +1157,7 @@ function openReminder(id,on){
   editor(x,e);
   return true;
 }
-B.calendarView={render,mount,unmount,itemsBetween,openReminder,calendarCheck,actionButton,applyPlanSlot,
+B.calendarView={render,mount,unmount,itemsBetween,plannerEventDays,plannerRow,openReminder,calendarCheck,actionButton,applyPlanSlot,
   canApplyPlanSlot:(item,start,end)=>!!planSlotEntry(item,start,end),
   selectedDate:()=>date,selectDate,deferRender(){
   if(!dragging&&!weekScrollTimer)return false;

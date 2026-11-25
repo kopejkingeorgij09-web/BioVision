@@ -148,9 +148,10 @@ B.phRow = it => `<div class="pl-ph ${it.k} ${it.role || ''} ${it.done ? 'ok' : '
     <a class="pl-open" href="${B.PHAGI}" target="_blank" rel="noopener" title="${esc(it.t)} · открыть на Фагах">${it.from ? `<span class="pl-time">${it.from}</span>` : ''}${it.k === 'dl' ? `<span class="pl-phk">${it.fix ? 'РнО' : 'ДЗ'}</span>` : ''}<span class="pl-tt">${esc(it.t)}</span></a>
     ${it.k === 'dl' ? `<span class="pl-phs" title="${it.done ? (it.checked ? 'Сдано и проверено' : 'Сдано') : 'Не сдано'}">${it.done ? (it.checked ? '✓✓' : '✓') : ''}</span>` : `<span class="pl-phs" title="${it.role === 'teach' ? 'Урок с ученицей' : 'Занятие'} на Фагах">${it.role === 'teach' ? '👩‍🏫' : '📘'}</span>`}
   </div>`;
-function dayList(date, list, min, gh){
+function dayList(date, list, min, gh, events=[]){
   const shad = S.cal === 'all' || S.cal === 'shad' ? (date ? B.shadOn(date) : B.shadSomeday()) : [], ph = date ? phList(date) : [];
   const rows = [
+    ...events.map(e=>({time:e.start.startsWith(date+'T')?e.start.slice(11):'',html:B.calendarView.plannerRow(e,date)})),
     ...ph.filter(x => x.k === 'ev').map(x => ({time: x.from, html: B.phRow(x)})),
     ...list.map(t => ({time: t.time, html: row(t)})),
     ...(gh || []).map(t => ({time: t.time, html: row(t, {ghost: true})})),
@@ -168,34 +169,35 @@ function dayList(date, list, min, gh){
 /* нагрузка дня: невыполненные дела, повторы и вебы ШАДа. Видна только в загруженные дни (сегодня и дальше):
    линия под датой становится янтарной (от 6) или красной (от 9), рядом число. В обычные дни ничего не добавляется. */
 const BUSY = 6, OVER = 9;
-function loadOf(date, gh){
+function loadOf(date, gh, events=[]){
   if (date < B.today()) return {n: 0, cls: ''};
   const shad = S.cal === 'all' || S.cal === 'shad' ? B.shadOn(date).filter(it => B.shadStage(it.p.n) < it.need).length : 0;
   const ph = phList(date).filter(x => !x.done && !x.cancel).length;   // уроки и несданные ДЗ с «Фагов» тоже нагружают день
-  const n = onDate(date).filter(x => !x.done).length + ((gh && gh[date]) || []).length + shad + ph;
+  const n = onDate(date).filter(x => !x.done).length + ((gh && gh[date]) || []).length + shad + ph + events.filter(e=>!e.done).length;
   return {n, cls: n >= OVER ? 'over' : n >= BUSY ? 'busy' : ''};
 }
-function dayCol(date, min, gh, activeDay){
+function dayCol(date, min, gh, activeDay, events=[]){
   if (innerWidth < 760) min = 2;
-  const t = B.today(), cls = date === t ? 'now' : date < t ? 'was' : '', ld = loadOf(date, gh);
+  const t = B.today(), cls = date === t ? 'now' : date < t ? 'was' : '', ld = loadOf(date, gh, events);
   return `<section class="pl-day ${cls} ${ld.cls}" data-day="${date}">
     <header class="pl-dh" ${ld.cls ? `title="${ld.n} ${B.plural(ld.n, 'дело', 'дела', 'дел')} на день${ld.cls === 'over' ? ', перегруз' : ''}"` : ''}>
       <button type="button" class="pl-day-select" data-act="plSelectDay" data-d="${date}" aria-label="Выбрать ${B.fmtW(date)}" aria-pressed="${activeDay===date}">
         <b>${dLabel(date)}</b><span>${ld.cls ? `<i class="pl-load">${ld.n}</i>` : ''}${date === t ? 'Сегодня' : WDS[B.wd(date)]}</span>
       </button></header>
-    ${dayList(date, onDate(date), min, gh[date])}
+    ${dayList(date, onDate(date), min, gh[date], events)}
   </section>`;
 }
 
 function weekView(activeDay){
   const ws = B.weekStart(activeDay), days = Array.from({length: 7}, (_, i) => B.add(ws, i));
   const gh = ghosts(days[0], days[6]);
+  const events=B.calendarView?.plannerEventDays?.(days[0],days[6],inCal) || new Map();
   const withShad = (S.cal === 'all' || S.cal === 'shad') && B.shad.plan.length, cols = withShad ? 2 : 3;
   const sd = someday(), count = sd.length + (withShad ? B.shadSomeday().length : 0), rows = innerWidth < 760 ? count + 2 : Math.max(4, Math.ceil((count + 1) / cols) + 1);
   const mobilePool = withShad && innerWidth < 760;
   return `${mobilePool ? shadBox(ws,true) : ''}<div class="pl-week">
-      ${days.slice(0, 5).map(d => dayCol(d, 9, gh, activeDay)).join('')}
-      <div class="pl-wkend">${dayCol(days[5], 4, gh, activeDay)}${dayCol(days[6], 4, gh, activeDay)}</div>
+      ${days.slice(0, 5).map(d => dayCol(d, 9, gh, activeDay,events.get(d))).join('')}
+      <div class="pl-wkend">${dayCol(days[5], 4, gh, activeDay,events.get(days[5]))}${dayCol(days[6], 4, gh, activeDay,events.get(days[6]))}</div>
     </div>
     <div class="pl-bottom ${withShad ? 'two' : ''}">
       <section class="pl-some">
@@ -228,16 +230,20 @@ function monthView(activeDay){
   const last = B.ymd(new Date(a.getFullYear(), a.getMonth() + 1, 0, 12));
   const from = B.weekStart(first), to = B.add(B.weekStart(last), 6), t = B.today(), cw = B.weekStart(t);
   const gh = ghosts(from, to), withShad = (S.cal === 'all' || S.cal === 'shad') && B.shad.plan.length;
+  const eventDays=B.calendarView?.plannerEventDays?.(from,to,inCal) || new Map();
   let cells = '';
   for (let d = from; d <= to; d = B.add(d, 1)){
     // в прошедших днях сделанные задачи сворачиваются в «✓ N», чтобы зачёркнутое не занимало клетку
     const all0 = onDate(d), past = d < t, list = past ? all0.filter(x => !x.done) : all0, doneN = all0.length - list.length;
     const g = gh[d] || [], shad = S.cal === 'all' || S.cal === 'shad' ? B.shadOn(d) : [], ph = phList(d);
-    const all = list.length + g.length + shad.length + ph.length, show = monthCap();
+    const events=eventDays.get(d)||[];
+    const rows=[...list.map(x=>row(x,{dot:false})),...g.map(x=>row(x,{ghost:true,dot:false})),
+      ...events.map(e=>B.calendarView.plannerRow(e,d)),...shad.map(shadRow),...ph.map(B.phRow)];
+    const all=rows.length, show=monthCap();
     const out = d.slice(0, 7) !== first.slice(0, 7), ws = B.weekStart(d);
     cells += `<div class="pl-mc ${d === t ? 'now' : ''} ${out ? 'out' : ''} ${past ? 'was' : ''} ${ws === cw ? 'cw' : ''} ${B.wd(d) > 4 ? 'we' : ''}">
-      ${(() => { const ld = loadOf(d, gh); return `<button class="pl-md ${ld.cls}" data-act="plGoWeek" data-d="${d}" ${d===activeDay?'aria-current="date"':''} title="Открыть неделю${ld.cls ? ` · ${ld.n} ${B.plural(ld.n, 'дело', 'дела', 'дел')}` : ''}">${B.parse(d).getDate()}</button>`; })()}
-      <div class="pl-list" data-d="${d}">${list.slice(0, show).map(x => row(x, {dot: false})).join('')}${g.slice(0, Math.max(0, show - list.length)).map(x => row(x, {ghost: true, dot: false})).join('')}${all <= show ? shad.slice(0, show - list.length - g.length).map(shadRow).join('') + ph.map(B.phRow).join('') : ''}
+      ${(() => { const ld = loadOf(d, gh, events); return `<button class="pl-md ${ld.cls}" data-act="plGoWeek" data-d="${d}" ${d===activeDay?'aria-current="date"':''} title="Открыть неделю${ld.cls ? ` · ${ld.n} ${B.plural(ld.n, 'дело', 'дела', 'дел')}` : ''}">${B.parse(d).getDate()}</button>`; })()}
+      <div class="pl-list" data-d="${d}">${rows.slice(0,show).join('')}
         ${all > show ? `<button class="pl-more" data-act="plGoWeek" data-d="${d}">ещё ${all - show}</button>` : ''}
         ${doneN ? `<button class="pl-more pl-donen" data-act="plGoWeek" data-d="${d}" title="Сделано за день">✓ ${doneN}</button>` : ''}
         ${adding === d ? `<div class="pl-add"><input class="pl-in" data-d="${d}" placeholder="Новая задача" autocomplete="off" enterkeyhint="done"></div>`

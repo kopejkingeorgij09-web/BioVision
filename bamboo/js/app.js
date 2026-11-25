@@ -2,12 +2,12 @@
 (function(){
 const {esc, icon} = B;
 const NAV = [
-  ['today', 'Сегодня', 'today'], ['tasks', 'Задачи', 'list'], ['habits', 'Привычки', 'habit'], ['stats', 'Итоги', 'chart'],
+  ['today', 'Сегодня', 'today'], ['tasks', 'Задачи', 'list'], ['board', 'Доска', 'board'], ['habits', 'Привычки', 'habit'], ['stats', 'Итоги', 'chart'],
   ['read', 'Чтение', 'book'], ['forest', 'Лес', 'tree'],
   ['search', 'Поиск', 'search'], ['settings', 'Настройки', 'gear']
 ];
 const FOOT = ['search', 'settings'];
-const BOTTOM = ['today', 'tasks', 'habits', 'read'];
+const BOTTOM = ['today', 'tasks', 'board', 'habits', 'read'];
 
 /* ---------- тема ---------- */
 const LS_THEME = 'bamboo-theme';
@@ -76,6 +76,7 @@ B.render = force => {
   const r = route(), key = r.v + '/' + r.arg, same = key === lastKey, y = scrollY;
   const view = B.views[r.v];
   B.calendarView?.unmount();
+  B.views.board?.unmount();
   try { main.innerHTML = view.render(r.arg); }
   catch (e) { console.error(e); main.innerHTML = `<div class="page"><section class="card"><h2>Что-то сломалось</h2><pre>${esc(e.stack || e)}</pre></section></div>`; }
   if (view.mount) try { view.mount(r.arg); } catch (e) { console.error(e); }
@@ -152,7 +153,7 @@ B.views.settings = {
         <div class="col">
           <section class="card">
             <h2>${icon('copy')}Резервная копия</h2>
-            <p class="muted">Задачи, привычки, книги, тренировки, стадии и назначенные даты ШАД.</p>
+            <p class="muted">Задачи, доска дел, привычки, книги, тренировки, стадии и назначенные даты ШАД.</p>
             <div class="row"><button class="btn" data-act="export">Скачать копию</button><label class="btn ghost">Загрузить из файла<input type="file" accept="application/json,.json" data-in="import" hidden></label></div>
           </section>
           <section class="card">

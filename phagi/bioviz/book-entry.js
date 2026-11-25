@@ -51,7 +51,7 @@
   for(const path of ['type/type.css?v=1','reading-desk.css?v=5']){
     const link=document.createElement('link');link.rel='stylesheet';link.href=new URL(path,base);document.head.append(link);
   }
-  const scripts=['book-index.js?v=2','book-navigation.js?v=1','reading-desk.js?v=6'].map(path=>new URL(path,base).href);
+  const scripts=['book-index.js?v=3','book-navigation.js?v=1','reading-desk.js?v=6'].map(path=>new URL(path,base).href);
   for(const src of scripts){
     const link=document.createElement('link');link.rel='preload';link.as='script';link.href=src;document.head.append(link);
   }

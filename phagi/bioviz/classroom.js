@@ -109,7 +109,7 @@ function bvSync(){
   if(book)bvDisplayBook(tab,new URL(location.href));else bvUnloadBook();
   if(tab==='library'){
     if(window.PhagiShelf)PhagiShelf.refresh();
-    else if(!BVS.shelfLoad)BVS.shelfLoad=Promise.all([bvScript('bioviz/book-index.js?v=2'),bvScript('bioviz/book-navigation.js?v=1')])
+    else if(!BVS.shelfLoad)BVS.shelfLoad=Promise.all([bvScript('bioviz/book-index.js?v=3'),bvScript('bioviz/book-navigation.js?v=1')])
       .then(()=>bvScript('bioviz/library.js?v=2')).catch(()=>{BVS.shelfLoad=null;});
   }
   if(!work){

@@ -14,7 +14,6 @@ B.levelCard = (c, compact) => {
       ${B.bar(c.frac, 'xp')}
       <div class="lvl-sub">${icon('tree')} лес <b>${c.trees ? B.fmtTrees(c.trees) : 'поляна'}</b>${next ? ` · до «${esc(next[1])}» ${next[0] - c.level} ${B.plural(next[0] - c.level, 'уровень', 'уровня', 'уровней')}` : ''}</div>
     </div>
-    <div class="streak ${c.live ? 'on' : ''}" title="Разборов в дневнике подряд">${icon('flame')}<b>${c.live}</b></div>
   </a>`;
 };
 
@@ -211,12 +210,6 @@ function habitsCard(c){
   </section>`;
 }
 
-function reviewCard(c, d){
-  const has = B.reviewDone(c.today), h = new Date().getHours(), hot = h >= 19 || h < 4;
-  return `<a class="card review-line ${has ? 'done' : hot ? 'hot' : ''}" href="#/journal">
-    ${icon(has ? 'check' : 'pen')}<span class="grow"><b>${has ? 'Разбор дня написан' : 'Вечерний разбор'}</b><small>${has ? (d.review?.mood ? 'настроение ' + '●'.repeat(d.review.mood) : 'открыть дневник') : 'пять минут: что сделал, что не вышло, что на завтра'}</small></span>${icon('right')}
-  </a>`;
-}
 
 function weekCard(c){
   const ws = B.weekStart(c.today), prev = B.get('wk_' + B.add(ws, -7)), cur = B.get('wk_' + ws);
@@ -473,8 +466,8 @@ B.views.today = {
     return `<div class="page today">
       <header class="page-h today-h">
         <div><h1>Сегодня</h1><p class="day-date">${B.WDF[B.wd(c.today)]}, ${date.getDate()} ${B.MONG[date.getMonth()]}</p></div>
-        <a class="today-stat" href="#/forest" title="Уровень, серия разборов и опыт за сегодня">
-          <span>${icon('tree')}<b>${c.level}</b> ур.</span><span>${icon('flame')}<b>${c.live}</b></span><span><b>${r.xp > 0 ? '+' : ''}${r.xp || 0}</b> XP</span>
+        <a class="today-stat" href="#/forest" title="Уровень и опыт за сегодня">
+          <span>${icon('tree')}<b>${c.level}</b> ур.</span><span><b>${r.xp > 0 ? '+' : ''}${r.xp || 0}</b> XP</span>
         </a>
       </header>
       ${weekStrip(c.today)}
@@ -486,7 +479,6 @@ B.views.today = {
           ${dayPlanningCard(plan)}
           ${dayAgenda(c.today, rows, untimed)}
           ${dayCard(c, scheduledShad)}
-          ${new Date().getHours() >= 19 || new Date().getHours() < 4 ? reviewCard(c,d) : ''}
         </div>
         <div class="col">
           ${habitsCard(c)}

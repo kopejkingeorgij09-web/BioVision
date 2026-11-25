@@ -4,7 +4,7 @@
 const KEYS = [
   ['Везде', [
     ['⌥ ⇧', 'Задачи во весь экран: спрятать или показать меню'],
-    ['1 … 6', 'Сегодня, Задачи, Привычки, Дневник, Чтение, Лес'],
+    ['1 … 6', 'Сегодня, Задачи, Привычки, Итоги, Чтение, Лес'],
     ['/', 'Поиск'],
     ['?', 'Эта подсказка'],
     ['⌘ Z  ·  ⌘ ⇧ Z', 'Отменить и повторить'],
@@ -36,7 +36,7 @@ const KEYS = [
     ['1 … 9', 'Когда открыт цвет или календарь: выбрать по номеру']
   ]]
 ];
-const SECTIONS = ['today', 'tasks', 'habits', 'journal', 'read', 'forest'];
+const SECTIONS = ['today', 'tasks', 'habits', 'stats', 'read', 'forest'];
 const route = () => (location.hash || '#/today').replace(/^#\/?/, '').split('/')[0] || 'today';
 const typing = () => { const a = document.activeElement; return a && (a.matches('input:not([type=checkbox]):not([type=radio]),textarea,select') || a.isContentEditable); };
 const modal = () => B.sheetOpen() || !B.$('#dlgScrim').hidden;

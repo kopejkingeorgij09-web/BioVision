@@ -70,19 +70,13 @@
 .ac-now { position:absolute;left:0;right:0;height:1px;background:var(--ac-today);z-index:3;pointer-events:none }
 .ac-now::before { content:"";position:absolute;width:7px;height:7px;left:-3px;top:-3px;border-radius:50%;background:inherit }
 .ac-item {
-  --cal-color: var(--c-ink);
+  --cal-color: var(--item-color,var(--c-ink));
   position:relative;display:flex;align-items:start;min-width:0;
   border-radius:5px;border-left:3px solid var(--cal-color);
   color:var(--ink);background:color-mix(in srgb,var(--cal-color) 18%,var(--ac-bg));
   font-size:11px;line-height:1.25;
 }
-.ac-item.c-blue,.ac-filter .c-blue { --cal-color:var(--c-blue) }
-.ac-item.c-teal,.ac-filter .c-teal { --cal-color:var(--c-teal) }
-.ac-item.c-green,.ac-filter .c-green { --cal-color:var(--c-green) }
-.ac-item.c-amber,.ac-filter .c-amber { --cal-color:var(--c-amber) }
-.ac-item.c-red,.ac-filter .c-red { --cal-color:var(--c-red) }
-.ac-item.c-violet,.ac-filter .c-violet { --cal-color:var(--c-violet) }
-.ac-item.c-pink,.ac-filter .c-pink { --cal-color:var(--c-pink) }
+.ac-filter input { --cal-color:var(--item-color,var(--c-ink)) }
 .ac-item.timed { position:absolute;top:var(--top);height:calc(var(--span) - 1px);min-height:15px;left:calc(var(--left) + 2px);width:calc(var(--width) - 3px);overflow:hidden;z-index:1 }
 .ac-open { display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;flex:1;min-width:0;text-align:left;color:inherit;padding:3px 4px;text-decoration:none;overflow:hidden;cursor:pointer }
 .ac-item.timed .ac-open { height:100%;padding-top:4px }

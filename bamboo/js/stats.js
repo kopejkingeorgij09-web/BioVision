@@ -2,6 +2,47 @@
    Для недели ещё разбор: причины переносов и вопрос «что меняю на следующей неделе» (документ wk_<понедельник>).
    Внизу перемотка: каким был лес в любой прошлый день. */
 (function(){
+function daySummary(date){
+  const done = B.tasks().filter(t => t.done && t.doneAt && B.dayOf(t.doneAt) === date);
+  const ws = B.workouts().filter(w => w.date === date);
+  const hs = B.habits().filter(h => B.habitDone(h, date)).map(h => h.name);
+  return {done, ws, rm: B.readMin(date), hs};
+}
+
+function weekPrompt(){
+  const t = B.today(), c = B.calc(), lines = [];
+  lines.push('Я пользуюсь планером «Зов леса»: учусь в вузе и готовлюсь к ШАД, борюсь с прокрастинацией. Ниже мои записи за последние 7 дней.');
+  lines.push('Проанализируй их как строгий, но доброжелательный тренер: 1) где и почему я откладываю (по причинам переносов и разборам), 2) какие привычки проседают и в какие дни, 3) что получилось хорошо, 4) конкретный план на следующую неделю: три главных цели, что убрать, как построить дни. Без общих советов, только по моим данным. Отвечай по-русски.');
+  lines.push('');
+  lines.push(`Уровень ${c.level}, разборов подряд ${c.live} (рекорд ${c.best}), дней с делами подряд ${c.tasks.cur}.`);
+  for (let i = 7; i >= 1; i--){
+    const date = B.add(t, -i); if (date < c.start) continue;
+    const d = B.day(date), r = c.days[date] || {}, s = daySummary(date), rv = d.review || {};
+    const top = (d.top || []).map(B.task).filter(Boolean);
+    lines.push(`## ${B.WDF[B.wd(date)]}, ${B.fmt(date)}: ${({good: 'разбор есть', some: 'без разбора', empty: 'пустой день'})[r.result] || ''}`);
+    if (top.length) lines.push(`Важные (с короной): ${top.map(x => (x.done ? '[x] ' : '[ ] ') + x.title).join('; ')}`);
+    if (s.done.length) lines.push(`Сделано: ${s.done.map(x => x.title).join('; ')}`);
+    lines.push(`Чтение ${s.rm} мин, тренировка: ${s.ws.length ? s.ws.map(w => B.SPORT_TYPES[w.type]).join(', ') : 'нет'}, привычки: ${s.hs.join(', ') || 'нет'}`);
+    if (d.notebook) lines.push(`Блокнот: ${d.notebook}`);
+    if (rv.done) lines.push(`Что сделал: ${rv.done}`);
+    if (rv.why) lines.push(`Что не вышло и почему: ${rv.why}`);
+    if (rv.mood) lines.push(`Настроение ${rv.mood}/5, энергия ${rv.energy || '?'}/5`);
+    (d.notes || []).slice(0, 3).forEach(n => lines.push(`Мысль: ${n.t}`));
+  }
+  const pp = [];
+  B.tasks().forEach(tk => (tk.postpones || []).forEach(p => { if (Date.now() - p.at < 7 * 864e5) pp.push(`«${tk.title}» ${p.from} → ${p.to}: ${p.why}`); }));
+  if (pp.length){ lines.push(''); lines.push('Переносы задач:'); pp.forEach(x => lines.push('- ' + x)); }
+  const open = B.tasks().filter(x => !x.done && x.due && x.due < t);
+  if (open.length){ lines.push(''); lines.push('Просрочено сейчас: ' + open.map(x => `«${x.title}» (срок ${x.due})`).join('; ')); }
+  const big = B.tasks().filter(x => x.big && !x.done);
+  if (big.length){ lines.push(''); lines.push('Большие дела: ' + big.map(x => `«${x.title}» ${(x.subs || []).filter(s => s.done).length}/${(x.subs || []).length} шагов`).join('; ')); }
+  let s = lines.join('\n');
+  if (s.length > 7000) s = s.slice(0, 7000) + '\n…';
+  return s;
+}
+B.weekPrompt = weekPrompt;
+B.acts.aiWeek = () => { window.open('https://claude.ai/new?q=' + encodeURIComponent(weekPrompt()), '_blank', 'noopener'); };
+
 const {esc, icon} = B;
 let mode = 'week', anchor = null, replay = null, playT = null;
 
@@ -112,8 +153,7 @@ B.views.stats = {
   render(){
     const r = range(), list = days(r), s = summary(list);
     return `<div class="page stats-page">
-      <div class="toggle jr-tabs"><a class="" href="#/journal">${icon('pen')}День</a><a class="on" href="#/stats">${icon('chart')}Итоги</a></div>
-      <header class="page-h"><div><div class="eyebrow">Дневник · итоги</div><h1>${esc(r.label)}</h1></div>
+      <header class="page-h"><div><div class="eyebrow">Итоги</div><h1>${esc(r.label)}</h1></div>
         <div class="row">${mode !== 'all' ? `<button class="icon-btn" data-act="stShift" data-k="-1" aria-label="Назад">${icon('left')}</button><button class="icon-btn" data-act="stShift" data-k="1" aria-label="Вперёд">${icon('right')}</button>` : ''}</div></header>
       <div class="toggle wide st-mode">${[['week', 'Неделя'], ['month', 'Месяц'], ['all', 'Всё время']].map(([k, l]) => `<button class="${mode === k ? 'on' : ''}" data-act="stMode" data-k="${k}">${l}</button>`).join('')}</div>
       <div class="cols">

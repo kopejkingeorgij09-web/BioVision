@@ -1,4 +1,4 @@
-/* Зов леса: поиск по задачам, дневнику (разборы и мысли), книгам и цитатам, заметкам тренировок. */
+/* Зов леса: поиск по задачам, книгам и цитатам, заметкам тренировок. */
 (function(){
 const {esc, icon} = B;
 let q = '';
@@ -17,20 +17,11 @@ function snip(text, w){
 }
 function results(){
   const words = q.toLowerCase().split(/\s+/).filter(Boolean);
-  if (!words.length) return '<p class="muted">Ищет по задачам и их заметкам, разборам и мыслям в дневнике, книгам и цитатам, заметкам тренировок.</p>';
+  if (!words.length) return '<p class="muted">Ищет по задачам и их заметкам, книгам и цитатам, заметкам тренировок.</p>';
   const has = text => { const t = String(text || '').toLowerCase(); return words.every(w => t.includes(w)); };
   const groups = [];
   const tasks = B.tasks().filter(t => has(t.title + ' ' + (t.notes || '') + ' ' + (t.subs || []).map(s => s.t).join(' '))).slice(0, 30);
   if (tasks.length) groups.push(['Задачи', 'list', tasks.map(t => `<button class="sr" data-act="openTask" data-id="${t.id}"><b>${hl(t.title, words)}</b><span class="muted">${t.done ? 'сделано' : t.due ? B.rel(t.due) : 'без срока'}${t.proj && t.proj !== 'inbox' ? ' · ' + esc(B.projName(t.proj)) : ''}${t.notes && has(t.notes) ? ' · ' + hl(snip(t.notes, words[0]), words) : ''}</span></button>`)]);
-  const jr = [];
-  const dates = B.dayDates().reverse();
-  dates.forEach(date => {
-    const d = B.day(date), rv = d.review || {};
-    if(d.notebook && has(d.notebook))jr.push({date,t:d.notebook,kind:'блокнот'});
-    ['done', 'why', 'tomorrow'].forEach(k => { if (rv[k] && has(rv[k])) jr.push({date, t: rv[k], kind: k === 'why' ? 'что не вышло' : 'разбор'}); });
-    (d.notes || []).forEach(n => { if (has(n.t)) jr.push({date, t: n.t, kind: 'мысль'}); });
-  });
-  if (jr.length) groups.push(['Дневник', 'pen', jr.slice(0, 40).map(x => `<a class="sr" href="#/journal/${x.date}"><b>${B.fmtW(x.date)}</b><span class="muted">${x.kind}: ${hl(snip(x.t, words[0]), words)}</span></a>`)]);
   const bk = [];
   B.books().forEach(b => {
     if (has(b.title + ' ' + (b.author || ''))) bk.push(`<button class="sr" data-act="bookOpen" data-id="${b.id}"><b>${hl(b.title, words)}</b><span class="muted">${hl(b.author || '', words)}</span></button>`);

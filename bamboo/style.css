@@ -1537,6 +1537,7 @@ kbd{font:600 12px var(--f-mono);background:var(--paper-2);border:1px solid var(-
 .day-focus p{font-size:14px;color:var(--ink-2);margin:0}
 .day-focus a,.day-focus button{display:inline-block;padding:4px 0;color:var(--accent);background:none;border:0;font-size:14px}
 .agenda-entry{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;border-bottom:1px solid var(--rule)}
+.agenda-entry{padding-inline:6px}
 .agenda-entry:last-child{border:0}
 .shad-top .crown{margin-inline-start:auto}
 .agenda-entry .agenda-line{border:0;min-width:0}
@@ -1549,13 +1550,12 @@ kbd{font:600 12px var(--f-mono);background:var(--paper-2);border:1px solid var(-
 .agenda-line time,.agenda-line small{color:var(--ink-2);font-size:13px}
 .agenda-line>.ic{padding:6px;border-radius:8px;width:32px;height:32px;background:var(--accent-soft);color:var(--accent)}
 .agenda-line span{display:grid;overflow-wrap:anywhere}
-.agenda-entry.agenda-upcoming{border:0;border-radius:11px;background:var(--accent-soft);padding-inline:8px}
+.agenda-entry.agenda-upcoming{border:0;border-radius:11px;background:var(--accent-soft)}
 .agenda-upcoming .agenda-upcoming-label{font-size:12px;font-weight:650;color:var(--accent)}
 .agenda-upcoming .agenda-line>.ic{background:var(--sheet)}
-.agenda-actions{display:flex;align-items:center;gap:2px}
-.agenda-actions .ac-check,.agenda-actions .icon-btn{width:36px;height:36px;padding:0}
-.agenda-actions .ac-check{border-radius:8px}
-.agenda-actions .ac-check:hover{background:var(--paper-2)}
+.agenda-actions{--action-size:28px;display:grid;grid-template-columns:repeat(2,var(--action-size));align-items:center;gap:2px}
+.agenda-actions .crown{grid-column:2}
+.agenda-actions .ac-check,.agenda-actions .icon-btn{width:var(--action-size);height:var(--action-size);padding:0}
 .agenda-without-time{margin-top:12px;padding-top:10px;border-top:1px solid var(--rule)}
 .agenda-without-time h3{margin:0;font:600 14px var(--f-body);color:var(--ink-2)}
 .agenda-untimed .agenda-line{grid-template-columns:32px minmax(0,1fr);padding-block:8px;min-height:48px}
@@ -1587,7 +1587,8 @@ kbd{font:600 12px var(--f-mono);background:var(--paper-2);border:1px solid var(-
 .day-slot-preview>.row{flex-wrap:wrap}
 .day-slot-preview>.row .btn{min-height:44px;white-space:normal}
 @media(pointer:coarse){
-  .agenda-actions .ac-check,.agenda-actions .icon-btn{width:44px;height:44px}
+  .agenda-actions{--action-size:44px}
+  .pl-list .habit-mark{width:40px;min-height:40px}
   .day-planning>.btn,.day-planning-end input{min-height:44px}
 }
 @media(max-width:398px){

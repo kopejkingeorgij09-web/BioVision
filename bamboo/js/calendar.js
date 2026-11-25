@@ -122,7 +122,7 @@ function plannerRow(e,day){
   return `<div class="pl-t ${e.done?'done':''}">
     <button class="pl-open" data-act="acOpen" ${itemAttrs(e)} title="${esc(e.title)}">
       <i class="pdot c-${esc(color(e.proj))}"></i>${time?`<span class="pl-time">${time}</span>`:''}<span class="pl-tt">${esc(e.title)}</span>
-    </button>${e.calendarTask?calendarCheck(e):''}
+    </button>${e.calendarTask?calendarCheck(e,true):''}
   </div>`;
 }
 function itemsBetween(from,to,{includeHidden=false}={}){
@@ -167,9 +167,9 @@ function eachDay(items,from,to){
 }
 const color = proj => proj === '@shad' ? 'blue' : proj === '@phagi' ? 'violet' : B.proj(proj)?.color || 'ink';
 const phagiHref = id => B.phagiTask ? B.phagiTask(id,date) : B.PHAGI;
-function calendarCheck(e){
-  return `<button class="ac-check" data-act="acToggleTask" data-id="${esc(e.id)}" data-on="${e.on}"
-    aria-label="${esc((e.done ? 'Снять отметку · ' : 'Выполнить · ') + e.title)}" aria-pressed="${!!e.done}">${e.done?'✓':'○'}</button>`;
+function calendarCheck(e, compact=false){
+  return `<button class="ac-check${compact?' habit-mark':''}" data-act="acToggleTask" data-id="${esc(e.id)}" data-on="${e.on}"
+    aria-label="${esc((e.done ? 'Снять отметку · ' : 'Выполнить · ') + e.title)}" aria-pressed="${!!e.done}">${compact ? icon('check') : e.done?'✓':'○'}</button>`;
 }
 B.acts.acToggleTask=async el=>{
   const {id,on}=el.dataset, event=get(id);
@@ -201,7 +201,7 @@ function chip(e,style='',segment=null){
   const movable=task||e.kind==='event'||e.kind==='shad';
   const contents = `<span class="ac-title">${title}${e.repeat ? '<span aria-label="Повторяется"> ↻</span>' : ''}</span>${e.kind==='shad'?shadMeta(e):''}${timed ? `<small>${interval}${e.location ? ' · '+esc(e.location) : ''}</small>` : ''}`;
   return `<div class="ac-item c-${esc(color(e.proj))}${timed?' timed':''}${e.done?' done':''}${e.ghost?' ghost':''}" ${attrs} ${style? `style="${style}"` : ''}>
-    ${e.calendarTask ? calendarCheck(e) : task ? `<button class="ac-check" data-act="toggleTask" data-id="${esc(e.id)}" aria-label="${e.done?'Вернуть задачу':'Выполнить задачу'}" aria-pressed="${!!e.done}">${e.done?'✓':'○'}</button>` : ''}
+    ${e.calendarTask ? calendarCheck(e) : task ? `<button class="ac-check" data-act="toggleTask" data-id="${esc(e.id)}" aria-label="${e.done?'Вернуть задачу':'Выполнить задачу'}" aria-pressed="${!!e.done}">${compact ? icon('check') : e.done?'✓':'○'}</button>` : ''}
     ${e.kind==='phagi' ? `<a class="ac-open" href="${esc(phagiHref(e.id))}" title="${title}">${contents}</a>` :
       `<button class="ac-open" data-act="acOpen" ${attrs} title="${title}">${contents}</button>`}
     ${timed && movable && segment.last ? '<span class="ac-resize end" data-resize="end" aria-hidden="true"></span>' : ''}

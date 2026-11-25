@@ -921,7 +921,9 @@ addEventListener('focus',fireAlerts);
 
 const minuteAt=(col,y,end=false)=>B.clamp(snap((y-col.getBoundingClientRect().top)/col.offsetHeight*C.DAY),0,C.DAY-(end?0:dragStep));
 function rangePointer(e,root){
-  if((e.pointerType==='touch'&&!e.target.closest('.ac-resize,.ac-grab'))||e.button!==0||e.target.closest('.ac-check,.ac-card-menu,a')) return;
+  const touch=e.pointerType==='touch';
+  if(e.button!==0||e.target.closest('.ac-check,a')||
+    (touch?!e.target.closest('.ac-resize,.ac-grab,.ac-card-menu'):e.target.closest('.ac-card-menu')))return;
   const col=e.target.closest('[data-col]'), all=e.target.closest('[data-all]');
   const card=e.target.closest('.ac-shad-card');
   if(!col&&!all&&!card) return;
@@ -1050,7 +1052,7 @@ function mountGestures(sc,weekly){
   },{passive:false});
   let touch=null;
   sc.addEventListener('touchstart',e=>{
-    if(e.touches.length!==1||e.target.closest('.ac-resize,.ac-grab')){touch=null;return;}
+    if(e.touches.length!==1||e.target.closest('.ac-resize,.ac-grab,.ac-card-menu')){touch=null;return;}
     const p=e.touches[0];
     touch={id:p.identifier,x:p.clientX,y:p.clientY,start:performance.now(),target:e.target,
       left:canPan(sc,-1),right:canPan(sc,1)};

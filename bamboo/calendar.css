@@ -87,7 +87,7 @@
 .ac-check { flex:none;padding:2px 0 2px 3px;color:var(--ink);font-size:13px;line-height:1.2;cursor:pointer }
 .ac-check.habit-mark {
   appearance:none;position:relative;display:inline-grid;place-items:center;flex:none;
-  width:24px;height:26px;padding:0;border:0;background:transparent;color:var(--accent-ink)
+  width:var(--action-size,24px);height:var(--action-size,26px);padding:0;border:0;background:transparent;color:var(--accent-ink)
 }
 .habit-mark::before,.habit-mark .ic { grid-area:1/1 }
 .habit-mark::before {

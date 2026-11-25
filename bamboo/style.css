@@ -1588,7 +1588,7 @@ kbd{font:600 12px var(--f-mono);background:var(--paper-2);border:1px solid var(-
 .day-slot-preview>.row .btn{min-height:44px;white-space:normal}
 @media(pointer:coarse){
   .agenda-actions{--action-size:44px}
-  .pl-list .habit-mark{width:40px;min-height:40px}
+  .pl-list .habit-mark{--action-size:40px}
   .day-planning>.btn,.day-planning-end input{min-height:44px}
 }
 @media(max-width:398px){

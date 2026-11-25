@@ -15,10 +15,12 @@ const monthStart = d => d.slice(0,7) + '-01';
 const monthTitle = d => B.MONF[parse(d).getMonth()] + ' ' + d.slice(0,4);
 const labels = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
 const prefsKey = 'bamboo-calendar';
+const cardFontSizes = [9,10,11,12,13,14];
 let prefs = {};
 try { prefs = JSON.parse(localStorage.getItem(prefsKey) || '{}') || {}; } catch (_) {}
 let mode = Object.hasOwn(MODES,prefs.mode) ? prefs.mode : (innerWidth < 650 ? 'day' : 'week');
 let allExpanded = prefs.allExpanded === true;
+let cardFont = cardFontSizes.includes(prefs.cardFont) ? prefs.cardFont : 11;
 function weekTitle(start){
   const end = add(start,6), sameYear = start.slice(0,4) === end.slice(0,4);
   const label = d => parse(d).getDate() + ' ' + B.MONG[parse(d).getMonth()];
@@ -36,7 +38,7 @@ const projectOf = e => {
   return p && !p.arch ? p.id : 'inbox';
 };
 const savePrefs = () => {
-  try { localStorage.setItem(prefsKey, JSON.stringify({mode,side,allExpanded,hidden:[...hidden]})); } catch (_) {}
+  try { localStorage.setItem(prefsKey, JSON.stringify({mode,side,allExpanded,cardFont,hidden:[...hidden]})); } catch (_) {}
 };
 let shadTrayOpen = false, shadTab = 'week';
 const visible = key => !hidden.has(key);
@@ -296,6 +298,10 @@ function yearView(byDay){
     return `<section><button data-act="acMonth" data-d="${d}">${B.MONF[i]}</button>${monthGrid(d,byDay)}</section>`;
   }).join('')}</div>`;
 }
+function applyCardFont(root){
+  root.style.setProperty('--ac-card-font', cardFont+'px');
+  root.toggleAttribute('data-compact-cards',cardFont<11);
+}
 function render(){
   const [from,to]=ranges(), byDay=eachDay(itemsBetween(from,to),from,to), ds=days(from,diff(from,to)+1);
   const panel=shadPanel();
@@ -312,7 +318,14 @@ function render(){
             <button class="btn ghost sm" data-act="acToday">Сегодня</button>
             <button class="icon-btn" data-act="acShift" data-n="1" aria-label="Вперёд">${icon('right')}</button></div>
         </div>
-        <div class="ac-heading"><h1>${esc(title)}</h1>${panel.button}</div>
+        <div class="ac-heading"><h1>${esc(title)}</h1>
+          ${mode!=='year'||panel.button?`<div class="ac-heading-tools">
+            ${mode==='year'?'':`<label class="ac-card-font">Текст карточек
+              <select data-in="acCardFont">${cardFontSizes.map(size=>option(size,size+' px',cardFont)).join('')}</select>
+            </label>`}
+            ${panel.button}
+          </div>`:''}
+        </div>
         ${panel.tray}
         <div class="ac-scroll">${mode==='day'||mode==='week'?timeGrid(ds,byDay):mode==='month'?monthView(ds,byDay):yearView(byDay)}</div>
       </div>
@@ -358,6 +371,12 @@ B.inputs.acFilter=(el,e)=>{
   if(e.type!=='change')return;
   if(el.checked) hidden.delete(el.dataset.id); else hidden.add(el.dataset.id);
   savePrefs(); B.render(true);
+};
+B.inputs.acCardFont=(el,e)=>{
+  if(e.type!=='change' || !cardFontSizes.includes(Number(el.value)))return;
+  cardFont=Number(el.value);
+  applyCardFont(el.closest('.ac'));
+  savePrefs();
 };
 B.acts.acGoto=()=>{
   B.sheet(`<h2>Перейти к дате</h2><form id="acJump"><label class="field">Дата<input type="date" name="date" value="${date}" required></label>
@@ -1104,6 +1123,7 @@ function unmount(){ stopClock?.(); stopClock=null; }
 function mount(){
   const root=B.$('.ac'), sc=root?.querySelector('.ac-scroll');
   if(!sc)return;
+  applyCardFont(root);
   clearTimeout(weekScrollTimer); weekScrollTimer=0;
   weekResize?.disconnect(); weekResize=null;
   const axis=root.querySelector('.ac-axis');

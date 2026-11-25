@@ -74,7 +74,7 @@
   position:relative;display:flex;align-items:start;min-width:0;
   border-radius:5px;border-left:3px solid var(--cal-color);
   color:var(--ink);background:color-mix(in srgb,var(--cal-color) 18%,var(--ac-bg));
-  font-size:11px;line-height:1.25;
+  font-size:var(--ac-card-font,11px);line-height:1.25;
 }
 .ac-filter input { --cal-color:var(--item-color,var(--c-ink)) }
 .ac-item.timed { position:absolute;top:var(--top);height:calc(var(--span) - 1px);min-height:15px;left:calc(var(--left) + 2px);width:calc(var(--width) - 3px);overflow:hidden;z-index:1 }
@@ -83,7 +83,10 @@
 .ac-open:hover { background:#8881 }
 .ac-title,.ac-open small { display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis }
 .ac-title { font-weight:650 }
-.ac-open small { font-size:10px;color:var(--ac-muted);margin-top:1px }
+.ac-open small { font-size:max(9px,calc(1em - 1px));color:var(--ac-muted);margin-top:1px }
+.ac[data-compact-cards] .ac-item { line-height:1.15 }
+.ac[data-compact-cards] .ac-item .ac-open { padding-block:1px }
+.ac[data-compact-cards] .ac-open small { margin-top:0 }
 .ac-check { flex:none;padding:2px 0 2px 3px;color:var(--ink);font-size:13px;line-height:1.2;cursor:pointer }
 .ac-check.habit-mark {
   appearance:none;position:relative;display:inline-grid;place-items:center;flex:none;
@@ -219,8 +222,15 @@
 
 /* Карточки ШАД и полка занятий рядом с сеткой календаря. */
 .ac-heading {
-  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 10px;
   padding:6px 16px 12px;
+}
+.ac-heading-tools,.ac-card-font { display:flex;align-items:center;gap:6px }
+.ac-heading-tools { flex-wrap:wrap }
+.ac-card-font { color:var(--ac-muted);font-size:12px;white-space:nowrap }
+.ac-card-font select {
+  width:auto;min-height:34px;padding:4px 7px;border-radius:9px;background:var(--ac-bg);color:var(--ink);
+  font-size:13px;cursor:pointer;
 }
 .ac-heading .ac-shad-toggle {
   display:inline-flex;align-items:center;justify-content:center;gap:6px;flex:none;
@@ -273,7 +283,8 @@
   background:color-mix(in srgb,var(--cal-color) 12%,var(--sheet));
   border-radius:5px;
 }
-.ac-item[data-k=shad] .ac-shad-meta { font-size:10px }
+.ac-item[data-k=shad] .ac-shad-meta { font-size:max(9px,calc(1em - 1px)) }
+.ac[data-compact-cards] .ac-item .ac-shad-meta { line-height:inherit }
 .ac-item.timed[data-k=shad] .ac-title {
   display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
   white-space:normal;overflow-wrap:anywhere;
@@ -292,6 +303,7 @@
   .ac-shad-tabs button:hover { background:var(--sheet) }
 }
 @media(pointer:coarse) {
+  .ac-card-font select { min-height:44px }
   .ac-shad-card .ac-grab {
     position:static;display:grid;place-content:center;
     align-self:stretch;min-width:32px;cursor:grab;color:var(--ink-2);

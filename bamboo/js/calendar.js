@@ -189,7 +189,7 @@ function itemAttrs(e){
   return `data-k="${e.kind}" data-id="${esc(e.id)}" data-on="${esc(e.on)}" data-start="${e.start}" data-end="${e.end}" data-part="${esc(e.part || '')}"`;
 }
 function actionButton(e){
-  if(!itemAction(e))return '';
+  if(!boardCopyable(e))return '';
   const label=esc('Действия · '+(e.title||'Без названия'));
   return `<button type="button" class="ac-card-menu" data-act="acMenu" ${itemAttrs(e)}
     aria-label="${label}" title="${label}" aria-haspopup="dialog">${icon('dots')}</button>`;
@@ -694,10 +694,11 @@ function protectedEntry(e){
     ((e.kind==='task'||C.isTask(e))&&(e.activity==='gym'||C.isGym(e)));
 }
 function itemAction(e){
-  if(e.ghost||!['task','event','shad'].includes(e.kind))return '';
+  if(!boardCopyable(e))return '';
   if(e.kind==='shad'||e.keepDay) return e.start.length>10?'untimed':'';
   return 'delete';
 }
+function boardCopyable(e){ return !e.ghost&&['task','event','shad'].includes(e.kind); }
 function resolveItem({kind,id,on,start,end,part,ghost}){
   if(ghost||!C.validDate(on))return null;
   let view, record;
@@ -751,17 +752,30 @@ function runItemAction(current){
   }
   return !!action;
 }
+function copyToBoard(item, destination){
+  const current=resolveItem(item);
+  if(!current){B.toast('Запись уже изменилась');return;}
+  const {view,record}=current;
+  const label=view.kind==='shad'?[shadPart(view.part),view.course]:[view.location];
+  const context=[intervalLabel(view,false),...label].filter(Boolean).join(' · ');
+  B.board.copy({title:view.title,notes:record.notes,steps:record.subs,context},destination);
+}
 B.acts.acMenu=el=>{
   const current=resolveItem(fromNode(el));
   const action=current&&itemAction(current.view);
-  if(!action)return;
+  if(!current)return;
   const {view,record}=current, attrs=itemAttrs(view), remove=action==='delete';
   const scope=record.repeat||record.rep ? '<p class="hint">Действие применяется к записи на '+fmt(view.on)+'.</p>' : '';
   B.sheet(`<h2>${esc(view.title||'Без названия')}</h2>${scope}<div class="ac-card-actions">
     <button type="button" class="btn ghost" data-act="acOpen" ${attrs} autofocus>${icon('cal')}Открыть</button>
-    <button type="button" class="btn ${remove?'danger':'primary'}" data-act="acMenuApply" ${attrs}>
-      ${icon(remove?'trash':'clock')}${remove?'Удалить':'Убрать время'}</button>
+    <button type="button" class="btn" data-act="acBoardCopy" ${attrs}>${icon('copy')}Копировать на доску</button>
+    ${action?`<button type="button" class="btn ${remove?'danger':'ghost'}" data-act="acMenuApply" ${attrs}>
+      ${icon(remove?'trash':'clock')}${remove?'Удалить':'Убрать время'}</button>`:''}
   </div>`);
+};
+B.acts.acBoardCopy=el=>{
+  const item=fromNode(el);
+  B.board.choose('Копировать на доску', destination=>copyToBoard(item,destination));
 };
 B.acts.acMenuApply=el=>{
   const current=resolveItem(fromNode(el));
@@ -907,7 +921,9 @@ addEventListener('focus',fireAlerts);
 
 const minuteAt=(col,y,end=false)=>B.clamp(snap((y-col.getBoundingClientRect().top)/col.offsetHeight*C.DAY),0,C.DAY-(end?0:dragStep));
 function rangePointer(e,root){
-  if((e.pointerType==='touch'&&!e.target.closest('.ac-resize,.ac-grab'))||e.button!==0||e.target.closest('.ac-check,.ac-card-menu,a')) return;
+  const touch=e.pointerType==='touch';
+  if(e.button!==0||e.target.closest('.ac-check,a')||
+    (touch?!e.target.closest('.ac-resize,.ac-grab,.ac-card-menu'):e.target.closest('.ac-card-menu')))return;
   const col=e.target.closest('[data-col]'), all=e.target.closest('[data-all]');
   const card=e.target.closest('.ac-shad-card');
   if(!col&&!all&&!card) return;
@@ -918,6 +934,7 @@ function rangePointer(e,root){
   const origin=col?.dataset.col||all?.dataset.all||date, start=col?minuteAt(col,e.clientY):null;
   const edge=e.target.dataset.resize, id=e.pointerId, sx=e.clientX,sy=e.clientY;
   let active=false, validDrop=false, target=origin, minute=start, selectedCol=col;
+  let boardTray, boardTarget;
   const preview=document.createElement('span'); preview.className='ac-preview';
   const offset=x ? diff(origin,C.dateOf(x.start)) : 0;
   const grab=x&&start!=null ? start-(offset===0?C.minuteOf(x.start):0) : 0;
@@ -946,10 +963,12 @@ function rangePointer(e,root){
   function update(ev){
     if(ev.pointerId!==id)return;
     if(!active&&Math.hypot(ev.clientX-sx,ev.clientY-sy)<3)return;
+    if(!active&&x&&!card&&!edge)boardTray=B.board.dropTray('Копировать на доску');
     active=true;dragging=true;
+    boardTarget=boardTray?.target(ev.clientX,ev.clientY);
     const hit=document.elementFromPoint(ev.clientX,ev.clientY);
     const c=hit?.closest('[data-col]'), a=hit?.closest('[data-all]');
-    validDrop=root.contains(c||a)&&!(!x && col && !c)&&!(!x && all && !a)&&!(edge&&!c);
+    validDrop=!boardTarget&&root.contains(c||a)&&!(!x && col && !c)&&!(!x && all && !a)&&!(edge&&!c);
     if(!validDrop){preview.remove();root.querySelector('.ac-drag-target')?.classList.remove('ac-drag-target');return;}
     selectedCol=c; target=c?.dataset.col||a.dataset.all;minute=c?minuteAt(c,ev.clientY,edge==='end'):null;
     root.querySelector('.ac-drag-target')?.classList.remove('ac-drag-target');
@@ -968,10 +987,16 @@ function rangePointer(e,root){
   function cleanup(){
     window.removeEventListener('pointermove',update);
     window.removeEventListener('pointerup',finish);
-    window.removeEventListener('pointercancel',cleanup);
+    window.removeEventListener('pointercancel',cancel);
+    window.removeEventListener('keydown',cancel);
+    window.removeEventListener('blur',cleanup);
+    boardTray?.remove();
     preview.remove();root.querySelector('.ac-drag-target')?.classList.remove('ac-drag-target');
     dragging=false;
     if(redrawAfterInteraction){redrawAfterInteraction=false;requestAnimationFrame(()=>B.render());}
+  }
+  function cancel(ev){
+    if(ev.pointerId===id||ev.key==='Escape')cleanup();
   }
   function finish(ev){
     if(ev.pointerId!==id)return;
@@ -979,6 +1004,7 @@ function rangePointer(e,root){
     cleanup();
     if(!active)return;
     draggedAt=Date.now();
+    if(boardTarget){copyToBoard(x,boardTarget);return;}
     if(!validDrop)return;
     if(!x){
       if(col&&selectedCol){
@@ -998,7 +1024,9 @@ function rangePointer(e,root){
   }
   window.addEventListener('pointermove',update);
   window.addEventListener('pointerup',finish);
-  window.addEventListener('pointercancel',cleanup,{once:true});
+  window.addEventListener('pointercancel',cancel);
+  window.addEventListener('keydown',cancel);
+  window.addEventListener('blur',cleanup);
 }
 let wheel = {last:0, distance:0, done:false};
 function canPan(sc,n){
@@ -1024,7 +1052,7 @@ function mountGestures(sc,weekly){
   },{passive:false});
   let touch=null;
   sc.addEventListener('touchstart',e=>{
-    if(e.touches.length!==1||e.target.closest('.ac-resize,.ac-grab')){touch=null;return;}
+    if(e.touches.length!==1||e.target.closest('.ac-resize,.ac-grab,.ac-card-menu')){touch=null;return;}
     const p=e.touches[0];
     touch={id:p.identifier,x:p.clientX,y:p.clientY,start:performance.now(),target:e.target,
       left:canPan(sc,-1),right:canPan(sc,1)};

@@ -73,6 +73,16 @@ public final class NativeChecks extends Instrumentation {
             java.lang.reflect.Field field=MainActivity.class.getDeclaredField("web");field.setAccessible(true);web=(WebView)field.get(activity);
             for(int i=0;i<60;i++){if("true".equals(js("!!window.B?.shad.plan.length && !!window.B?.alberts?.book")))break;Thread.sleep(250);}
             check("true".equals(js("!!window.B?.shad.plan.length && !!window.B?.alberts?.book")),"Bundled plan not loaded");
+            check("true".equals(js("(()=>{const day=B.today(), start=day+'T10:00';"
+                +"const source={id:'nativeboard',title:'Дело из календаря',start,end:day+'T11:00'};"
+                +"B.put('e_nativeboard',source);location.hash='#/tasks/calendar';B.render(true);"
+                +"B.acts.acMode({dataset:{v:'day'}});B.$('.ac-item[data-id=nativeboard] .ac-card-menu').click();"
+                +"B.$('[data-act=acBoardCopy]').click();B.$('[data-board-choice=active]').click();"
+                +"location.hash='#/board';B.render(true);const card=B.$('[data-board-lane=active] .bd-card-title');"
+                +"const copied=card?.textContent===source.title && getComputedStyle(B.$('.bd-grid')).display==='grid';"
+                +"B.put('e_nativeboard',null);const copy=B.get('board_'+card?.closest('[data-board-card]').dataset.boardCard);"
+                +"if(copy)B.put('board_'+copy.id,null);location.hash='#/today';return copied && copy?.title===source.title;})()")),
+                "Calendar copy must reach the independent board in the bundled WebView");
             String start=LocalDateTime.now().plusSeconds(90).withSecond(0).withNano(0).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
             String date=start.substring(0,10);
             c.getSystemService(NotificationManager.class).cancelAll();

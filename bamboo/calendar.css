@@ -309,8 +309,8 @@
     align-self:stretch;min-width:32px;cursor:grab;color:var(--ink-2);
   }
   .ac-item.timed[data-k=shad] .ac-open { padding-inline-end:16px }
-  .ac-card-menu { flex-basis:34px;min-inline-size:34px;min-block-size:28px }
-  .ac-item:has(.ac-card-menu) .ac-grab { position:static;flex:none;padding-inline:3px }
+  .ac-card-menu { flex-basis:34px;min-inline-size:34px;min-block-size:28px;touch-action:none;cursor:grab }
+  .ac-item:has(.ac-card-menu) .ac-grab { display:none }
   .ac-item.timed[data-k=shad]:has(.ac-card-menu) .ac-open { padding-inline-end:4px }
   .ac-shad-tabs button,.ac-heading .ac-shad-toggle,.ac-shad-actions .btn { min-height:42px }
 }

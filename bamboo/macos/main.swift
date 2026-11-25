@@ -165,11 +165,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             print("PASS: Calendar Backspace and Command-Z through the macOS Edit menu")
             self.web.evaluateJavaScript("B.$('.planner-nav [data-act=acSearch]').click();const open=B.sheetOpen();B.closeSheet();open") { value,error in
                 guard value as? Bool == true else {fputs("FAIL: calendar search \(String(describing:error))\n",stderr);exit(1)}
-                DispatchQueue.main.asyncAfter(deadline:.now()+0.5){self.web.takeSnapshot(with:nil){image,error in
-                    if let image=image,let tiff=image.tiffRepresentation,let bitmap=NSBitmapImageRep(data:tiff),let png=bitmap.representation(using:.png,properties:[:]){try? png.write(to:URL(fileURLWithPath:NSTemporaryDirectory()+"Zov-Lesa-macOS-preview.png"))}
-                    print("PASS: native macOS WKWebView, calendar search, bundled assets, Alberts reading log, Molbio habit, update bridge");exit(0)
-                }}
+                self.testBoard()
             }
+        }
+    }
+    private func testBoard() {
+        let checks = #"""
+        (() => {
+          const saved = B.get('e_keytest');
+          B.$('.ac-item[data-id=keytest] .ac-card-menu').click();
+          B.$('[data-act=acBoardCopy]').click();
+          B.$('[data-board-choice=active]').click();
+          location.hash='#/board'; B.render(true);
+          const card = B.$('[data-board-lane=active] .bd-card-title');
+          return card?.textContent === saved.title && getComputedStyle(B.$('.bd-grid')).display === 'grid' &&
+            B.get('e_keytest') === saved;
+        })()
+        """#
+        web.evaluateJavaScript(checks){value,error in
+            guard value as? Bool == true else {fputs("FAIL: independent board \(String(describing:error))\n",stderr);exit(1)}
+            DispatchQueue.main.asyncAfter(deadline:.now()+0.5){self.web.takeSnapshot(with:nil){image,error in
+                if let image=image,let tiff=image.tiffRepresentation,let bitmap=NSBitmapImageRep(data:tiff),let png=bitmap.representation(using:.png,properties:[:]){try? png.write(to:URL(fileURLWithPath:NSTemporaryDirectory()+"Zov-Lesa-macOS-preview.png"))}
+                print("PASS: native macOS WKWebView, independent board, calendar search, bundled assets, Alberts reading log, Molbio habit, update bridge");exit(0)
+            }}
         }
     }
     private var quitting=false

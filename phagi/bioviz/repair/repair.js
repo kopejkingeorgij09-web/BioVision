@@ -57,3 +57,39 @@ if(tracer){
   strand.addEventListener('change',traceNucleotide);
   traceNucleotide();
 }
+
+document.querySelectorAll('[data-repair-model]').forEach(model=>{
+  const choices=[...model.querySelectorAll('[data-select]')];
+  const frames=[...model.querySelectorAll('[data-path][data-stage]')];
+  const next=model.querySelector('[data-next]');
+  const reset=model.querySelector('[data-reset]');
+  const status=model.querySelector('.repair-status');
+  let path=null, stage=0;
+  function render(){
+    choices.forEach(button=>{
+      button.setAttribute('aria-pressed',String(button.dataset.select===path));
+    });
+    let active;
+    frames.forEach(frame=>{
+      const selected=frame.dataset.path===path && Number(frame.dataset.stage)===stage;
+      frame.hidden=!selected;
+      if(selected)active=frame;
+    });
+    reset.disabled=path===null;
+    if(next){
+      next.hidden=path===null;
+      next.disabled=!frames.some(frame=>frame.dataset.path===path && Number(frame.dataset.stage)===stage+1);
+    }
+    status.textContent=active?.dataset.status||'Исходное состояние.';
+  }
+  for(const button of choices)button.addEventListener('click',()=>{
+    path=button.dataset.select;stage=0;render();
+  });
+  next?.addEventListener('click',()=>{
+    stage++;render();
+    if(next.disabled)reset.focus();
+  });
+  reset.addEventListener('click',()=>{
+    path=null;stage=0;render();choices[0].focus();
+  });
+});

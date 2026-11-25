@@ -287,7 +287,7 @@ function agendaRow(date,e,next,timed){
     <button class="agenda-line" ${agendaAttrs(e)}>
       ${timed?`<time>${e.start<date?'00:00':e.start.slice(11,16)}</time>`:''}${icon(e.kind==='shad'?'book':e.calendarTask?'list':'cal')}
       <span>${featured?'<small class="agenda-upcoming-label">Дальше</small>':''}<b>${esc(e.title||'Без названия')}</b>${detail?`<small>${esc(detail)}</small>`:''}</span></button>
-    <div class="agenda-actions">${e.calendarTask?B.calendarView.calendarCheck(e):agendaShadAction(e,date)}
+    <div class="agenda-actions">${e.calendarTask?B.calendarView.calendarCheck(e,true):agendaShadAction(e,date)}
       ${e.done?'':crownButton(date,agendaKey(e),e.title)}</div>
   </div>`;
 }

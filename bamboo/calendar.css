@@ -85,6 +85,21 @@
 .ac-title { font-weight:650 }
 .ac-open small { font-size:10px;color:var(--ac-muted);margin-top:1px }
 .ac-check { flex:none;padding:2px 0 2px 3px;color:var(--ink);font-size:13px;line-height:1.2;cursor:pointer }
+.ac-check.habit-mark {
+  appearance:none;position:relative;display:inline-grid;place-items:center;flex:none;
+  width:var(--action-size,24px);height:var(--action-size,26px);padding:0;border:0;background:transparent;color:var(--accent-ink)
+}
+.habit-mark::before,.habit-mark .ic { grid-area:1/1 }
+.habit-mark::before {
+  content:"";box-sizing:border-box;width:17px;height:17px;border-radius:50%;
+  border:1.5px solid color-mix(in srgb,var(--ink-2) 65%,var(--sheet))
+}
+.habit-mark .ic { width:12px;height:12px;position:relative;opacity:0;pointer-events:none }
+.habit-mark[aria-pressed=true]::before { background:var(--accent);border-color:var(--accent) }
+.habit-mark[aria-pressed=true] .ic { opacity:1 }
+.habit-mark:focus-visible { outline:2px solid var(--accent);outline-offset:-2px;border-radius:6px }
+@media(hover:hover){.habit-mark:hover::before { border-color:var(--accent) }}
+
 .ac-card-menu {
   position:relative;z-index:3;display:grid;place-items:center;align-self:stretch;flex:0 0 26px;min-inline-size:26px;
   min-block-size:24px;padding:0;border:0;border-radius:5px;background:transparent;color:var(--ink-2);cursor:pointer;

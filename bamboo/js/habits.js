@@ -298,11 +298,6 @@ const ADVICE = {
 };
 B.insights = () => {
   const c = B.calc(), t = c.today, out = [];
-  // серия
-  if (c.live >= 3) out.push(`Разборов подряд: <b>${c.live}</b>${c.best > c.live ? `, до рекорда ${c.best - c.live}` : ', это твой рекорд'}. Не рвать цепочку проще, чем начинать заново.`);
-  // вчерашний разбор
-  const y = B.add(t, -1);
-  if (y >= c.start && !B.hasReview(B.day(y))) out.push(`Вчера не было разбора. Допиши его в <a href="#/journal/${y}">дневнике</a>: в серию он уже не попадёт, но причины станут видны.`);
   // заброшенные привычки
   B.habits().forEach(h => {
     if (h.kind === 'weekly'){

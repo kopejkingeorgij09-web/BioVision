@@ -111,7 +111,7 @@
       <p class="hint">Для проверки закрой приложение и дождись уведомления.</p>
       <h2>Виджеты рабочего стола</h2>
       <div class="row wrap"><button class="btn" data-act="androidPinToday">Дела на сегодня</button><button class="btn" data-act="androidPinAgenda">Ближайшие события</button><button class="btn" data-act="androidPinShadToday">ШАД сегодня</button><button class="btn" data-act="androidPinShadProgress">Прогресс ШАДа</button><button class="btn" data-act="androidPinShadWeek">ШАД на неделю</button><button class="btn" data-act="androidPinAlberts">Альбертс</button><button class="btn" data-act="androidPinBookmark">Закладка Альбертса</button><button class="btn" data-act="androidPinHabits">Привычки</button></div>
-      <p class="hint">Обычные привычки отмечаются на рабочем столе. Чтение и тренировки открывают форму записи. Отметки без сети сохраняются и переносятся в дневник при открытии приложения.</p>
+      <p class="hint">Обычные привычки отмечаются на рабочем столе. Чтение и тренировки открывают форму записи. Отметки без сети сохраняются и появляются в привычках при открытии приложения.</p>
     </section>`;
   }
 

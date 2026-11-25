@@ -26,10 +26,11 @@ function planner(width = 390) {
   return {B,page};
 }
 
-test('evening home renders after notebook-only entry', () => {
+test('evening home omits journal actions and preserves existing entries', () => {
   const {B} = planner();
   B.editDay(B.today(), d => { d.notebook = 'Сегодня'; });
-  assert.match(B.views.today.render(), /Разбор дня написан/);
+  assert.doesNotMatch(B.views.today.render(), /#\/journal|Разбор дня написан|Вечерний разбор/);
+  assert.equal(B.day(B.today()).notebook, 'Сегодня');
 });
 
 test('undo only removes an untouched recurrence, rechecking keeps edited instance', () => {

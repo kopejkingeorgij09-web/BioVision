@@ -882,8 +882,9 @@ function projForm(p){
     <div class="row between">${p && p.id !== 'inbox' ? `<button class="btn ghost danger" data-act="projDel" data-id="${p.id}">${icon('trash')} В архив</button>` : '<span></span>'}
     <button class="btn primary" data-act="projSave" data-id="${p ? p.id : ''}">Сохранить</button></div>`;
 }
-B.COLORS = ['ink', 'blue', 'teal', 'green', 'amber', 'red', 'violet', 'pink'];
-B.COLOR_NAMES = {ink: 'графит', blue: 'синий', teal: 'бирюза', green: 'зелёный', amber: 'янтарь', red: 'красный', violet: 'фиолет', pink: 'розовый'};
+B.COLOR_NAMES = {ink: 'графит', blue: 'синий', teal: 'бирюза', green: 'зелёный', amber: 'янтарь', red: 'красный', violet: 'фиолет', pink: 'розовый',
+  sky: 'голубой', indigo: 'индиго', plum: 'сливовый', coral: 'коралловый', orange: 'оранжевый', lemon: 'лимонный', lime: 'салатовый', brown: 'каштановый'};
+B.COLORS = Object.keys(B.COLOR_NAMES);
 B.acts.projNew = () => B.sheet(projForm(null));
 B.acts.projEdit = el => B.sheet(projForm(B.proj(el.dataset.id)));
 B.acts.projSave = el => {

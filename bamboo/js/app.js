@@ -2,12 +2,12 @@
 (function(){
 const {esc, icon} = B;
 const NAV = [
-  ['today', 'Сегодня', 'today'], ['tasks', 'Задачи', 'list'], ['habits', 'Привычки', 'habit'], ['journal', 'Дневник', 'pen'],
+  ['today', 'Сегодня', 'today'], ['tasks', 'Задачи', 'list'], ['habits', 'Привычки', 'habit'], ['stats', 'Итоги', 'chart'],
   ['read', 'Чтение', 'book'], ['forest', 'Лес', 'tree'],
   ['search', 'Поиск', 'search'], ['settings', 'Настройки', 'gear']
 ];
 const FOOT = ['search', 'settings'];
-const BOTTOM = ['today', 'journal', 'tasks', 'habits'];
+const BOTTOM = ['today', 'tasks', 'habits', 'read'];
 
 /* ---------- тема ---------- */
 const LS_THEME = 'bamboo-theme';
@@ -34,18 +34,17 @@ const swatches = () => `<div class="swatches" role="group" aria-label="Тема"
 
 /* ---------- маршрут ---------- */
 /* ярлыки Android (долгое нажатие на иконку) и «Поделиться»: открывают быстрый ввод поверх «Сегодня» */
-function capture(text, kind){
-  B.sheet(`<h2>${kind === 'think' ? 'Мысль' : 'Быстрый ввод'}</h2>
-    <textarea id="capText" rows="4" placeholder="${kind === 'think' ? 'Что в голове' : 'Задача: «сдать лабу пт #физика !1» или мысль'}" autofocus>${esc(text || '')}</textarea>
+function capture(text){
+  B.sheet(`<h2>Новая задача</h2>
+    <textarea id="capText" rows="4" placeholder="Сдать лабу пт #физика !1" autofocus>${esc(text || '')}</textarea>
     <p class="hint">${B.quickHint}</p>
-    <div class="row end"><button class="btn ${kind === 'think' ? 'primary' : ''}" data-act="capThink">${icon('quote')} В мысли</button><button class="btn ${kind === 'think' ? '' : 'primary'}" data-act="capTask">${icon('plus')} Задача</button></div>`);
+    <div class="row end"><button class="btn primary" data-act="capTask">${icon('plus')} Задача</button></div>`);
   setTimeout(() => { const t = B.$('#capText'); if (t){ t.focus(); t.setSelectionRange(t.value.length, t.value.length); } }, 120);
 }
 B.acts.capTask = () => { const v = B.$('#capText').value.trim(); if (!v) return; const tk = B.addQuick(v.split('\n')[0], {}); B.closeSheet(); if (tk) B.toast('Задача: ' + esc(tk.title)); };
-B.acts.capThink = () => { const v = B.$('#capText').value.trim(); if (!v) return; B.editDay(B.today(), d => { d.notes = (d.notes || []).concat({t: v, at: Date.now()}); }); B.closeSheet(); B.toast('Мысль записана в дневник'); };
 function special(){
   const h = location.hash;
-  if (h === '#/new' || h === '#/think'){ history.replaceState(null, '', '#/today'); B.render(true); capture('', h === '#/think' ? 'think' : 'task'); return true; }
+  if (h === '#/new'){ history.replaceState(null, '', '#/today'); B.render(true); capture(''); return true; }
   return false;
 }
 function shared(){
@@ -53,13 +52,16 @@ function shared(){
   if (!q.has('text') && !q.has('title') && !q.has('url')) return;
   const text = [q.get('title'), q.get('text'), q.get('url')].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join('\n');
   history.replaceState(null, '', location.pathname + '#/today');
-  B.render(true); capture(text, 'task');
+  B.render(true); capture(text);
 }
 
 function route(){
   const h = (location.hash || '#/today').replace(/^#\/?/, '').split('/');
-  // раздела «Календарь» больше нет: месяц живёт в «Задачах», итоги дня в «Дневнике»; старые ссылки ведут туда
-  if (h[0] === 'cal'){ h.splice(0, 2, ...(/^\d{4}-\d\d-\d\d$/.test(h[1] || '') ? ['journal', h[1]] : ['tasks', 'month'])); history.replaceState(null, '', location.pathname + '#/' + h.join('/')); }
+  if (['cal', 'journal', 'think'].includes(h[0])){
+    const target = h[0] === 'cal' ? ['tasks', 'month'] : ['today'];
+    h.splice(0, h.length, ...target);
+    history.replaceState(null, '', location.pathname + '#/' + h.join('/'));
+  }
   const v = B.views[h[0]] ? h[0] : 'today';
   return {v, arg: h[1] ? decodeURIComponent(h[1]) : ''};
 }
@@ -89,15 +91,12 @@ B.on('change', () => B.render());
 B.on('sync', () => shell(route()));
 
 /* ---------- каркас: боковая панель, нижнее меню, шапка ---------- */
-/* «Итоги» живут вкладкой внутри «Дневника»: в меню подсвечивается «Дневник» */
-const navKey = v => v === 'stats' ? 'journal' : v;
 function shell(r){
-  r = Object.assign({}, r, {v: navKey(r.v)});
   document.body.classList.toggle('pl-wide', r.v === 'tasks' && !!B.plWide);
   const c = B.calc();
   const side = document.getElementById('side');
   side.innerHTML = `<a class="brand" href="#/today">${icon('tree')}<span><b>Зов леса</b><small>уровень ${c.level} · ${c.trees ? B.fmtTrees(c.trees) : 'поляна'}</small></span></a>
-    <nav>${NAV.filter(n => !FOOT.includes(n[0])).map(([k, l, ic]) => `<a class="nav-i ${r.v === k ? 'on' : ''}" href="#/${k}">${icon(ic)}<span>${l}</span>${k === 'today' && c.live ? `<em>${icon('flame')}${c.live}</em>` : ''}</a>`).join('')}</nav>
+    <nav>${NAV.filter(n => !FOOT.includes(n[0])).map(([k, l, ic]) => `<a class="nav-i ${r.v === k ? 'on' : ''}" href="#/${k}">${icon(ic)}<span>${l}</span></a>`).join('')}</nav>
     <div class="side-foot">
       ${swatches()}
       <div class="row">${FOOT.map(k => { const n = NAV.find(x => x[0] === k); return `<a class="nav-i sm ${r.v === k ? 'on' : ''}" href="#/${k}" title="${n[1]}">${icon(n[2])}<span>${n[1]}</span></a>`; }).join('')}</div>
@@ -107,7 +106,7 @@ function shell(r){
   document.getElementById('bottom').innerHTML = BOTTOM.map(k => { const n = NAV.find(x => x[0] === k); return `<a class="bn ${r.v === k ? 'on' : ''}" href="#/${k}">${icon(n[2])}<span>${n[1]}</span></a>`; }).join('')
     + `<button class="bn ${more ? 'on' : ''}" data-act="more">${icon('more')}<span>${more ? (NAV.find(x => x[0] === r.v) || [0, 'Ещё'])[1] : 'Ещё'}</span></button>`;
   const tb = document.getElementById('topbar');
-  tb.querySelector('.tb-lvl').innerHTML = `${icon('flame')}<b>${c.live}</b><span class="tb-sep"></span><b>${c.level}</b><small>ур.</small>`;
+  tb.querySelector('.tb-lvl').innerHTML = `<b>${c.level}</b><small>ур.</small>`;
   tb.querySelector('.tb-sync').className = 'tb-sync sync ' + B.sync.mode;
   tb.querySelector('.tb-sync').title = B.sync.text;
   const th = tb.querySelector('.tb-theme'); if (th) th.innerHTML = icon(isDark() ? 'sun' : 'moon');
@@ -153,7 +152,7 @@ B.views.settings = {
         <div class="col">
           <section class="card">
             <h2>${icon('copy')}Резервная копия</h2>
-            <p class="muted">Задачи, привычки, книги, тренировки, дневник, стадии и назначенные даты ШАД.</p>
+            <p class="muted">Задачи, привычки, книги, тренировки, стадии и назначенные даты ШАД.</p>
             <div class="row"><button class="btn" data-act="export">Скачать копию</button><label class="btn ghost">Загрузить из файла<input type="file" accept="application/json,.json" data-in="import" hidden></label></div>
           </section>
           <section class="card">

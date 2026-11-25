@@ -172,9 +172,13 @@
 }
 
 /* Карточка над сеткой на компьютере и короткий лист на телефоне. */
-.sheet:has(.ac-quick) { max-width:368px;gap:7px;padding:12px 14px 14px }
+.sheet:has(.ac-quick) { max-width:560px;gap:10px;padding:16px }
 .ac-card-title { font:600 12px system-ui,sans-serif!important;color:var(--ink-2);margin:0 }
-.ac-quick { gap:7px }
+.ac-quick { grid-template-columns:minmax(0,1fr);gap:10px }
+.ac-quick > .row,.ac-quick > .row > .row { flex-wrap:wrap }
+.ac-quick > .row > .primary { margin-inline-start:auto }
+.ac-extra > div,.ac-times { grid-template-columns:minmax(0,1fr) }
+@media(min-width:520px){.ac-quick .ac-times { grid-template-columns:repeat(2,minmax(0,1fr)) }}
 .ac-quick .ac-types { width:100%;justify-content:stretch;margin:3px 0 }
 .ac-quick .ac-types button { flex:1 }
 .ac-quick-name,.ac-project select { width:100%;min-width:0 }
@@ -190,14 +194,6 @@
 .ac-draft.timed { position:absolute;left:2px;right:2px }
 .ac-grab { display:none }
 .ac-scroll { overscroll-behavior-x:contain }
-@media (min-width:700px) and (pointer:fine) {
-  #scrim:has(.ac-floating) { background:transparent }
-  .sheet:has(.ac-floating) {
-    position:fixed;inset:auto;left:var(--ac-pop-left,12px);top:var(--ac-pop-top,12px);
-    width:min(330px,calc(100vw - 16px));max-height:calc(100dvh - var(--ac-pop-top,12px) - 8px);
-    border:1px solid var(--rule-2);border-radius:14px;transform:none;box-shadow:0 12px 42px #0005;
-  }
-}
 @media(pointer:coarse) {
   .ac-resize,.ac-grab { touch-action:none }
   .ac-resize { height:8px }

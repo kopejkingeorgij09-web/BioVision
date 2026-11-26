@@ -80,9 +80,9 @@ public final class NativeChecks extends Instrumentation {
                 +"B.$('[data-act=acBoardCopy]').click();B.$('[data-board-choice=active]').click();"
                 +"location.hash='#/board';B.render(true);const card=B.$('[data-board-lane=active] .bd-card-title');"
                 +"const copied=card?.textContent===source.title && getComputedStyle(B.$('.bd-grid')).display==='grid';"
-                +"B.put('e_nativeboard',null);const copy=B.get('board_'+card?.closest('[data-board-card]').dataset.boardCard);"
-                +"if(copy)B.put('board_'+copy.id,null);location.hash='#/today';return copied && copy?.title===source.title;})()")),
-                "Calendar copy must reach the independent board in the bundled WebView");
+                +"const linked=B.boardData.get(card?.closest('[data-board-card]').dataset.boardCard);"
+                +"B.put('e_nativeboard',null);location.hash='#/today';return copied && linked?.ref===source.id && !B.boardData.get(linked.id);})()")),
+                "Calendar and board must share the same occurrence in the bundled WebView");
             String start=LocalDateTime.now().plusSeconds(90).withSecond(0).withNano(0).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
             String date=start.substring(0,10);
             c.getSystemService(NotificationManager.class).cancelAll();

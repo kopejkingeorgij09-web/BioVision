@@ -1,6 +1,8 @@
 from pathlib import Path
 import subprocess, shutil, plistlib
 repo=Path(__file__).resolve().parents[2]
+from build_widget import build_widget
+from tempfile import TemporaryDirectory
 import argparse
 parser=argparse.ArgumentParser();parser.add_argument('--output',type=Path,default=Path.home()/'Downloads');args=parser.parse_args()
 out=args.output/'Зов леса.app'
@@ -9,7 +11,7 @@ exe.mkdir(parents=True,exist_ok=True);resources.mkdir(parents=True,exist_ok=True
 for name in ['bamboo','bioviz/x','shad']:
  dst=resources/name;dst.mkdir(parents=True,exist_ok=True)
  if name=='bamboo':
-  for entry in ['style.css','calendar.css','board.css','alberts-plan.json','js','icons','manifest.webmanifest']:
+  for entry in ['style.css','calendar.css','board.css','focus','alberts-plan.json','js','icons','manifest.webmanifest']:
    src=repo/name/entry
    if src.is_dir():shutil.copytree(src,dst/entry,dirs_exist_ok=True)
    else:shutil.copy2(src,dst/entry)
@@ -18,12 +20,16 @@ for name in ['bamboo','bioviz/x','shad']:
   shutil.copy2(repo/'bamboo/android/web/app-updates.js',dst/'app-updates.js')
  elif name=='shad':shutil.copy2(repo/name/'plan.json',dst/'plan.json')
  else:shutil.copy2(repo/name/'cloud.js',dst/'cloud.js')
-info={'CFBundleIdentifier':'org.biovision.zovlesa.mac','CFBundleName':'Зов леса','CFBundleDisplayName':'Зов леса','CFBundleExecutable':'ZovLesa','CFBundlePackageType':'APPL','CFBundleShortVersionString':'1.1.18','CFBundleVersion':'23','LSMinimumSystemVersion':'12.0','NSHighResolutionCapable':True,'NSAppTransportSecurity':{'NSAllowsLocalNetworking':True}}
+info={'CFBundleIdentifier':'org.biovision.zovlesa.mac','CFBundleName':'Зов леса','CFBundleDisplayName':'Зов леса','CFBundleExecutable':'ZovLesa','CFBundleURLTypes':[{'CFBundleURLSchemes':['zovfocus'],'CFBundleURLName':'org.biovision.zovlesa.mac.focus'}],'CFBundlePackageType':'APPL','CFBundleShortVersionString':'1.1.19','CFBundleVersion':'24','CFBundleIconFile':'AppIcon.icns','LSMinimumSystemVersion':'12.0','NSHighResolutionCapable':True,'NSAppTransportSecurity':{'NSAllowsLocalNetworking':True}}
+shutil.copy2(repo/'bamboo/macos/AppIcon.icns',resources.parent/'AppIcon.icns')
 (out/'Contents/Info.plist').write_bytes(plistlib.dumps(info))
+scratch_dir=TemporaryDirectory()
+scratch=Path(scratch_dir.name)
+entitlements=build_widget(out,info['CFBundleShortVersionString'],info['CFBundleVersion'],scratch)
 for arch in ['arm64','x86_64']:
- subprocess.run(['xcrun','swiftc',str(repo/'bamboo/macos/main.swift'),'-O','-target',arch+'-apple-macosx12.0','-framework','AppKit','-framework','WebKit','-framework','Network','-framework','CryptoKit','-o','/private/tmp/ZovLesa-'+arch],check=True)
-subprocess.run(['lipo','-create','/private/tmp/ZovLesa-arm64','/private/tmp/ZovLesa-x86_64','-output',str(exe/'ZovLesa')],check=True)
-subprocess.run(['codesign','--force','--deep','--sign','-',str(out)],check=True)
+ subprocess.run(['xcrun','swiftc',str(repo/'bamboo/macos/main.swift'),'-O','-target',arch+'-apple-macosx12.0','-framework','AppKit','-framework','WebKit','-framework','Network','-framework','CryptoKit','-o',scratch/('ZovLesa-'+arch)],check=True)
+subprocess.run(['lipo','-create',scratch/'ZovLesa-arm64',scratch/'ZovLesa-x86_64','-output',str(exe/'ZovLesa')],check=True)
+subprocess.run(['codesign','--force','--sign','-','--entitlements',entitlements,str(out)],check=True)
 subprocess.run(['codesign','--verify','--deep','--strict',str(out)],check=True)
 subprocess.run(['ditto','-c','-k','--sequesterRsrc','--keepParent',str(out),str(args.output/f"Zov-Lesa-macOS-{info['CFBundleShortVersionString']}.zip")],check=True)
 print(out)

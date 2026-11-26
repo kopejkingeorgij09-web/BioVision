@@ -608,6 +608,7 @@ B.calendarMoveTask = (id,start,end) => {
   if(t.due===date) B.updTask(id,slot);
   else moveTask(t,date,null,slot);
 };
+B.rescheduleTask = (id,date) => {const t=B.task(id);if(t && !t.deleted)moveTask(t,date);};
 document.addEventListener('click', e => { if (Date.now() - justDragged < 350 && e.target.closest('.pl-t,.pl-shad')){ e.stopPropagation(); e.preventDefault(); } }, true);
 
 /* ---------- карточка задачи ---------- */

@@ -1596,11 +1596,6 @@ kbd{font:600 12px var(--f-mono);background:var(--paper-2);border:1px solid var(-
   .agenda-line>.ic{width:28px;height:28px;padding:5px}
   .agenda-untimed .agenda-line{grid-template-columns:28px minmax(0,1fr)}
 }
-.shad-summary{background:var(--ink);color:var(--sheet)}
-.shad-summary>div>a,.shad-summary>div>h2{color:inherit}
-.shad-summary>.bar{background:#777}
-.shad-summary>.bar>i{background:var(--sheet)}
-.shad-summary details .shad-row{color:var(--ink);background:var(--sheet);padding:10px}
 .habit-count{font-size:17px;font-weight:650;color:var(--accent);margin:0 0 16px}
 .habit-week-nav{display:flex;align-items:center;gap:8px;background:var(--paper-2);border-radius:12px;padding:6px 12px;margin:0 0 12px}
 .habit-week-nav b{flex:1}

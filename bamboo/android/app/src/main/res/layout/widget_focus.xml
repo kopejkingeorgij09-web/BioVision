@@ -1,0 +1,5 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/focus_root" android:layout_width="match_parent" android:layout_height="match_parent" android:padding="16dp" android:orientation="vertical" android:background="@drawable/widget_background">
+  <TextView android:id="@+id/focus_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="1" android:textColor="#F5F5E9" android:textSize="16sp" android:text="Фокус"/>
+  <TextView android:id="@+id/focus_clock" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="24sp" android:text="25:00"/>
+  <TextView android:id="@+id/focus_details" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#DCE7D9" android:textSize="13sp" android:maxLines="4"/>
+</LinearLayout>

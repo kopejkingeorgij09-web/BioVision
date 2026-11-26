@@ -1,4 +1,3 @@
-/* Доска хранит собственные карточки. Календарь передаёт только снимок выбранной записи. */
 (function(){
 const {esc, icon} = B;
 const columns = [
@@ -8,7 +7,8 @@ const columns = [
 ];
 const lane = id => columns.find(c => c.id === id);
 const key = id => 'board_' + id;
-const get = id => B.get(key(id));
+const get = id => B.boardData.get(id);
+let historyDate = "", planDate = "";
 const save = card => B.put(key(card.id), card);
 const laneLabel = c => icon(c.icon) + '<span>' + c.title + '</span>';
 
@@ -30,7 +30,7 @@ function move(id, destination){
   const card = get(id);
   if (!card || !lane(destination) || card.lane === destination) return;
   B.historyToast('Карточка перемещена · ' + lane(destination).title, () =>
-    save({...card, lane:destination, placed:Date.now()}));
+    B.boardData.move(card,destination));
 }
 
 function cardView(card){
@@ -50,29 +50,28 @@ function cardView(card){
   </article>`;
 }
 function render(){
-  const all = B.list('board_').sort((a,b) => b.placed - a.placed || a.id.localeCompare(b.id));
-  return `<div class="page bd-page">
-    <header class="bd-header">
-      <div><h1>Доска дел</h1><p>Перетаскивай карточки между колонками и отмечай шаги.</p></div>
-      <div class="bd-actions">
-        <a class="btn" href="#/calendar">${icon('cal')} К календарю</a>
-        <button type="button" class="btn primary" data-act="boardAdd" data-lane="plan">${icon('plus')} Новое дело</button>
-      </div>
-    </header>
-    <div class="bd-grid">${columns.map(c => {
-      const cards = all.filter(card => card.lane === c.id);
+  const tab=location.hash.split('/')[2] || 'live';
+  const historical=tab==='history';
+  const date=historical ? historyDate || B.add(B.today(),-1) : planDate || B.today();
+  const records=historical ? B.boardData.history(date) : null;
+  const all=tab==='live' ? B.boardData.all(date).sort((a,b)=>b.placed-a.placed || a.title.localeCompare(b.title,'ru')) : [];
+  return `<div class="page bd-page"><header class="bd-header"><div><h1>Доска дел</h1></div>
+    <div class="bd-actions"><a class="btn" href="#/calendar">${icon('cal')} К календарю</a>
+    <button class="btn primary" data-act="boardAdd" data-lane="plan">${icon('plus')} Новое дело</button></div></header>
+    <nav class="toggle bd-tabs" aria-label="Доска">${[['live','Дела'],['history','История'],['focus','Фокус']].map(([id,title])=>
+      `<a href="#/board${id==='live'?'':'/'+id}" class="${tab===id?'on':''}">${title}</a>`).join('')}</nav>
+    ${tab==='focus' ? B.focus.render() : `<label class="field bd-date">${historical?'История за день':'Дата повторяющихся событий'}
+      <input type="date" data-in="boardDate" value="${date}" ${historical?'max="'+B.today()+'"':''}></label>
+    <div class="bd-grid">${columns.map(c=>{
+      const cards=historical?records[c.id]:all.filter(item=>item.lane===c.id);
       return `<section class="bd-lane bd-${c.id}" data-board-lane="${c.id}" aria-labelledby="board-${c.id}">
-        <header class="bd-lane-head">
-          <div class="bd-lane-icon">${icon(c.icon)}</div>
-          <h2 id="board-${c.id}">${c.title}</h2><span class="bd-count" aria-label="Карточек: ${cards.length}">${cards.length}</span>
-          <button type="button" class="icon-btn" data-act="boardAdd" data-lane="${c.id}" aria-label="Добавить дело · ${c.title}" title="Добавить дело">${icon('plus')}</button>
-        </header>
-        <div class="bd-stack">${cards.length ? cards.map(cardView).join('') : '<p class="bd-empty">Перетащи сюда карточку</p>'}</div>
-      </section>`;
-    }).join('')}</div>
-  </div>`;
+        <header class="bd-lane-head"><div class="bd-lane-icon">${icon(c.icon)}</div>
+          <h2 id="board-${c.id}">${c.title}</h2><span class="bd-count">${cards.length}</span>
+          ${historical?'':`<button class="icon-btn" data-act="boardAdd" data-lane="${c.id}" aria-label="Добавить дело · ${c.title}">${icon('plus')}</button>`}</header>
+        <div class="bd-stack">${cards.length?cards.map(card=>historical?`<p class="bd-card">${esc(card.title)}</p>`:cardView(card)).join(''):
+          `<p class="bd-empty">${historical?'Нет записей':'Перетащи сюда карточку'}</p>`}</div></section>`;
+    }).join('')}</div>`}</div>`;
 }
-
 function editor(card, creating = false){
   B.sheet(`<h2>${creating?'Новое дело':'Редактировать дело'}</h2>
     <form id="board-editor" class="bd-form">
@@ -104,12 +103,30 @@ function editor(card, creating = false){
     });
     const next = lane(f.lane.value)?.id || current.lane;
     const placed = next === current.lane ? current.placed : Date.now();
-    B.historyStep(() => save({...current, title, notes:f.notes.value.trim(), steps, lane:next, placed}));
+    B.historyStep(() => {
+      const notes=f.notes.value.trim();
+      if (!creating) return save({...current,title,notes,steps,lane:next,placed});
+      const t=B.newTask({title,notes,due:card.due || planDate || B.today(),boardLane:next,
+        subs:steps.map(s=>({id:s.id,t:s.title,done:s.done}))});
+      if(next==='done')B.setDone(t,true);else B.saveTask(t);
+    });
     B.closeSheet();
   });
 }
-B.acts.boardAdd = el => editor(newCard({lane:lane(el.dataset.lane)?.id || 'plan'}), true);
-B.acts.boardEdit = el => { const card = get(el.dataset.id); if (card) editor(card); };
+B.acts.boardAdd = el => editor(newCard({lane:lane(el.dataset.lane)?.id || 'plan',due:el.dataset.day}), true);
+B.acts.boardEdit = el => {
+  const c=get(el.dataset.id); if (!c) return;
+  if(c.source==='shad')return B.acts.acShadPick({dataset:{id:c.ref,part:c.part}});
+  if(c.source==='phagi')return window.open(B.phagiTask(c.ref),'_blank','noopener');
+  if(c.source==='task') return B.openTask(c.ref);
+  if(c.source==='event') return B.acts.acOpen({dataset:{k:'event',id:c.ref,on:c.on,start:c.start,end:c.end}});
+  editor(c);
+};
+B.inputs.boardDate=(el,ev)=>{
+  if(ev.type!=='change' || !B.calData.validDate(el.value))return;
+  if(location.hash==='#/board/history')historyDate=el.value>B.today()?B.today():el.value;else planDate=el.value;
+  B.render(true);
+};
 B.acts.boardDelete = async el => {
   const card = get(el.dataset.id);
   if (!card || !await B.confirm('Удалить «'+esc(card.title)+'» с доски?', 'Удалить', true)) return;
@@ -119,6 +136,9 @@ B.acts.boardDelete = async el => {
 B.inputs.boardStep = (el, ev) => {
   if (ev.type !== 'change') return;
   const card = get(el.dataset.card);
+  if (card?.source==='task'){
+    const t=B.task(card.ref);B.saveTask({...t,subs:t.subs.map(s=>s.id===el.dataset.id?{...s,done:el.checked,doneAt:el.checked?Date.now():null}:s)});return;
+  }
   if (!card?.steps.some(s => s.id === el.dataset.id)) return;
   B.historyStep(() => B.put(key(card.id), {...card,
     steps:card.steps.map(s => s.id === el.dataset.id ? {...s,done:el.checked} : s)

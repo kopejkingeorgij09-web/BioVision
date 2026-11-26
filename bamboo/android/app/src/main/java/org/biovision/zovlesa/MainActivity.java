@@ -149,6 +149,7 @@ public final class MainActivity extends Activity {
                     break;
                 case "widgets":
                     ZovWidget.replace(this, packet.getJSONArray("items"));
+                    FocusWidget.save(this,packet.optJSONObject("focus"));
                     StudyWidget.replace(this,packet.optJSONObject("study"));
                     HabitWidget.replace(this,packet.optJSONObject("habits"),packet.optJSONArray("habitAcks"));
                     ZovWidget.refresh(this);

@@ -31,6 +31,11 @@
         for (const minutes of alerts) add('event', e.id, date, start, minutes, x.title);
       }
     }
+    const focus=B.focus?.current()?.timer;
+    if(B.focus?.notifications() && focus?.running && focus.until>=now-60000){
+      items.push({kind:'page',id:'board/focus',at:focus.until,date:B.ymd(new Date(focus.until)),start:String(focus.until),
+        before:0,title:(focus.phase==='break'?'Перерыв завершён':'Фокус завершён')+(focus.title?' · '+focus.title:'')});
+    }
     const nearest = items.sort((a, b) => a.at - b.at).slice(0, 1800).map(({at, ...item}) => item);
     const payload = JSON.stringify({op: 'sync', items: nearest});
     if (payload === lastPayload) return;

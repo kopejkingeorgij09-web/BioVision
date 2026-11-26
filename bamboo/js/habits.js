@@ -206,7 +206,7 @@ function habitHistory(hs){
     }).join('')}</section>
     <details class="card habit-review" data-fold="habit-review"><summary>Разбор недели</summary>
       ${tips.length ? `<ul>${tips.map(t => `<li>${t}</li>`).join('')}</ul>` : '<p class="muted">Пока мало записей для разбора.</p>'}
-      <button class="btn" data-act="aiWeek">Разобрать неделю в Claude</button>
+      <button class="btn" data-act="aiWeek">Скопировать промпт за неделю</button>
     </details>`;
 }
 B.views.habits = {

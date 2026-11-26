@@ -173,11 +173,13 @@ B.redo = () => { const e = redoSt.pop(); if (!e) return false; replay(e, 'after'
 B.recordShad = (n, before, after) => record('shad:' + n, before, after);
 B.clearUndo = () => { undoSt.length = 0; redoSt.length = 0; };
 
-B.put = (id, data, quiet) => {
-  if (id !== 'cfg') record(id, docs[id], data);
+B.put = (id, data, quiet, journal = false) => {
+  const before = docs[id];
+  if (id !== 'cfg' && !journal) record(id, docs[id], data);
   if (data == null) delete docs[id];
   else { if (data._seed) delete data._seed; docs[id] = data; }
   dirty[id] = (dirty[id] || 0) + 1;
+  if (!journal) B.boardData?.track(id, before, data);
   lsSave(); schedule(id);
   if (db && B.sync.mode === 'cloud') refreshSync();
   if (quiet){ B.ver++; if (affectsCalc(id)) calcVer++; } else changed();
@@ -316,6 +318,7 @@ function flushShadQueue(){ Object.keys(shadQueue).forEach(flushShad); }
 /* patch: {t, w: {date, from, to}, h: {date}}; null убирает все правки, веб снова как в плане */
 B.shadRestore = (n, v) => {
   const m = Object.assign({}, B.shad.marks);
+  B.boardData?.shadMark(n,B.shadStage(n),v?.s || 0);
   if (v) m[n] = v; else delete m[n];
   B.shad.marks = m; applyOver(); changed(); shadWrite(n, v || {s: 0, note: ''});
 };
@@ -428,6 +431,7 @@ B.phxDay = date => B.phx.day[date] || null;
 B.shadStage = n => (B.shad.marks[n] && B.shad.marks[n].s) || 0;
 B.setShadStage = async (n, s) => {
   const cur = B.shad.marks[n] || {};
+  B.boardData?.shadMark(n,cur.s || 0,s);
   const v = {s, note: cur.note || '', at: Date.now()}; if (cur.o) v.o = cur.o;
   B.recordShad(n, B.shad.marks[n], v);
   B.shad.marks = Object.assign({}, B.shad.marks, {[n]: v});

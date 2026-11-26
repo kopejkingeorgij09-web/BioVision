@@ -44,6 +44,7 @@ public class ZovWidget extends AppWidgetProvider {
     static void refresh(Context c) {
         AppWidgetManager m=AppWidgetManager.getInstance(c);
         StudyWidget.refresh(c);
+        FocusWidget.refresh(c);
         HabitWidget.refresh(c);
         for(Class<?> type:new Class<?>[]{TodayWidget.class,AgendaWidget.class})
             for(int id:m.getAppWidgetIds(new ComponentName(c,type)))render(c,m,id,type==AgendaWidget.class);

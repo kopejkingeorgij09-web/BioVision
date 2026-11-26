@@ -762,6 +762,12 @@ function copyToBoard(item, destination){
   const current=resolveItem(item);
   if(!current){B.toast('Запись уже изменилась');return;}
   const {view,record}=current;
+  const linkedId=view.kind==='event'?B.boardData.eventId(record,view.on):view.kind==='shad'?'shad:'+view.part+':'+view.id:'task:'+view.id;
+  const linked=B.boardData.get(linkedId);
+  if(linked && (view.kind!=='event' || plannerOrigin(record)==='personal')){
+    if(linked.lane!==destination) B.historyStep(()=>B.boardData.move(linked,destination));
+    B.toast('Колонка на доске обновлена');return;
+  }
   const label=view.kind==='shad'?[shadPart(view.part),view.course]:[view.location];
   const context=[intervalLabel(view,false),...label].filter(Boolean).join(' · ');
   B.board.copy({title:view.title,notes:record.notes,steps:record.subs,context},destination);
@@ -774,14 +780,14 @@ B.acts.acMenu=el=>{
   const scope=record.repeat||record.rep ? '<p class="hint">Действие применяется к записи на '+fmt(view.on)+'.</p>' : '';
   B.sheet(`<h2>${esc(view.title||'Без названия')}</h2>${scope}<div class="ac-card-actions">
     <button type="button" class="btn ghost" data-act="acOpen" ${attrs} autofocus>${icon('cal')}Открыть</button>
-    <button type="button" class="btn" data-act="acBoardCopy" ${attrs}>${icon('copy')}Копировать на доску</button>
+    <button type="button" class="btn" data-act="acBoardCopy" ${attrs}>${icon('copy')}На доску</button>
     ${action?`<button type="button" class="btn ${remove?'danger':'ghost'}" data-act="acMenuApply" ${attrs}>
       ${icon(remove?'trash':'clock')}${remove?'Удалить':'Убрать время'}</button>`:''}
   </div>`);
 };
 B.acts.acBoardCopy=el=>{
   const item=fromNode(el);
-  B.board.choose('Копировать на доску', destination=>copyToBoard(item,destination));
+  B.board.choose('На доску', destination=>copyToBoard(item,destination));
 };
 B.acts.acMenuApply=el=>{
   const current=resolveItem(fromNode(el));
@@ -969,7 +975,7 @@ function rangePointer(e,root){
   function update(ev){
     if(ev.pointerId!==id)return;
     if(!active&&Math.hypot(ev.clientX-sx,ev.clientY-sy)<3)return;
-    if(!active&&x&&!card&&!edge)boardTray=B.board.dropTray('Копировать на доску');
+    if(!active&&x&&!card&&!edge)boardTray=B.board.dropTray('На доску');
     active=true;dragging=true;
     boardTarget=boardTray?.target(ev.clientX,ev.clientY);
     const hit=document.elementFromPoint(ev.clientX,ev.clientY);
@@ -1213,7 +1219,7 @@ function openReminder(id,on){
 }
 B.views = B.views || {};
 B.views.calendar = {title: 'Календарь', render, mount, unmount};
-B.calendarView={render,mount,unmount,itemsBetween,plannerEventDays,plannerRow,openReminder,calendarCheck,actionButton,applyPlanSlot,
+B.calendarView={render,mount,unmount,itemsBetween,plannerOrigin,plannerEventDays,plannerRow,openReminder,calendarCheck,actionButton,applyPlanSlot,
   canApplyPlanSlot:(item,start,end)=>!!planSlotEntry(item,start,end),
   selectedDate:()=>date,selectDate,deferRender(){
   if(!dragging&&!weekScrollTimer)return false;

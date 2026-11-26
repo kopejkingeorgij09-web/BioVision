@@ -63,7 +63,7 @@
     const day = B.today();
     const habits = {date:day, pins:B.habitPins(), rows:B.trackerHabits().filter(h => !h.created || h.created <= day).map(h =>
       ({id:h.id, name:text(h.name,160), auto:h.auto || '', value:B.habitVal(h,day)}))};
-    const packet = JSON.stringify({op:'widgets',items:items.slice(0,300),study,habits,habitAcks});
+    const packet = JSON.stringify({op:'widgets',items:items.slice(0,300),study,habits,habitAcks,focus:B.focus?.widgetSnapshot()});
     if(habitAcks.length || packet!==last){bridge.postMessage(packet);last=packet;}
     habitAcks=[];
   }

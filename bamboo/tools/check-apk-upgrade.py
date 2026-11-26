@@ -38,3 +38,7 @@ for old in previous:
     assert f"versionName={version}" in info and f"versionCode={feed['build']} " in info
     assert "Status: ok" in adb("shell", "am", "start", "-W", "-n", package + "/.MainActivity")
     print(f"Verified in-place upgrade from {old.name} to {target.name}")
+
+# Check release discovery from the previous signed version on this disposable emulator.
+adb("uninstall", package)
+subprocess.run(["python3", str(root / "bamboo/tools/check-198-published-update.py")], check=True)

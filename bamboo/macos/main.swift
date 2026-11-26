@@ -2,6 +2,7 @@ import AppKit
 import WebKit
 import Network
 import CryptoKit
+import WidgetKit
 
 let releaseRoot = "https://kopejkingeorgij09-web.github.io/BioVision/releases/zov-lesa/"
 let bundleID = "org.biovision.zovlesa.mac"
@@ -49,7 +50,7 @@ final class LocalWebServer {
                 guard file.path.hasPrefix(self.root.path + "/"), let bytes = try? Data(contentsOf: file) else {
                     connection.send(content: Data("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".utf8), completion: .contentProcessed { _ in connection.cancel() }); return
                 }
-                let mime = ["html":"text/html; charset=utf-8","js":"application/javascript; charset=utf-8","css":"text/css; charset=utf-8","json":"application/json","svg":"image/svg+xml","png":"image/png","webmanifest":"application/manifest+json"][file.pathExtension] ?? "application/octet-stream"
+                let mime = ["html":"text/html; charset=utf-8","js":"application/javascript; charset=utf-8","css":"text/css; charset=utf-8","json":"application/json","svg":"image/svg+xml","png":"image/png","jpg":"image/jpeg","m4a":"audio/mp4","webmanifest":"application/manifest+json"][file.pathExtension] ?? "application/octet-stream"
                 var response = Data("HTTP/1.1 200 OK\r\nContent-Type: \(mime)\r\nContent-Length: \(bytes.count)\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n".utf8)
                 if first[0] == "GET" { response.append(bytes) }
                 connection.send(content: response, completion: .contentProcessed { _ in connection.cancel() })
@@ -64,6 +65,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     var web: WKWebView!
     var server: LocalWebServer!
     var update: [String:Any]?
+    private var focusItem: NSStatusItem?
+    private var requestedFocus = false
+    @objc private func showFocus(){
+        requestedFocus=true
+        NSApp.activate(ignoringOtherApps:true)
+        window?.makeKeyAndOrderFront(nil)
+        if web?.url != nil {
+            web.evaluateJavaScript("location.hash='#/board/focus';true"){ _,error in
+                if error == nil { self.requestedFocus=false }
+            }
+        }
+    }
+    func application(_ application:NSApplication, open urls:[URL]){
+        if urls.contains(where:{$0.scheme=="zovfocus" && $0.host=="studio"}) {showFocus()}
+    }
+    func applicationShouldHandleReopen(_ sender:NSApplication,hasVisibleWindows flag:Bool)->Bool{
+        window?.makeKeyAndOrderFront(nil)
+        return true
+    }
+    @objc private func focusToggle(){web.evaluateJavaScript("B.acts.focusToggle();true",completionHandler:nil)}
+    @objc private func focusSound(){web.evaluateJavaScript("B.acts.focusSound();true",completionHandler:nil)}
+    private func focusClock(_ label:String){
+        if label.isEmpty {
+            if let item=focusItem {NSStatusBar.system.removeStatusItem(item);focusItem=nil}
+            return
+        }
+        if focusItem==nil {
+            let item=NSStatusBar.system.statusItem(withLength:NSStatusItem.variableLength)
+            let menu=NSMenu()
+            for (title,action) in [("Открыть фокус",#selector(showFocus)),("Пауза / продолжить",#selector(focusToggle)),("Включить / выключить фон",#selector(focusSound))] {
+                menu.addItem(withTitle:title,action:action,keyEquivalent:"").target=self
+            }
+            item.menu=menu
+            item.button?.font=NSFont.monospacedDigitSystemFont(ofSize:12,weight:.medium)
+            focusItem=item
+        }
+        focusItem?.button?.title="◷ "+String(label.prefix(12))
+    }
+    private func focusWidget(_ data:[String:Any]){
+        guard !ProcessInfo.processInfo.arguments.contains("--self-test"),
+              let snapshot=data["snapshot"] as? [String:Any],
+              let bytes=try? JSONSerialization.data(withJSONObject:snapshot), bytes.count<20000,
+              let dir=FileManager.default.containerURL(forSecurityApplicationGroupIdentifier:"group.org.biovision.zovlesa.focus")
+        else{return}
+        do{
+            try FileManager.default.createDirectory(at:dir,withIntermediateDirectories:true)
+            try bytes.write(to:dir.appendingPathComponent("focus.json"),options:.atomic)
+            WidgetCenter.shared.reloadTimelines(ofKind:"ZovFocus")
+        }catch{NSLog("Не удалось обновить виджет фокуса")}
+    }
     var busy = false
     func applicationDidFinishLaunching(_ notification: Notification) {
         let selfTest = ProcessInfo.processInfo.arguments.contains("--self-test")
@@ -128,6 +179,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     func applicationDidBecomeActive(_ notification:Notification){ refreshClock() }
     private var attempts=0
     func webView(_ webView:WKWebView,didFinish navigation:WKNavigation!){
+        if requestedFocus {showFocus()}
         if ProcessInfo.processInfo.arguments.contains("--self-test"){self.testUI()}
     }
     func testUI(){
@@ -245,13 +297,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         DispatchQueue.main.asyncAfter(deadline:.now()+1){reply()}
         return .terminateLater
     }
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { focusItem == nil }
     @objc func settings(){web.evaluateJavaScript("location.hash='#/settings'",completionHandler:nil)}
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         let origin=message.frameInfo.securityOrigin
         guard message.frameInfo.isMainFrame, origin.host=="127.0.0.1", origin.port == Int(server.port),
             let raw=message.body as? String,let bytes=raw.data(using:.utf8),let data=(try? JSONSerialization.jsonObject(with:bytes)) as? [String:Any] else {return}
-        switch data["op"] as? String { case "updateCheck":checkUpdate();case "updateInstall":installUpdate();case "updateStatus":status("idle","Проверь наличие новой версии приложения");default:break }
+        switch data["op"] as? String { case "focusClock":focusClock(data["label"] as? String ?? "");case "focusWidget":focusWidget(data);case "updateCheck":checkUpdate();case "updateInstall":installUpdate();case "updateStatus":status("idle","Проверь наличие новой версии приложения");default:break }
     }
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         guard let url=navigationAction.request.url else {decisionHandler(.cancel);return}

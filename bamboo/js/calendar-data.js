@@ -31,6 +31,11 @@ function done(e){
   return !!habit && B.habitDone(habit, e.on);
 }
 function toggle(e){
+  const before = done(e);
+  toggleMark(e);
+  if (!!before !== !!done(e)) B.boardData?.calendarMark(e, !!before, !!done(e));
+}
+function toggleMark(e){
   if (e.habitId){
     const habit = linkedHabit(e);
     if (habit && !habit.arch && !habit.auto && e.on >= (habit.created || ''))

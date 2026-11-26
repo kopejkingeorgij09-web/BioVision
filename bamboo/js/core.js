@@ -173,11 +173,13 @@ B.redo = () => { const e = redoSt.pop(); if (!e) return false; replay(e, 'after'
 B.recordShad = (n, before, after) => record('shad:' + n, before, after);
 B.clearUndo = () => { undoSt.length = 0; redoSt.length = 0; };
 
-B.put = (id, data, quiet) => {
-  if (id !== 'cfg') record(id, docs[id], data);
+B.put = (id, data, quiet, journal = false) => {
+  const before = docs[id];
+  if (id !== 'cfg' && !journal) record(id, docs[id], data);
   if (data == null) delete docs[id];
   else { if (data._seed) delete data._seed; docs[id] = data; }
   dirty[id] = (dirty[id] || 0) + 1;
+  if (!journal) B.boardData?.track(id, before, data);
   lsSave(); schedule(id);
   if (db && B.sync.mode === 'cloud') refreshSync();
   if (quiet){ B.ver++; if (affectsCalc(id)) calcVer++; } else changed();

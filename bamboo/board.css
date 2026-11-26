@@ -96,3 +96,22 @@
   .bd-choice .ic { width:15px;height:15px }
   .bd-nav .bn span { font-size:10px }
 }
+
+.bd-tabs,.fo-tabs,.fo-studio .row {display:flex;flex-wrap:wrap;gap:6px}
+.bd-tabs {margin-bottom:16px;width:fit-content}
+.bd-tabs a {padding:8px 17px;text-decoration:none;color:var(--ink-2);border-radius:8px}
+.bd-tabs .on,.fo-tabs [aria-pressed=true]{background:var(--sheet);color:var(--accent);box-shadow:var(--shadow)}
+.bd-date {max-width:260px;margin-bottom:14px}
+.fo-wrap{display:grid;gap:14px}
+.fo-studio {min-height:clamp(300px,48vh,540px);display:flex;align-items:center;justify-content:center;flex-direction:column;
+  gap:14px;padding:22px;background-size:cover;background-position:center;color:white;border-radius:18px;text-align:center}
+.fo-studio strong {font:500 clamp(60px,9vw,115px)/1.1 var(--f-display);font-variant-numeric:tabular-nums}
+.fo-studio .row {justify-content:center}
+.fo-prefs,.fo-scenes,.fo-week {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(185px,100%),1fr));gap:12px}
+.fo-prefs select {max-width:100%;width:100%}
+.fo-volume,.fo-plan {display:flex;align-items:center;gap:12px;margin-top:12px}
+.fo-volume input {margin-left:auto;width:58%}
+.fo-plan span {flex:1;min-width:0;overflow-wrap:anywhere}
+.fo-scenes button {border:3px solid transparent;border-radius:12px;min-height:100px;background-size:cover;background-position:center;color:white;text-align:start;padding:14px;align-content:end;font:inherit}
+.fo-scenes [aria-pressed=true],.fo-week [aria-pressed=true] {border-color:var(--accent)}
+.fo-week .btn {display:grid;text-align:start;gap:4px}

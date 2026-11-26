@@ -13,7 +13,7 @@ const groupInfo = {
   planner: ['Задачи', 'list'],
   calendar: ['Календарь', 'cal'],
   board: ['Доска и фокус', 'board'],
-  card: ['Карточка задачи', 'note']
+  card: ['Редактор записи', 'note']
 };
 let guideGroup = 'nav', pointerMode = null;
 document.addEventListener('pointermove', e => { if (e.pointerType !== 'touch') pointerMode = true; }, {passive:true});
@@ -110,8 +110,10 @@ command('board','focus','KeyB','Начать перерыв помодоро',()
 command('board','focus','KeyM','Включить или приостановить фон',act('focusSound'));
 command('board','focus','Shift+KeyM','Вернуть фон к началу',act('focusAudioReset'));
 
-command('card','taskEditor','Mod+Enter','Завершить редактирование',() => {
-  document.activeElement?.blur(); B.closeSheet();
+command('card','entryEditor','Mod+Enter','Сохранить запись',() => {
+  const form = B.$('.sheet form.entry-editor');
+  if (!form) return false;
+  form.querySelector('button[type=submit]').click();
 });
 command('card','taskEditor','KeyD','Выбрать срок',() => {
   const field = B.$('.sheet input[data-in=twDue]');
@@ -146,6 +148,7 @@ function commandTile(cmd){
 function drawCommands(group){
   const items = commands.filter(cmd => cmd.group === group);
   const sections = group === 'board' ? [['На доске',['board','boardLive']],['Во время фокуса',['focus']]] :
+    group === 'card' ? [['В любом редакторе',['entryEditor']],['В карточке задачи',['taskEditor','taskPicker']]] :
     group === 'planner' ? [['Виды планера',['planner']],['В неделе и месяце',['plannerGrid']]] : [];
   if (!sections.length) return items.map(commandTile).join('');
   return sections.map(([title,scopes]) => '<h3 class="kg-subtitle">' + title + '</h3>' +
@@ -177,8 +180,8 @@ B.acts.settingsKeys = () => {
 function scopes(){
   if (dialogOpen()) return ['escape'];
   if (B.sheetOpen()){
-    if (!B.$('.sheet .tw')) return ['escape'];
-    return ['escape','taskEditor', ...(['cal','color'].includes(B.twPopNow()) ? ['taskPicker'] : [])];
+    if (!B.$('.sheet .tw')) return B.$('.sheet form.entry-editor') ? ['escape','entryEditor'] : ['escape'];
+    return ['escape','entryEditor','taskEditor', ...(['cal','color'].includes(B.twPopNow()) ? ['taskPicker'] : [])];
   }
   const [,page,tab] = location.hash.split('/');
   const result = ['escape','global'];
@@ -209,7 +212,7 @@ document.addEventListener('keydown', event => {
   const cmd = commands.find(c => active.includes(c.scope) && c.combos.includes(combo));
   if (!cmd) return;
   const editingEscape = combo === 'Escape' && (B.sheetOpen() || dialogOpen());
-  if (typing && !editingEscape && !(cmd.scope === 'taskEditor' && combo === 'Mod+Enter')) return;
+  if (typing && !editingEscape && !(cmd.scope === 'entryEditor' && combo === 'Mod+Enter')) return;
   // Pressing Space/Enter on an actual control activates that control, even if
   // the pointer is still over a task or a focus timer is running.
   if ((combo === 'Space' || combo === 'Enter') && control(event.target)) return;

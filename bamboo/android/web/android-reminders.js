@@ -120,21 +120,8 @@
     </section>`;
   }
 
-  function eventField(e){
-    const current = e.alerts?.[0] ?? '';
-    const times = new Map([['','Без напоминания'], [0,'В момент начала'], [5,'За 5 минут'], [15,'За 15 минут'],
-      [30,'За 30 минут'], [60,'За час'], [1440,'За день']]);
-    if (!times.has(current) && validMinutes(current)) times.set(current, 'За ' + current + ' мин.');
-    return `<label class="field">Уведомление Android<select name="androidAlert" data-current="${B.esc(current)}">${[...times]
-      .map(([value, label]) => `<option value="${value}" ${value === current ? 'selected' : ''}>${label}</option>`).join('')}</select></label>`;
-  }
-
-  function eventAlerts(select, e){
-    return select.value === select.dataset.current ? e.alerts || [] : select.value === '' ? [] : [Number(select.value)];
-  }
-
   const enable = () => { if (!status?.enabled) send('enable'); };
-  B.androidReminders = {refresh, queue, enable, settings, eventField, eventAlerts};
+  B.androidReminders = {refresh, queue, enable, settings};
   B.acts.androidEnableReminders = enable;
   B.acts.androidExactReminders = () => send('exact');
   B.acts.androidTestReminder = () => { send('test'); B.toast('Уведомление через 15 секунд. Можно закрыть приложение.'); };

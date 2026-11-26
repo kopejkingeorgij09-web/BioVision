@@ -12,6 +12,7 @@ import android.view.ViewGroup;
 import android.webkit.WebView;
 import android.widget.TextView;
 import org.json.JSONArray;
+import org.json.JSONObject;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.CountDownLatch;
@@ -46,6 +47,47 @@ public final class NativeChecks extends Instrumentation {
             Thread.sleep(100);
         }
         throw new AssertionError("Native focus deadline differs from the visible timer");
+    }
+
+    private void expectTaskAlarm(Context context, String id, String day, boolean present) throws Exception {
+        for (int attempt = 0; attempt < 50; attempt++) {
+            JSONArray items = new JSONArray(context.getSharedPreferences("reminders", Context.MODE_PRIVATE)
+                    .getString("schedule", "[]"));
+            boolean found = false;
+            for (int i = 0; i < items.length(); i++) {
+                JSONObject item = items.getJSONObject(i);
+                if (!id.equals(item.optString("id"))) continue;
+                check("task".equals(item.getString("kind")) && day.equals(item.getString("date"))
+                                && (day + "T09:00").equals(item.getString("start")) && item.getInt("before") == 0,
+                        "Calendar reminder has the wrong AlarmManager target or local time: " + item);
+                found = true;
+            }
+            if (found == present) return;
+            Thread.sleep(100);
+        }
+        throw new AssertionError("Calendar reminder " + id + " expected in native schedule: " + present);
+    }
+
+    private void checkCalendarReminder(Context context) throws Exception {
+        String created = js("(()=>{const day=B.add(B.today(),2), title='Calendar reminder '+Date.now();"
+                +"B.calendarView.selectDate(day);location.hash='#/calendar';B.render(true);"
+                +"B.acts.acMode({dataset:{v:'day'}});"
+                +"const cell=B.$('[data-all=\"'+day+'\"]');"
+                +"cell.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2}));"
+                +"B.$('.ac-create-menu [data-kind=reminder]').click();"
+                +"const form=B.$('#taskEditor');form.elements.title.value=title;form.requestSubmit();"
+                +"const task=B.tasks().find(t=>t.title===title);return [task.id,day,task.due,task.time];})()");
+        check(created != null && created.startsWith("["), "Calendar context menu did not create a reminder");
+        JSONArray result = new JSONArray(created);
+        String id = result.getString(0), day = result.getString(1);
+        String task = "B.get('t_'+" + JSONObject.quote(id) + ")";
+        try {
+            check(day.equals(result.getString(2)) && result.getString(3).isEmpty(), "All-day task date or time changed");
+            expectTaskAlarm(context, id, day, true);
+        } finally {
+            js("B.removeCalendarTask(" + task + ");B.calendarView.selectDate(B.today());location.hash='#/today';true");
+        }
+        expectTaskAlarm(context, id, day, false);
     }
 
     private void checkFocusAlarms(Context context) throws Exception {
@@ -120,6 +162,7 @@ public final class NativeChecks extends Instrumentation {
                 +"const linked=B.boardData.get(card?.closest('[data-board-card]').dataset.boardCard);"
                 +"B.put('e_nativeboard',null);location.hash='#/today';return copied && linked?.ref===source.id && !B.boardData.get(linked.id);})()")),
                 "Calendar and board must share the same occurrence in the bundled WebView");
+            checkCalendarReminder(c);
             String start=LocalDateTime.now().plusSeconds(90).withSecond(0).withNano(0).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
             String date=start.substring(0,10);
             c.getSystemService(NotificationManager.class).cancelAll();

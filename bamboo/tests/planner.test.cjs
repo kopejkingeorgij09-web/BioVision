@@ -199,7 +199,7 @@ test('a calendar entry linked to a daily habit shares the tracker mark for its d
 
 test('postponing a task shows a clean date toast without undefined XP and escapes unsafe attachment data', async () => {
   const {B, page} = planner();
-  const stubEl = () => ({addEventListener: () => {}, hidden: true, style: {}, scrollHeight: 24, classList: {add() {}, remove() {}, toggle() {}}, querySelector: () => null, value: ''});
+  const stubEl = () => ({addEventListener: () => {}, hidden: true, style: {}, scrollHeight: 24, classList: {add() {}, remove() {}, toggle() {}}, querySelector: () => ({addEventListener() {}}), querySelectorAll: () => [], value: ''});
   page.document.querySelector = () => stubEl();
   page.document.querySelectorAll = () => [];
   page.navigator = {};
@@ -295,6 +295,25 @@ test('calendar is an independent top-level section between tasks and board, and 
   const iCal = sideHtml.indexOf('href="#/calendar"');
   const iBoard = sideHtml.indexOf('href="#/board"');
   assert.ok(iTasks > -1 && iCal > iTasks && iBoard > iCal);
+});
+
+test('ICS import opens the shared calendar choices with the inbox selected', () => {
+  const {B,page}=planner();
+  Object.assign(page,{TextEncoder,URLSearchParams});
+  page.document.querySelector=()=>({addEventListener() {}});
+  for (const name of ['ui','calendar-data','calendar'])
+    vm.runInContext(fs.readFileSync('bamboo/js/'+name+'.js','utf8'),page);
+  B.put('p_inbox',{id:'inbox',name:'Входящие'});
+  B.put('p_study',{id:'study',name:'Учёба'});
+  B.put('p_hidden',{id:'hidden',name:'Архив',arch:true});
+  let sheet;
+  B.sheet=html=>{sheet=html;};
+  B.acts.acImport();
+  const options=sheet.match(/<select id="acImportProject">([^]*?)<\/select>/)?.[1];
+  assert.ok(options);
+  assert.match(options,/<option value="inbox" selected>Входящие<\/option>/);
+  assert.match(options,/<option value="study"[^>]*>Учёба<\/option>/);
+  assert.doesNotMatch(options,/Архив/);
 });
 
 function linkedPlanner() {

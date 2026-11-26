@@ -106,14 +106,14 @@ function editor(card, creating = false){
     B.historyStep(() => {
       const notes=f.notes.value.trim();
       if (!creating) return save({...current,title,notes,steps,lane:next,placed});
-      const t=B.newTask({title,notes,due:planDate || B.today(),boardLane:next,
+      const t=B.newTask({title,notes,due:card.due || planDate || B.today(),boardLane:next,
         subs:steps.map(s=>({id:s.id,t:s.title,done:s.done}))});
       if(next==='done')B.setDone(t,true);else B.saveTask(t);
     });
     B.closeSheet();
   });
 }
-B.acts.boardAdd = el => editor(newCard({lane:lane(el.dataset.lane)?.id || 'plan'}), true);
+B.acts.boardAdd = el => editor(newCard({lane:lane(el.dataset.lane)?.id || 'plan',due:el.dataset.day}), true);
 B.acts.boardEdit = el => {
   const c=get(el.dataset.id); if (!c) return;
   if(c.source==='shad')return B.acts.acShadPick({dataset:{id:c.ref,part:c.part}});

@@ -66,19 +66,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     var server: LocalWebServer!
     var update: [String:Any]?
     private var focusItem: NSStatusItem?
-    private var requestedFocus = false
+    private var requestedFocus: String?
     @objc private func showFocus(){
-        requestedFocus=true
+        openFocus("studio")
+    }
+    private func openFocus(_ section:String){
+        guard ["studio","week","plan"].contains(section) else{return}
+        requestedFocus=section
         NSApp.activate(ignoringOtherApps:true)
         window?.makeKeyAndOrderFront(nil)
         if web?.url != nil {
-            web.evaluateJavaScript("location.hash='#/board/focus';true"){ _,error in
-                if error == nil { self.requestedFocus=false }
+            web.evaluateJavaScript("location.hash='#/board/focus/\(section)';true"){ _,error in
+                if error == nil && self.requestedFocus==section { self.requestedFocus=nil }
             }
         }
     }
     func application(_ application:NSApplication, open urls:[URL]){
-        if urls.contains(where:{$0.scheme=="zovfocus" && $0.host=="studio"}) {showFocus()}
+        if let link=urls.last(where:{$0.scheme=="zovfocus"}), let section=link.host {openFocus(section)}
     }
     func applicationShouldHandleReopen(_ sender:NSApplication,hasVisibleWindows flag:Bool)->Bool{
         window?.makeKeyAndOrderFront(nil)
@@ -179,7 +183,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     func applicationDidBecomeActive(_ notification:Notification){ refreshClock() }
     private var attempts=0
     func webView(_ webView:WKWebView,didFinish navigation:WKNavigation!){
-        if requestedFocus {showFocus()}
+        if let section=requestedFocus {openFocus(section)}
         if ProcessInfo.processInfo.arguments.contains("--self-test"){self.testUI()}
     }
     func testUI(){
@@ -277,14 +281,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
           location.hash='#/board'; B.render(true);
           const card = B.$('[data-board-lane=active] .bd-card-title');
           return card?.textContent === saved.title && getComputedStyle(B.$('.bd-grid')).display === 'grid' &&
-            B.get('e_keytest') === saved;
+            B.boardData.get(card.dataset.id)?.ref === saved.id && B.get('e_keytest') === saved;
         })()
         """#
         web.evaluateJavaScript(checks){value,error in
-            guard value as? Bool == true else {fputs("FAIL: independent board \(String(describing:error))\n",stderr);exit(1)}
+            guard value as? Bool == true else {fputs("FAIL: linked board \(String(describing:error))\n",stderr);exit(1)}
             DispatchQueue.main.asyncAfter(deadline:.now()+0.5){self.web.takeSnapshot(with:nil){image,error in
                 if let image=image,let tiff=image.tiffRepresentation,let bitmap=NSBitmapImageRep(data:tiff),let png=bitmap.representation(using:.png,properties:[:]){try? png.write(to:URL(fileURLWithPath:NSTemporaryDirectory()+"Zov-Lesa-macOS-preview.png"))}
-                print("PASS: native macOS WKWebView, independent board, calendar search, bundled assets, Alberts reading log, Molbio habit, update bridge");exit(0)
+                print("PASS: native macOS WKWebView, linked board, calendar search, bundled assets, Alberts reading log, Molbio habit, update bridge");exit(0)
             }}
         }
     }

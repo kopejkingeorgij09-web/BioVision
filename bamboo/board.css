@@ -111,7 +111,10 @@
 .fo-prefs select {max-width:100%;width:100%}
 .fo-volume,.fo-plan {display:flex;align-items:center;gap:12px;margin-top:12px}
 .fo-volume input {margin-left:auto;width:58%}
-.fo-plan span {flex:1;min-width:0;overflow-wrap:anywhere}
+.fo-studio {background-image:linear-gradient(0deg,#111a17be,#10161475),var(--scene-image)}
+.fo-plan {flex-wrap:wrap}
+.fo-plan .fo-task {flex:1 1 160px;min-width:0;text-align:left;overflow-wrap:anywhere}
+.fo-gain {display:flex;gap:10px;align-items:center;margin-block:12px}
 .fo-scenes button {border:3px solid transparent;border-radius:12px;min-height:100px;background-size:cover;background-position:center;color:white;text-align:start;padding:14px;align-content:end;font:inherit}
 .fo-scenes [aria-pressed=true],.fo-week [aria-pressed=true] {border-color:var(--accent)}
 .fo-week .btn {display:grid;text-align:start;gap:4px}

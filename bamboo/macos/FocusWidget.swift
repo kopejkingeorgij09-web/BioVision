@@ -50,10 +50,15 @@ struct FocusFace: View {
                     .font(.largeTitle.monospacedDigit())
             } else { Text(entry.until > 0 ? "00:00" : entry.clock).font(.largeTitle.monospacedDigit()) }
             if family != .systemSmall {
-                ForEach(Array(entry.plan.prefix(3).enumerated()), id: \.offset) { _, title in Text(title).lineLimit(1) }
+                Link(destination:URL(string:"zovfocus://plan")!) {
+                    VStack(alignment:.leading) {
+                        Text("План дня").font(.caption)
+                        ForEach(Array(entry.plan.prefix(3).enumerated()), id: \.offset) { _, title in Text(title).lineLimit(1) }
+                    }
+                }
             }
             if family == .systemLarge {
-                Text("Фокус за 7 дней · \(entry.week.reduce(0,+)) мин").font(.headline)
+                Link("Фокус за 7 дней · \(entry.week.reduce(0,+)) мин",destination:URL(string:"zovfocus://week")!).font(.headline)
                 HStack(alignment: .bottom) {
                     ForEach(Array(entry.week.enumerated()), id: \.offset) { _, n in
                         VStack {Text("\(n)").font(.caption); Capsule().frame(height: CGFloat(2 + 55*n/max(1,entry.week.max() ?? 1)))}

@@ -33,7 +33,7 @@ function done(e){
 function toggle(e){
   const before = done(e);
   toggleMark(e);
-  if (!!before !== !!done(e)) B.boardData?.calendarMark(e, !!before, !!done(e));
+  if (e.habitId && !!before !== !!done(e)) B.boardData?.calendarMark(e, !!before, !!done(e));
 }
 function toggleMark(e){
   if (e.habitId){

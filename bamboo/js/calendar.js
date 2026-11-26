@@ -762,7 +762,7 @@ function copyToBoard(item, destination){
   const current=resolveItem(item);
   if(!current){B.toast('Запись уже изменилась');return;}
   const {view,record}=current;
-  const linkedId=view.kind==='event'?'event:'+view.id+':'+view.on:view.kind==='shad'?'shad:'+view.part+':'+view.id:'task:'+view.id;
+  const linkedId=view.kind==='event'?B.boardData.eventId(record,view.on):view.kind==='shad'?'shad:'+view.part+':'+view.id:'task:'+view.id;
   const linked=B.boardData.get(linkedId);
   if(linked && (view.kind!=='event' || plannerOrigin(record)==='personal')){
     if(linked.lane!==destination) B.historyStep(()=>B.boardData.move(linked,destination));

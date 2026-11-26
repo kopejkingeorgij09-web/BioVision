@@ -296,3 +296,76 @@ test('calendar is an independent top-level section between tasks and board, and 
   const iBoard = sideHtml.indexOf('href="#/board"');
   assert.ok(iTasks > -1 && iCal > iTasks && iBoard > iCal);
 });
+
+function linkedPlanner() {
+  const {B,page}=planner();
+  Object.assign(page,{TextEncoder,URLSearchParams});
+  page.document.querySelector=()=>null;
+  B.calendarView={plannerOrigin:e=>e.plannerOrigin||'personal'};
+  for (const name of ['calendar-data','board-data','focus'])
+    vm.runInContext(fs.readFileSync('bamboo/js/'+name+'.js','utf8'),page);
+  return {B,page};
+}
+
+test('daily history retains earlier lanes and only counts work that ended complete', () => {
+  const {B,page}=linkedPlanner(),day=B.today();
+  const t=B.newTask({id:'proof',title:'Доказательство'});
+  B.saveTask(t);
+  const card=()=>B.boardData.get('task:proof');
+  const lanes=()=>Object.keys(B.boardData.history(B.today())).filter(k=>B.boardData.history(B.today())[k].some(x=>x.id===card().id));
+  B.boardData.move(card(),'active');
+  B.boardData.move(card(),'done');
+  assert.deepEqual(lanes(),['plan','active','done']);
+  B.boardData.move(card(),'active');
+  assert.deepEqual(lanes(),['plan','active']);
+  B.boardData.move(card(),'done');
+  const next=page.Date.now()+86400000;
+  page.Date.now=()=>next;
+  B.boardData.move(card(),'active');
+  assert.equal(B.boardData.history(day).done[0].id,'task:proof');
+  assert.deepEqual(lanes(),['active']);
+  B.put('t_proof',null);
+  assert.equal(B.boardData.history(day).done[0].title,'Доказательство');
+});
+
+test('moving a calendar event preserves its lane, including after undo, and a running recurrence stays visible', () => {
+  const {B}=linkedPlanner();
+  const event={id:'lab:01',title:'Занятие',start:'2026-11-18T10:00',end:'2026-11-18T10:30'};
+  B.put('e_'+event.id,event);
+  const id=B.boardData.eventId(event,'2026-11-18');
+  B.historyStep(()=>B.boardData.move(B.boardData.get(id),'active'));
+  assert.equal(B.boardData.get(id).lane,'active');
+  assert.equal(B.undo(),true);
+  assert.equal(B.boardData.get(id).lane,'plan');
+  assert.equal(B.list('boardlog_').at(-1).lane,'plan');
+  B.redo();
+  B.put('e_'+event.id,{...event,start:'2026-11-23T12:00',end:'2026-11-23T13:00'});
+  assert.equal(B.boardData.get(id).on,'2026-11-23');
+  assert.equal(B.boardData.get(id).lane,'active');
+  const repeat={...event,id:'r',repeat:{freq:'daily'},type:'task'};
+  B.put('e_r',repeat);
+  const first=B.boardData.eventId(repeat,'2026-11-18');
+  B.boardData.move(B.boardData.get(first),'active');
+  assert(B.boardData.all('2026-11-19').some(c=>c.id===first && c.lane==='active'));
+  B.boardData.move(B.boardData.get(first),'done');
+  assert.equal(B.boardData.get('event:r:2026-11-19').lane,'plan');
+  assert.equal(B.boardData.history('2026-11-18').done.filter(c=>c.id===first).length,1);
+});
+
+test('two devices completing the same Pomodoro phase contribute one session', () => {
+  const {B,page}=linkedPlanner();
+  const start=page.Date.now(),total=60000;
+  const t={id:'work',phase:'work',mode:'pomo',running:true,left:total,total,until:start+total};
+  const put=(id,parent,at,timer)=>B.put('focusop_'+id,{id,parent,at,timer},false,true);
+  put('work','',start,t);
+  put('pause2','work',start+10000,{...t,running:false,left:50000});
+  put('pause1','work',start+10000,{...t,running:false,left:50000});
+  put('resume','pause1',start+30000,{...t,until:start+80000});
+  assert.equal(B.focus.sessions(start+60000).length,0);
+  assert.equal(B.focus.sessions(start+80000).length,1);
+  put('break2','resume',start+82000,{...t,id:'b2',phase:'break',until:start+900000});
+  put('break1','resume',start+81500,{...t,id:'b1',phase:'break',until:start+900000});
+  assert.equal(B.focus.current().id,'break1');
+  assert.equal(B.focus.sessions(start+1000000).length,1);
+  assert.equal(B.focus.activity(B.today()).length,4);
+});

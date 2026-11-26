@@ -3,29 +3,42 @@
    Внизу перемотка: каким был лес в любой прошлый день. */
 (function(){
 function dayReport(day, sessions, lessons){
-  const d=B.day(day), calc=B.calc().days[day], history=B.boardData.history(day);
+  const d=B.day(day), calc=B.calc().days[day], future=day>B.today();
+  const history=future?{plan:[],active:[],done:[]}:B.boardData.history(day);
   const tasks=B.list('t_'), dateOf=ts=>ts ? B.dayOf(ts) : '';
   const habits=B.list('h_').filter(h=>(!h.created||day>=h.created)&&(!h.archAt||day<h.archAt));
-  const shad=Object.entries(B.shad.marks).filter(([,m])=>dateOf(m.at)===day).map(([n,m])=>({
-    тема:B.shad.plan.find(p=>p.n===Number(n))?.t || n,статус:B.SHAD_STAGES[m.s],заметка:m.note
-  }));
+  const stages=B.list('shadlog_').filter(m=>dateOf(m.at)===day);
+  const topic=n=>B.shad.plan.find(p=>p.n===Number(n))?.t || String(n);
+  const shad=stages.map(m=>({тема:topic(m.n),время:B.hm(m.at),было:B.SHAD_STAGES[m.before],
+    статус:B.SHAD_STAGES[m.after],продвижение:m.after>m.before}));
+  for(const [n,m] of Object.entries(B.shad.marks)){
+    if(dateOf(m.at)===day && !stages.some(s=>Number(s.n)===Number(n)))
+      shad.push({тема:topic(n),статус:B.SHAD_STAGES[m.s],заметка:m.note,продвижение:m.s>0});
+  }
   const calendar=B.calendarView.itemsBetween(day,day,{includeHidden:true});
   const sessionList=sessions.filter(x=>x.day===day);
   return {
-    дата:day,главное:(d.top||[]).map(id=>B.task(id)?.title||id),выбранное:d.focus || undefined,
+    дата:day,будущий_день:future || undefined,главное:(d.top||[]).map(id=>B.task(id)?.title||id),выбранное:d.focus || undefined,
     задачи:tasks.filter(t=>t.due===day||dateOf(t.created)===day||dateOf(t.doneAt)===day).map(t=>({
       название:t.title,срок:t.due||undefined,создана:dateOf(t.created)||undefined,завершена:dateOf(t.doneAt)||undefined,
       календарь:B.proj(t.proj)?.name,заметка:t.notes||undefined})),
     шаги:tasks.flatMap(t=>(t.subs||[]).filter(s=>dateOf(s.doneAt)===day).map(s=>[t.title,s.t])),
     переносы:tasks.flatMap(t=>(t.postpones||[]).filter(p=>dateOf(p.at)===day).map(p=>[t.title,p.from,p.to,p.why])),
+    вложения:B.list('f_').filter(f=>dateOf(f.at)===day).map(f=>({задача:B.task(f.task)?.title,название:f.name})),
     календарь:calendar.map(e=>({тип:e.kind,часть:e.part,дело:e.title,начало:e.start,конец:e.end,отметка:e.done||undefined,повтор:e.ghost||undefined})),
     доска:Object.fromEntries(Object.entries(history).map(([k,rows])=>[{plan:'В планах',active:'В работе',done:'Готово'}[k],rows.map(r=>r.title)])),
     переходы:B.list('boardlog_').filter(x=>dateOf(x.at)===day).sort((a,b)=>a.at-b.at).map(x=>[B.hm(x.at),x.title,x.before,x.lane]),
     привычки:habits.map(h=>({название:h.name,тип:h.kind,цель:h.target,доля:B.habitVal(h,day)})),
     чтение:(d.read||[]).map(r=>({книга:B.books().find(b=>b.id===r.book)?.title || r.book,мин:r.min,страница:r.page})),
+    книжная_полка:B.books().flatMap(b=>{
+      const notes=(b.notes||[]).filter(n=>dateOf(n.at)===day).map(n=>({вид:n.k,текст:n.t}));
+      const events=[['добавлена',b.added],['начата',b.started],['прочитана',b.finished]].filter(([,d])=>d===day).map(([label])=>label);
+      return notes.length||events.length?[{книга:b.title,события:events,заметки:notes}]:[];
+    }),
     Альбертс:B.alberts?.pagesOn(day)||0,
     тренировки:B.workouts().filter(w=>w.date===day).map(w=>({вид:B.SPORT_TYPES[w.type]||w.type,заметка:w.note})),
     фокус:sessionList.map(x=>({дело:x.title,мин:x.minutes,конец:B.hm(x.at)})),
+    управление_фокусом:B.focus.activity(day),
     ШАД:shad,Фаги:{день:B.phxDay(day),сроки:B.phxOn(day),занятия:(lessons?.lessons||[]).filter(x=>x.day===day)
       .map(x=>({урок:x.title,время:x.start,материалы:x.files,задания:x.tasks})),
       ответы:(lessons?.reviews||[]).filter(x=>String(x.submitted||'').startsWith(day)).map(x=>x.title)},
@@ -38,9 +51,10 @@ function efficiency(rows){
   if(!rows.length)return null;
   let productive=0, habitSum=0, habitCount=0, study=0;
   for(const r of rows){
-    if(r.доска.Готово.length || r.шаги.length || r.ШАД.length || r.фокус.length)productive++;
+    const shadProgress=r.ШАД.some(mark=>mark.продвижение);
+    if(r.доска.Готово.length || r.шаги.length || shadProgress || r.фокус.length)productive++;
     for(const h of r.привычки.filter(h=>h.тип!=='weekly')){habitSum+=h.доля;habitCount++;}
-    if(r.Альбертс>0 || r.ШАД.length || r.чтение.reduce((n,x)=>n+(x.мин||0),0)+r.фокус.reduce((n,x)=>n+x.мин,0)>=25)study++;
+    if(r.Альбертс>0 || shadProgress || r.чтение.reduce((n,x)=>n+(x.мин||0),0)+r.фокус.reduce((n,x)=>n+x.мин,0)>=25)study++;
   }
   return {балл:habitCount?Math.round(50*productive/rows.length+30*habitSum/habitCount+20*study/rows.length):null,
     дней:rows.length,дней_с_результатом:productive,баллы_привычек:habitSum,возможных_отметок:habitCount,учебных_дней:study};
@@ -54,8 +68,8 @@ function weekPrompt(from=B.weekStart(B.today()), lessons=B.teaching){
     индекс:efficiency(tracked),предыдущая_неделя:prev.length===tracked.length?efficiency(prev):null,
     уроки_Фагов:lessons&&!lessons.failed?'доступны':'облачные данные недоступны',
     план_изменений:B.get('wk_'+from)?.change,дни:rows};
-  return 'Разбери мою неделю по записям «Зова леса». Что получилось, что мешало, какие привычки изменились? Приведи конкретные дни и три решения для следующей недели. Событие в календаре означает план. Отмечай неполные данные и будущие дни. ШАД хранит последнюю известную отметку темы.\\n'
-    +'Индекс эффективности v1 (0–100) = округлить(50 × доля дней с результатом + 30 × доля выполненных ежедневных привычек + 20 × доля учебных дней). Результат — завершённое дело, шаг, отметка ШАД или полный фокус-сеанс. Учебный день — страницы Альбертса, отметка ШАД или суммарно 25 минут чтения и фокуса. Мини-версия привычки даёт 0,5. Без наблюдаемых дней или ежедневных привычек балл не определён. Сравни только одинаковые дни недели при сопоставимой полноте учёта. Укажи разницу в баллах и объясни её по компонентам.\\n'
+  return 'Разбери мою неделю по записям «Зова леса». Что получилось, что мешало, какие привычки изменились? Приведи конкретные дни и три решения для следующей недели. Событие в календаре означает план. Отмечай неполные данные и будущие дни. Для старых записей ШАД доступна только последняя отметка темы.\n'
+    +'Индекс эффективности v1 (0–100) = округлить(50 × доля дней с результатом + 30 × доля выполненных ежедневных привычек + 20 × доля учебных дней). Результат — завершённое дело, шаг, продвижение по ШАД или полный фокус-сеанс. Учебный день — страницы Альбертса, продвижение по ШАД или суммарно 25 минут чтения и фокуса. Мини-версия привычки даёт 0,5. Без наблюдаемых дней или ежедневных привычек балл не определён. Сравни только одинаковые дни недели при сопоставимой полноте учёта. Укажи разницу в баллах и объясни её по компонентам.\n'
     +JSON.stringify(data,null,2);
 }
 B.weekPrompt=weekPrompt;

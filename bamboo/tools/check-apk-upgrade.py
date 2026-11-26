@@ -41,4 +41,4 @@ for old in previous:
 
 # Exercise the live offer on a disposable emulator with the previous signed app.
 adb("uninstall", package)
-subprocess.run(["python3", str(root / "bamboo/tools/check-199-published-update.py")], check=True)
+subprocess.run(["python3", str(root / "bamboo/tools/check-200-published-update.py")], check=True)

@@ -121,7 +121,7 @@ function plannerEventDays(from,to,accept){
 }
 function plannerRow(e,day){
   const time=e.start.startsWith(day+'T')?e.start.slice(11):'';
-  return `<div class="pl-t ${e.done?'done':''}">
+  return `<div class="pl-t ${e.done?'done':''}" data-plan-key="event:${esc(e.id)}:${esc(e.on)}" tabindex="-1">
     <button class="pl-open" data-act="acOpen" ${itemAttrs(e)} title="${esc(e.title)}">
       <i class="pdot c-${esc(color(e.proj))}"></i>${time?`<span class="pl-time">${time}</span>`:''}<span class="pl-tt">${esc(e.title)}</span>
     </button>${e.calendarTask?calendarCheck(e,true):''}
@@ -189,7 +189,7 @@ function itemAttrs(e){
   return `data-k="${e.kind}" data-id="${esc(e.id)}" data-on="${esc(e.on)}" data-start="${e.start}" data-end="${e.end}" data-part="${esc(e.part || '')}"`;
 }
 function actionButton(e){
-  if(!boardCopyable(e))return '';
+  if(!hasItemMenu(e))return '';
   const label=esc('Действия · '+(e.title||'Без названия'));
   return `<button type="button" class="ac-card-menu" data-act="acMenu" ${itemAttrs(e)}
     aria-label="${label}" title="${label}" aria-haspopup="dialog">${icon('dots')}</button>`;
@@ -700,11 +700,11 @@ function protectedEntry(e){
     ((e.kind==='task'||C.isTask(e))&&(e.activity==='gym'||C.isGym(e)));
 }
 function itemAction(e){
-  if(!boardCopyable(e))return '';
+  if(!hasItemMenu(e))return '';
   if(e.kind==='shad'||e.keepDay) return e.start.length>10?'untimed':'';
   return 'delete';
 }
-function boardCopyable(e){ return !e.ghost&&['task','event','shad'].includes(e.kind); }
+function hasItemMenu(e){ return !e.ghost&&['task','event','shad'].includes(e.kind); }
 function resolveItem({kind,id,on,start,end,part,ghost}){
   if(ghost||!C.validDate(on))return null;
   let view, record;
@@ -758,19 +758,20 @@ function runItemAction(current){
   }
   return !!action;
 }
-function copyToBoard(item, destination){
-  const current=resolveItem(item);
-  if(!current){B.toast('Запись уже изменилась');return;}
-  const {view,record}=current;
-  const linkedId=view.kind==='event'?B.boardData.eventId(record,view.on):view.kind==='shad'?'shad:'+view.part+':'+view.id:'task:'+view.id;
-  const linked=B.boardData.get(linkedId);
-  if(linked && (view.kind!=='event' || plannerOrigin(record)==='personal')){
-    if(linked.lane!==destination) B.historyStep(()=>B.boardData.move(linked,destination));
-    B.toast('Колонка на доске обновлена');return;
+function boardCard(view){
+  const day=B.today();
+  if(!view || view.ghost)return null;
+  if(view.kind==='event'){
+    if(!B.boardData.liveEvent(view) || view.start>=add(day,1) || view.end<=(view.end.length===10?day:day+'T00:00'))return null;
+    return B.boardData.get(B.boardData.eventId(view,view.on));
   }
-  const label=view.kind==='shad'?[shadPart(view.part),view.course]:[view.location];
-  const context=[intervalLabel(view,false),...label].filter(Boolean).join(' · ');
-  B.board.copy({title:view.title,notes:record.notes,steps:record.subs,context},destination);
+  if(view.on!==day)return null;
+  return B.boardData.get(view.kind==='shad'?'shad:'+view.part+':'+view.id:'task:'+view.id);
+}
+function copyToBoard(item, destination){
+  const linked=boardCard(resolveItem(item)?.view);
+  if(!linked){B.toast('Дело уже изменилось');return;}
+  B.board.move(linked.id,destination);
 }
 B.acts.acMenu=el=>{
   const current=resolveItem(fromNode(el));
@@ -780,7 +781,7 @@ B.acts.acMenu=el=>{
   const scope=record.repeat||record.rep ? '<p class="hint">Действие применяется к записи на '+fmt(view.on)+'.</p>' : '';
   B.sheet(`<h2>${esc(view.title||'Без названия')}</h2>${scope}<div class="ac-card-actions">
     <button type="button" class="btn ghost" data-act="acOpen" ${attrs} autofocus>${icon('cal')}Открыть</button>
-    <button type="button" class="btn" data-act="acBoardCopy" ${attrs}>${icon('copy')}На доску</button>
+    ${boardCard(view)?`<button type="button" class="btn" data-act="acBoardCopy" ${attrs}>${icon('board')}Колонка на доске</button>`:''}
     ${action?`<button type="button" class="btn ${remove?'danger':'ghost'}" data-act="acMenuApply" ${attrs}>
       ${icon(remove?'trash':'clock')}${remove?'Удалить':'Убрать время'}</button>`:''}
   </div>`);
@@ -804,11 +805,26 @@ B.acts.acEditorUntime=()=>{
   if(!current||itemAction(current.view)!=='untimed') B.toast('Запись уже изменилась');
   else runItemAction(current);
 };
-function deleteCalendarItem(node){
-  const current=resolveItem(fromNode(node));
-  if(!current)return false;
-  runItemAction(current);
-  return true;
+/* The planner and the calendar resolve the same source record/occurrence at keypress.
+   In particular, planner calendar rows aren't ordinary t_ tasks. */
+function deleteKeyItem(row){
+  if (!row || dragging || row.classList.contains('ghost')) return;
+  if (row.dataset.tid){
+    const record = B.task(row.dataset.tid);
+    if (!record || record.deleted) return;
+    if (record.due) runItemAction({record,view:taskItem(record,record.due)});
+    else B.historyToast('Задача удалена', () => B.removeCalendarTask(record));
+    return;
+  }
+  if (row.dataset.shn){
+    const record = B.shad.plan.find(p => p.n === Number(row.dataset.shn));
+    const part = row.dataset.kind;
+    if (record && (part === 'web' ? record.wp : record.hp)) runItemAction({record,view:shadItem(record,part)});
+    return;
+  }
+  const node = row.matches('.ac-item') ? row : row.querySelector('[data-act="acOpen"]');
+  const current = node && resolveItem(fromNode(node));
+  if (current) runItemAction(current);
 }
 
 function searchResults(query){
@@ -975,7 +991,7 @@ function rangePointer(e,root){
   function update(ev){
     if(ev.pointerId!==id)return;
     if(!active&&Math.hypot(ev.clientX-sx,ev.clientY-sy)<3)return;
-    if(!active&&x&&!card&&!edge)boardTray=B.board.dropTray('На доску');
+    if(!active&&x&&!card&&!edge&&boardCard(resolveItem(x)?.view))boardTray=B.board.dropTray('Колонка на доске');
     active=true;dragging=true;
     boardTarget=boardTray?.target(ev.clientX,ev.clientY);
     const hit=document.elementFromPoint(ev.clientX,ev.clientY);
@@ -1191,22 +1207,6 @@ function mount(){
     else if(all) editor(newAll(all.dataset.all),null,true);
   });
 }
-document.addEventListener('keydown',e=>{
-  const root=B.$('.ac');
-  if(!root||e.defaultPrevented||B.sheetOpen()||!B.$('#dlgScrim').hidden||e.target.closest('input,select,textarea')||e.target.isContentEditable)return;
-  if(e.metaKey||e.ctrlKey||e.altKey||e.shiftKey)return;
-  if(e.key==='Delete'||e.key==='Backspace'){
-    if(e.repeat||dragging) return;
-    const item=root.querySelector('.ac-item:hover')||e.target.closest('.ac-item');
-    if(item && root.contains(item) && !item.classList.contains('ghost') && deleteCalendarItem(item)){
-      e.preventDefault(); e.stopImmediatePropagation();
-    }
-    return;
-  }
-  const act={ArrowLeft:()=>B.acts.acShift({dataset:{n:'-1'}}),ArrowRight:()=>B.acts.acShift({dataset:{n:'1'}}),
-    KeyT:B.acts.acToday,KeyN:B.acts.acAdd,Slash:B.acts.acSearch}[e.code];
-  if(act){e.preventDefault();e.stopImmediatePropagation();act();}
-},true);
 function openReminder(id,on){
   const e=get(id);
   if(!e) return false;
@@ -1219,7 +1219,7 @@ function openReminder(id,on){
 }
 B.views = B.views || {};
 B.views.calendar = {title: 'Календарь', render, mount, unmount};
-B.calendarView={render,mount,unmount,itemsBetween,plannerOrigin,plannerEventDays,plannerRow,openReminder,calendarCheck,actionButton,applyPlanSlot,
+B.calendarView={render,mount,unmount,deleteKeyItem,itemsBetween,plannerOrigin,plannerEventDays,plannerRow,openReminder,calendarCheck,actionButton,applyPlanSlot,
   canApplyPlanSlot:(item,start,end)=>!!planSlotEntry(item,start,end),
   selectedDate:()=>date,selectDate,deferRender(){
   if(!dragging&&!weekScrollTimer)return false;

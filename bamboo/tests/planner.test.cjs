@@ -19,7 +19,7 @@ function planner(width = 390) {
   page.window = page;
   vm.createContext(page);
   function load(name) { vm.runInContext(fs.readFileSync('bamboo/js/' + name + '.js','utf8'),page); }
-  load('core');
+  load('shad-stage'); load('core');
   const B = page.B;
   Object.assign(B,{acts:{},inputs:{},views:{},icon:()=>'',bar:()=>'',PRI:[],render:noop});
   load('today'); load('tasks');
@@ -301,15 +301,14 @@ function linkedPlanner() {
   const {B,page}=planner();
   Object.assign(page,{TextEncoder,URLSearchParams});
   page.document.querySelector=()=>null;
-  B.calendarView={plannerOrigin:e=>e.plannerOrigin||'personal'};
-  for (const name of ['calendar-data','board-data','focus'])
+  for (const name of ['calendar-data','calendar','board-data','board','focus'])
     vm.runInContext(fs.readFileSync('bamboo/js/'+name+'.js','utf8'),page);
   return {B,page};
 }
 
 test('daily history retains earlier lanes and only counts work that ended complete', () => {
   const {B,page}=linkedPlanner(),day=B.today();
-  const t=B.newTask({id:'proof',title:'Доказательство'});
+  const t=B.newTask({id:'proof',title:'Доказательство',due:day});
   B.saveTask(t);
   const card=()=>B.boardData.get('task:proof');
   const lanes=()=>Object.keys(B.boardData.history(B.today())).filter(k=>B.boardData.history(B.today())[k].some(x=>x.id===card().id));
@@ -328,9 +327,9 @@ test('daily history retains earlier lanes and only counts work that ended comple
   assert.equal(B.boardData.history(day).done[0].title,'Доказательство');
 });
 
-test('moving a calendar event preserves its lane, including after undo, and a running recurrence stays visible', () => {
+test('moving a calendar task preserves its lane but only the current occurrence is visible', () => {
   const {B}=linkedPlanner();
-  const event={id:'lab:01',title:'Занятие',start:'2026-11-18T10:00',end:'2026-11-18T10:30'};
+  const event={id:'lab:01',type:'task',title:'Занятие',start:'2026-11-18T10:00',end:'2026-11-18T10:30'};
   B.put('e_'+event.id,event);
   const id=B.boardData.eventId(event,'2026-11-18');
   B.historyStep(()=>B.boardData.move(B.boardData.get(id),'active'));
@@ -346,10 +345,114 @@ test('moving a calendar event preserves its lane, including after undo, and a ru
   B.put('e_r',repeat);
   const first=B.boardData.eventId(repeat,'2026-11-18');
   B.boardData.move(B.boardData.get(first),'active');
-  assert(B.boardData.all('2026-11-19').some(c=>c.id===first && c.lane==='active'));
+  assert(!B.boardData.all('2026-11-19').some(c=>c.id===first));
   B.boardData.move(B.boardData.get(first),'done');
   assert.equal(B.boardData.get('event:r:2026-11-19').lane,'plan');
   assert.equal(B.boardData.history('2026-11-18').done.filter(c=>c.id===first).length,1);
+});
+
+test('today board includes checkable slots, SHAD and live tasks in planner order', () => {
+  const {B,page}=linkedPlanner(), day=B.today(), tomorrow=B.add(day,1), yesterday=B.add(day,-1);
+  function putTask(id,due,extra={}){B.saveTask(B.newTask({id,title:id,due,...extra}));}
+  putTask('Вторая',day,{ord:20});
+  putTask('Первая',day,{ord:10});
+  putTask('Обед',day,{time:'12:00'});
+  putTask('Без даты','',{boardLane:'active'});
+  putTask('Завтра',tomorrow);
+  putTask('Вчера',yesterday,{boardLane:'active',rep:{f:'day'}});
+  B.put('e_trip',{id:'trip',title:'Поезд',start:day+'T08:00',end:day+'T09:00'});
+  B.put('e_old',{id:'old',title:'Вчера',type:'task',start:yesterday,end:day});
+  B.put('board_legacy',{id:'legacy',title:'Старая карточка',lane:'active'});
+  B.put('h_py',{id:'py',name:'Питон',created:yesterday});
+  B.put('e_py',{id:'py',habitId:'py',title:'Python',type:'task',repeat:{freq:'daily'},start:yesterday+'T16:00',end:yesterday+'T17:00'});
+  B.put('e_slot',{id:'slot',title:'Слот',type:'task',start:day,end:tomorrow});
+  B.shad.plan=[
+    {n:1,t:'Линал',wp:true,hp:true,w:{date:day},h:{date:day,from:'09:30'}},
+    {n:2,t:'Без дня',w:{date:day},wk:B.weekStart(day)}, {n:3,t:'Позже',w:{date:tomorrow},wp:true}];
+  B.phx.dl={normal:{id:'normal',due:day,title:'Только просмотр'},mirror:{id:'mirror',due:day,shad:1,title:'Основное ДЗ'},elsewhere:{id:'elsewhere',due:day,shad:3,title:'Срок сдачи'},fix:{id:'fix',due:day,shad:1,fix:true,title:'Пересдача'}};
+  const ids=()=>Array.from(B.boardData.all(),c=>c.id);
+  assert.deepEqual(ids(),['event:slot:single','task:Первая','task:Вторая','shad:web:1','phagi:elsewhere','phagi:fix','shad:hw:1','task:Обед','event:py:'+day]);
+  B.boardData.move(B.boardData.get('event:py:'+day),'done');
+  assert.equal(B.day(day).h.py,1);
+  const py=Array.from(B.boardData.completed()).filter(c=>c.title==='Python');
+  assert.equal(py.length,1);
+  B.toggleHabitMark('py',day);
+  assert(!B.boardData.completed().some(c=>c.title==='Python'));
+  page.location.hash='#/board';
+  const html=B.views.board.render();
+  assert.match(html,/Завершить · Python/);
+  assert.doesNotMatch(html,/Поезд|Дата повторяющихся событий|Без даты|Только просмотр/);
+});
+
+test('completion archive uses actual marks, deduplicates and removes re-opened items', () => {
+  const {B,page}=linkedPlanner();
+  const day=B.today(), prev=B.add(day,-3), stamp=+B.parse(prev);
+  B.put('t_arch',{id:'arch',title:'Решено раньше',done:true,doneAt:stamp,due:day},true,true);
+  B.put('t_skip',{id:'skip',title:'В планах',due:day},true,true);
+  B.put('e_g',{id:'g',type:'task',activity:'gym',title:'Зал',start:prev,end:B.add(prev,1)},true,true);
+  B.put('ec_cal_g_'+prev,{id:'cal_g_'+prev,calendarId:'g',date:prev,at:stamp},true,true);
+  B.put('w_cal_g_'+prev,{id:'cal_g_'+prev,calendarId:'g',date:prev,at:stamp},true,true);
+  B.put('boardlog_legacy',{id:'legacy',card:'event:just-meeting:single',title:'Обычное событие',before:'active',lane:'done',at:stamp},true,true);
+  B.put('boardlane_event:just-meeting:single',{card:'event:just-meeting:single',lane:'done'},true,true);
+  B.put('e_just-meeting',{id:'just-meeting',title:'Обычное событие',start:prev,end:B.add(prev,1)});
+  B.put('e_just-meeting',null);
+  assert(!B.list('boardlog_').some(x=>x.source==='event' && x.card==='event:just-meeting:single'));
+  B.shad.plan=[{n:4,t:'Непрерывность',w:{date:day},h:{date:day}}];
+  B.shad.marks[4]={s:3,at:stamp};
+  const archive=()=>Array.from(B.boardData.completed(),x=>[x.title,x.day]);
+  assert.deepEqual(archive(),[['Зал',prev],['Решено раньше',prev],['Непрерывность',''],['Непрерывность','']]);
+  B.boardData.move(B.boardData.get('shad:hw:4'),'active');
+  assert.equal(B.boardData.completed().filter(x=>x.title==='Непрерывность').length,1);
+  B.setDone(B.task('arch'),false);
+  B.boardData.move(B.boardData.get('event:g:single'),'plan');
+  assert(!archive().some(([title])=>title==='Зал'||title==='Решено раньше'));
+  B.setDone(B.task('arch'),true);
+  B.put('t_arch',null);
+  assert(archive().some(([title,when])=>title==='Решено раньше'&&when===day));
+  page.location.hash='#/board/history';
+  const html=B.views.board.render();
+  assert.match(html,/Завершённые дела/);
+  assert.doesNotMatch(html,/Обычное событие|В планах|В работе|data-board-lane/);
+});
+
+test('overnight tasks use today’s visible time and completed exceptions survive series edits', () => {
+  const {B}=linkedPlanner(), day=B.today(), prev=B.add(day,-1);
+  const night={id:'night',type:'task',title:'Ночная задача',start:prev+'T23:55',end:day+'T00:20'};
+  B.put('e_night',night);B.saveTask(B.newTask({id:'lunch',title:'Обед',due:day,time:'12:00'}));
+  const [first,second]=B.boardData.all();
+  assert.equal(first.id,'event:night:single');assert.equal(first.time,'');assert.equal(first.context,'До 00:20');
+  assert.equal(second.id,'task:lunch');
+  const recurring={id:'series',title:'Решить задачи',type:'task',repeat:{freq:'daily'},start:prev,end:day};
+  B.put('e_series',recurring);B.calData.toggle({...recurring,on:day});
+  B.put('e_series',{...recurring,skip:[day]});
+  assert(!B.boardData.all().some(c=>c.ref==='series'));
+  assert.equal(B.boardData.completed().filter(c=>c.id==='event:series:'+day).length,1);
+  const habit={...recurring,id:'daily',title:'Английский',habitId:'lang'};
+  B.put('h_lang',{id:'lang',name:'Английский',kind:'daily',created:prev});B.put('e_daily',habit);
+  B.toggleHabitMark('lang',day);B.put('e_daily',{...habit,skip:[day]});
+  assert(B.boardData.completed().some(c=>c.id==='event:daily:'+day && c.title==='Английский'));
+  B.put('e_daily',null);
+  assert(B.boardData.completed().some(c=>c.id==='event:daily:'+day));
+  B.toggleHabitMark('lang',day);
+  assert(!B.boardData.completed().some(c=>c.id==='event:daily:'+day));
+});
+
+test('SHAD webinar and homework keep independent completion dates in both clients', async () => {
+  const {B,page}=linkedPlanner(), day=B.today(), next=B.add(day,1);
+  B.shad.plan=[{n:35,t:'Матанализ',wp:true,w:{date:day},hp:true,h:{date:next}}];
+  await B.setShadStage(35,2);
+  const w=B.shad.marks[35].at, h=+B.parse(next);
+  const ext=page.ShadStages.change(B.shad.marks[35],3,h);
+  assert.equal(page.ShadStages.completionTimes(ext).web,w);
+  assert.equal(page.ShadStages.completionTimes(ext).hw,h);
+  B.shad.marks[35]={...ext,note:'Решил заново'};
+  const dates=()=>Object.fromEntries(Array.from(B.boardData.completed(),c=>[c.part,c.day]));
+  assert.deepEqual(dates(),{hw:next,web:day});
+  const externalReset=page.ShadStages.change(ext,1,h+100);
+  assert(!externalReset.completed.web && !externalReset.completed.hw);
+  B.shad.marks[35]=externalReset;assert.deepEqual(dates(),{});
+  B.shad.marks[35]={...externalReset,s:3,at:h+200};
+  assert.deepEqual(dates(),{web:'',hw:''}); // Older app wrote a new stage without completion timestamps.
 });
 
 test('two devices completing the same Pomodoro phase contribute one session', () => {

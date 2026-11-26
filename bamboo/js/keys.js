@@ -1,125 +1,218 @@
-/* Зов леса: клавиши для компьютера. Буквы ловятся по физической клавише (e.code), поэтому работают и в русской раскладке.
-   Полный список открывается по «?» и лежит в KEYS ниже, подсказка строится из него же. */
+/* Команды и подсказки используют одну таблицу. Буквы привязаны к физическим
+   клавишам: смена русской и английской раскладки не меняет сочетание. */
 (function(){
-const KEYS = [
-  ['Везде', [
-    ['⌥ ⇧', 'Задачи или календарь во весь экран: спрятать или показать меню'],
-    ['1 … 8', 'Сегодня, Задачи, Календарь, Доска, Привычки, Итоги, Чтение, Лес'],
-    ['/', 'Поиск'],
-    ['?', 'Эта подсказка'],
-    ['⌘ Z  ·  ⌘ ⇧ Z', 'Отменить и повторить'],
-    ['Esc', 'Закрыть окно или выйти из полноэкранного режима']
-  ]],
-  ['В планере', [
-    ['←  ·  →', 'Прошлая и следующая неделя (в месяце месяц)'],
-    ['T', 'Вернуться к сегодня'],
-    ['W  ·  M  ·  S', 'Неделя, Месяц, ШАД'],
-    ['N', 'Новая задача на сегодня']
-  ]],
-  ['В календаре', [
-    ['Delete', 'Наведи курсор на дело. ШАД и привычки перейдут в «Весь день», остальные дела удалятся'],
-    ['⌘ Z', 'Вернуть дело на прежнее место']
-  ]],
-  ['Выбранная задача (стрелками или курсором)', [
-    ['↑  ·  ↓', 'Выбрать задачу выше или ниже, Esc снимает выбор'],
-    ['Пробел', 'Отметить сделанной или снять отметку'],
-    ['Enter', 'Открыть карточку'],
-    ['⌥ ↑  ·  ⌥ ↓', 'Поднять или опустить внутри дня'],
-    ['⇧ ←  ·  ⇧ →', 'Перенести на день раньше или позже'],
-    ['Delete', 'Удалить (в подсказке можно вернуть)']
-  ]],
-  ['Карточка задачи', [
-    ['⌘ Enter', 'Сохранить и закрыть'],
-    ['D', 'Выбрать срок'],
-    ['C', 'Цвет'],
-    ['K', 'Календарь'],
-    ['1 … 9', 'Когда открыт цвет или календарь: выбрать по номеру']
-  ]]
-];
-const SECTIONS = ['today', 'tasks', 'calendar', 'board', 'habits', 'stats', 'read', 'forest'];
-const route = () => (location.hash || '#/today').replace(/^#\/?/, '').split('/')[0] || 'today';
-const typing = () => { const a = document.activeElement; return a && (a.matches('input:not([type=checkbox]):not([type=radio]),textarea,select') || a.isContentEditable); };
-const modal = () => B.sheetOpen() || !B.$('#dlgScrim').hidden;
+const apple = /Mac|iPhone|iPad|iPod/i.test(navigator.userAgentData?.platform || navigator.platform || '');
+const editable = el => !!el && (el.isContentEditable || !!el.closest?.('input,textarea,select,[role="textbox"]'));
+const control = el => !!el?.closest?.('button,a,input,textarea,select,summary,[role="button"],[role="slider"]');
+const dialogOpen = () => !B.$('#dlgScrim').hidden;
+const go = path => { location.hash = '#/' + path; };
+const act = (name, dataset = {}) => () => B.acts[name]({dataset});
+const groupInfo = {
+  nav: ['Разделы', 'grid'],
+  common: ['Общие команды', 'key'],
+  planner: ['Задачи', 'list'],
+  calendar: ['Календарь', 'cal'],
+  board: ['Доска и фокус', 'board'],
+  card: ['Карточка задачи', 'note']
+};
+let guideGroup = 'nav', pointerMode = null;
+document.addEventListener('pointermove', e => { if (e.pointerType !== 'touch') pointerMode = true; }, {passive:true});
+document.addEventListener('pointerdown', e => { pointerMode = e.pointerType !== 'touch'; }, true);
+document.addEventListener('focusin', () => { pointerMode = false; });
+B.keyTarget = (root, selector) => {
+  if (!root) return null;
+  if (pointerMode) return root.querySelector(selector + ':hover');
+  const row = document.activeElement?.closest(selector);
+  if (row && root.contains(row)) return row;
+  return pointerMode === null ? root.querySelector(selector + ':hover') : null;
+};
 
-function toggleWide(){
-  const v = route();
-  if (v !== 'tasks' && v !== 'calendar'){ if (!B.plWide) B.acts.plFull(); location.hash = '#/tasks'; return; }
-  B.acts.plFull();
-  B.toast(B.plWide ? 'Во весь экран · ⌥⇧ или Esc, чтобы вернуть меню' : 'Меню на месте', 1300);
+const commands = [];
+function command(group, scope, combos, title, run, note = ''){
+  commands.push({group, scope, combos:combos.split(' '), title, run, note});
 }
-B.acts.keysHelp = () => B.sheet(`<h2>Клавиши</h2>
-  ${KEYS.map(([h, rows]) => `<h3 class="kh-h">${h}</h3><div class="kh">${rows.map(([k, d]) => `<div class="kh-r"><span class="kh-k">${k.split('  ·  ').map(x => `<kbd>${x}</kbd>`).join(' ')}</span><span>${d}</span></div>`).join('')}</div>`).join('')}
-  <div class="row end"><button class="btn primary" data-act="closeSheet">Понятно</button></div>`);
+const sections = [
+  ['1','Сегодня','today'], ['2','Задачи','tasks'], ['3','Календарь','calendar'],
+  ['4','Доска дел','board'], ['5','Привычки','habits'], ['6','Итоги','stats'],
+  ['7','Чтение','read'], ['8','Лес','forest'], ['9','Фокус','board/focus'], ['0','Настройки','settings']
+];
+sections.forEach(([n,label,path]) => command('nav', 'global', 'Digit' + n, label, () => go(path)));
+command('common','global','Slash','Поиск по приложению',() => go('search'));
+command('common','global','Shift+Slash','Справочник клавиш',() => B.acts.keysHelp());
+command('common','global','Mod+KeyZ','Отменить изменение',() => B.handleHistory(false));
+command('common','global',apple ? 'Mod+Shift+KeyZ' : 'Mod+Shift+KeyZ Mod+KeyY','Повторить изменение',() => B.handleHistory(true));
+command('common','escape','Escape','Закрыть открытое окно',() => {
+  if (dialogOpen()) B.closeDialog(false);
+  else if (B.sheetOpen()) B.closeSheet();
+  else if (B.pl?.clearSel()) return;
+  else if (B.plWide && B.$('.planner-frame,.page.ac')) B.acts.plFull();
+  else return false;
+},'В планере также снимает выбор строки или возвращает боковое меню.');
 
-/* ⌥⇧ без других клавиш: срабатывает, когда отпускаешь, если между нажатием и отпусканием не было другой клавиши */
-let combo = false;
-document.addEventListener('keydown', e => {
-  if ((e.key === 'Alt' || e.key === 'Shift') && e.altKey && e.shiftKey && !e.metaKey && !e.ctrlKey) combo = true;
-  else if (e.key !== 'Alt' && e.key !== 'Shift') combo = false;
-}, true);
-document.addEventListener('keyup', e => {
-  if (!combo || (e.key !== 'Alt' && e.key !== 'Shift')) return;
-  combo = false;
-  if (typing() || modal()) return;
-  e.preventDefault(); toggleWide();
-}, true);
-addEventListener('blur', () => { combo = false; });
+const plannerRow = () => B.pl.targetRow();
+function rowAction(selector){
+  const button = plannerRow()?.querySelector(selector);
+  if (!button) return false;
+  button.click();
+}
+function taskAction(fn){
+  const id = plannerRow()?.dataset.tid;
+  const task = id && B.task(id);
+  return task && !task.deleted ? fn(task) : false;
+}
+function moveDay(k){
+  return taskAction(task => B.historyStep(() => B.pl.move(task,B.add(task.due || B.today(),k))));
+}
+function reorder(k){
+  return taskAction(task => {
+    if (!B.pl.reorder(task,k)) B.toast(k < 0 ? 'Выше нет задачи с тем же временем' : 'Ниже нет задачи с тем же временем',900);
+  });
+}
+function deleteItem(){
+  const row = B.$('.page.ac') ? B.keyTarget(B.$('.page.ac'),'.ac-item') : plannerRow();
+  B.calendarView.deleteKeyItem(row);
+}
+const deleteNote = 'На серии удаляет одно вхождение. У запланированного ШАДа, привычки или тренировки снимает время. Отмена возвращает запись.';
+const onWeek = () => ['week','month'].includes(B.pl?.view());
+for (const [group,scope] of [['planner','plannerGrid'],['calendar','calendar']]){
+  command(group,scope,'Delete Backspace','Удалить дело под курсором или в фокусе',deleteItem,deleteNote);
+  command(group,scope,'ArrowLeft','Предыдущий период',act(group==='planner'?'plShift':'acShift',group==='planner'?{k:'-1'}:{n:'-1'}));
+  command(group,scope,'ArrowRight','Следующий период',act(group==='planner'?'plShift':'acShift',group==='planner'?{k:'1'}:{n:'1'}));
+  command(group,scope,'KeyT','Перейти к сегодняшнему дню',act(group==='planner'?'plToday':'acToday'));
+  command(group,group==='planner'?'planner':scope,'KeyF','Скрыть или показать боковое меню',act('plFull'));
+}
+command('calendar','calendar','KeyK','Поиск в календаре',act('acSearch'));
+command('calendar','calendar','KeyN','Новая запись',act('acAdd'));
+command('planner','planner','KeyN','Новая задача на сегодня',() => B.acts.plAddDay({dataset:{d:B.today()}}));
+for(const [code,name,view] of [['KeyW','Неделя','week'],['KeyM','Месяц','month'],['KeyS','ШАД','shad'],['KeyA','Альбертс','alberts']]){
+  command('planner','planner',code,name,act('plView',{v:view}));
+}
+command('planner','plannerGrid','ArrowUp','Выбрать дело выше',() => B.pl.step(-1));
+command('planner','plannerGrid','ArrowDown','Выбрать дело ниже',() => B.pl.step(1));
+command('planner','plannerGrid','Enter','Открыть выбранное дело',() => rowAction('.pl-open'));
+command('planner','plannerGrid','Space','Поставить или снять галочку',() => rowAction('button.pl-chk,button.ac-check'));
+command('planner','plannerGrid','Shift+ArrowLeft','Сдвинуть задачу на день раньше',() => moveDay(-1));
+command('planner','plannerGrid','Shift+ArrowRight','Сдвинуть задачу на день позже',() => moveDay(1));
+command('planner','plannerGrid','Alt+ArrowUp','Поднять задачу внутри дня',() => reorder(-1),'Для задач без времени или с одинаковым временем.');
+command('planner','plannerGrid','Alt+ArrowDown','Опустить задачу внутри дня',() => reorder(1),'Для задач без времени или с одинаковым временем.');
 
-/* карточка задачи: ⌘Enter закрывает (всё и так сохраняется на лету), D срок, C цвет, K календарь, цифры выбирают в открытой панели */
-document.addEventListener('keydown', e => {
-  const tw = B.sheetOpen() && B.$('.sheet .tw[data-tid]'); if (!tw) return;
-  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)){ e.preventDefault(); e.stopPropagation(); if (document.activeElement) document.activeElement.blur(); B.closeSheet(); return; }
-  if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || typing() || e.repeat) return;
-  const c = e.code;
-  if (c === 'KeyD'){ e.preventDefault(); const i = tw.querySelector('input[data-in=twDue]'); if (i){ try { i.showPicker(); } catch (er) { i.focus(); i.click(); } } return; }
-  if (c === 'KeyC' || c === 'KeyK'){ e.preventDefault(); B.twToggle(c === 'KeyC' ? 'color' : 'cal'); return; }
-  const m = /^Digit([1-9])$/.exec(c), p = B.twPopNow();
-  if (m && (p === 'cal' || p === 'color')){
-    const opts = [...tw.querySelectorAll(p === 'cal' ? '[data-act=twProj]' : '.tw-colors button[data-act=twColor]')];
-    const el = opts[+m[1] - 1]; if (el){ e.preventDefault(); B.acts[el.dataset.act](el); }
-  }
-}, true);
+command('board','board','KeyL','Дела на сегодня',() => go('board'));
+command('board','board','KeyH','История готовых дел',() => go('board/history'));
+command('board','board','KeyF','Открыть фокус',() => go('board/focus'));
+command('board','boardLive','KeyN','Новое дело на доске',act('boardAdd',{lane:'plan'}));
+command('board','focus','Space','Запустить или приостановить таймер',act('focusToggle'));
+command('board','focus','Shift+KeyR','Сбросить таймер',act('focusReset'));
+command('board','focus','KeyB','Начать перерыв помодоро',() => {
+  const button = B.$('[data-act=focusBreak]:not(:disabled)');
+  if (!button) return false;
+  button.click();
+});
+command('board','focus','KeyM','Включить или приостановить фон',act('focusSound'));
+command('board','focus','Shift+KeyM','Вернуть фон к началу',act('focusAudioReset'));
 
-document.addEventListener('keydown', e => {
-  /* ⌥↑ ⌥↓ в планере: задача едет вверх или вниз внутри дня */
-  if (e.altKey && !e.metaKey && !e.ctrlKey && !e.shiftKey && (e.code === 'ArrowUp' || e.code === 'ArrowDown') && route() === 'tasks' && B.pl && B.pl.view() !== 'calendar' && !typing() && !modal()){
-    const id = B.pl.target(), t = id && B.task(id);
-    if (t && !t.deleted){ e.preventDefault(); if (!B.pl.reorder(t, e.code === 'ArrowUp' ? -1 : 1)) B.toast(e.code === 'ArrowUp' ? 'Уже первая в дне' : 'Уже последняя в дне', 900); }
-    return;
+command('card','taskEditor','Mod+Enter','Завершить редактирование',() => {
+  document.activeElement?.blur(); B.closeSheet();
+});
+command('card','taskEditor','KeyD','Выбрать срок',() => {
+  const field = B.$('.sheet input[data-in=twDue]');
+  if (!field) return false;
+  try { field.showPicker(); } catch { field.focus(); field.click(); }
+});
+command('card','taskEditor','KeyC','Палитра задачи',() => B.twToggle('color'));
+command('card','taskEditor','KeyK','Выбрать календарь',() => B.twToggle('cal'));
+command('card','taskPicker','Digit1 Digit2 Digit3 Digit4 Digit5 Digit6 Digit7 Digit8 Digit9','Выбрать по номеру',(event,code) => {
+  const pop = B.twPopNow();
+  const buttons = B.$$('.sheet ' + (pop === 'cal' ? '[data-act=twProj]' : '.tw-colors [data-act=twColor]'));
+  const btn = buttons[Number(code.slice(5)) - 1];
+  if (!btn) return false;
+  btn.click();
+},'Работает в открытой палитре или списке календарей.');
+
+function keyName(key){
+  if (key.startsWith('Key')) return key.slice(3);
+  if (key.startsWith('Digit')) return key.slice(5);
+  return {Mod:apple?'⌘':'Ctrl', Alt:apple?'⌥':'Alt', Shift:'Shift', Escape:'Esc', Backspace:apple?'⌫':'Backspace',
+    Space:'Пробел', Slash:'/', ArrowLeft:'←', ArrowRight:'→', ArrowUp:'↑', ArrowDown:'↓'}[key] || key;
+}
+function keyCaps(combo){
+  return '<span class="kg-combo">' + combo.split('+').map(key => '<kbd>' + keyName(key) + '</kbd>').join('') + '</span>';
+}
+function commandTile(cmd){
+  const caps = cmd.scope === 'taskPicker' ? '<kbd>1–9</kbd>' : cmd.combos.map(keyCaps).join('<span class="kg-or">/</span>');
+  const label = '<span class="kg-label"><strong>' + cmd.title + '</strong>' +
+    (cmd.note ? '<small>' + cmd.note + '</small>' : '') + '</span>';
+  return '<div class="kg-command">' + label + '<div class="kg-caps">' + caps + '</div></div>';
+}
+function drawCommands(group){
+  const items = commands.filter(cmd => cmd.group === group);
+  const sections = group === 'board' ? [['На доске',['board','boardLive']],['Во время фокуса',['focus']]] :
+    group === 'planner' ? [['Виды планера',['planner']],['В неделе и месяце',['plannerGrid']]] : [];
+  if (!sections.length) return items.map(commandTile).join('');
+  return sections.map(([title,scopes]) => '<h3 class="kg-subtitle">' + title + '</h3>' +
+    items.filter(cmd => scopes.includes(cmd.scope)).map(commandTile).join('')).join('');
+}
+function guideContent(){
+  return '<div class="kg-groups" role="group" aria-label="Область применения">' +
+    Object.entries(groupInfo).map(([k,[name,icon]]) =>
+      '<button type="button" data-act="keyGroup" data-group="' + k + '" aria-pressed="' + (k===guideGroup) + '">' + B.icon(icon) + name + '</button>'
+    ).join('') + '</div><div class="kg-commands" data-group="' + guideGroup + '">' + drawCommands(guideGroup) + '</div>';
+}
+B.keyboardGuide = () => '<section class="card key-guide" aria-label="Горячие клавиши"><header class="kg-head"><div class="kg-icon">' +
+  B.icon('key') + '</div><div><h2>Горячие клавиши</h2><p>Буквенные команды работают и в русской раскладке.</p></div></header>' + guideContent() + '</section>';
+B.acts.keyGroup = el => {
+  guideGroup = el.dataset.group;
+  const root = el.closest('.key-guide');
+  root.querySelectorAll('[data-act=keyGroup]').forEach(button => button.setAttribute('aria-pressed',button === el));
+  const tiles = root.querySelector('.kg-commands');
+  tiles.dataset.group = guideGroup;
+  tiles.innerHTML = drawCommands(guideGroup);
+};
+B.acts.keysHelp = () => B.sheet(B.keyboardGuide());
+B.acts.settingsKeys = () => {
+  const guide = B.$('.settings-page .key-guide');
+  guide?.querySelector('[aria-pressed=true]')?.focus({preventScroll:true});
+  guide?.scrollIntoView({block:'start'});
+};
+
+function scopes(){
+  if (dialogOpen()) return ['escape'];
+  if (B.sheetOpen()){
+    if (!B.$('.sheet .tw')) return ['escape'];
+    return ['escape','taskEditor', ...(['cal','color'].includes(B.twPopNow()) ? ['taskPicker'] : [])];
   }
-  if (e.metaKey || e.ctrlKey || e.altKey || e.repeat && !e.code.startsWith('Arrow')) return;
-  if (e.defaultPrevented || typing()) return;
-  const c = e.code, v = route();
-  if (e.key === 'Escape'){
-    if (modal() || (v !== 'tasks' && v !== 'calendar')) return;
-    if (v === 'tasks' && B.pl?.clearSel()) e.preventDefault();
-    else if (B.plWide){ e.preventDefault(); B.acts.plFull(); }
-    return;
+  const [,page,tab] = location.hash.split('/');
+  const result = ['escape','global'];
+  if (page === 'tasks') result.push('planner', ...(onWeek() ? ['plannerGrid'] : []));
+  if (page === 'calendar') result.push('calendar');
+  if (page === 'board'){
+    result.push('board');
+    if (!tab || tab === 'live') result.push('boardLive');
+    if (B.focus?.isStudio()) result.push('focus');
   }
-  if (modal()) return;
-  if (c === 'Slash'){ e.preventDefault(); if (e.shiftKey) B.acts.keysHelp(); else location.hash = '#/search'; return; }
-  if (/^Digit[1-8]$/.test(c) && !e.shiftKey){ e.preventDefault(); location.hash = '#/' + SECTIONS[+c.slice(5) - 1]; return; }
-  if (v !== 'tasks' || !B.pl) return;
-  if (!e.shiftKey && (c === 'ArrowUp' || c === 'ArrowDown')){ if (B.pl.view() === 'shad') return; e.preventDefault(); B.pl.step(c === 'ArrowUp' ? -1 : 1); return; }
-  const t = B.pl.target() && B.task(B.pl.target());
-  if (t && !t.deleted){
-    if (c === 'Space'){ e.preventDefault(); const before = B.calc().total; B.setDone(t, !t.done); const gain = B.calc().total - before; B.toast(!t.done && gain > 0 ? `<b class="pos">Готово</b> · <b class="pos">+${gain} XP</b>` : t.done ? 'Отметка снята' : 'Готово', 1200); return; }
-    if (c === 'Enter'){ e.preventDefault(); B.openTask(t.id); return; }
-    if (e.shiftKey && (c === 'ArrowLeft' || c === 'ArrowRight')){
-      e.preventDefault();
-      const to = B.add(t.due || B.today(), c === 'ArrowLeft' ? -1 : 1);
-      B.pl.move(t, to); B.toast(`${B.esc(t.title || 'Задача')} → ${B.fmtW(to)}`, 1200); return;
-    }
-  }
-  if (e.shiftKey) return;
-  if (c === 'ArrowLeft' || c === 'ArrowRight'){ if (B.pl.view() === 'shad') return; e.preventDefault(); B.acts.plShift({dataset: {k: c === 'ArrowLeft' ? '-1' : '1'}}); return; }
-  if (c === 'KeyT'){ e.preventDefault(); B.acts.plToday(); return; }
-  const views = {KeyW: 'week', KeyM: 'month', KeyS: 'shad'};
-  if (views[c]){ e.preventDefault(); if (B.pl.view() !== views[c]) B.acts.plView({dataset: {v: views[c]}}); return; }
-  if (c === 'KeyN'){
-    e.preventDefault();
-    if (B.pl.view() === 'shad') B.acts.plView({dataset: {v: 'week'}});
-    B.acts.plToday(); B.acts.plAdd({dataset: {d: B.today()}});
-  }
+  return result;
+}
+
+document.addEventListener('keydown', event => {
+  if (event.defaultPrevented || event.isComposing || event.keyCode === 229 || event.getModifierState?.('AltGraph')) return;
+  const code = event.code || event.key;
+  if (code === 'Tab'){ pointerMode = false; return; }
+  const primary = apple ? event.metaKey : event.ctrlKey;
+  if (apple ? event.ctrlKey : event.metaKey) return;
+  const combo = [primary && 'Mod',event.altKey && 'Alt',event.shiftKey && 'Shift',code].filter(Boolean).join('+');
+  const typing = editable(event.target) || editable(document.activeElement);
+  const active = scopes();
+  const deleteKey = combo === 'Backspace' || combo === 'Delete';
+  // WKWebView may navigate back on an unhandled Backspace, including a repeated
+  // key after the first press rerenders and removes the hovered row.
+  if (deleteKey && !typing && (active.includes('planner') || active.includes('calendar') || B.sheetOpen() || dialogOpen())) event.preventDefault();
+  if (event.repeat || document.body.classList.contains('pl-dragging')) return;
+  const cmd = commands.find(c => active.includes(c.scope) && c.combos.includes(combo));
+  if (!cmd) return;
+  const editingEscape = combo === 'Escape' && (B.sheetOpen() || dialogOpen());
+  if (typing && !editingEscape && !(cmd.scope === 'taskEditor' && combo === 'Mod+Enter')) return;
+  // Pressing Space/Enter on an actual control activates that control, even if
+  // the pointer is still over a task or a focus timer is running.
+  if ((combo === 'Space' || combo === 'Enter') && control(event.target)) return;
+  if (cmd.run(event,code) !== false) event.preventDefault();
 });
 })();

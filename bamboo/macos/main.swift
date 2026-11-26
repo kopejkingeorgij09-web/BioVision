@@ -110,12 +110,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     }
     private var focusAlertDeadline=0.0
     private var focusAlertTitle="Фокус"
-    private func updateFocusAlert(_ snapshot:[String:Any]){
+    private var focusAlertSound=false
+    private func updateFocusAlert(_ snapshot:[String:Any], force:Bool=false){
         let until=snapshot["notify"] as? Bool == true ? (snapshot["until"] as? Double ?? 0)/1000 : 0
         let title=snapshot["title"] as? String ?? "Фокус"
-        guard until != focusAlertDeadline || title != focusAlertTitle else{return}
+        let sound=snapshot["chime"] as? Bool ?? true
+        guard force || until != focusAlertDeadline || title != focusAlertTitle || sound != focusAlertSound else{return}
         focusAlertDeadline=until
         focusAlertTitle=title
+        focusAlertSound=sound
         let center=UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers:["zov.focus"])
         let delay=until-Date().timeIntervalSince1970
@@ -123,6 +126,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         let content=UNMutableNotificationContent()
         content.title="Таймер завершён"
         content.body=title
+        if sound {content.sound = .default}
         let trigger=UNTimeIntervalNotificationTrigger(timeInterval:max(1,delay),repeats:false)
         center.add(UNNotificationRequest(identifier:"zov.focus",content:content,trigger:trigger))
     }
@@ -222,6 +226,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
           const $ = s => document.querySelector(s);
           const check = (ok, why) => { if (!ok) throw Error(why); };
           const date=B.today();
+          B.calendarView.selectDate(date);
           B.put('e_docktest',{id:'docktest',title:'Проверка календаря',start:date,end:B.add(date,1)});
           location.hash='#/tasks/week'; B.render(true);
           function drag(x,y) {
@@ -238,6 +243,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
           check(frame().dataset.dock==='top','top dock');
           $('.dock-handle').click();
           check(JSON.parse(localStorage.getItem('bamboo-planner')).dock==='left','saved position');
+          const plannerEvent=$('.planner [data-act="acOpen"][data-id="docktest"]');
+          check(!!plannerEvent,'calendar event in Tasks');
+          plannerEvent.focus();
+          const removeKey=new KeyboardEvent('keydown',{key:'Backspace',bubbles:true,cancelable:true});
+          plannerEvent.dispatchEvent(removeKey);
+          check(removeKey.defaultPrevented && !B.get('e_docktest') && location.hash==='#/tasks/week','Tasks Backspace consumes native Back and deletes event');
+          $('[data-act="undoHistoryStep"]').click();
+          check(!!B.get('e_docktest'),'Tasks deletion can be undone');
           location.hash='#/calendar'; B.render(true);
           B.acts.acMode({dataset:{v:'week'}});
           const cell = () => $('[data-all="'+date+'"]');
@@ -259,8 +272,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
           check($('.ac-toolbar [data-act="acSearch"]') && $('.ac-toolbar [data-act="plFull"]'),'calendar controls');
           $('.ac-toolbar [data-act="plFull"]').click(); check(B.plWide,'hide menu');
           $('.ac-toolbar [data-act="plFull"]').click();
-          const day=B.ymd(new Date());
-          B.put('e_keytest',{id:'keytest',title:'Проверка Delete',start:day+'T10:00',end:day+'T11:00'});
+          B.put('e_keytest',{id:'keytest',type:'task',title:'Проверка Delete',start:date+'T10:00',end:date+'T11:00'});
           B.render(true);
           const card=$('.ac-item[data-id="keytest"] .ac-open');
           check(!!card,'keyboard test card');
@@ -308,8 +320,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             guard value as? Bool == true else {fputs("FAIL: linked board \(String(describing:error))\n",stderr);exit(1)}
             DispatchQueue.main.asyncAfter(deadline:.now()+0.5){self.web.takeSnapshot(with:nil){image,error in
                 if let image=image,let tiff=image.tiffRepresentation,let bitmap=NSBitmapImageRep(data:tiff),let png=bitmap.representation(using:.png,properties:[:]){try? png.write(to:URL(fileURLWithPath:NSTemporaryDirectory()+"Zov-Lesa-macOS-preview.png"))}
-                print("PASS: native macOS WKWebView, linked board, calendar search, bundled assets, Alberts reading log, Molbio habit, update bridge");exit(0)
+                print("PASS: native macOS WKWebView, linked board, calendar search, bundled assets, Alberts reading log, Molbio habit, update bridge")
+                self.testFocusStudio()
             }}
+        }
+    }
+    private func testFocusStudio() {
+        let checks = #"""
+        const $ = selector => document.querySelector(selector);
+        const check = (ok, detail) => { if (!ok) throw Error(detail); };
+        const click = selector => {
+          const button = $(selector);
+          check(button && !button.disabled, selector);
+          button.click();
+        };
+        location.hash = '#/board/focus/studio';
+        B.render(true);
+        check(document.querySelectorAll('.fr-nav a').length === 2, 'studio navigation');
+        for (const mode of ['timer', 'pomo']) {
+          click('[data-mode="' + mode + '"]');
+          click('[data-act=focusToggle]');
+          check(B.focus.current()?.timer.mode === mode && B.focus.current().timer.running, mode + ' start');
+          click('[data-act=focusToggle]');
+          check(!B.focus.current().timer.running && B.focus.current().timer.left > 0, mode + ' pause');
+          B.render(true);
+          click('[data-act=focusReset]');
+          check(!B.focus.current().timer, mode + ' reset');
+        }
+        click('.fr-quick summary');
+        check($('.fr-quick').open && $('.fr-pop input[type=range]'), 'quick mixer');
+        location.hash = '#/board/focus/customize';
+        B.render(true);
+        check(document.querySelectorAll('.fr-gallery [data-scene]').length === 10, 'all themes');
+        check(document.querySelectorAll('.fr-channel-grid input').length === 8, 'all audio channels');
+        const ctx = new AudioContext();
+        try {
+          for (const channel of ['fireplace','rain','forest','brown','white','chime']) {
+            const response = await fetch('focus/audio/' + channel + '.m4a');
+            check(response.ok, channel + ' bundled');
+            const audio = await ctx.decodeAudioData(await response.arrayBuffer());
+            check(audio.duration > 1 && audio.numberOfChannels > 0, channel + ' decode');
+          }
+        } finally { await ctx.close(); }
+        return true;
+        """#
+        web.callAsyncJavaScript(checks, arguments:[:], in:nil, in:.page) { result in
+            switch result {
+            case .success(let value) where value as? Bool == true:
+                print("PASS: WKWebView timer and Pomodoro start/pause/reset, quick mixer, themes and bundled Web Audio decoding");exit(0)
+            default: fputs("FAIL: macOS focus studio \(result)\n",stderr);exit(1)
+            }
         }
     }
     private var quitting=false
@@ -329,11 +389,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             let raw=message.body as? String,let bytes=raw.data(using:.utf8),let data=(try? JSONSerialization.jsonObject(with:bytes)) as? [String:Any] else {return}
         switch data["op"] as? String {
         case "focusNotifyEnable":
-            UNUserNotificationCenter.current().requestAuthorization(options:[.alert]) {granted,_ in
+            UNUserNotificationCenter.current().requestAuthorization(options:[.alert,.sound]) {granted,_ in
                 if granted {DispatchQueue.main.async {
-                    let end=self.focusAlertDeadline
-                    self.focusAlertDeadline = -1
-                    self.updateFocusAlert(["notify":true,"until":end*1000,"title":self.focusAlertTitle])
+                    self.updateFocusAlert(["notify":true,"until":self.focusAlertDeadline*1000,
+                        "title":self.focusAlertTitle,"chime":self.focusAlertSound], force:true)
                 }}
             }
         case "focusClock":focusClock(data["label"] as? String ?? "")

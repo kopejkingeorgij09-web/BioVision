@@ -29,6 +29,43 @@ public final class NativeChecks extends Instrumentation {
         return value.get();
     }
     private void check(boolean ok,String message){if(!ok)throw new AssertionError(message);}
+    private long visibleFocusDeadline() throws Exception {
+        // WebView can serialize epoch milliseconds in scientific notation.
+        return new java.math.BigDecimal(js("B.focus.current().timer.until")).longValueExact();
+    }
+    private void expectFocusAlarm(Context context, long deadline) throws Exception {
+        for (int attempt = 0; attempt < 50; attempt++) {
+            JSONArray items = new JSONArray(context.getSharedPreferences("reminders", Context.MODE_PRIVATE)
+                    .getString("schedule", "[]"));
+            long scheduled = 0;
+            for (int i = 0; i < items.length(); i++) {
+                org.json.JSONObject item = items.getJSONObject(i);
+                if ("board/focus".equals(item.optString("id"))) scheduled = item.getLong("start");
+            }
+            if (scheduled == deadline) return;
+            Thread.sleep(100);
+        }
+        throw new AssertionError("Native focus deadline differs from the visible timer");
+    }
+
+    private void checkFocusAlarms(Context context) throws Exception {
+        js("B.put('focuspref_notify',{value:true});B.put('focuspref_work',{value:1});"
+                +"location.hash='#/board/focus';B.render(true);true");
+        for (String mode : new String[]{"timer","pomo"}) {
+            js("document.querySelector('[data-act=focusMode][data-mode="+mode+"]').click();"
+                    +"document.querySelector('[data-act=focusToggle]').click();true");
+            check("true".equals(js("B.focus.current().timer.mode==='"+mode+"'")), "Timer mode selection");
+            expectFocusAlarm(context, visibleFocusDeadline());
+            js("document.querySelector('[data-act=focusToggle]').click();true");
+            expectFocusAlarm(context, 0);
+            if ("timer".equals(mode)) {
+                js("document.querySelector('[data-act=focusReset]').click();true");
+            } else {
+                js("document.querySelector('[data-act=focusToggle]').click();true");
+                expectFocusAlarm(context, visibleFocusDeadline());
+            }
+        }
+    }
     private String visibleText(View v){
         if(v.getVisibility()!=View.VISIBLE)return "";
         if(v instanceof TextView)return ((TextView)v).getText().toString()+"\n";
@@ -74,8 +111,8 @@ public final class NativeChecks extends Instrumentation {
             for(int i=0;i<60;i++){if("true".equals(js("!!window.B?.shad.plan.length && !!window.B?.alberts?.book")))break;Thread.sleep(250);}
             check("true".equals(js("!!window.B?.shad.plan.length && !!window.B?.alberts?.book")),"Bundled plan not loaded");
             check("true".equals(js("(()=>{const day=B.today(), start=day+'T10:00';"
-                +"const source={id:'nativeboard',title:'Дело из календаря',start,end:day+'T11:00'};"
-                +"B.put('e_nativeboard',source);location.hash='#/calendar';B.render(true);"
+                +"const source={id:'nativeboard',type:'task',title:'Дело из календаря',start,end:day+'T11:00'};"
+                +"B.put('e_nativeboard',source);B.calendarView.selectDate(day);location.hash='#/calendar';B.render(true);"
                 +"B.acts.acMode({dataset:{v:'day'}});B.$('.ac-item[data-id=nativeboard] .ac-card-menu').click();"
                 +"B.$('[data-act=acBoardCopy]').click();B.$('[data-board-choice=active]').click();"
                 +"location.hash='#/board';B.render(true);const card=B.$('[data-board-lane=active] .bd-card-title');"
@@ -86,6 +123,7 @@ public final class NativeChecks extends Instrumentation {
             String start=LocalDateTime.now().plusSeconds(90).withSecond(0).withNano(0).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
             String date=start.substring(0,10);
             c.getSystemService(NotificationManager.class).cancelAll();
+            checkFocusAlarms(c);
             js("B.put('t_nativecheck',{id:'nativecheck',title:'Native task',due:'"+date+"',remind:{at:'"+start+"'}});"
                 +"B.put('e_nativeevent',{id:'nativeevent',title:'Информатика · практика',location:'К-215 (В-86)',notes:'РТУ МИРЭА · ХББО-04-26\\n4-я пара · чётная неделя\\nКожухарь О. Ю.',start:'"+start+"',end:'"+LocalDateTime.parse(start).plusHours(1)+"',alerts:[0]});true");
             js("B.put('study_alberts',AlbertsPlan.log(B.alberts.book,B.alberts.state(),35,B.today()));true");
@@ -160,15 +198,17 @@ public final class NativeChecks extends Instrumentation {
             // timer can deliver the notifications under test.
             runOnMainSync(()->{web.stopLoading();web.destroy();activity.finishAndRemoveTask();});
             check(activity.isFinishing(),"Activity must be closing before alarm delivery");
-            long deadline=System.currentTimeMillis()+110000;boolean task=false,event=false;
+            long deadline=System.currentTimeMillis()+110000;boolean task=false,event=false,focus=false;
             while(System.currentTimeMillis()<deadline){
                 for(android.service.notification.StatusBarNotification n:c.getSystemService(NotificationManager.class).getActiveNotifications()) {
                     task|=n.getTag()!=null&&n.getTag().startsWith("task/nativecheck/");
                     event|=n.getTag()!=null&&n.getTag().startsWith("event/nativeevent/");
+                    focus|=n.getTag()!=null&&n.getTag().startsWith("page/board/focus/");
                 }
-                if(task&&event)break;Thread.sleep(1000);
+                if(task&&event&&focus)break;Thread.sleep(1000);
             }
             check(task&&event,"Task/event notification was not delivered with Activity in background");
+            check(focus,"Focus completion was not delivered after the WebView closed");
             ZovWidget.clear(c);ReminderScheduler.replace(c,new JSONArray());
             check(!ReminderScheduler.validTarget("page","bad/page",""),"Invalid navigation accepted");
             check(!ReminderScheduler.validTarget("shad","../5",date),"Invalid SHAD id accepted");

@@ -158,6 +158,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         web.navigationDelegate = self;web.uiDelegate=self
         NSWorkspace.shared.notificationCenter.addObserver(self, selector:#selector(clockDidWake(_:)), name:NSWorkspace.didWakeNotification, object:nil)
         window = NSWindow(contentRect: NSRect(x:0,y:0,width:1180,height:820), styleMask:[.titled,.closable,.miniaturizable,.resizable], backing:.buffered,defer:false)
+        window.isReleasedWhenClosed=false
         window.title = "Зов леса"; window.minSize = NSSize(width:420,height:600); window.contentView = web; window.center(); window.makeKeyAndOrderFront(nil)
         let menu=NSMenu(),app=NSMenu(),item=NSMenuItem();item.submenu=app;menu.addItem(item)
         app.addItem(withTitle:"Настройки…",action:#selector(settings),keyEquivalent:",").target=self

@@ -38,6 +38,7 @@ function dayReport(day, sessions, lessons){
     Альбертс:B.alberts?.pagesOn(day)||0,
     тренировки:B.workouts().filter(w=>w.date===day).map(w=>({вид:B.SPORT_TYPES[w.type]||w.type,заметка:w.note})),
     фокус:sessionList.map(x=>({дело:x.title,мин:x.minutes,конец:B.hm(x.at)})),
+    старые_записи_помодоро:d.pomo || undefined,
     управление_фокусом:B.focus.activity(day),
     ШАД:shad,Фаги:{день:B.phxDay(day),сроки:B.phxOn(day),занятия:(lessons?.lessons||[]).filter(x=>x.day===day)
       .map(x=>({урок:x.title,время:x.start,материалы:x.files,задания:x.tasks})),

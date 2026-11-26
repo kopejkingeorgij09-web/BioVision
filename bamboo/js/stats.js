@@ -20,7 +20,7 @@ function dayReport(day, sessions, lessons){
   return {
     дата:day,будущий_день:future || undefined,главное:(d.top||[]).map(id=>B.task(id)?.title||id),выбранное:d.focus || undefined,
     задачи:tasks.filter(t=>t.due===day||dateOf(t.created)===day||dateOf(t.doneAt)===day).map(t=>({
-      название:t.title,срок:t.due||undefined,создана:dateOf(t.created)||undefined,завершена:dateOf(t.doneAt)||undefined,
+      название:t.title,срок:t.due||undefined,создана:dateOf(t.created)===day?day:undefined,завершена:dateOf(t.doneAt)===day?day:undefined,
       календарь:B.proj(t.proj)?.name,заметка:t.notes||undefined})),
     шаги:tasks.flatMap(t=>(t.subs||[]).filter(s=>dateOf(s.doneAt)===day).map(s=>[t.title,s.t])),
     переносы:tasks.flatMap(t=>(t.postpones||[]).filter(p=>dateOf(p.at)===day).map(p=>[t.title,p.from,p.to,p.why])),
@@ -76,7 +76,7 @@ B.weekPrompt=weekPrompt;
 B.acts.aiWeek=async el=>{
   const from=el?.dataset.week || B.weekStart(B.today());
   const prepare=async()=>{
-    let feed=B.teaching;
+    let feed=null;
     if(B.cloud){
       try{feed=await BVAUTH.teachingWeek(from);}
       catch{feed=null;}

@@ -3,6 +3,7 @@ import WebKit
 import Network
 import CryptoKit
 import WidgetKit
+import UserNotifications
 
 let releaseRoot = "https://kopejkingeorgij09-web.github.io/BioVision/releases/zov-lesa/"
 let bundleID = "org.biovision.zovlesa.mac"
@@ -107,10 +108,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         }
         focusItem?.button?.title="◷ "+String(label.prefix(12))
     }
+    private var focusAlertDeadline=0.0
+    private var focusAlertTitle="Фокус"
+    private func updateFocusAlert(_ snapshot:[String:Any]){
+        let until=snapshot["notify"] as? Bool == true ? (snapshot["until"] as? Double ?? 0)/1000 : 0
+        let title=snapshot["title"] as? String ?? "Фокус"
+        guard until != focusAlertDeadline || title != focusAlertTitle else{return}
+        focusAlertDeadline=until
+        focusAlertTitle=title
+        let center=UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers:["zov.focus"])
+        let delay=until-Date().timeIntervalSince1970
+        guard delay>0,delay<=10801 else{return}
+        let content=UNMutableNotificationContent()
+        content.title="Таймер завершён"
+        content.body=title
+        let trigger=UNTimeIntervalNotificationTrigger(timeInterval:max(1,delay),repeats:false)
+        center.add(UNNotificationRequest(identifier:"zov.focus",content:content,trigger:trigger))
+    }
     private func focusWidget(_ data:[String:Any]){
-        guard !ProcessInfo.processInfo.arguments.contains("--self-test"),
-              let snapshot=data["snapshot"] as? [String:Any],
-              let bytes=try? JSONSerialization.data(withJSONObject:snapshot), bytes.count<20000,
+        guard !ProcessInfo.processInfo.arguments.contains("--self-test"), let snapshot=data["snapshot"] as? [String:Any] else{return}
+        updateFocusAlert(snapshot)
+        guard let bytes=try? JSONSerialization.data(withJSONObject:snapshot), bytes.count<20000,
               let dir=FileManager.default.containerURL(forSecurityApplicationGroupIdentifier:"group.org.biovision.zovlesa.focus")
         else{return}
         do{
@@ -307,7 +326,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         let origin=message.frameInfo.securityOrigin
         guard message.frameInfo.isMainFrame, origin.host=="127.0.0.1", origin.port == Int(server.port),
             let raw=message.body as? String,let bytes=raw.data(using:.utf8),let data=(try? JSONSerialization.jsonObject(with:bytes)) as? [String:Any] else {return}
-        switch data["op"] as? String { case "focusClock":focusClock(data["label"] as? String ?? "");case "focusWidget":focusWidget(data);case "updateCheck":checkUpdate();case "updateInstall":installUpdate();case "updateStatus":status("idle","Проверь наличие новой версии приложения");default:break }
+        switch data["op"] as? String {
+        case "focusNotifyEnable":
+            UNUserNotificationCenter.current().requestAuthorization(options:[.alert]) {granted,_ in
+                if granted {DispatchQueue.main.async {
+                    let end=self.focusAlertDeadline
+                    self.focusAlertDeadline = -1
+                    self.updateFocusAlert(["notify":true,"until":end*1000,"title":self.focusAlertTitle])
+                }}
+            }
+        case "focusClock":focusClock(data["label"] as? String ?? "")
+        case "focusWidget":focusWidget(data)
+        case "updateCheck":checkUpdate()
+        case "updateInstall":installUpdate()
+        case "updateStatus":status("idle","Проверь наличие новой версии приложения")
+        default:break
+        }
     }
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         guard let url=navigationAction.request.url else {decisionHandler(.cancel);return}

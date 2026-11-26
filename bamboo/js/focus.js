@@ -7,7 +7,7 @@ const scenes={amber_evening:'Янтарный вечер',forest:'Лес',lake_d
   tea_garden:'Чайный сад',terracotta:'Терракота'};
 const channels={rain:'Дождь',fireplace:'Камин',forest:'Лес',brown:'Коричневый шум',white:'Белый шум',ocean:'Океан',wind:'Ветер',cafe:'Кофейня'};
 const defaults={mode:'timer',work:25,short:5,long:15,every:4,scene:'amber_evening',dayScene:'lake_dawn',
-  nightScene:'amber_evening',autoScene:false,card:'',sound:false,chime:true,chimeVolume:70,rain:35,fireplace:20};
+  nightScene:'amber_evening',autoScene:false,card:'',sound:false,chime:true,notify:false,chimeVolume:70,rain:35,fireplace:20};
 function pref(k){
   const base=defaults[k] ?? 0,raw=B.get('focuspref_'+k)?.value ?? B.cfg().pomo?.[k] ?? base;
   if(k==='mode')return raw==='pomo'?'pomo':'timer';
@@ -117,7 +117,7 @@ function updateNative(label){
 }
 function widgetSnapshot(){
   const now=Date.now(),s=current()?.timer, day=B.today(), list=sessions(now);
-  return {title:s?.title || (s?.phase==='break'?'Перерыв':'Фокус'),until:s?.running?s.until:0,
+  return {title:s?.title || (s?.phase==='break'?'Перерыв':'Фокус'),until:s?.running?s.until:0,notify:pref('notify'),
     clock:format(s?.running?0:s?.left ?? duration('work')),scene:activeScene(),
     plan:planGroups()['На сегодня'].slice(0,3).map(c=>c.title.slice(0,150)),
     week:Array.from({length:7},(_,i)=>list.filter(x=>x.day===B.add(day,i-6)).reduce((n,x)=>n+x.minutes,0))};
@@ -179,6 +179,7 @@ function atmosphere(){
     <section class="card"><h2>Сохранённые миксы</h2>${mixes.map(m=>`<div class="row wrap"><button class="btn" data-act="focusMixUse" data-id="${esc(m.id)}">${esc(m.name)}</button><button class="btn sm" data-act="focusMixDelete" data-id="${esc(m.id)}" aria-label="Удалить микс ${esc(m.name)}">Удалить</button></div>`).join('')}
     <div class="row wrap"><label class="field">Название микса<input id="focus-mix-name" maxlength="80"></label>${button('focusMixSave','Сохранить микс')}</div></section>
     <section class="card"><h2>Финальный перезвон</h2><label><input type="checkbox" data-in="focusPref" data-key="chime" ${pref('chime')?'checked':''}> Сигнал завершения</label>
+    ${window.ZovDesktop || window.ZovReminder?`<label><input type="checkbox" data-in="focusPref" data-key="notify" ${pref('notify')?'checked':''}> Системное уведомление о завершении</label>`:''}
     <label class="fo-gain">Громкость <input type="range" min="0" max="100" value="${pref('chimeVolume')}" data-in="focusPref" data-key="chimeVolume"></label>${button('focusChime','Прослушать')}</section>`;
 }
 function week(){
@@ -260,6 +261,10 @@ B.inputs.focusPref=(el,ev)=>{
     if(!el.validity.valid || value===''){el.value=pref(k);return;}
     value=Number(value);
   }else if(el.type==='checkbox')value=el.checked;
+  if(k==='notify' && value){
+    B.androidReminders?.enable();
+    window.ZovDesktop?.postMessage(JSON.stringify({op:'focusNotifyEnable'}));
+  }
   set(k,value);mix();B.render(true);
 };
 document.addEventListener('keydown',e=>{
@@ -268,7 +273,7 @@ document.addEventListener('keydown',e=>{
   const action=!cmd&&e.code==='Space'?'focusToggle':cmd?{KeyR:'focusReset',KeyB:'focusBreak',KeyM:'focusSound'}[e.code]:null;
   if(action){e.preventDefault();B.acts[action]();}
 });
-B.focus={render,sessions,activity,current,remaining,append,widgetSnapshot};
+B.focus={render,sessions,activity,current,remaining,append,widgetSnapshot,notifications:()=>pref('notify')};
 B.on('change',()=>{mix();tick();syncWidget();});
 addEventListener('zov-clock-resume',tick);
 setInterval(tick,500);

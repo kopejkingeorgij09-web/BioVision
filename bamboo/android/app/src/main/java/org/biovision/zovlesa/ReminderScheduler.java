@@ -72,6 +72,8 @@ final class ReminderScheduler {
 
     private static long due(JSONObject item) {
         String start = item.optString("start");
+        if ("page".equals(item.optString("kind")) && "board/focus".equals(item.optString("id")))
+            return item.optLong("start", -1L);
         if (!MINUTE.matcher(start).matches()) return -1;
         int minutesBefore = item.optInt("before", 0);
         if (minutesBefore < 0 || minutesBefore > 525600) return -1;
@@ -160,6 +162,7 @@ final class ReminderScheduler {
         PendingIntent tap = PendingIntent.getActivity(c, 0, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         String label = "event".equals(kind) ? "Событие календаря" : "Напоминание о задаче";
         if ("test".equals(kind)) label = "Уведомления включены";
+        if ("page".equals(kind) && "board/focus".equals(item.optString("id"))) label = "Таймер на доске";
         Notification notification = new Notification.Builder(c, CHANNEL)
                 .setSmallIcon(R.drawable.zov_notification).setContentTitle(title).setContentText(label)
                 .setCategory(Notification.CATEGORY_REMINDER).setVisibility(Notification.VISIBILITY_PRIVATE)

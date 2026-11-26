@@ -369,3 +369,26 @@ test('two devices completing the same Pomodoro phase contribute one session', ()
   assert.equal(B.focus.sessions(start+1000000).length,1);
   assert.equal(B.focus.activity(B.today()).length,4);
 });
+
+test('weekly export compares the same weekdays and preserves long notes and book activity', () => {
+  const {B,page}=linkedPlanner();
+  B.calendarView.itemsBetween=()=>[];
+  B.setCfg({start:'2026-11-01'});
+  B.put('h_lang',{id:'lang',kind:'daily',name:'Язык',created:'2026-11-01'});
+  const from=B.weekStart(B.today()),prior=B.add(from,-7);
+  const note='Дневник '.repeat(1100);
+  B.saveDay(prior,{notebook:note,read:[{min:25}],h:{lang:.5}});
+  const date=new page.Date(prior+'T13:00:00').getTime();
+  B.put('b_one',{id:'one',title:'Книга',notes:[{at:date,k:'q',t:'Цитата недели'}]});
+  B.saveTask(B.newTask({id:'late',title:'Позднее завершение',due:prior,done:true,doneAt:page.Date.now()}));
+  vm.runInContext(fs.readFileSync('bamboo/js/stats.js','utf8'),page);
+  const report=week=>{const text=B.weekPrompt(week,null);return JSON.parse(text.slice(text.indexOf('{')));};
+  const now=report(from),past=report(prior);
+  assert.equal(now.индекс.дней,3);
+  assert.equal(now.предыдущая_неделя.дней,3);
+  assert.equal(now.предыдущая_неделя.балл,12);
+  assert.equal(past.дни[0].записи.блокнот,note);
+  assert.equal(past.дни[0].книжная_полка[0].заметки[0].текст,'Цитата недели');
+  assert.equal(past.дни[0].задачи[0].завершена,undefined);
+  assert.equal(now.дни[6].будущий_день,true);
+});

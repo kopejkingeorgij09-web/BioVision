@@ -84,6 +84,13 @@ function track(key,before,after){
   else if (key.startsWith('boardlane_')){
     const id=key.slice('boardlane_'.length);
     log(get(id,before || null),get(id,after || null));
+  } else if(key.startsWith('d_') && (before?.h || after?.h)){
+    const day=key.slice(2), oldMarks=before?.h || {}, newMarks=after?.h || {};
+    const changedIds=new Set([...Object.keys(oldMarks),...Object.keys(newMarks)].filter(k=>!!oldMarks[k]!==!!newMarks[k]));
+    if(changedIds.size)for(const e of C.events()){
+      if(!changedIds.has(e.habitId) || B.calendarView.plannerOrigin(e)!=='personal')continue;
+      for(const occ of C.occurrences(e,day,day))if(occ.on===day)calendarMark(occ,!!oldMarks[e.habitId],!!newMarks[e.habitId]);
+    }
   } else if(key.startsWith('ec_cal_') || key.startsWith('w_cal_')){
     const mark=after || before, e=mark && B.get('e_'+mark.calendarId);
     const other=B.get((key.startsWith('ec_')?'w_':'ec_')+mark?.id);

@@ -107,8 +107,8 @@ public class ZovWidget extends AppWidgetProvider {
         v.setTextViewText(R.id.widget_date,dateLabel);
         v.setViewVisibility(R.id.widget_date,compact?View.GONE:View.VISIBLE);
         v.setViewVisibility(R.id.widget_open,height<180||shortHeader?View.GONE:View.VISIBLE);
-        v.setOnClickPendingIntent(R.id.widget_header,open(c,"page",agenda?"tasks/calendar":"today",""));
-        v.setOnClickPendingIntent(R.id.widget_open,open(c,"page",agenda?"tasks/calendar":"tasks/week",""));
+        v.setOnClickPendingIntent(R.id.widget_header,open(c,"page",agenda?"calendar":"today",""));
+        v.setOnClickPendingIntent(R.id.widget_open,open(c,"page",agenda?"calendar":"tasks/week",""));
         ArrayList<JSONObject> rows=new ArrayList<>();
         try {
             JSONArray all=new JSONArray(prefs(c).getString("items","[]"));

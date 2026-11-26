@@ -9,6 +9,7 @@ const {esc, icon} = B;
 const LS = 'bamboo-planner';
 let S = {view: 'week', cal: 'all'};
 try { S = Object.assign(S, JSON.parse(localStorage.getItem(LS) || '{}')); } catch (e) {}
+if (S.view === 'calendar') S.view = 'week';
 const saveS = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} };
 let poolOpen = false;
 let listDay = null;
@@ -268,14 +269,13 @@ function monthWeekCell(ws, withShad, cur){
   </div>`;
 }
 
-const viewToggle = () => `<div class="toggle pl-views">${[['week', 'week', 'Неделя'], ['month', 'grid', 'Месяц'], ['shad', 'chart', 'ШАД'], ['alberts', 'book', 'Альбертс'], ['calendar', 'cal', 'Календарь']].map(([v, ic, l]) => `<button class="${S.view === v ? 'on' : ''}" data-act="plView" data-v="${v}" aria-label="${l}" aria-pressed="${S.view===v}" title="${v === 'shad' ? 'Темы и расписание ШАДа' : l}">${icon(ic)}<span>${l}</span></button>`).join('')}</div>`;
+const viewToggle = () => `<div class="toggle pl-views">${[['week', 'week', 'Неделя'], ['month', 'grid', 'Месяц'], ['shad', 'chart', 'ШАД'], ['alberts', 'book', 'Альбертс']].map(([v, ic, l]) => `<button class="${S.view === v ? 'on' : ''}" data-act="plView" data-v="${v}" aria-label="${l}" aria-pressed="${S.view===v}" title="${v === 'shad' ? 'Темы и расписание ШАДа' : l}">${icon(ic)}<span>${l}</span></button>`).join('')}</div>`;
 function calName(){ if (S.cal === 'all') return 'Все календари'; const p = B.proj(S.cal); return p ? p.name : 'Все календари'; }
 
 function plannerContent(arg){
-    if (arg === 'alberts' || arg === 'shad' || arg === 'plan' || arg === 'week' || arg === 'month' || arg === 'calendar'){ S.view = arg === 'plan' ? 'shad' : arg; saveS(); }
+    if (arg === 'alberts' || arg === 'shad' || arg === 'plan' || arg === 'week' || arg === 'month'){ S.view = arg === 'plan' ? 'shad' : arg; saveS(); }
     else if (arg && B.proj(arg)){ S.cal = arg; saveS(); }
     if (S.cal !== 'all' && !B.proj(S.cal)){ S.cal = 'all'; saveS(); }
-    if (S.view === 'calendar') return B.calendarView.render();
     if (S.view === 'alberts') return `<div class="page planner is-alberts"><header class="pl-h"><h1>Трек Альбертса</h1></header>${B.alberts.view()}</div>`;
     const month = S.view === 'month', t = B.today();
     if (S.view === 'shad') return `<div class="page planner is-shad">
@@ -308,7 +308,7 @@ function plannerNav(){
     <button class="icon-btn dock-handle" type="button" title="${dockLabel}. Можно перетащить" aria-label="${dockLabel}"><span aria-hidden="true">⠿</span></button>
     ${viewToggle()}
     <div class="dock-tools"><button class="icon-btn pl-full" data-act="plFull" title="${menuLabel}" aria-label="${menuLabel}" aria-pressed="${!!B.plWide}">${icon(B.plWide?'shrink':'expand')}</button>
-    ${S.view==='calendar' ? `<button class="icon-btn" data-act="acSearch" title="Поиск по календарю" aria-label="Поиск по календарю">${icon('search')}</button>` : `<a class="icon-btn" href="#/search" title="Поиск" aria-label="Поиск">${icon('search')}</a>`}</div></nav>`;
+    <a class="icon-btn" href="#/search" title="Поиск" aria-label="Поиск">${icon('search')}</a></div></nav>`;
 }
 
 function mountDock(){
@@ -362,7 +362,6 @@ B.views.tasks = {
   mount(){
     mountDock();
 
-    if (S.view === 'calendar') return B.calendarView.mount();
     const inp = B.$('.pl-in');
     if (inp){
       inp.focus({preventScroll: true});
@@ -905,7 +904,7 @@ B.acts.projSave = el => {
   const id = el.dataset.id || B.uid();
   const old = B.proj(id) || {id, order: B.projects().length + 1};
   B.put('p_' + id, Object.assign({}, old, {name, parent: parent || undefined, color}));
-  B.closeSheet(); S.cal = id; saveS(); if (S.view !== 'calendar') location.hash = '#/tasks';
+  B.closeSheet(); S.cal = id; saveS(); if (!location.hash.startsWith('#/calendar')) location.hash = '#/tasks';
   B.render(true);
 };
 B.acts.projDel = async el => {

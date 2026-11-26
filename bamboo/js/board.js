@@ -55,7 +55,7 @@ function render(){
     <header class="bd-header">
       <div><h1>Доска дел</h1><p>Перетаскивай карточки между колонками и отмечай шаги.</p></div>
       <div class="bd-actions">
-        <a class="btn" href="#/tasks/calendar">${icon('cal')} К календарю</a>
+        <a class="btn" href="#/calendar">${icon('cal')} К календарю</a>
         <button type="button" class="btn primary" data-act="boardAdd" data-lane="plan">${icon('plus')} Новое дело</button>
       </div>
     </header>

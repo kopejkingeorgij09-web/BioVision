@@ -2,12 +2,12 @@
 (function(){
 const {esc, icon} = B;
 const NAV = [
-  ['today', 'Сегодня', 'today'], ['tasks', 'Задачи', 'list'], ['board', 'Доска', 'board'], ['habits', 'Привычки', 'habit'], ['stats', 'Итоги', 'chart'],
+  ['today', 'Сегодня', 'today'], ['tasks', 'Задачи', 'list'], ['calendar', 'Календарь', 'cal'], ['board', 'Доска', 'board'], ['habits', 'Привычки', 'habit'], ['stats', 'Итоги', 'chart'],
   ['read', 'Чтение', 'book'], ['forest', 'Лес', 'tree'],
   ['search', 'Поиск', 'search'], ['settings', 'Настройки', 'gear']
 ];
 const FOOT = ['search', 'settings'];
-const BOTTOM = ['today', 'tasks', 'board', 'habits', 'read'];
+const BOTTOM = ['today', 'tasks', 'calendar', 'board', 'habits'];
 
 /* ---------- тема ---------- */
 const LS_THEME = 'bamboo-theme';
@@ -57,8 +57,12 @@ function shared(){
 
 function route(){
   const h = (location.hash || '#/today').replace(/^#\/?/, '').split('/');
-  if (['cal', 'journal', 'think'].includes(h[0])){
-    const target = h[0] === 'cal' ? ['tasks', 'month'] : ['today'];
+  if (h[0] === 'tasks' && h[1] === 'calendar'){
+    const rest = h[2] ? [h[2]] : [];
+    h.splice(0, h.length, 'calendar', ...rest);
+    history.replaceState(null, '', location.pathname + '#/' + h.join('/'));
+  } else if (['cal', 'journal', 'think'].includes(h[0])){
+    const target = h[0] === 'cal' ? ['calendar'] : ['today'];
     h.splice(0, h.length, ...target);
     history.replaceState(null, '', location.pathname + '#/' + h.join('/'));
   }
@@ -95,7 +99,7 @@ B.on('sync', () => shell(route()));
 
 /* ---------- каркас: боковая панель, нижнее меню, шапка ---------- */
 function shell(r){
-  document.body.classList.toggle('pl-wide', r.v === 'tasks' && !!B.plWide);
+  document.body.classList.toggle('pl-wide', (r.v === 'tasks' || r.v === 'calendar') && !!B.plWide);
   const c = B.calc();
   const side = document.getElementById('side');
   side.innerHTML = `<a class="brand" href="#/today">${icon('tree')}<span><b>Зов леса</b><small>уровень ${c.level} · ${c.trees ? B.fmtTrees(c.trees) : 'поляна'}</small></span></a>

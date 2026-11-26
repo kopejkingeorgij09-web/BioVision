@@ -55,7 +55,7 @@
   }
   B.on('change', tryPending);
   function open({kind, id, date}){
-    const hash = kind === 'page' ? '#/' + id : kind === 'habit' ? '#/habits' : kind === 'albertsLog' ? '#/tasks/alberts' : kind === 'event' ? '#/tasks/calendar' : kind === 'shad' ? '#/tasks/shad' : '#/tasks/week';
+    const hash = kind === 'page' ? '#/' + id : kind === 'habit' ? '#/habits' : kind === 'albertsLog' ? '#/tasks/alberts' : kind === 'event' ? '#/calendar' : kind === 'shad' ? '#/tasks/shad' : '#/tasks/week';
     const show = () => {
       if (kind === 'page') return true;
       if (kind === 'albertsLog'){

@@ -147,7 +147,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
           const check = (ok, why) => { if (!ok) throw Error(why); };
           const date=B.today();
           B.put('e_docktest',{id:'docktest',title:'Проверка календаря',start:date,end:B.add(date,1)});
-          location.hash='#/tasks/calendar'; B.render(true);
+          location.hash='#/tasks/week'; B.render(true);
+          function drag(x,y) {
+            const h=$('.dock-handle'), r=h.getBoundingClientRect();
+            for(const [type,cx,cy] of [['pointerdown',r.x+8,r.y+8],['pointermove',x,y],['pointerup',x,y]]){
+              h.dispatchEvent(new PointerEvent(type,{bubbles:true,pointerId:9,isPrimary:true,button:0,clientX:cx,clientY:cy}));
+            }
+          }
+          const frame=()=>$('.planner-frame'), box=()=>frame().getBoundingClientRect();
+          drag(box().left+4,box().top+160);
+          check(frame().dataset.dock==='left' && $('.planner-nav').getBoundingClientRect().right <= $('.page.planner').getBoundingClientRect().left+1,'left rail');
+          check($('.planner-nav .pl-views').children.length===4,'planner controls');
+          drag(box().left+200,box().top+5);
+          check(frame().dataset.dock==='top','top dock');
+          $('.dock-handle').click();
+          check(JSON.parse(localStorage.getItem('bamboo-planner')).dock==='left','saved position');
+          location.hash='#/calendar'; B.render(true);
           B.acts.acMode({dataset:{v:'week'}});
           const cell = () => $('[data-all="'+date+'"]');
           const line=$('.ac-col[data-col="'+date+'"] .ac-now');
@@ -165,22 +180,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
           $('.ac-axis-label').click();
           check(+cell().querySelector('.ac-day-count').textContent===count,'collapse');
           check($('.ac-heading h1').textContent.includes('–'),'week dates');
-          function drag(x,y) {
-            const h=$('.dock-handle'), r=h.getBoundingClientRect();
-            for(const [type,cx,cy] of [['pointerdown',r.x+8,r.y+8],['pointermove',x,y],['pointerup',x,y]]){
-              h.dispatchEvent(new PointerEvent(type,{bubbles:true,pointerId:9,isPrimary:true,button:0,clientX:cx,clientY:cy}));
-            }
-          }
-          const frame=()=>$('.planner-frame'), box=()=>frame().getBoundingClientRect();
-          drag(box().left+4,box().top+160);
-          check(frame().dataset.dock==='left' && $('.planner-nav').getBoundingClientRect().right <= $('.page.ac').getBoundingClientRect().left+1,'left rail');
-          check($('.planner-nav .pl-views').children.length===5 && $('.planner-nav [data-act="acSearch"]'),'controls');
-          drag(box().left+200,box().top+5);
-          check(frame().dataset.dock==='top','top dock');
-          $('.dock-handle').click();
-          check(JSON.parse(localStorage.getItem('bamboo-planner')).dock==='left','saved position');
-          $('.planner-nav [data-act="plFull"]').click(); check(B.plWide,'hide menu');
-          $('.planner-nav [data-act="plFull"]').click();
+          check($('.ac-toolbar [data-act="acSearch"]') && $('.ac-toolbar [data-act="plFull"]'),'calendar controls');
+          $('.ac-toolbar [data-act="plFull"]').click(); check(B.plWide,'hide menu');
+          $('.ac-toolbar [data-act="plFull"]').click();
           const day=B.ymd(new Date());
           B.put('e_keytest',{id:'keytest',title:'Проверка Delete',start:day+'T10:00',end:day+'T11:00'});
           B.render(true);
@@ -207,7 +209,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         web.evaluateJavaScript("B.get('e_keytest')?.title === 'Проверка Delete'") { value, error in
             guard value as? Bool == true else {fputs("FAIL: calendar Command-Z \(String(describing:error))\n",stderr);exit(1)}
             print("PASS: Calendar Backspace and Command-Z through the macOS Edit menu")
-            self.web.evaluateJavaScript("B.$('.planner-nav [data-act=acSearch]').click();const open=B.sheetOpen();B.closeSheet();open") { value,error in
+            self.web.evaluateJavaScript("B.$('.ac-toolbar [data-act=acSearch]').click();const open=B.sheetOpen();B.closeSheet();open") { value,error in
                 guard value as? Bool == true else {fputs("FAIL: calendar search \(String(describing:error))\n",stderr);exit(1)}
                 self.testBoard()
             }

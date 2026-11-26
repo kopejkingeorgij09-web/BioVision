@@ -442,7 +442,7 @@ B.acts.todayApplySlots=()=>{
   B.closeSheet();
 };
 B.acts.todayCalendar = el => {
-  location.hash = '#/tasks/calendar';
+  location.hash = '#/calendar';
   B.acts.acDay(el);
 };
 function weekStrip(today){

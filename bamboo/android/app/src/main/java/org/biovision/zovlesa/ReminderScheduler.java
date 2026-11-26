@@ -82,7 +82,7 @@ final class ReminderScheduler {
     }
 
     static boolean validTarget(String kind, String id, String date) {
-        return id != null && (("page".equals(kind) && java.util.Arrays.asList("today","tasks/week","tasks/calendar","tasks/shad","tasks/alberts","habits").contains(id))
+        return id != null && (("page".equals(kind) && java.util.Arrays.asList("today","tasks/week","calendar","tasks/calendar","tasks/shad","tasks/alberts","habits").contains(id))
                 || ("albertsLog".equals(kind) && "book".equals(id))
                 || (("habit".equals(kind) || "task".equals(kind) || "event".equals(kind) || ("shad".equals(kind) && id.matches("[1-9][0-9]{0,3}"))) && ID.matcher(id).matches()))
                 && (date == null || date.isEmpty() || DATE.matcher(date).matches());

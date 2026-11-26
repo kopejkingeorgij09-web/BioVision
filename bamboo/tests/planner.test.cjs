@@ -133,6 +133,7 @@ test('pinning keeps two habits first, supports unpin and frees archived slots', 
 test('a gym series records only the completed occurrence in the workout tracker', () => {
   const {B, page} = planner();
   page.TextEncoder = TextEncoder;
+  page.URLSearchParams = URLSearchParams;
   vm.runInContext(fs.readFileSync('bamboo/js/calendar-data.js', 'utf8'), page);
   const C = B.calData, habit = {auto:'sport'};
   const event = {id:'gym-series', title:'Зал · силовая тренировка',
@@ -162,6 +163,7 @@ test('a gym series records only the completed occurrence in the workout tracker'
 test('completing a regular calendar task leaves the workout tracker alone', () => {
   const {B, page} = planner();
   page.TextEncoder = TextEncoder;
+  page.URLSearchParams = URLSearchParams;
   vm.runInContext(fs.readFileSync('bamboo/js/calendar-data.js', 'utf8'), page);
   const task = {id:'study',title:'Семинар',type:'task',on:'2026-11-18'};
   B.calData.toggle(task);
@@ -174,6 +176,7 @@ test('completing a regular calendar task leaves the workout tracker alone', () =
 test('a calendar entry linked to a daily habit shares the tracker mark for its date', () => {
   const {B, page} = planner();
   page.TextEncoder = TextEncoder;
+  page.URLSearchParams = URLSearchParams;
   vm.runInContext(fs.readFileSync('bamboo/js/calendar-data.js', 'utf8'), page);
   const C = B.calData, habit = {id:'python',name:'Python · 30–40 мин',created:'2026-11-23'};
   const monday = {id:'python-mon', habitId:habit.id, title:'Python', type:'task', on:'2026-11-23'};
@@ -252,4 +255,44 @@ test('onReady waits for first cloud snapshot, importAll clears undo and guards p
   const done = B.setDone(B.task('rep1'), true);
   const next = B.task(done.repNext);
   assert.equal(next.remind, null);
+});
+
+test('calendar is an independent top-level section between tasks and board, and #/tasks/calendar redirects to it', () => {
+  const {B, page} = planner();
+  const stub = () => ({innerHTML: '', className: '', title: '', textContent: '', value: '', hidden: true, style: {}, scrollHeight: 24,
+    classList: {add() {}, remove() {}, toggle() {}}, addEventListener: () => {}, querySelector: () => stub(), querySelectorAll: () => [], contains: () => false});
+  const elements = new Map();
+  const getEl = id => { if (!elements.has(id)) elements.set(id, stub()); return elements.get(id); };
+  page.document.getElementById = getEl;
+  page.document.querySelector = () => stub();
+  page.document.querySelectorAll = () => [];
+  page.document.body = stub();
+  page.document.documentElement = {setAttribute() {}, removeAttribute() {}};
+  page.navigator = {};
+  page.scrollY = 0;
+  page.scrollTo = () => {};
+  B.$ = () => stub();
+  B.$$ = () => [];
+  B.sheetOpen = () => false;
+  page.history = {replaceState(_s, _t, url) { page.location.hash = url.slice(url.indexOf('#')); }};
+  page.location = {hash: '#/tasks/calendar', pathname: '/bamboo/', search: ''};
+  page.TextEncoder = TextEncoder;
+  page.URLSearchParams = URLSearchParams;
+  vm.runInContext(fs.readFileSync('bamboo/js/calendar-data.js', 'utf8'), page);
+  vm.runInContext(fs.readFileSync('bamboo/js/calendar.js', 'utf8'), page);
+  vm.runInContext(fs.readFileSync('bamboo/js/board.js', 'utf8'), page);
+  vm.runInContext(fs.readFileSync('bamboo/js/app.js', 'utf8'), page);
+
+  assert.ok(B.views.calendar);
+  const tasksHtml = B.views.tasks.render('week');
+  assert.doesNotMatch(tasksHtml, /data-v="calendar"/);
+  assert.equal((tasksHtml.match(/data-act="plView"/g) || []).length, 4);
+
+  B.render(true);
+  assert.equal(page.location.hash, '#/calendar');
+  const sideHtml = getEl('side').innerHTML;
+  const iTasks = sideHtml.indexOf('href="#/tasks"');
+  const iCal = sideHtml.indexOf('href="#/calendar"');
+  const iBoard = sideHtml.indexOf('href="#/board"');
+  assert.ok(iTasks > -1 && iCal > iTasks && iBoard > iCal);
 });

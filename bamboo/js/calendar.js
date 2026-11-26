@@ -302,9 +302,13 @@ function applyCardFont(root){
   root.style.setProperty('--ac-card-font', cardFont+'px');
   root.toggleAttribute('data-compact-cards',cardFont<11);
 }
-function render(){
+function render(arg){
+  if (arg && Object.hasOwn(MODES, arg) && mode !== arg){
+    mode = arg; weekFrom = null; weekFraction = 0; scroll = null; scrollLeft = 0; savePrefs();
+  }
   const [from,to]=ranges(), byDay=eachDay(itemsBetween(from,to),from,to), ds=days(from,diff(from,to)+1);
   const panel=shadPanel();
+  const menuLabel = B.plWide ? 'Показать боковое меню' : 'Скрыть боковое меню';
   const title = mode==='year' ? date.slice(0,4)+' г.' : mode==='day' ? fmt(date)+' '+date.slice(0,4)+' г.' : mode==='week' ? weekTitle(weekFrom||B.weekStart(date)) : monthTitle(date)+' г.';
   return `<div class="page planner ac" data-cal-mode="${mode}">
     <div class="ac-shell ${side?'with-side':''}">${side?sidebar(byDay):''}
@@ -312,11 +316,13 @@ function render(){
         <div class="ac-toolbar">
           <div class="ac-controls"><button class="icon-btn" data-act="acSidebar" aria-label="Список календарей" aria-pressed="${side}">${icon('list')}</button>
             <button class="icon-btn ac-add" data-act="acAdd" aria-label="Добавить событие или задачу" title="Добавить (N)">${icon('plus')}</button>
-            <button class="icon-btn" data-act="acGoto" aria-label="Перейти к дате">${icon('cal')}</button></div>
+            <button class="icon-btn" data-act="acGoto" aria-label="Перейти к дате" title="Перейти к дате">${icon('cal')}</button>
+            <button class="icon-btn" data-act="acSearch" aria-label="Поиск по календарю" title="Поиск по календарю (/)">${icon('search')}</button></div>
           <div class="ac-modes" role="group" aria-label="Вид календаря">${Object.entries(MODES).map(([k,v])=>`<button data-act="acMode" data-v="${k}" aria-pressed="${mode===k}">${v}</button>`).join('')}</div>
           <div class="ac-nav"><button class="icon-btn" data-act="acShift" data-n="-1" aria-label="Назад">${icon('left')}</button>
             <button class="btn ghost sm" data-act="acToday">Сегодня</button>
-            <button class="icon-btn" data-act="acShift" data-n="1" aria-label="Вперёд">${icon('right')}</button></div>
+            <button class="icon-btn" data-act="acShift" data-n="1" aria-label="Вперёд">${icon('right')}</button>
+            <button class="icon-btn pl-full" data-act="plFull" title="${menuLabel}" aria-label="${menuLabel}" aria-pressed="${!!B.plWide}">${icon(B.plWide?'shrink':'expand')}</button></div>
         </div>
         <div class="ac-heading"><h1>${esc(title)}</h1>
           ${mode!=='year'||panel.button?`<div class="ac-heading-tools">
@@ -1205,6 +1211,8 @@ function openReminder(id,on){
   editor(x,e);
   return true;
 }
+B.views = B.views || {};
+B.views.calendar = {title: 'Календарь', render, mount, unmount};
 B.calendarView={render,mount,unmount,itemsBetween,plannerEventDays,plannerRow,openReminder,calendarCheck,actionButton,applyPlanSlot,
   canApplyPlanSlot:(item,start,end)=>!!planSlotEntry(item,start,end),
   selectedDate:()=>date,selectDate,deferRender(){

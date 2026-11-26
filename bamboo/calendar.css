@@ -353,7 +353,7 @@
   .planner-nav .pl-views button.on span{display:inline}
   .planner-frame[data-dock=left] .planner-nav{top:56px}
 }
-@media(max-width:959px){.planner-nav .pl-full{display:none!important}}
+@media(max-width:959px){.pl-full{display:none!important}}
 .ac-all .ac-axis-label{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;line-height:1.2;font-weight:650;padding:3px 1px;color:var(--ac-muted)}
 .ac-axis-label span{font-size:11px}
 .ac-all.compact .ac-allday{display:grid;min-height:30px;padding:0}

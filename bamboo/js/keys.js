@@ -3,8 +3,8 @@
 (function(){
 const KEYS = [
   ['Везде', [
-    ['⌥ ⇧', 'Задачи во весь экран: спрятать или показать меню'],
-    ['1 … 6', 'Сегодня, Задачи, Привычки, Итоги, Чтение, Лес'],
+    ['⌥ ⇧', 'Задачи или календарь во весь экран: спрятать или показать меню'],
+    ['1 … 8', 'Сегодня, Задачи, Календарь, Доска, Привычки, Итоги, Чтение, Лес'],
     ['/', 'Поиск'],
     ['?', 'Эта подсказка'],
     ['⌘ Z  ·  ⌘ ⇧ Z', 'Отменить и повторить'],
@@ -36,13 +36,14 @@ const KEYS = [
     ['1 … 9', 'Когда открыт цвет или календарь: выбрать по номеру']
   ]]
 ];
-const SECTIONS = ['today', 'tasks', 'habits', 'stats', 'read', 'forest'];
+const SECTIONS = ['today', 'tasks', 'calendar', 'board', 'habits', 'stats', 'read', 'forest'];
 const route = () => (location.hash || '#/today').replace(/^#\/?/, '').split('/')[0] || 'today';
 const typing = () => { const a = document.activeElement; return a && (a.matches('input:not([type=checkbox]):not([type=radio]),textarea,select') || a.isContentEditable); };
 const modal = () => B.sheetOpen() || !B.$('#dlgScrim').hidden;
 
 function toggleWide(){
-  if (route() !== 'tasks'){ if (!B.plWide) B.acts.plFull(); location.hash = '#/tasks'; return; }
+  const v = route();
+  if (v !== 'tasks' && v !== 'calendar'){ if (!B.plWide) B.acts.plFull(); location.hash = '#/tasks'; return; }
   B.acts.plFull();
   B.toast(B.plWide ? 'Во весь экран · ⌥⇧ или Esc, чтобы вернуть меню' : 'Меню на месте', 1300);
 }
@@ -90,15 +91,15 @@ document.addEventListener('keydown', e => {
   if (e.defaultPrevented || typing()) return;
   const c = e.code, v = route();
   if (e.key === 'Escape'){
-    if (modal() || v !== 'tasks' || !B.pl) return;
-    if (B.pl.clearSel()) e.preventDefault();
+    if (modal() || (v !== 'tasks' && v !== 'calendar')) return;
+    if (v === 'tasks' && B.pl?.clearSel()) e.preventDefault();
     else if (B.plWide){ e.preventDefault(); B.acts.plFull(); }
     return;
   }
   if (modal()) return;
   if (c === 'Slash'){ e.preventDefault(); if (e.shiftKey) B.acts.keysHelp(); else location.hash = '#/search'; return; }
-  if (/^Digit[1-6]$/.test(c) && !e.shiftKey){ e.preventDefault(); location.hash = '#/' + SECTIONS[+c.slice(5) - 1]; return; }
-  if (v !== 'tasks' || !B.pl || B.pl.view() === 'calendar') return;
+  if (/^Digit[1-8]$/.test(c) && !e.shiftKey){ e.preventDefault(); location.hash = '#/' + SECTIONS[+c.slice(5) - 1]; return; }
+  if (v !== 'tasks' || !B.pl) return;
   if (!e.shiftKey && (c === 'ArrowUp' || c === 'ArrowDown')){ if (B.pl.view() === 'shad') return; e.preventDefault(); B.pl.step(c === 'ArrowUp' ? -1 : 1); return; }
   const t = B.pl.target() && B.task(B.pl.target());
   if (t && !t.deleted){

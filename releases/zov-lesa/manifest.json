@@ -8,10 +8,10 @@
     "size": 1232348
   },
   "macos": {
-    "version": "1.1.16",
-    "build": 21,
-    "url": "https://kopejkingeorgij09-web.github.io/BioVision/releases/zov-lesa/Zov-Lesa-macOS-1.1.16.zip",
-    "sha256": "6a31e2e565a0c4f2da4616523854950e02f1808b15fdb560fcc7bb720fcdb66d",
-    "size": 387991
+    "version": "1.1.17",
+    "build": 22,
+    "url": "https://kopejkingeorgij09-web.github.io/BioVision/releases/zov-lesa/Zov-Lesa-macOS-1.1.17.zip",
+    "sha256": "3eef374bd381ba445e344888fe6eb6fa288a438b697c039496a740bd6ac58bcc",
+    "size": 398551
   }
 }

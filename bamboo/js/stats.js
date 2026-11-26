@@ -22,7 +22,7 @@ function weekPrompt(){
     lines.push(`## ${B.WDF[B.wd(date)]}, ${B.fmt(date)}: ${({good: 'разбор есть', some: 'без разбора', empty: 'пустой день'})[r.result] || ''}`);
     if (top.length) lines.push(`Важные (с короной): ${top.map(x => (x.done ? '[x] ' : '[ ] ') + x.title).join('; ')}`);
     if (s.done.length) lines.push(`Сделано: ${s.done.map(x => x.title).join('; ')}`);
-    lines.push(`Чтение ${s.rm} мин, тренировка: ${s.ws.length ? s.ws.map(w => B.SPORT_TYPES[w.type]).join(', ') : 'нет'}, привычки: ${s.hs.join(', ') || 'нет'}`);
+    lines.push(`Чтение ${s.rm} мин, тренировка: ${s.ws.length ? s.ws.map(w => B.SPORT_TYPES[w.type] || 'Тренировка').join(', ') : 'нет'}, привычки: ${s.hs.join(', ') || 'нет'}`);
     if (d.notebook) lines.push(`Блокнот: ${d.notebook}`);
     if (rv.done) lines.push(`Что сделал: ${rv.done}`);
     if (rv.why) lines.push(`Что не вышло и почему: ${rv.why}`);

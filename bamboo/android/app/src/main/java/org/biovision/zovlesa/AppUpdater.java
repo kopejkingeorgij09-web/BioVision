@@ -18,7 +18,7 @@ import java.util.Arrays;
 /** Explicit user initiated updates. Android's package installer makes the final decision. */
 final class AppUpdater {
  static final String ROOT="https://kopejkingeorgij09-web.github.io/BioVision/";
- private final MainActivity activity;private JSONObject release;private String message="Проверь наличие новой версии",status="idle";private boolean busy;
+ private final MainActivity activity;private JSONObject release;private String message="Проверь наличие новой версии",status="idle";private volatile boolean busy;
  AppUpdater(MainActivity a){activity=a;}
  static String hash(File file)throws Exception{MessageDigest digest=MessageDigest.getInstance("SHA-256");try(java.io.InputStream in=new java.io.FileInputStream(file)){byte[] b=new byte[32768];int n;while((n=in.read(b))>0)digest.update(b,0,n);}StringBuilder out=new StringBuilder();for(byte b:digest.digest())out.append(String.format("%02x",b&255));return out.toString();}
  static boolean allowed(String url){return url.startsWith(ROOT+"releases/zov-lesa/")&&!url.contains("..")&&!url.contains("?")&&!url.contains("#");}

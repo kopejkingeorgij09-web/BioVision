@@ -9,14 +9,34 @@ let bundleID = "org.biovision.zovlesa.mac"
 final class LocalWebServer {
     private var listener: NWListener?
     private let root: URL
-    init(root: URL) { self.root = root.standardizedFileURL }
-    func start(_ ready: @escaping (URL) -> Void) throws {
+    private let preferredPort: UInt16
+    private(set) var port: UInt16
+    init(root: URL, port: UInt16 = 49191) {
+        self.root = root.standardizedFileURL
+        self.preferredPort = port
+        self.port = port
+    }
+    func start(_ completion: @escaping (Result<URL, Error>) -> Void) throws {
         let parameters = NWParameters.tcp
-        parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: 49191)
+        let endpointPort: NWEndpoint.Port = preferredPort == 0 ? .any : NWEndpoint.Port(rawValue: preferredPort)!
+        parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: endpointPort)
         let listener = try NWListener(using: parameters)
         self.listener = listener
-        listener.stateUpdateHandler = { state in
-            if case .ready = state { DispatchQueue.main.async { ready(URL(string: "http://127.0.0.1:49191/bamboo/index.html")!) } }
+        var settled = false
+        listener.stateUpdateHandler = { [weak self] state in
+            guard let self = self, !settled else { return }
+            switch state {
+            case .ready:
+                settled = true
+                let actual = listener.port?.rawValue ?? self.preferredPort
+                self.port = actual
+                DispatchQueue.main.async { completion(.success(URL(string: "http://127.0.0.1:\(actual)/bamboo/index.html")!)) }
+            case .failed(let error):
+                settled = true
+                DispatchQueue.main.async { completion(.failure(error)) }
+            default:
+                break
+            }
         }
         listener.newConnectionHandler = { [weak self] connection in
             connection.start(queue: .global(qos: .userInitiated))
@@ -46,10 +66,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     var update: [String:Any]?
     var busy = false
     func applicationDidFinishLaunching(_ notification: Notification) {
+        let selfTest = ProcessInfo.processInfo.arguments.contains("--self-test")
+        if !selfTest {
+            let others = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).filter { $0 != NSRunningApplication.current }
+            if let existing = others.first {
+                existing.activate(options: .activateIgnoringOtherApps)
+                NSApp.terminate(nil)
+                return
+            }
+            cleanupOldUpdates()
+        }
         let configuration = WKWebViewConfiguration()
-        if ProcessInfo.processInfo.arguments.contains("--self-test"){configuration.websiteDataStore = .nonPersistent()}
+        if selfTest { configuration.websiteDataStore = .nonPersistent() }
         configuration.userContentController.add(self, name: "nativeUpdate")
-        configuration.userContentController.addUserScript(WKUserScript(source: "window.ZovDesktop={postMessage:function(x){window.webkit.messageHandlers.nativeUpdate.postMessage(x)}};", injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        configuration.userContentController.addUserScript(WKUserScript(source: "window.ZOV_BUNDLED=true;window.ZovDesktop={postMessage:function(x){window.webkit.messageHandlers.nativeUpdate.postMessage(x)}};", injectionTime: .atDocumentStart, forMainFrameOnly: true))
         web = WKWebView(frame: .zero, configuration: configuration)
         web.navigationDelegate = self;web.uiDelegate=self
         NSWorkspace.shared.notificationCenter.addObserver(self, selector:#selector(clockDidWake(_:)), name:NSWorkspace.didWakeNotification, object:nil)
@@ -65,9 +95,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         redo.keyEquivalentModifierMask=[.command,.shift]; redo.target=self
         for (title,action,key) in [("Вырезать","cut:","x"),("Копировать","copy:","c"),("Вставить","paste:","v"),("Выбрать всё","selectAll:","a")] { edit.addItem(withTitle:title,action:Selector(action),keyEquivalent:key) }
         NSApp.applicationIconImage=NSImage(contentsOf:Bundle.main.resourceURL!.appendingPathComponent("Web/bamboo/icons/icon-512.png"));NSApp.mainMenu=menu;NSApp.activate(ignoringOtherApps:true)
-        server=LocalWebServer(root:Bundle.main.resourceURL!.appendingPathComponent("Web"))
-        do { try server.start { [weak self] url in self?.web.load(URLRequest(url:url)) } }
+        server=LocalWebServer(root:Bundle.main.resourceURL!.appendingPathComponent("Web"), port: selfTest ? 0 : 49191)
+        do {
+            try server.start { [weak self] result in
+                switch result {
+                case .success(let url): self?.web.load(URLRequest(url: url))
+                case .failure(let error): self?.status("error", "Не удалось запустить локальный интерфейс: \(error.localizedDescription)")
+                }
+            }
+        }
         catch { status("error","Не удалось запустить локальный интерфейс: \(error.localizedDescription)") }
+    }
+    private func cleanupOldUpdates() {
+        let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent(bundleID)
+        guard let entries = try? FileManager.default.contentsOfDirectory(at: cache, includingPropertiesForKeys: nil) else { return }
+        for url in entries where url.lastPathComponent.hasPrefix("update-") {
+            try? FileManager.default.removeItem(at: url)
+        }
     }
     @objc private func editHistory(_ item:NSMenuItem) {
         let redo=item.keyEquivalentModifierMask.contains(.shift)
@@ -203,13 +247,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     @objc func settings(){web.evaluateJavaScript("location.hash='#/settings'",completionHandler:nil)}
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         let origin=message.frameInfo.securityOrigin
-        guard message.frameInfo.isMainFrame, origin.host=="127.0.0.1",origin.port==49191,
+        guard message.frameInfo.isMainFrame, origin.host=="127.0.0.1", origin.port == Int(server.port),
             let raw=message.body as? String,let bytes=raw.data(using:.utf8),let data=(try? JSONSerialization.jsonObject(with:bytes)) as? [String:Any] else {return}
         switch data["op"] as? String { case "updateCheck":checkUpdate();case "updateInstall":installUpdate();case "updateStatus":status("idle","Проверь наличие новой версии приложения");default:break }
     }
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         guard let url=navigationAction.request.url else {decisionHandler(.cancel);return}
-        if url.scheme=="http" && url.host=="127.0.0.1" && url.port==49191 {decisionHandler(.allow)}
+        if url.scheme=="http" && url.host=="127.0.0.1" && url.port == Int(server.port) {decisionHandler(.allow)}
         else {if ["https","http"].contains(url.scheme ?? ""){NSWorkspace.shared.open(url)};decisionHandler(.cancel)}
     }
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {if let url=navigationAction.request.url, url.scheme=="https"{NSWorkspace.shared.open(url)};return nil}
@@ -223,13 +267,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         guard !busy else{return};busy=true;settings();status("busy","Проверяю новую версию…")
         var request=URLRequest(url:URL(string:releaseRoot+"manifest.json")!);request.cachePolicy = .reloadIgnoringLocalCacheData;request.timeoutInterval=25
         URLSession.shared.dataTask(with:request){data,response,error in
-            defer{self.busy=false}
             guard let data=data,let http=response as? HTTPURLResponse,http.statusCode==200,
                 let feed=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any],let release=feed["macos"] as? [String:Any],let build=release["build"] as? Int,
-                let url=release["url"] as? String,url.hasPrefix(releaseRoot),!url.contains(".."),let hash=release["sha256"] as? String,hash.range(of:"^[a-f0-9]{64}$",options:.regularExpression) != nil else {self.status("error","Не удалось проверить обновления. Попробуй позже.");return}
+                let url=release["url"] as? String,url.hasPrefix(releaseRoot),!url.contains(".."),let hash=release["sha256"] as? String,hash.range(of:"^[a-f0-9]{64}$",options:.regularExpression) != nil else {
+                DispatchQueue.main.async{self.busy=false;self.status("error","Не удалось проверить обновления. Попробуй позже.")}
+                return
+            }
             let current=Int(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1") ?? 1
-            if build>current {self.update=release;self.status("available","Доступна версия \(release["version"] ?? "")")}
-            else {self.update=nil;self.status("current","Установлена актуальная версия")}
+            DispatchQueue.main.async {
+                self.busy=false
+                if build>current {self.update=release;self.status("available","Доступна версия \(release["version"] ?? "")")}
+                else {self.update=nil;self.status("current","Установлена актуальная версия")}
+            }
         }.resume()
     }
     func installUpdate(){
@@ -238,7 +287,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         guard !app.path.hasPrefix("/Volumes/"),FileManager.default.isWritableFile(atPath:app.deletingLastPathComponent().path) else {status("error","Перемести приложение в свою папку «Программы», затем повтори обновление");return}
         busy=true;status("busy","Скачиваю и проверяю обновление…")
         URLSession.shared.downloadTask(with:url){temp,response,error in
-            defer{self.busy=false}
             do{
                 guard let temp=temp,let response=response as? HTTPURLResponse,response.statusCode==200 else{throw NSError(domain:"Update",code:1)}
                 let fresh=try self.unpackArchive(temp,expected:expected,build:build)
@@ -258,8 +306,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
                 """
                 try source.write(to:script,atomically:true,encoding:.utf8)
                 let process=Process();process.executableURL=URL(fileURLWithPath:"/bin/sh");process.arguments=[script.path,String(ProcessInfo.processInfo.processIdentifier),app.path,fresh.path,dir.appendingPathComponent("previous.app").path];try process.run()
-                DispatchQueue.main.async{NSApp.terminate(nil)}
-            }catch {self.status("error","Не удалось установить обновление. Текущая версия сохранена.")}
+                DispatchQueue.main.async{self.busy=false;NSApp.terminate(nil)}
+            }catch {DispatchQueue.main.async{self.busy=false;self.status("error","Не удалось установить обновление. Текущая версия сохранена.")}}
         }.resume()
     }
     func unpackArchive(_ archiveURL:URL,expected:String,build:Int)throws->URL{

@@ -66,8 +66,10 @@ function createNextRepeat(t, extra={}){
   let remind = null;
   if (t.remind?.at){
     const d = new Date(t.remind.at);
-    d.setDate(d.getDate() + B.diff(t.due, due));
-    remind = {at:localISO(d)};
+    if (!Number.isNaN(d.getTime())){
+      d.setDate(d.getDate() + B.diff(t.due, due));
+      remind = {at:localISO(d)};
+    }
   }
   const next = B.newTask({title:t.title, proj:t.proj, pri:t.pri, due, time:t.time, color:t.color, rep:t.rep, notes:t.notes,
     subs:(t.subs || []).map(s=>({id:B.uid(), t:s.t, done:false})), remind, ord:t.ord, repPristine:true, repFrom:t.id, ...extra});
@@ -593,7 +595,7 @@ B.calendarMoveShad = (n,kind,start,end,{toast=true}={}) => {
 function moveTask(t, to, order, slot){
   const patch = {due: to,...slot};
   if (!t.done && (t.due || '') !== to && t.due && (!to || to > t.due)) patch.postpones = (t.postpones || []).concat({from: t.due, to, why: '', at: Date.now()});
-  if (t.remind && t.remind.at && t.due && to && t.due !== to){ const d = new Date(t.remind.at); d.setDate(d.getDate() + B.diff(t.due, to)); patch.remind = {at: localISO(d)}; }
+  if (t.remind && t.remind.at && t.due && to && t.due !== to){ const d = new Date(t.remind.at); if (!Number.isNaN(d.getTime())){ d.setDate(d.getDate() + B.diff(t.due, to)); patch.remind = {at: localISO(d)}; } }
   if (!to) patch.time = '';
   B.updTask(t.id, patch, true);
   if (order) order.forEach((id, i) => { const x = B.task(id); if (x && x.ord !== i * 10) B.saveTask(Object.assign({}, x, {ord: i * 10}), true); });
@@ -691,10 +693,13 @@ function popHTML(t){
   return '';
 }
 function fileChip(f){
-  const x = `<button class="icon-btn sm" data-act="twFileDel" data-f="${f.id}" title="Убрать">${icon('x')}</button>`;
-  if (f.url) return `<div class="tw-file">${icon('link')}<a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.name || f.url)}</a>${x}</div>`;
-  if ((f.type || '').startsWith('image/')) return `<div class="tw-file img"><a href="${f.data}" download="${esc(f.name)}" title="${esc(f.name)}"><img src="${f.data}" alt="${esc(f.name)}"></a>${x}</div>`;
-  return `<div class="tw-file">${icon('clip')}<a href="${f.data}" download="${esc(f.name)}">${esc(f.name)}</a><span class="muted">${Math.round((f.size || 0) / 1024)} КБ</span>${x}</div>`;
+  const x = `<button class="icon-btn sm" data-act="twFileDel" data-f="${esc(f.id)}" title="Убрать">${icon('x')}</button>`;
+  if (f.url && /^https?:\/\//i.test(f.url)) return `<div class="tw-file">${icon('link')}<a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.name || f.url)}</a>${x}</div>`;
+  const safeData = typeof f.data === 'string' && /^data:/i.test(f.data) && !/^data:text\/html/i.test(f.data);
+  if (!safeData) return `<div class="tw-file">${icon('clip')}<span class="muted">${esc(f.name || 'Файл')}</span>${x}</div>`;
+  const dataUrl = esc(f.data);
+  if ((f.type || '').startsWith('image/')) return `<div class="tw-file img"><a href="${dataUrl}" download="${esc(f.name)}" title="${esc(f.name)}"><img src="${dataUrl}" alt="${esc(f.name)}"></a>${x}</div>`;
+  return `<div class="tw-file">${icon('clip')}<a href="${dataUrl}" download="${esc(f.name)}">${esc(f.name)}</a><span class="muted">${Math.round((f.size || 0) / 1024)} КБ</span>${x}</div>`;
 }
 /* для keys.js: открыть или закрыть панель карточки (cal, color) и id открытой карточки */
 B.twToggle = p => { const tw = B.$('.sheet .tw[data-tid]'); if (!tw) return false; pop = pop === p ? '' : p; B.openTask(tw.dataset.tid, true); return true; };

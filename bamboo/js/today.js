@@ -40,7 +40,7 @@ B.dayList = (date, opts = {}) => {
       <button class="btn sm" data-act="dayNew" data-d="${date}">${icon('plus')}</button></div>
     <div class="tasks">${crowned.map(row).join('')}${rest.map(row).join('')}</div>
     ${!crowned.length && !rest.length ? `<p class="empty sm">${opts.empty || 'Дел на этот день пока нет.'}</p>` : ''}
-    ${doneDay.length ? `<details class="done-fold"><summary>Ещё сделано сегодня: ${doneDay.length}</summary><div class="tasks">${doneDay.map(x => B.taskRow(x)).join('')}</div></details>` : ''}
+    ${doneDay.length ? `<details class="done-fold" data-fold="done-today"><summary>Ещё сделано сегодня: ${doneDay.length}</summary><div class="tasks">${doneDay.map(x => B.taskRow(x)).join('')}</div></details>` : ''}
   </div>`;
 };
 B.planPicker = date => B.dayList(date, {ph: 'Дело на завтра', empty: 'На завтра пока ничего.'});
@@ -82,7 +82,7 @@ function shadCard(c){
     ${webs.length ? `<div class="row between"><span>Вебинары недели</span><b>${done} из ${webs.length}</b></div>${B.bar(done/webs.length)}` : ''}
 
     ${free ? `<button class="shad-free btn" data-act="openWeekPool">На этой неделе без дня: ${free}. Расставь в планере →</button>` : ''}
-    ${late.length ? `<details><summary>Хвосты ШАД · ${late.length}</summary>${late.map(it => B.shadRow(it, '0')).join('')}</details>` : ''}
+    ${late.length ? `<details data-fold="shad-late"><summary>Хвосты ШАД · ${late.length}</summary>${late.map(it => B.shadRow(it, '0')).join('')}</details>` : ''}
   </section>`;
 }
 
@@ -100,7 +100,7 @@ function phagiCard(c){
     <div class="row between"><h2>${icon('book')}Фаги</h2><a class="muted" href="${B.PHAGI}" target="_blank" rel="noopener">открыть →</a></div>
     ${week?.failed ? '<p class="muted">Не удалось загрузить занятия и ответы. <button class="btn sm" data-act="reloadTeaching">Повторить</button></p>' : ''}
     ${upcoming.length ? '<div class="sub-h">Мои уроки на неделе</div>' + upcoming.map(lesson).join('') : ''}
-    ${recent.length ? '<details><summary>Вчерашние уроки</summary>' + recent.map(lesson).join('') + '</details>' : ''}
+    ${recent.length ? '<details data-fold="phagi-recent"><summary>Вчерашние уроки</summary>' + recent.map(lesson).join('') + '</details>' : ''}
     ${reviews.length ? '<div class="sub-h">Проверить работы · '+reviews.length+'</div>' + reviews.map(r=>`<a class="ph-dl" href="${esc(B.phagiLink({task:r.id,review:r.uid,role:'teacher'}))}"><b>${esc(r.name)}</b><span>${esc(r.title)}</span></a>`).join('') : ''}
     ${soon.length ? `<div class="sub-h">Моя учёба · сдать</div>${soon.map(x => { const k = B.diff(c.today, x.due); return `<a class="ph-dl ${k < 0 ? 'late' : k <= 1 ? 'near' : ''}" href="${esc(B.phagiTask(x.id))}"><b>${k < 0 ? 'просрочено' : k === 0 ? 'сегодня' : k === 1 ? 'завтра' : B.fmtW(x.due)}</b><span>${esc(x.title)}</span></a>`; }).join('')}` : ''}
     ${cards ? `<p class="muted ph-cards">Карточек за сегодня: ${cards}</p>` : ''}
@@ -501,16 +501,25 @@ addEventListener('zov-clock-resume',refreshTodayPlanning);
 
 /* перетаскивание дел за ручку: порядок хранится в дне (d.order) */
 let drag = null;
+function cancelDrag(){
+  if (!drag) return;
+  const {row, list} = drag; drag = null;
+  row.classList.remove('dragging'); row.style.transform = '';
+  [...(list?.children || [])].forEach(x => x.classList.remove('drop-before'));
+}
 document.addEventListener('pointerdown', e => {
+  if (e.button !== 0 || !e.isPrimary) return;
   const g = e.target.closest('.grip'); if (!g) return;
   const row = g.closest('.task'), list = row && row.parentElement, box = row && row.closest('.daylist'); if (!box) return;
   e.preventDefault();
+  cancelDrag();
   const r = row.getBoundingClientRect();
-  drag = {row, list, date: box.dataset.d, y0: e.clientY, h: r.height, id: g.closest('.task').dataset.tid};
-  row.classList.add('dragging'); row.setPointerCapture && g.setPointerCapture(e.pointerId);
+  drag = {pointerId: e.pointerId, row, grip: g, list, date: box.dataset.d, y0: e.clientY, h: r.height, id: row.dataset.tid, before: null};
+  row.classList.add('dragging');
+  try { g.setPointerCapture?.(e.pointerId); } catch (_) {}
 });
 document.addEventListener('pointermove', e => {
-  if (!drag) return;
+  if (!drag || e.pointerId !== drag.pointerId) return;
   const dy = e.clientY - drag.y0; drag.row.style.transform = `translateY(${dy}px)`;
   const sibs = [...drag.list.children].filter(x => x !== drag.row && x.classList.contains('task'));
   const mid = drag.row.getBoundingClientRect().top + drag.h / 2;
@@ -518,15 +527,20 @@ document.addEventListener('pointermove', e => {
   sibs.forEach(x => x.classList.toggle('drop-before', x === before));
   drag.before = before ? before.dataset.tid : null;
 });
-document.addEventListener('pointerup', () => {
-  if (!drag) return;
+document.addEventListener('pointerup', e => {
+  if (!drag || e.pointerId !== drag.pointerId) return;
   const {row, list, date, id, before} = drag; drag = null;
   row.classList.remove('dragging'); row.style.transform = '';
+  [...list.children].forEach(x => x.classList.remove('drop-before'));
   const ids = [...list.children].filter(x => x.classList.contains('task')).map(x => x.dataset.tid).filter(x => x !== id);
   const i = before ? ids.indexOf(before) : ids.length; ids.splice(i < 0 ? ids.length : i, 0, id);
   B.editDay(date, d => { d.order = ids; });
   B.render(true);
 });
+document.addEventListener('pointercancel', e => { if (drag && e.pointerId === drag.pointerId) cancelDrag(); });
+document.addEventListener('lostpointercapture', e => { if (drag && e.target === drag.grip) cancelDrag(); });
+addEventListener('blur', cancelDrag);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && drag){ e.preventDefault(); cancelDrag(); } }, true);
 
 /* план дня */
 const pdate = el => el.dataset.d || B.today();

@@ -204,7 +204,7 @@ function habitHistory(hs){
         ${last7(h)}<div class="habit-stats"><span>За 30 дней <b>${Math.round(B.habitRate(h) * 100)}%</b></span><span>Рекорд <b>${s.best} ${s.unit}.</b></span></div>
         ${heat(h)}</div>`;
     }).join('')}</section>
-    <details class="card habit-review"><summary>Разбор недели</summary>
+    <details class="card habit-review" data-fold="habit-review"><summary>Разбор недели</summary>
       ${tips.length ? `<ul>${tips.map(t => `<li>${t}</li>`).join('')}</ul>` : '<p class="muted">Пока мало записей для разбора.</p>'}
       <button class="btn" data-act="aiWeek">Разобрать неделю в Claude</button>
     </details>`;

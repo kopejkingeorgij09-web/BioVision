@@ -276,44 +276,8 @@ B.acts.toggleTask = el => {
   }
 };
 
-/* ---------- редактор задачи ---------- */
+/* ---------- общие помощники редактора задачи ---------- */
 B.acts.openTask = el => B.openTask(el.dataset.id);
-B.openTask = id => {
-  const t = B.task(id); if (!t) return;
-  const pp = (t.postpones || []);
-  const projOpts = B.projects().map(p => `<option value="${p.id}" ${p.id === t.proj ? 'selected' : ''}>${esc(B.projName(p.id))}</option>`).join('');
-  B.sheet(`<div class="ed" data-tid="${t.id}">
-    <div class="ed-head">
-      <button class="chk big ${t.done ? 'on' : ''}" data-act="edDone" data-id="${t.id}">${icon('check')}</button>
-      <textarea class="ed-title" rows="1" data-in="edTitle" data-id="${t.id}" placeholder="Что сделать">${esc(t.title)}</textarea>
-    </div>
-    ${pp.length >= 3 && !t.done ? `<div class="warn-box">${icon('later')}<div><b>Переносилась ${pp.length} ${B.plural(pp.length, 'раз', 'раза', 'раз')}.</b> Так бывает, когда задача слишком большая или непонятно, с чего начать. Разбей её на маленькие шаги и сделай первый прямо сейчас.</div></div>` : ''}
-    <div class="ed-grid">
-      <label>Проект<select data-in="edField" data-k="proj" data-id="${t.id}">${projOpts}</select></label>
-      <div class="ed-pri">Важность<div class="pri-seg">${[1, 2, 3, 4].map(p => `<button class="p${p} ${+(t.pri || 4) === p ? 'on' : ''}" data-act="edPri" data-id="${t.id}" data-p="${p}">${icon('flag')}<span>${PRI[p]}</span></button>`).join('')}</div></div>
-      <label>Срок<input type="date" value="${t.due || ''}" data-in="edDue" data-id="${t.id}"></label>
-      <label>Время<input type="time" value="${t.time || ''}" data-in="edField" data-k="time" data-id="${t.id}"></label>
-      <label>Статус<select data-in="edField" data-k="status" data-id="${t.id}">${[['todo', 'Надо'], ['doing', 'В работе'], ['done', 'Готово']].map(([v, l]) => `<option value="${v}" ${t.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-    </div>
-    <label class="switch"><input type="checkbox" ${t.big ? 'checked' : ''} data-in="edBig" data-id="${t.id}"><span></span>Большое дело: разбить на шаги и делать по одному каждый день</label>
-    <label class="switch"><input type="checkbox" ${t.dl ? 'checked' : ''} data-in="edDl" data-id="${t.id}"><span></span>Дедлайн: показывать обратный отсчёт на главном экране</label>
-    <div class="ed-sec">
-      <div class="sec-h">${icon('steps')} Шаги <span class="muted">${(t.subs || []).filter(s => s.done).length}/${(t.subs || []).length}</span></div>
-      <div class="subs-list">${(t.subs || []).map(s => `<div class="sub ${s.done ? 'is-done' : ''}">
-        <button class="chk sm" data-act="subToggle" data-id="${t.id}" data-sid="${s.id}">${icon('check')}</button>
-        <input value="${esc(s.t)}" data-in="subText" data-id="${t.id}" data-sid="${s.id}">
-        <button class="icon-btn sm" data-act="subDel" data-id="${t.id}" data-sid="${s.id}" title="Удалить">${icon('x')}</button></div>`).join('')}</div>
-      <div class="add-line"><input id="subNew" placeholder="Новый шаг: «прочитать § 4.1», «решить задачи 1–5»" data-enter="subAdd" data-id="${t.id}"><button class="btn sm" data-act="subAdd" data-id="${t.id}">${icon('plus')}</button></div>
-    </div>
-    <label class="ed-notes">Заметки<textarea rows="3" data-in="edField" data-k="notes" data-id="${t.id}" placeholder="Ссылки, условия, что уже пробовал">${esc(t.notes || '')}</textarea></label>
-    ${pp.length ? `<div class="ed-sec"><div class="sec-h">${icon('later')} Переносы</div><ul class="pp-list">${pp.map(p => `<li><span class="mono">${p.from ? B.fmtS(p.from) : '—'} → ${p.to ? B.fmtS(p.to) : 'без срока'}</span> ${esc(p.why)}</li>`).join('')}</ul></div>` : ''}
-    <div class="row between ed-foot">
-      <button class="btn ghost danger" data-act="taskDel" data-id="${t.id}">${icon('trash')} Удалить</button>
-      <button class="btn primary" data-act="closeSheet">Готово</button>
-    </div>
-  </div>`);
-  const ta = $('.ed-title'); if (ta) autoGrow(ta);
-};
 function autoGrow(ta){ ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
 const upd = (id, patch, quiet) => { const t = B.task(id); if (!t) return null; const n = Object.assign({}, t, patch); B.saveTask(n, quiet); return n; };
 B.updTask = upd;
@@ -327,21 +291,8 @@ B.inputs.edField = (el, e) => {
   if (k === 'status'){ patch.done = v === 'done'; patch.doneAt = v === 'done' ? (B.task(el.dataset.id).doneAt || Date.now()) : null; }
   upd(el.dataset.id, patch, true);
 };
-B.acts.edPri = el => { B.updTask(el.dataset.id, {pri: +el.dataset.p}, true); B.openTask(el.dataset.id); };
 B.inputs.edBig = el => upd(el.dataset.id, {big: el.checked}, true);
 B.inputs.edDl = el => upd(el.dataset.id, {dl: el.checked}, true);
-B.inputs.edDue = async (el, e) => {
-  if (e.type !== 'change') return;
-  const t = B.task(el.dataset.id); const v = el.value;
-  if (t.due && !t.done && ((v && v > t.due) || (!v && t.due < B.today()))){
-    const why = await B.askReason(t, v);
-    if (!why){ el.value = t.due; return; }
-    upd(t.id, {due: v, postpones: (t.postpones || []).concat({from: t.due, to: v, why, at: Date.now()})}, true);
-    B.xpToast(B.XP.postpone, 'за перенос');
-    B.openTask(t.id);
-  } else upd(t.id, {due: v}, true);
-};
-B.acts.edDone = el => { const t = B.task(el.dataset.id); B.setDone(t, !t.done); B.openTask(t.id); };
 /* удаление без вопроса; возвращает функцию, которая всё вернёт обратно */
 B.delTask = id => {
   const t = B.task(id); if (!t) return null;
@@ -396,7 +347,7 @@ B.acts.postpone = async el => {
   const why = await B.askReason(t, to);
   if (!why) return;
   const nt = upd(t.id, {due: to, postpones: (t.postpones || []).concat({from: t.due || today, to, why, at: Date.now()})});
-  B.xpToast(B.XP.postpone, 'за перенос');
+  B.toast(`Перенесено на ${B.fmtW(to)}`);
   if (nt.postpones.length >= 3 && !(nt.subs || []).length) setTimeout(() => B.openTask(t.id), 300);
 };
 B.acts.ppPick = el => B.closeDialog(el.dataset.d);

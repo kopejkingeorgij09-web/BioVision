@@ -193,3 +193,63 @@ test('a calendar entry linked to a daily habit shares the tracker mark for its d
   assert.equal(B.day(monday.on).h.english,1);
   assert.equal(C.done(tuesday),true);
 });
+
+test('postponing a task shows a clean date toast without undefined XP and escapes unsafe attachment data', async () => {
+  const {B, page} = planner();
+  const stubEl = () => ({addEventListener: () => {}, hidden: true, style: {}, scrollHeight: 24, classList: {add() {}, remove() {}, toggle() {}}, querySelector: () => null, value: ''});
+  page.document.querySelector = () => stubEl();
+  page.document.querySelectorAll = () => [];
+  page.navigator = {};
+  vm.runInContext(fs.readFileSync('bamboo/js/ui.js', 'utf8'), page);
+  vm.runInContext(fs.readFileSync('bamboo/js/tasks.js', 'utf8'), page);
+
+  const task = B.newTask({id: 'pp1', title: 'ДЗ', due: B.today()});
+  B.saveTask(task);
+  const nextDay = B.add(B.today(), 1);
+  const replies = [nextDay, 'Появилось срочное'];
+  const toasts = [];
+  let sheetHtml = '';
+  B.dialog = async () => replies.shift();
+  B.toast = msg => toasts.push(msg);
+  B.sheet = html => { sheetHtml = html; };
+
+  await B.acts.postpone({dataset: {id: 'pp1'}});
+  assert.equal(toasts.some(m => m.includes('undefined')), false);
+  assert.match(toasts[0], /Перенесено на/);
+
+  B.put('f_bad', {id: 'bad', task: 'pp1', name: 'evil.html', type: 'text/plain', data: 'javascript:alert(1)'}, true);
+  B.put('f_html', {id: 'html', task: 'pp1', name: 'bad.html', type: 'image/png', data: 'data:text/html,<script>1</script>'}, true);
+  B.put('f_ok', {id: 'ok', task: 'pp1', name: 'pic.jpg', type: 'image/jpeg', data: 'data:image/jpeg;base64,AA=='}, true);
+  B.openTask('pp1');
+  assert.equal(sheetHtml.includes('javascript:alert'), false);
+  assert.equal(sheetHtml.includes('data:text/html'), false);
+  assert.match(sheetHtml, /data:image\/jpeg;base64,AA==/);
+});
+
+test('onReady waits for first cloud snapshot, importAll clears undo and guards prototype keys, invalid reminders do not emit NaN', async () => {
+  const {B, page} = planner();
+  let readyCalls = 0, snapshotHandler = null;
+  B.onReady(() => { readyCalls++; });
+  const db = {
+    doc: () => ({set: async () => {}, delete: async () => {}}),
+    collection: name => ({onSnapshot(fn) { if (name === 'bamboo') snapshotHandler = fn; }})
+  };
+  page.BVAUTH = {ready: Promise.resolve({role: 'admin'})};
+  page.claude = {use: async () => db};
+  await B.connect();
+  assert.equal(readyCalls, 0);
+  snapshotHandler({docs: [{id: 'cfg', data: () => ({start: B.today(), migManual: 1})}]});
+  assert.equal(readyCalls, 1);
+
+  const mal = JSON.parse('{"app":"bamboo","docs":{"__proto__":{"polluted":true},"t_ok":{"id":"ok","title":"Задача"}}}');
+  B.importAll(mal);
+  assert.equal(({}).polluted, undefined);
+  assert.equal(B.task('ok').title, 'Задача');
+  assert.equal(B.undo(), false);
+
+  const rep = B.newTask({id: 'rep1', title: 'Повтор', due: B.today(), rep: {f: 'day'}, remind: {at: 'not-a-date'}});
+  B.saveTask(rep);
+  const done = B.setDone(B.task('rep1'), true);
+  const next = B.task(done.repNext);
+  assert.equal(next.remind, null);
+});

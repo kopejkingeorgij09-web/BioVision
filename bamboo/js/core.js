@@ -62,8 +62,10 @@ B.mins = m => m < 60 ? `${m} мин` : `${Math.floor(m / 60)} ч${m % 60 ? ' ' +
    d_<дата> день (план, привычки, чтение, разбор, мысли), b_<id> книги, w_<id> тренировки.
    Копия всегда есть в localStorage. Изменения помечаются «грязными» и уходят в облако, пока не дойдут. */
 const LS_DOCS = 'bamboo-docs', LS_DIRTY = 'bamboo-dirty';
-let docs = {}, dirty = {}, db = null, firstSnap = false;
+let docs = {}, dirty = {}, db = null, firstSnap = false, isReady = false;
 B.ver = 0;
+let calcVer = 0;
+const affectsCalc = id => id === 'cfg' || id.startsWith('t_') || id.startsWith('h_') || id.startsWith('w_') || id.startsWith('d_') || id.startsWith('study_alberts') || !id.includes('_');
 try { docs = JSON.parse(localStorage.getItem(LS_DOCS) || '{}') || {}; } catch (e) { docs = {}; }
 try { dirty = JSON.parse(localStorage.getItem(LS_DIRTY) || '{}') || {}; } catch (e) { dirty = {}; }
 let lsT;
@@ -92,9 +94,10 @@ function setSync(mode, text){ documentSync = {mode, text}; refreshSync(); }
 
 const subs = {};
 B.on = (ev, fn) => { (subs[ev] = subs[ev] || []).push(fn); };
+B.onReady = fn => { if (isReady) fn(); else B.on('ready', fn); };
 B.emit = (ev, x) => (subs[ev] || []).forEach(f => { try { f(x); } catch (e) { console.error(e); } });
 let raf = 0;
-function changed(){ B.ver++; if (!raf) raf = requestAnimationFrame(() => { raf = 0; B.emit('change'); }); }
+function changed(){ B.ver++; calcVer++; if (!raf) raf = requestAnimationFrame(() => { raf = 0; B.emit('change'); }); }
 B.changed = changed;
 
 B.get = id => docs[id];
@@ -177,7 +180,7 @@ B.put = (id, data, quiet) => {
   dirty[id] = (dirty[id] || 0) + 1;
   lsSave(); schedule(id);
   if (db && B.sync.mode === 'cloud') refreshSync();
-  if (quiet) B.ver++; else changed();
+  if (quiet){ B.ver++; if (affectsCalc(id)) calcVer++; } else changed();
 };
 
 const timers = {}, sending = {};
@@ -216,6 +219,7 @@ function onRemote(snap){
     firstSnap = true;
     if (!docs.cfg) seed();
     flushAll();
+    if (!isReady){ isReady = true; B.emit('ready'); }
   }
   setSync('cloud', Object.keys(dirty).length ? 'Отправляю в облако…' : 'Синхронизировано, видно на всех устройствах');
   if (ch){ lsSave(); changed(); }
@@ -347,10 +351,11 @@ function showShadPlan(data){
   shadPlanJSON = json;
   try { localStorage.setItem(LS_SHADPLAN, json); } catch (_) {}
 }
+const isBundled = () => Boolean(window.ZOV_BUNDLED) || ['appassets.androidplatform.net', '127.0.0.1:49191'].includes(location.host);
 async function loadShadPlan(){
   if (shadPlanLoading) return;
   shadPlanLoading = true;
-  const bundled = ['appassets.androidplatform.net', '127.0.0.1:49191'].includes(location.host);
+  const bundled = isBundled();
   const localPlan = '../shad/plan.json?v=2';
   try {
     if (!shadPlanJSON){
@@ -389,7 +394,7 @@ function onShadX(snap){
 /* лента с «Фагов» (коллекция 'phx', пишет сервер, см. supabase/migrations/20261104c_phagi_bamboo_bridge.sql):
    ev_<id> занятия (в «Зове леса» не показываются), dl_<id> сроки ДЗ, day_<дата> что было на Фагах за день */
 B.phx = {ev: {}, dl: {}, day: {}};
-B.PHAGI = !['appassets.androidplatform.net','127.0.0.1:49191'].includes(location.host) && /^https?:$/.test(location.protocol) ? '../phagi/' : 'https://kopejkingeorgij09-web.github.io/BioVision/phagi/';
+B.PHAGI = !isBundled() && /^https?:$/.test(location.protocol) ? '../phagi/' : 'https://kopejkingeorgij09-web.github.io/BioVision/phagi/';
 B.phagiLink = params => B.PHAGI + '?' + new URLSearchParams({...params, from:'forest', back:location.hash || '#/today'});
 B.phagiTask = (id,day) => B.phagiLink({task:id, role:'student', ...(day?{backDay:day}:{})});
 B.teaching = null;
@@ -507,6 +512,7 @@ B.connect = async (retry = false) => {
     applyOver();
     let had = ''; try { had = localStorage.getItem('bv_code') || ''; } catch (e) {}
     setSync(had ? 'error' : 'local', had ? 'Нет связи с облаком, записи пока только здесь' : 'Только на этом устройстве · войди кодом для синхронизации');
+    if (!isReady){ isReady = true; B.emit('ready'); }
     changed();
   }
 };
@@ -523,11 +529,17 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) refr
 
 B.exportAll = () => ({app: 'bamboo', at: new Date().toISOString(), docs, version: 2, shadMarks: B.shad.marks});
 B.importAll = obj => {
-  if (!obj || obj.app !== 'bamboo' || !obj.docs) throw new Error('Это не резервная копия «Зова леса»');
+  if (!obj || obj.app !== 'bamboo' || !obj.docs || typeof obj.docs !== 'object' || Array.isArray(obj.docs)) throw new Error('Это не резервная копия «Зова леса»');
   const marks = Object.entries(obj.shadMarks || {});
   if (marks.some(([n,v]) => !/^[1-9]\d*$/.test(n) || !v || !Number.isInteger(v.s) || v.s < 0 || v.s > 4)) throw new Error('Некорректные отметки ШАД');
   for (const [n,v] of marks) B.shadRestore(+n,v);
-  for (const id in obj.docs) B.put(id, obj.docs[id], true);
+  for (const id of Object.keys(obj.docs)){
+    if (id === '__proto__' || id === 'constructor' || id === 'prototype') continue;
+    const val = obj.docs[id];
+    if (val !== null && typeof val !== 'object') continue;
+    B.put(id, val, true);
+  }
+  B.clearUndo();
   changed();
 };
 
@@ -619,7 +631,7 @@ B.habitVal = (h, date) => {
 };
 B.habitDone = (h, date) => B.habitVal(h, date) > 0;
 let sportMemo = null, sportVer = -1;
-function sportSet(){ if (sportVer !== B.ver){ sportMemo = new Set(B.list('w_').map(w => w.date)); sportVer = B.ver; } return sportMemo; }
+function sportSet(){ if (sportVer !== calcVer){ sportMemo = new Set(B.list('w_').map(w => w.date)); sportVer = calcVer; } return sportMemo; }
 B.hasReview = d => !!((d.notebook || '').trim() || (d.review && ((d.review.done || '').trim() || (d.review.why || '').trim())));
 /* разбор засчитан, если начат до конца дня (до 4 утра); задним числом не считается */
 B.reviewDone = date => {
@@ -640,7 +652,7 @@ B.streakOf = (test, from) => {
 let memo = null, memoKey = '';
 B.calc = () => {
   const today = B.today();
-  const key = B.ver + '|' + today;
+  const key = calcVer + '|' + today;
   if (memo && memoKey === key) return memo;
   const cfg = B.cfg(), start = cfg.start || today;
   const tasks = B.tasks(), habits = B.list('h_');   // и архивные: опыт до дня архивации остаётся

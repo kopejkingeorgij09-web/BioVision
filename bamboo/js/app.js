@@ -74,11 +74,13 @@ B.render = force => {
   else if (a && main.contains(a) && a.matches('input:not([type=checkbox]):not([type=radio]),textarea,select')) { pending = true; return; }
   pending = false;
   const r = route(), key = r.v + '/' + r.arg, same = key === lastKey, y = scrollY;
+  const openFolds = same ? new Set([...main.querySelectorAll('details[open][data-fold]')].map(el => el.dataset.fold)) : null;
   const view = B.views[r.v];
   B.calendarView?.unmount();
   B.views.board?.unmount();
   try { main.innerHTML = view.render(r.arg); }
   catch (e) { console.error(e); main.innerHTML = `<div class="page"><section class="card"><h2>Что-то сломалось</h2><pre>${esc(e.stack || e)}</pre></section></div>`; }
+  if (openFolds?.size) main.querySelectorAll('details[data-fold]').forEach(el => { if (openFolds.has(el.dataset.fold)) el.open = true; });
   if (view.mount) try { view.mount(r.arg); } catch (e) { console.error(e); }
   if (same) scrollTo(0, y); else { scrollTo(0, 0); lastKey = key; }
   shell(r);
@@ -206,18 +208,18 @@ B.inputs.import = async (el, e) => {
 };
 
 /* ---------- старт ---------- */
+B.onReady(() => {
+  // один раз: привычки «по разбору до 01:00» (сон, карточки) становятся ручными, их старые серии обнуляются
+  const cfg = B.get('cfg') || {};
+  if (cfg.migManual){ B.clearUndo(); return; }
+  const ids = B.list('h_').filter(h => h.auto === 'night').map(h => h.id);
+  ids.forEach(id => { const h = B.get('h_' + id); const x = Object.assign({}, h); delete x.auto; B.put('h_' + id, x, true); });
+  if (ids.length) B.dayDates().forEach(d => { const h = B.day(d).h; if (h && ids.some(id => id in h)) B.editDay(d, x => { ids.forEach(id => { delete x.h[id]; }); }, true); });
+  B.setCfg({migManual: 1, migNight: 1});
+  B.clearUndo();
+});
 B.render();
 B.connect().then(() => {
-  // один раз: привычки «по разбору до 01:00» (сон, карточки) становятся ручными, их старые серии обнуляются
-  setTimeout(() => {
-    const cfg = B.get('cfg') || {};
-    if (cfg.migManual){ B.clearUndo(); return; }
-    const ids = B.list('h_').filter(h => h.auto === 'night').map(h => h.id);
-    ids.forEach(id => { const h = B.get('h_' + id); const x = Object.assign({}, h); delete x.auto; B.put('h_' + id, x, true); });
-    if (ids.length) B.dayDates().forEach(d => { const h = B.day(d).h; if (h && ids.some(id => id in h)) B.editDay(d, x => { ids.forEach(id => { delete x.h[id]; }); }, true); });
-    B.setCfg({migManual: 1, migNight: 1});
-    B.clearUndo();
-  }, B.cloud ? 2500 : 0);
   B.clearUndo();
   B.render(); if (!special()) shared();
 });

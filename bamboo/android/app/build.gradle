@@ -11,8 +11,8 @@ android {
         applicationId 'org.biovision.zovlesa'
         minSdk 26
         targetSdk 35
-        versionCode 24
-        versionName '1.5.16'
+        versionCode 25
+        versionName '1.5.17'
         testInstrumentationRunner 'org.biovision.zovlesa.NativeChecks'
     }
     if (signingStore != null) {
@@ -39,7 +39,7 @@ def web = layout.buildDirectory.dir('generated/zovAssets/www')
 tasks.register('bundleZovWeb', Sync) {
     into(web)
     from(bamboo) {
-        include 'alberts-plan.json', 'style.css', 'calendar.css', 'board.css', 'focus/**', 'js/**', 'icons/**', 'manifest.webmanifest'
+        include 'alberts-plan.json', 'style.css', 'calendar.css', 'board.css', 'focus.css', 'focus/**', 'js/**', 'icons/**', 'manifest.webmanifest'
         into 'bamboo'
     }
     from(new File(bamboo, 'index.html')) {

@@ -1,7 +1,7 @@
 // Service worker: нужен, чтобы сайт можно было установить как приложение.
 // Стратегия «сначала сеть»: всегда свежая версия (no-cache мимо HTTP-кеша GitHub Pages на 10 минут), кеш только на случай отсутствия интернета.
 // Запросы к другим доменам (Supabase, шрифты) не трогаем.
-const CACHE = 'shad-v7';
+const CACHE = 'shad-v8';
 self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then(c => c.add('./')).catch(() => {})); });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('shad-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
@@ -10,7 +10,8 @@ self.addEventListener('fetch', e => {
   const r = e.request;
   if (r.method !== 'GET') return;
   const u = new URL(r.url);
-  if (u.origin !== location.origin || !u.pathname.startsWith(new URL(self.registration.scope).pathname)) return;
+  const stagePath = new URL('../bamboo/js/shad-stage.js',self.registration.scope).pathname;
+  if (u.origin !== location.origin || !(u.pathname === stagePath || u.pathname.startsWith(new URL(self.registration.scope).pathname))) return;
   e.respondWith(fetch(r, {cache: 'no-cache'}).then(res => {
     if (res.ok && res.type === 'basic') { const copy = res.clone(); caches.open(CACHE).then(c => c.put(r, copy)); }
     return res;

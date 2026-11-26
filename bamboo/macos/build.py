@@ -11,7 +11,7 @@ exe.mkdir(parents=True,exist_ok=True);resources.mkdir(parents=True,exist_ok=True
 for name in ['bamboo','bioviz/x','shad']:
  dst=resources/name;dst.mkdir(parents=True,exist_ok=True)
  if name=='bamboo':
-  for entry in ['style.css','calendar.css','board.css','focus','alberts-plan.json','js','icons','manifest.webmanifest']:
+  for entry in ['style.css','calendar.css','board.css','focus.css','focus','alberts-plan.json','js','icons','manifest.webmanifest']:
    src=repo/name/entry
    if src.is_dir():shutil.copytree(src,dst/entry,dirs_exist_ok=True)
    else:shutil.copy2(src,dst/entry)
@@ -20,7 +20,7 @@ for name in ['bamboo','bioviz/x','shad']:
   shutil.copy2(repo/'bamboo/android/web/app-updates.js',dst/'app-updates.js')
  elif name=='shad':shutil.copy2(repo/name/'plan.json',dst/'plan.json')
  else:shutil.copy2(repo/name/'cloud.js',dst/'cloud.js')
-info={'CFBundleIdentifier':'org.biovision.zovlesa.mac','CFBundleName':'Зов леса','CFBundleDisplayName':'Зов леса','CFBundleExecutable':'ZovLesa','CFBundleURLTypes':[{'CFBundleURLSchemes':['zovfocus'],'CFBundleURLName':'org.biovision.zovlesa.mac.focus'}],'CFBundlePackageType':'APPL','CFBundleShortVersionString':'1.1.19','CFBundleVersion':'24','CFBundleIconFile':'AppIcon.icns','LSMinimumSystemVersion':'12.0','NSHighResolutionCapable':True,'NSAppTransportSecurity':{'NSAllowsLocalNetworking':True}}
+info={'CFBundleIdentifier':'org.biovision.zovlesa.mac','CFBundleName':'Зов леса','CFBundleDisplayName':'Зов леса','CFBundleExecutable':'ZovLesa','CFBundleURLTypes':[{'CFBundleURLSchemes':['zovfocus'],'CFBundleURLName':'org.biovision.zovlesa.mac.focus'}],'CFBundlePackageType':'APPL','CFBundleShortVersionString':'1.1.20','CFBundleVersion':'25','CFBundleIconFile':'AppIcon.icns','LSMinimumSystemVersion':'12.0','NSHighResolutionCapable':True,'NSAppTransportSecurity':{'NSAllowsLocalNetworking':True}}
 shutil.copy2(repo/'bamboo/macos/AppIcon.icns',resources.parent/'AppIcon.icns')
 (out/'Contents/Info.plist').write_bytes(plistlib.dumps(info))
 scratch_dir=TemporaryDirectory()

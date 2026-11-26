@@ -157,18 +157,13 @@ document.addEventListener('change', onField);
 /* Общая отмена для клавиш браузера и меню «Правка» в macOS. */
 B.handleHistory = redo => {
   const a = document.activeElement;
-  if (a && (a.matches('input:not([type=checkbox]):not([type=radio]),textarea,select') || a.isContentEditable)) return false;
+  if (B.sheetOpen() || !$('#dlgScrim').hidden || a?.matches('input,textarea,select') || a?.isContentEditable) return false;
   if (redo ? B.redo() : B.undo()) B.toast(redo ? 'Повторено' : 'Отменено', 1100);
   else B.toast(redo ? 'Нечего повторять' : 'Нечего отменять', 1100);
   return true;
 };
 document.addEventListener('keydown', e => {
-  if (!(e.metaKey || e.ctrlKey) || e.altKey || e.defaultPrevented) return;
-  const z = e.code === 'KeyZ' || e.key === 'z' || e.key === 'Z', y = e.code === 'KeyY' && e.ctrlKey && !e.metaKey;
-  if ((z || y) && B.handleHistory(y || e.shiftKey)) e.preventDefault();
-});
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape'){ if (!$('#dlgScrim').hidden) B.closeDialog(false); else if (B.sheetOpen()) B.closeSheet(); }
+  if (e.defaultPrevented || e.isComposing || e.keyCode === 229 || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === 'Enter' && !e.shiftKey && e.target.matches('[data-enter]')){
     e.preventDefault(); const f = B.acts[e.target.dataset.enter];
     if (f){ const el = e.target; f(el, e); if (el.isConnected && !el.closest('.sheet,.dlg')){ el.blur(); B.render(); } }

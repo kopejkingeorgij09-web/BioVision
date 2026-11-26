@@ -1,7 +1,7 @@
 // Service worker: нужен, чтобы сайт можно было установить как приложение.
 // Версионированные ресурсы (?v=...) отдаются сразу из кеша для быстрого старта; HTML и JSON идут сначала в сеть (no-cache мимо кеша GitHub Pages).
 // Запросы к другим доменам (Supabase, шрифты) не трогаем.
-const CACHE = 'zov-lesa-v23';
+const CACHE = 'zov-lesa-v24';
 self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then(c => c.add('./')).catch(() => {})); });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => (k.startsWith('bamboo-') || k.startsWith('zov-lesa-')) && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));

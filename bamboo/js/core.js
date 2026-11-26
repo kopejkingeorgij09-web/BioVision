@@ -155,7 +155,7 @@ function undoEntry(entry){
   if (index < 0) return false;
   const keys = Object.keys(entry.items);
   if (undoSt.slice(index + 1).some(step => keys.some(k => k in step.items))) return false;
-  const shadMark = v => v && {s:v.s || 0, note:v.note || '', at:v.at || 0, o:v.o || null};
+  const shadMark = v => v && {s:v.s || 0, note:v.note || '', at:v.at || 0, o:v.o || null, completed:v.completed || null};
   if (!keys.every(k => {
     const expected = entry.items[k].after;
     return k.startsWith('shad:')
@@ -383,7 +383,7 @@ async function loadShadPlan(){
 }
 function onShad(snap){
   const m = {};
-  snap.docs.forEach(d => { const n = parseInt(d.id.slice(1), 10); const v = d.data() || {}; if (n){ m[n] = {s: v.s || 0, note: v.note || '', at: v.at || 0}; if (v.o) m[n].o = v.o; } });
+  snap.docs.forEach(d => { const n = parseInt(d.id.slice(1), 10); const v = d.data() || {}; if (n){ m[n] = {s: v.s || 0, note: v.note || '', at: v.at || 0}; if (v.o) m[n].o = v.o; if (v.completed) m[n].completed=v.completed; } });
   overlayShad(m);
   if (JSON.stringify(m) !== JSON.stringify(B.shad.marks)){ B.shad.marks = m; cacheShad(); applyOver(); changed(); }
 }
@@ -432,7 +432,7 @@ B.shadStage = n => (B.shad.marks[n] && B.shad.marks[n].s) || 0;
 B.setShadStage = async (n, s) => {
   const cur = B.shad.marks[n] || {};
   B.boardData?.shadMark(n,cur.s || 0,s);
-  const v = {s, note: cur.note || '', at: Date.now()}; if (cur.o) v.o = cur.o;
+  const v = {...ShadStages.change(cur,s),note:cur.note || ''};
   B.recordShad(n, B.shad.marks[n], v);
   B.shad.marks = Object.assign({}, B.shad.marks, {[n]: v});
   changed();

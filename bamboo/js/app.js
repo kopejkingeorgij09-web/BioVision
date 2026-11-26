@@ -128,7 +128,7 @@ B.views.settings = {
     const cfg = B.cfg(), me = window.BVAUTH && BVAUTH.me;
     let theme = 'auto'; try { theme = localStorage.getItem(LS_THEME) || 'auto'; } catch (e) {}
     return `<div class="page settings-page">
-      <header class="page-h"><div><div class="eyebrow">Настройки</div><h1>Зов леса</h1></div></header>
+      <header class="page-h"><div><div class="eyebrow">Настройки</div><h1>Зов леса</h1></div><button type="button" class="btn ghost" data-act="settingsKeys">${icon('key')} Горячие клавиши</button></header>
       <div class="cols">
         <div class="col">
           <section class="card">
@@ -173,6 +173,7 @@ B.views.settings = {
           </section>
         </div>
       </div>
+      ${B.keyboardGuide()}
     </div>`;
   }
 };

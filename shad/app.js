@@ -90,7 +90,7 @@ async function persist(n){
   try {
     const v = progress[n];
     if (!v || (!v.s && !v.note && !v.o)) await db.doc("shad/w" + pad(n)).delete();
-    else { const doc = {s:v.s||0, note:v.note||"", at:v.at||Date.now()}; if (v.o) doc.o = v.o; await db.doc("shad/w" + pad(n)).set(doc); }
+    else { const doc = {s:v.s||0, note:v.note||"", at:v.at||Date.now()}; if (v.o) doc.o = v.o; if(v.completed) doc.completed=v.completed; await db.doc("shad/w" + pad(n)).set(doc); }
     setSync("cloud","Сохранено в облаке");
   } catch(e){
     setSync("local","Не сохранилось в облаке, копия на устройстве");
@@ -101,12 +101,12 @@ async function persist(n){
   }
 }
 function setStage(n, s){
-  progress[n] = Object.assign({}, progress[n], {s, at:Date.now()});
+  progress[n] = ShadStages.change(progress[n],s);
   renderAll(); persist(n);
 }
 const noteTimers = {};
 function setNote(n, note){
-  progress[n] = Object.assign({}, progress[n], {note, at:Date.now()});
+  progress[n] = Object.assign({}, progress[n], {note, at:progress[n]?.at || Date.now()});
   clearTimeout(noteTimers[n]);
   noteTimers[n] = setTimeout(() => { persist(n); const sv = $("#savedNote"); if (sv) sv.textContent = "Заметка сохранена"; }, 700);
 }
@@ -124,7 +124,7 @@ async function initStore(){
   setSync("cloud","Синхронизирую…");
   db.collection("shad").onSnapshot(snap => {
     const next = {};
-    snap.docs.forEach(d => { const n = parseInt(d.id.slice(1),10); const v = d.data(); if (n){ next[n] = {s:v.s||0, note:v.note||"", at:v.at||0}; if (v.o) next[n].o = v.o; } });
+    snap.docs.forEach(d => { const n = parseInt(d.id.slice(1),10); const v = d.data(); if (n){ next[n] = {s:v.s||0, note:v.note||"", at:v.at||0}; if (v.o) next[n].o = v.o; if(v.completed) next[n].completed=v.completed; } });
     // keep a note the viewer is typing right now
     if (openN && noteTimers[openN] && progress[openN]) next[openN] = Object.assign({}, next[openN], {note:progress[openN].note});
     progress = next;

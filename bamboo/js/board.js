@@ -6,38 +6,34 @@ const columns = [
   {id:'done', title:'Готово', icon:'check'}
 ];
 const lane = id => columns.find(c => c.id === id);
-const key = id => 'board_' + id;
 const get = id => B.boardData.get(id);
-let historyDate = "", planDate = "";
-const save = card => B.put(key(card.id), card);
 const laneLabel = c => icon(c.icon) + '<span>' + c.title + '</span>';
+let historyDate='', historyLimit=14;
 
-function newCard(values){
-  const at = Date.now();
-  return {id:B.uid(), title:'', notes:'', steps:[], lane:'plan', placed:at, ...values};
+async function move(id,destination){
+  const card=get(id);
+  if(!card || !lane(destination) || card.lane===destination || !B.boardData.all().some(c=>c.id===id))return;
+  if(card.source==='event' && card.lane==='done'){
+    const workout=B.calData.workout({id:card.ref,on:card.on});
+    if(workout && B.workoutText(workout)){
+      if(!await B.confirm('Снять отметку тренировки и удалить её заметку?', 'Снять отметку',true))return;
+      if(B.calData.workout({id:card.ref,on:card.on})!==workout || get(id)?.lane!==card.lane)return;
+    }
+  }
+  B.historyToast('Колонка · '+lane(destination).title,()=>B.boardData.move(card,destination));
 }
-function copy(source, destination){
-  if (!lane(destination) || !source?.title?.trim()) return false;
-  const steps = (source.steps || []).filter(s => s.t).map(s => ({
-    id:B.uid(), title:s.t, done:!!s.done
-  }));
-  B.historyToast('Скопировано на доску · ' + lane(destination).title, () => save(newCard({
-    title:source.title, notes:source.notes || '', context:source.context || '', steps, lane:destination
-  })));
-  return true;
-}
-function move(id, destination){
-  const card = get(id);
-  if (!card || !lane(destination) || card.lane === destination) return;
-  B.historyToast('Карточка перемещена · ' + lane(destination).title, () =>
-    B.boardData.move(card,destination));
-}
+B.acts.boardCheck=el=>{
+  const card=get(el.dataset.id);
+  if(card)move(card.id,card.lane==='done'?'plan':'done');
+};
 
 function cardView(card){
   const id = esc(card.id), title = esc(card.title);
   const steps = card.steps || [];
   return `<article class="bd-card" data-board-card="${id}">
     <div class="bd-card-head">
+      ${card.source==='phagi'?'':`<button type="button" class="bd-check" role="checkbox" aria-checked="${card.lane==='done'}"
+        aria-label="${card.lane==='done'?'Снять отметку':'Завершить'} · ${title}" data-act="boardCheck" data-id="${id}">${icon('check')}</button>`}
       <button type="button" class="bd-card-title" data-act="boardEdit" data-id="${id}">${title}</button>
       <button type="button" class="icon-btn bd-handle" data-act="boardMoveMenu" data-id="${id}"
         aria-label="Переместить · ${title}" title="Переместить">${icon('grip')}</button>
@@ -49,100 +45,86 @@ function cardView(card){
       <span>${esc(s.title)}</span></label></li>`).join('')}</ul>` : ''}
   </article>`;
 }
+function historyView(){
+  const days=new Map();
+  for(const row of B.boardData.completed()){
+    if(historyDate && historyDate!==row.day)continue;
+    if(!days.has(row.day))days.set(row.day,[]);
+    days.get(row.day).push(row);
+  }
+  const list=[...days].slice(0,historyLimit);
+  return `<section class="bd-history">
+    <header class="bd-history-head"><h2>Завершённые дела</h2><label class="bd-history-filter">За день
+      <input aria-label="Дата выполнения" type="date" data-in="boardDate" value="${historyDate}" max="${B.today()}"></label>
+      ${historyDate?'<button class="btn ghost sm" data-act="boardHistoryAll">За всё время</button>':''}</header>
+    ${list.map(([day,rows],index)=>`<details class="bd-history-day" ${index===0?'open':''}>
+      <summary><span>${day?B.fmtW(day)+' '+day.slice(0,4):'Дата выполнения не сохранена'}</span>
+        <span class="bd-count">${rows.length}</span></summary>
+      <ul>${rows.map(c=>`<li>${icon('check')}<span><b>${esc(c.title)}</b>${c.context?`<small>${esc(c.context)}</small>`:''}</span>
+        ${c.completedAt?`<time>${B.hm(c.completedAt)}</time>`:''}</li>`).join('')}</ul></details>`).join('')
+    ||`<p class="bd-empty">${historyDate?'В этот день нет завершённых дел':'Здесь появятся дела с отметкой о выполнении'}</p>`}
+    ${days.size>list.length?'<button class="btn" data-act="boardHistoryMore">Показать ещё дни</button>':''}
+  </section>`;
+}
 function render(){
-  const tab=location.hash.split('/')[2] || 'live';
-  const historical=tab==='history';
-  const date=historical ? historyDate || B.add(B.today(),-1) : planDate || B.today();
-  const records=historical ? B.boardData.history(date) : null;
-  const all=tab==='live' ? B.boardData.all(date).sort((a,b)=>b.placed-a.placed || a.title.localeCompare(b.title,'ru')) : [];
-  return `<div class="page bd-page"><header class="bd-header"><div><h1>Доска дел</h1></div>
-    <div class="bd-actions"><a class="btn" href="#/calendar">${icon('cal')} К календарю</a>
-    <button class="btn primary" data-act="boardAdd" data-lane="plan">${icon('plus')} Новое дело</button></div></header>
+  const tab=location.hash.split('/')[2] || 'live', today=B.today();
+  const cards=tab==='live'?B.boardData.all(today):[];
+  return `<div class="page bd-page ${tab==='focus'?'bd-focus-page':''}">
+    ${tab==='focus'?'':`<header class="bd-header"><div><h1>Доска дел</h1>
+      ${tab==='live'?`<p>Сегодня · ${B.fmtW(today)}</p>`:''}</div>
+      ${tab==='live'?`<div class="bd-actions"><a class="btn" href="#/calendar">${icon('cal')} К календарю</a>
+      <button class="btn primary" data-act="boardAdd" data-lane="plan">${icon('plus')} Новое дело</button></div>`:''}</header>`}
     <nav class="toggle bd-tabs" aria-label="Доска">${[['live','Дела'],['history','История'],['focus','Фокус']].map(([id,title])=>
-      `<a href="#/board${id==='live'?'':'/'+id}" class="${tab===id?'on':''}">${title}</a>`).join('')}</nav>
-    ${tab==='focus' ? B.focus.render() : `<label class="field bd-date">${historical?'История за день':'Дата повторяющихся событий'}
-      <input type="date" data-in="boardDate" value="${date}" ${historical?'max="'+B.today()+'"':''}></label>
-    <div class="bd-grid">${columns.map(c=>{
-      const cards=historical?records[c.id]:all.filter(item=>item.lane===c.id);
+      `<a href="#/board${id==='live'?'':'/'+id}" class="${tab===id?'on':''}" ${tab===id?'aria-current="page"':''}>${title}</a>`).join('')}</nav>
+    ${tab==='focus' ? B.focus.render() : tab==='history' ? historyView() : `<div class="bd-grid">${columns.map(c=>{
+      const items=cards.filter(item=>item.lane===c.id);
       return `<section class="bd-lane bd-${c.id}" data-board-lane="${c.id}" aria-labelledby="board-${c.id}">
         <header class="bd-lane-head"><div class="bd-lane-icon">${icon(c.icon)}</div>
-          <h2 id="board-${c.id}">${c.title}</h2><span class="bd-count">${cards.length}</span>
-          ${historical?'':`<button class="icon-btn" data-act="boardAdd" data-lane="${c.id}" aria-label="Добавить дело · ${c.title}">${icon('plus')}</button>`}</header>
-        <div class="bd-stack">${cards.length?cards.map(card=>historical?`<p class="bd-card">${esc(card.title)}</p>`:cardView(card)).join(''):
-          `<p class="bd-empty">${historical?'Нет записей':'Перетащи сюда карточку'}</p>`}</div></section>`;
+          <h2 id="board-${c.id}">${c.title}</h2><span class="bd-count">${items.length}</span>
+          <button class="icon-btn" data-act="boardAdd" data-lane="${c.id}" aria-label="Добавить дело · ${c.title}">${icon('plus')}</button></header>
+        <div class="bd-stack">${items.length?items.map(cardView).join(''):
+          `<p class="bd-empty">${({plan:'Нет запланированных дел',active:'Нет дел в работе',done:'Пока нет завершённых дел'})[c.id]}</p>`}</div></section>`;
     }).join('')}</div>`}</div>`;
 }
-function editor(card, creating = false){
-  B.sheet(`<h2>${creating?'Новое дело':'Редактировать дело'}</h2>
-    <form id="board-editor" class="bd-form">
-      <label class="field">Название<input name="title" required maxlength="240" autofocus value="${esc(card.title)}"></label>
-      <label class="field">Колонка<select name="lane">${columns.map(c =>
-        `<option value="${c.id}" ${c.id===card.lane?'selected':''}>${c.title}</option>`).join('')}</select></label>
-      <label class="field">Заметка<textarea name="notes" rows="3" maxlength="10000">${esc(card.notes)}</textarea></label>
-      <label class="field">Шаги<textarea name="steps" rows="3" maxlength="6000" placeholder="По одному шагу на строку">${esc((card.steps || []).map(s=>s.title).join('\n'))}</textarea></label>
-      <p class="bd-form-error" role="alert" hidden></p>
-      <div class="row ${creating?'end':'between'}">
-        ${creating?'':`<button type="button" class="btn ghost danger" data-act="boardDelete" data-id="${esc(card.id)}">${icon('trash')} Удалить</button>`}
-        <button type="submit" class="btn primary">Сохранить</button>
-      </div>
-    </form>`);
-  B.$('#board-editor').addEventListener('submit', ev => {
+B.acts.boardAdd = el=>{
+  const initial=lane(el.dataset.lane)?.id || 'plan', due=el.dataset.day || B.today();
+  B.sheet(`<h2>Новое дело</h2><form id="board-editor" class="bd-form">
+    <label class="field">Название<input name="title" required maxlength="240" autofocus></label>
+    <label class="field">Колонка<select name="lane">${columns.map(c =>
+      `<option value="${c.id}" ${c.id===initial?'selected':''}>${c.title}</option>`).join('')}</select></label>
+    <label class="field">Заметка<textarea name="notes" rows="3" maxlength="10000"></textarea></label>
+    <label class="field">Шаги<textarea name="steps" rows="3" maxlength="6000" placeholder="По одному шагу на строку"></textarea></label>
+    <p class="bd-form-error" role="alert" hidden></p>
+    <div class="row end"><button type="submit" class="btn primary">Сохранить</button></div></form>`);
+  B.$('#board-editor').addEventListener('submit',ev=>{
     ev.preventDefault();
-    const form = ev.currentTarget, f = form.elements, title = f.title.value.trim();
-    if (!title){
-      const error = form.querySelector('.bd-form-error');
-      error.hidden = false; error.textContent = 'Введи название дела.'; f.title.focus();
-      return;
-    }
-    const current = creating ? card : get(card.id);
-    if (!current) { B.closeSheet(); B.toast('Карточка уже удалена'); return; }
-    const previous = (current.steps || []).slice();
-    const steps = f.steps.value.split('\n').map(line=>line.trim()).filter(Boolean).map(title => {
-      const index = previous.findIndex(step => step.title === title);
-      return index < 0 ? {id:B.uid(), title, done:false} : previous.splice(index,1)[0];
-    });
-    const next = lane(f.lane.value)?.id || current.lane;
-    const placed = next === current.lane ? current.placed : Date.now();
-    B.historyStep(() => {
-      const notes=f.notes.value.trim();
-      if (!creating) return save({...current,title,notes,steps,lane:next,placed});
-      const t=B.newTask({title,notes,due:card.due || planDate || B.today(),boardLane:next,
-        subs:steps.map(s=>({id:s.id,t:s.title,done:s.done}))});
-      if(next==='done')B.setDone(t,true);else B.saveTask(t);
-    });
+    const form=ev.currentTarget, f=form.elements, title=f.title.value.trim();
+    if(!title){const msg=form.querySelector('.bd-form-error');msg.hidden=false;msg.textContent='Введи название дела.';f.title.focus();return;}
+    const boardLane=f.lane.value, subs=f.steps.value.split('\n').map(t=>t.trim()).filter(Boolean).map(t=>({id:B.uid(),t,done:false}));
+    const task=B.newTask({title,notes:f.notes.value.trim(),subs,due,boardLane});
+    B.historyStep(()=>boardLane==='done'?B.setDone(task,true):B.saveTask(task));
     B.closeSheet();
   });
-}
-B.acts.boardAdd = el => editor(newCard({lane:lane(el.dataset.lane)?.id || 'plan',due:el.dataset.day}), true);
+};
 B.acts.boardEdit = el => {
   const c=get(el.dataset.id); if (!c) return;
   if(c.source==='shad')return B.acts.acShadPick({dataset:{id:c.ref,part:c.part}});
   if(c.source==='phagi')return window.open(B.phagiTask(c.ref),'_blank','noopener');
   if(c.source==='task') return B.openTask(c.ref);
   if(c.source==='event') return B.acts.acOpen({dataset:{k:'event',id:c.ref,on:c.on,start:c.start,end:c.end}});
-  editor(c);
+
 };
 B.inputs.boardDate=(el,ev)=>{
-  if(ev.type!=='change' || !B.calData.validDate(el.value))return;
-  if(location.hash==='#/board/history')historyDate=el.value>B.today()?B.today():el.value;else planDate=el.value;
-  B.render(true);
+  if(ev.type!=='change' || el.value && !B.calData.validDate(el.value))return;
+  historyDate=el.value>B.today()?B.today():el.value;
+  historyLimit=14;B.render(true);
 };
-B.acts.boardDelete = async el => {
-  const card = get(el.dataset.id);
-  if (!card || !await B.confirm('Удалить «'+esc(card.title)+'» с доски?', 'Удалить', true)) return;
-  B.closeSheet();
-  if (get(card.id)) B.historyToast('Карточка удалена с доски', () => B.put(key(card.id), null));
-};
-B.inputs.boardStep = (el, ev) => {
-  if (ev.type !== 'change') return;
-  const card = get(el.dataset.card);
-  if (card?.source==='task'){
-    const t=B.task(card.ref);B.saveTask({...t,subs:t.subs.map(s=>s.id===el.dataset.id?{...s,done:el.checked,doneAt:el.checked?Date.now():null}:s)});return;
-  }
-  if (!card?.steps.some(s => s.id === el.dataset.id)) return;
-  B.historyStep(() => B.put(key(card.id), {...card,
-    steps:card.steps.map(s => s.id === el.dataset.id ? {...s,done:el.checked} : s)
-  }, true));
+B.acts.boardHistoryAll=()=>{historyDate='';historyLimit=14;B.render(true);};
+B.acts.boardHistoryMore=()=>{historyLimit+=14;B.render(true);};
+B.inputs.boardStep = (el,ev)=>{
+  if(ev.type!=='change')return;
+  const c=get(el.dataset.card), t=c?.source==='task' && B.task(c.ref);
+  if(t)B.historyStep(()=>B.saveTask({...t,subs:(t.subs || []).map(s=>s.id===el.dataset.id?{...s,done:el.checked,doneAt:el.checked?Date.now():null}:s)}));
 };
 function choose(title, action, current){
   B.sheet(`<h2>${esc(title)}</h2><div class="bd-choices">${columns.map(c =>
@@ -189,7 +171,7 @@ function mount(){
   }, true);
   page.addEventListener('pointerdown', ev => {
     const card = ev.target.closest('[data-board-card]');
-    if (!card || ev.button !== 0 || !ev.isPrimary || ev.target.closest('.bd-steps') ||
+    if (!card || ev.button !== 0 || !ev.isPrimary || ev.target.closest('.bd-steps,.bd-check') ||
         ev.pointerType === 'touch' && !ev.target.closest('.bd-handle')) return;
     cancelDrag?.();
     const controller = new AbortController(), {signal} = controller;
@@ -230,6 +212,6 @@ function mount(){
     window.addEventListener('blur', clear, {signal});
   });
 }
-B.board = {copy, choose, dropTray};
+B.board = {move,choose,dropTray};
 B.views.board = {title:'Доска дел', render, mount, unmount(){ cancelDrag?.(); }};
 })();

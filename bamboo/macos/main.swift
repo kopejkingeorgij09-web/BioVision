@@ -110,12 +110,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     }
     private var focusAlertDeadline=0.0
     private var focusAlertTitle="Фокус"
-    private func updateFocusAlert(_ snapshot:[String:Any]){
+    private var focusAlertSound=false
+    private func updateFocusAlert(_ snapshot:[String:Any], force:Bool=false){
         let until=snapshot["notify"] as? Bool == true ? (snapshot["until"] as? Double ?? 0)/1000 : 0
         let title=snapshot["title"] as? String ?? "Фокус"
-        guard until != focusAlertDeadline || title != focusAlertTitle else{return}
+        let sound=snapshot["chime"] as? Bool ?? true
+        guard force || until != focusAlertDeadline || title != focusAlertTitle || sound != focusAlertSound else{return}
         focusAlertDeadline=until
         focusAlertTitle=title
+        focusAlertSound=sound
         let center=UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers:["zov.focus"])
         let delay=until-Date().timeIntervalSince1970
@@ -123,6 +126,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         let content=UNMutableNotificationContent()
         content.title="Таймер завершён"
         content.body=title
+        if sound {content.sound = .default}
         let trigger=UNTimeIntervalNotificationTrigger(timeInterval:max(1,delay),repeats:false)
         center.add(UNNotificationRequest(identifier:"zov.focus",content:content,trigger:trigger))
     }
@@ -238,6 +242,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
           check(frame().dataset.dock==='top','top dock');
           $('.dock-handle').click();
           check(JSON.parse(localStorage.getItem('bamboo-planner')).dock==='left','saved position');
+          const plannerEvent=$('.planner [data-act="acOpen"][data-id="docktest"]');
+          check(!!plannerEvent,'calendar event in Tasks');
+          plannerEvent.focus();
+          const removeKey=new KeyboardEvent('keydown',{key:'Backspace',bubbles:true,cancelable:true});
+          plannerEvent.dispatchEvent(removeKey);
+          check(removeKey.defaultPrevented && !B.get('e_docktest') && location.hash==='#/tasks/week','Tasks Backspace consumes native Back and deletes event');
+          $('[data-act="undoHistoryStep"]').click();
+          check(!!B.get('e_docktest'),'Tasks deletion can be undone');
           location.hash='#/calendar'; B.render(true);
           B.acts.acMode({dataset:{v:'week'}});
           const cell = () => $('[data-all="'+date+'"]');
@@ -260,7 +272,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
           $('.ac-toolbar [data-act="plFull"]').click(); check(B.plWide,'hide menu');
           $('.ac-toolbar [data-act="plFull"]').click();
           const day=B.ymd(new Date());
-          B.put('e_keytest',{id:'keytest',title:'Проверка Delete',start:day+'T10:00',end:day+'T11:00'});
+          B.put('e_keytest',{id:'keytest',type:'task',title:'Проверка Delete',start:day+'T10:00',end:day+'T11:00'});
           B.render(true);
           const card=$('.ac-item[data-id="keytest"] .ac-open');
           check(!!card,'keyboard test card');
@@ -329,11 +341,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             let raw=message.body as? String,let bytes=raw.data(using:.utf8),let data=(try? JSONSerialization.jsonObject(with:bytes)) as? [String:Any] else {return}
         switch data["op"] as? String {
         case "focusNotifyEnable":
-            UNUserNotificationCenter.current().requestAuthorization(options:[.alert]) {granted,_ in
+            UNUserNotificationCenter.current().requestAuthorization(options:[.alert,.sound]) {granted,_ in
                 if granted {DispatchQueue.main.async {
-                    let end=self.focusAlertDeadline
-                    self.focusAlertDeadline = -1
-                    self.updateFocusAlert(["notify":true,"until":end*1000,"title":self.focusAlertTitle])
+                    self.updateFocusAlert(["notify":true,"until":self.focusAlertDeadline*1000,
+                        "title":self.focusAlertTitle,"chime":self.focusAlertSound], force:true)
                 }}
             }
         case "focusClock":focusClock(data["label"] as? String ?? "")

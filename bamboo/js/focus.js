@@ -59,6 +59,7 @@ function activity(day){
 }
 function append(action){
   const head=current(), now=Math.max(Date.now(),head?.at || 0), old=head?.timer, finished=expired(old,now);
+  if(finished)tick();
   const id=B.uid(), mode=pref('mode');
   let timer;
   if(action==='toggle' && old && !finished){
@@ -209,6 +210,23 @@ function alertEnd(s){
     display().catch(()=>{});
   }
 }
+const alertWindow=60000, alertStorage='bamboo-focus-recent-alerts';
+function announceCompletion(s){
+  const claim=()=>{
+    const now=Date.now();
+    if(now<s.until || now-s.until>=alertWindow)return;
+    try{
+      const stored=JSON.parse(localStorage.getItem(alertStorage)||'[]');
+      const recent=(Array.isArray(stored)?stored:[]).filter(item=>item && item.until>now-alertWindow);
+      if(recent.some(item=>item.id===s.id))return;
+      recent.push({id:s.id,until:s.until});
+      localStorage.setItem(alertStorage,JSON.stringify(recent));
+    }catch{/* Private browsing may disable storage; lastEnded still deduplicates in this window. */}
+    alertEnd(s);
+  };
+  if(navigator.locks?.request)navigator.locks.request(alertStorage,claim).catch(claim);
+  else claim();
+}
 let lastScene='';
 function tick(){
   const s=current()?.timer,now=Date.now(),done=expired(s,now);
@@ -227,7 +245,7 @@ function tick(){
   if(!done){lastEnded='';return;}
   if(lastEnded===s.id)return;
   lastEnded=s.id;syncWidget();
-  if(now-s.until<60000)alertEnd(s);
+  if(now-s.until<alertWindow)announceCompletion(s);
   if(inFocus())B.render();
 }
 
@@ -313,12 +331,13 @@ function render(){
     legacyRoute=route;
     setTimeout(()=>{if(location.hash===route)(section==='week'?B.acts.focusWeek:B.acts.focusPlan)();},0);
   }else if(!['week','plan'].includes(section))legacyRoute='';
-  return `<div class="focus-room" data-scene="${scene}" data-view="${view}" style="--scene-image:url('focus/scenes/${scene}.jpg')">
+  return `<section class="focus-room" aria-labelledby="focus-heading" data-scene="${scene}" data-view="${view}" style="--scene-image:url('focus/scenes/${scene}.jpg')">
+    <h1 id="focus-heading" class="fr-sr-only">${view==='studio'?'Студия фокуса':'Кастомизация фокуса'}</h1>
     <div class="fr-top"><nav class="fr-nav" aria-label="Разделы фокуса">
       <a href="#/board/focus/studio" ${view==='studio'?'aria-current="page"':''}>${icon('timer')} Фокус</a>
       <a href="#/board/focus/customize" ${view==='customize'?'aria-current="page"':''}>${symbol('sliders')} Кастомизация</a>
     </nav><span class="fr-location">${icon('img')}${esc(scenes[scene])}</span></div>
-    ${view==='studio'?studio():custom()}</div>`;
+    ${view==='studio'?studio():custom()}</section>`;
 }
 
 
@@ -381,7 +400,7 @@ B.acts.focusSchedule=()=>{
 B.acts.focusWeek=el=>{
   const today=B.today(),days=Array.from({length:7},(_,i)=>B.add(today,i-6));
   const chosen=days.includes(el?.dataset.day)?el.dataset.day:today,week=sessions().filter(s=>days.includes(s.day)),forDay=week.filter(s=>s.day===chosen);
-  const done=B.boardData.history(chosen).done;
+  const done=B.boardData.completed().filter(card=>card.day===chosen);
   B.sheet(`<h2>Фокус за неделю</h2><p class="hint">${week.reduce((a,s)=>a+s.minutes,0)} мин · сеансов ${week.length}</p>
     <div class="fr-days">${days.map(day=>`<button type="button" class="btn" data-act="focusWeek" data-day="${day}" aria-pressed="${day===chosen}">${esc(B.fmtW(day))}<b>${week.filter(s=>s.day===day).reduce((a,s)=>a+s.minutes,0)} мин</b></button>`).join('')}</div>
     <h3>${esc(B.fmtW(chosen))}</h3>${forDay.map(s=>`<p>${esc(B.hm(s.at))} · ${esc(s.title||'Фокус')} · ${s.minutes} мин</p>`).join('')||'<p>Завершённых сеансов пока нет.</p>'}
@@ -426,8 +445,8 @@ B.acts.focusCredits=async()=>{
   try{
     if(!creditRows){const response=await fetch('focus/credits.json?v=1');if(!response.ok)throw Error();creditRows=await response.json();}
     const ref=(name,url)=>/^https?:\/\//i.test(url)?`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(name)}</a>`:esc(name);
-    B.sheet(`<h2>Авторы записей и фотографий</h2><p class="hint">Звуковые записи адаптированы для непрерывного воспроизведения.</p><dl class="fr-credits">
-      ${creditRows.map(c=>`<dt>${ref(c.title,c.url)}</dt><dd>${esc(c.work || c.title)} · ${esc(c.author)} · ${ref(c.license,c.licenseUrl)}</dd>`).join('')}</dl>`);
+    B.sheet(`<section aria-labelledby="focus-media-credits"><h2 id="focus-media-credits">Авторы записей и фотографий</h2><p class="hint">Звуковые записи адаптированы для непрерывного воспроизведения. Фотографии кадрированы под формат сцен.</p><dl class="fr-credits">
+      ${creditRows.map(c=>`<dt>${ref(c.title,c.url)}</dt><dd>${esc(c.work || c.title)} · ${esc(c.author)}${c.editor?' · монтаж — '+esc(c.editor):''} · ${ref(c.license,c.licenseUrl)}</dd>`).join('')}</dl></section>`);
   }catch{B.toast('Не удалось открыть сведения об авторах');}
 };
 B.inputs.focusPref=async(el,ev)=>{

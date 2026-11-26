@@ -320,8 +320,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             guard value as? Bool == true else {fputs("FAIL: linked board \(String(describing:error))\n",stderr);exit(1)}
             DispatchQueue.main.asyncAfter(deadline:.now()+0.5){self.web.takeSnapshot(with:nil){image,error in
                 if let image=image,let tiff=image.tiffRepresentation,let bitmap=NSBitmapImageRep(data:tiff),let png=bitmap.representation(using:.png,properties:[:]){try? png.write(to:URL(fileURLWithPath:NSTemporaryDirectory()+"Zov-Lesa-macOS-preview.png"))}
-                print("PASS: native macOS WKWebView, linked board, calendar search, bundled assets, Alberts reading log, Molbio habit, update bridge");exit(0)
+                print("PASS: native macOS WKWebView, linked board, calendar search, bundled assets, Alberts reading log, Molbio habit, update bridge")
+                self.testFocusStudio()
             }}
+        }
+    }
+    private func testFocusStudio() {
+        let checks = #"""
+        const $ = selector => document.querySelector(selector);
+        const check = (ok, detail) => { if (!ok) throw Error(detail); };
+        const click = selector => {
+          const button = $(selector);
+          check(button && !button.disabled, selector);
+          button.click();
+        };
+        location.hash = '#/board/focus/studio';
+        B.render(true);
+        check(document.querySelectorAll('.fr-nav a').length === 2, 'studio navigation');
+        for (const mode of ['timer', 'pomo']) {
+          click('[data-mode="' + mode + '"]');
+          click('[data-act=focusToggle]');
+          check(B.focus.current()?.timer.mode === mode && B.focus.current().timer.running, mode + ' start');
+          click('[data-act=focusToggle]');
+          check(!B.focus.current().timer.running && B.focus.current().timer.left > 0, mode + ' pause');
+          B.render(true);
+          click('[data-act=focusReset]');
+          check(!B.focus.current().timer, mode + ' reset');
+        }
+        click('.fr-quick summary');
+        check($('.fr-quick').open && $('.fr-pop input[type=range]'), 'quick mixer');
+        location.hash = '#/board/focus/customize';
+        B.render(true);
+        check(document.querySelectorAll('.fr-gallery [data-scene]').length === 10, 'all themes');
+        check(document.querySelectorAll('.fr-channel-grid input').length === 8, 'all audio channels');
+        const ctx = new AudioContext();
+        try {
+          for (const channel of ['fireplace','rain','forest','brown','white','chime']) {
+            const response = await fetch('focus/audio/' + channel + '.m4a');
+            check(response.ok, channel + ' bundled');
+            const audio = await ctx.decodeAudioData(await response.arrayBuffer());
+            check(audio.duration > 1 && audio.numberOfChannels > 0, channel + ' decode');
+          }
+        } finally { await ctx.close(); }
+        return true;
+        """#
+        web.callAsyncJavaScript(checks, arguments:[:], in:nil, in:.page) { result in
+            switch result {
+            case .success(let value) where value as? Bool == true:
+                print("PASS: WKWebView timer and Pomodoro start/pause/reset, quick mixer, themes and bundled Web Audio decoding");exit(0)
+            default: fputs("FAIL: macOS focus studio \(result)\n",stderr);exit(1)
+            }
         }
     }
     private var quitting=false

@@ -101,6 +101,13 @@ let sheetClose = null, sheetGen = 0;
 B.sheet = (html, onClose) => {
   sheetGen++;
   const s = $('#sheet'); s.innerHTML = `<div class="sheet-grip"></div><button class="icon-btn sheet-x" data-act="closeSheet" aria-label="Закрыть">${icon('x')}</button>${html}`;
+  const heading = s.querySelector('h1,h2,h3');
+  if (heading) {
+    if (!heading.id) heading.id = 'sheet-title';
+    s.setAttribute('aria-labelledby', heading.id);
+  } else {
+    s.removeAttribute('aria-labelledby');
+  }
   $('#scrim').hidden = false; document.body.classList.add('locked');
   sheetClose = onClose || null;
   requestAnimationFrame(() => $('#scrim').classList.add('on'));

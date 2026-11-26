@@ -18,10 +18,11 @@ function liveEvent(e){
   const habit=B.get('h_'+e.habitId);
   return !!habit && !habit.arch && !habit.auto && e.on >= (habit.created || '');
 }
-function event(e,meta=B.get('boardlane_'+eventId(e,e.on))){
-  const id = eventId(e,e.on), time=e.start.slice(11);
-  return {id,source:'event',ref:e.id,on:e.on,start:e.start,end:e.end,time,title:e.title,
-    notes:e.notes,context:[time || 'Весь день',isShadEvent(e)?'ШАД':''].filter(Boolean).join(' · '),
+function event(e,meta=B.get('boardlane_'+eventId(e,e.on)),day=e.on){
+  const id = eventId(e,e.on), time=e.start.startsWith(day+'T')?e.start.slice(11):'';
+  const label=!time && e.start<day && e.end.startsWith(day+'T')?'До '+e.end.slice(11):time || 'Весь день';
+  return {id,source:'event',ref:e.id,on:e.on,habitId:e.habitId,start:e.start,end:e.end,time,title:e.title,
+    notes:e.notes,context:[label,isShadEvent(e)?'ШАД':''].filter(Boolean).join(' · '),
     lane:C.done(e)?'done':meta?.lane==='active'?'active':'plan',steps:[]};
 }
 const sourceOrder={event:0,task:1,shad:2,phagi:3};
@@ -37,7 +38,7 @@ function bySchedule(a,b){
 }
 function all(date=B.today()){
   const slots=B.calendarView.plannerEventDays(date,date,()=>true).get(date) || [];
-  const cards=slots.filter(liveEvent).map(e=>event(e));
+  const cards=slots.filter(liveEvent).map(e=>event(e,undefined,date));
   cards.push(...B.tasksOnDay(date).map(task));
   const homework=new Set();
   for(const {p,kind} of B.shadOn(date)){
@@ -83,7 +84,7 @@ function log(before,after){
   if (!before && !after || before?.lane===after?.lane && before?.title===after?.title) return;
   const card = after || before, id = B.uid();
   lastStamp=Math.max(Date.now(),lastStamp+0.01);
-  B.put('boardlog_'+id,{id,card:card.id,source:card.source,time:card.time,context:card.context,completedAt:card.completedAt,at:lastStamp,title:card.title,beforeTitle:before?.title || '',before:before?.lane || '',lane:after?.lane || ''},true,true);
+  B.put('boardlog_'+id,{id,card:card.id,source:card.source,on:card.on,habitId:card.habitId,time:card.time,context:card.context,completedAt:card.completedAt,at:lastStamp,title:card.title,beforeTitle:before?.title || '',before:before?.lane || '',lane:after?.lane || ''},true,true);
 }
 function shadMark(n,before,after){
   if(before===after)return;
@@ -158,12 +159,13 @@ function completed(){
     const stamp=Number(at) || 0;
     result.set(card.id,{...card,completedAt:stamp,day:stamp?B.dayOf(stamp):recordedDay});
   };
-  // Keep a checked task's last title and timestamp when its original was deleted.
+  function archived(x){
+    return {id:x.card,source:x.source || 'task',title:x.title,time:x.time || '',context:x.context || ''};
+  }
   for(const [id,x] of checked){
-    if(id.startsWith('task:') && !B.task(id.slice(5)) ||
-       x.source==='event' && !B.get('e_'+id.slice(6,id.lastIndexOf(':')))){
-      add({id,title:x.title,source:x.source || 'task',time:x.time || '',context:x.context || ''},x.at);
-    }
+    if(id.startsWith('task:') && !B.task(id.slice(5)))add(archived(x),x.at);
+    // A removed calendar occurrence no longer resolves through its series; its explicit habit mark still can.
+    if(x.habitId && x.on && B.day(x.on).h?.[x.habitId])add(archived(x),x.at);
   }
   for(const t of B.list('t_')){
     if(!t.done)continue;
@@ -176,13 +178,12 @@ function completed(){
     const e=byId.get(mark.calendarId);
     if(e?.habitId)continue; // Linked habits own their marks in the day record.
     const old=checked.get('event:'+mark.calendarId+':'+mark.date) || checked.get('event:'+mark.calendarId+':single');
-    if(!e){
-      add({id:old?.card || 'event:'+mark.calendarId+':'+mark.date,source:'event',
-        title:old?.title || 'Архивная задача календаря',time:'',context:''},mark.at || old?.at,mark.date);
-      continue;
-    }
-    const occ=C.occurrences(e,mark.date,mark.date).find(x=>x.on===mark.date);
-    if(occ)add(event(occ),mark.at || old?.at,mark.date);
+    const occ=e && C.occurrences(e,mark.date,mark.date).find(x=>x.on===mark.date);
+    const card=occ ? event(occ) : old ? {...archived(old),source:'event'} : {
+      id:e?eventId(e,mark.date):'event:'+mark.calendarId+':'+mark.date,
+      title:e?.title || 'Архивная задача календаря',source:'event',time:e?.start.slice(11) || '',context:''
+    };
+    add(card,mark.at || old?.at,mark.date);
   }
   const byHabit=new Map();
   for(const e of events.filter(e=>e.habitId && boardEvent(e))){
@@ -195,6 +196,11 @@ function completed(){
       for(const e of byHabit.get(id) || []){
         const occ=C.occurrences(e,day,day).find(x=>x.on===day);
         if(occ){const c=event(occ);add(c,checked.get(c.id)?.at,day);}
+        else {
+          const old=checked.get(eventId(e,day));
+          if(old && (e.repeat || old.on===day || !old.on && C.dateOf(e.start)===day))
+            add({...archived(old),source:'event'},old.at,day);
+        }
       }
     }
   }

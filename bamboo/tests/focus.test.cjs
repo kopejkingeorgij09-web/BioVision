@@ -3,9 +3,9 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 
-function studio(){
+function studio(storage=new Map()){
   let now=new Date(2026,10,26,8).getTime(),seq=0,tick;
-  const docs=new Map(),messages=[],sources=[],gains=[],notifications=[],remote=[];
+  const docs=new Map(),messages=[],sources=[],notifications=[],listeners=new Map();
   class Clock extends Date{
     constructor(...args){super(...(args.length?args:[now]));}
     static now(){return now;}
@@ -14,7 +14,7 @@ function studio(){
     state='running';currentTime=0;destination={};
     createGain(){
       const gain={value:0,setTargetAtTime(v){this.value=v;},cancelScheduledValues(){}};
-      gains.push(gain);return {gain,connect(){},disconnect(){}};
+      return {gain,connect(){},disconnect(){}};
     }
     createBiquadFilter(){return {frequency:{},gain:{setTargetAtTime(){}},connect(){}};}
     createDynamicsCompressor(){return {threshold:{},knee:{},ratio:{},connect(){}};}
@@ -24,14 +24,16 @@ function studio(){
   const B={acts:{},inputs:{},ver:0,esc:String,icon:()=>'',pad:n=>String(n).padStart(2,'0'),cfg:()=>({}),
     clamp:(v,a,b)=>Math.min(b,Math.max(a,v)),uid:()=>String(++seq),today:()=> '2026-11-26',dayOf:()=> '2026-11-26',add:()=> '2026-11-26',
     get:k=>docs.get(k),list:prefix=>[...docs].filter(([k])=>k.startsWith(prefix)).map(x=>x[1]),
-    put(k,v){docs.set(k,v);this.ver++;},on(){},persistLocal(){},render(){},toast:t=>messages.push(t),
-    boardData:{all:()=>[],history:()=>({done:[]})}};
+    put(k,v){docs.set(k,v);this.ver++;},on(k,fn){listeners.set(k,fn);},persistLocal(){},render(){},toast:t=>messages.push(t),
+    fmtW:String, boardData:{all:()=>[],completed:()=>[]}};
   const page={B,Date:Clock,location:{hash:'#/board/focus'},document:{addEventListener(){},querySelector(){return null;}},
     addEventListener(){},setInterval:fn=>{tick=fn;},AudioContext:Audio,ZovDesktop:undefined,
+    localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)},
     fetch:async url=>({ok:true,arrayBuffer:async()=>url.split('/').pop().split('.')[0]}),
     Notification:class {static permission='granted';constructor(label){notifications.push(label);}},navigator:{}};
   page.window=page;vm.createContext(page);vm.runInContext(fs.readFileSync('bamboo/js/focus.js','utf8'),page);
-  return {B,page,messages,sources,notifications,remote,pref:(k,v)=>B.put('focuspref_'+k,{value:v}),
+  return {B,page,messages,sources,notifications,pref:(k,v)=>B.put('focuspref_'+k,{value:v}),
+    receive(k,v){B.put(k,v);listeners.get('change')();},
     advance:ms=>{now+=ms;tick();},tick:()=>tick()};
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
@@ -63,6 +65,22 @@ test('Pomodoro rotation gives the selected short and long breaks and returns to 
   }
   assert.equal(B.focus.sessions().length,2);
 });
+test('reload within a minute of completion cannot repeat the same notification; stale deadlines stay silent',()=>{
+  const storage=new Map(),first=studio(storage);
+  first.B.focus.append('toggle');const op=first.B.focus.current();
+  first.advance(25*60000);assert.equal(first.messages.length,1);
+  const reload=studio(storage);reload.advance(25*60000+15000);
+  reload.receive('focusop_'+op.id,op);assert.deepEqual(reload.messages,[]);
+  const late=studio();late.advance(26*60000);
+  late.receive('focusop_'+op.id,op);assert.deepEqual(late.messages,[]);
+});
+test('week drilldown lists confirmed completions for the chosen day, including externally marked SHAD',()=>{
+  const {B}=studio(),today=B.today();
+  B.boardData.completed=()=>[{day:today,title:'Вебинар ШАД'}, {day:'2026-11-25',title:'Вчерашнее дело'}, {day:'',title:'Дата неизвестна'}];
+  let sheet;B.sheet=html=>{sheet=html;};B.acts.focusWeek();
+  assert.match(sheet,/Выполнено дел · 1/);assert.match(sheet,/✓ Вебинар ШАД/);
+  assert.doesNotMatch(sheet,/Вчерашнее дело|Дата неизвестна/);
+});
 test('atmosphere resumes all loops at the saved playhead and reset returns to the start',async()=>{
   const {B,sources,advance}=studio();
   await B.acts.focusSound();await settle();assert.deepEqual(sources.map(s=>s.offset),[0,0]);
@@ -70,6 +88,20 @@ test('atmosphere resumes all loops at the saved playhead and reset returns to th
   advance(23000);await B.acts.focusSound();await settle();assert.deepEqual(sources.slice(-2).map(s=>s.offset),[12.5,12.5]);
   B.acts.focusAudioReset();assert.equal(B.get('focuspref_sound').value,false);assert.equal(B.get('focuspref_sound').elapsed,0);
   await B.acts.focusSound();await settle();assert.deepEqual(sources.slice(-2).map(s=>s.offset),[0,0]);
+});
+test('a second device joins the current mix position, receives pause, resumes and rewinds',async()=>{
+  const first=studio(),second=studio(),key='focuspref_sound';
+  await first.B.acts.focusSound();first.advance(6500);second.advance(6500);
+  second.receive(key,first.B.get(key));
+  await second.B.acts.focusSound();await settle();
+  assert.deepEqual(second.sources.map(s=>s.offset),[6.5,6.5]);
+  await second.B.acts.focusSound();first.receive(key,second.B.get(key));
+  first.advance(31000);second.advance(31000);await first.B.acts.focusSound();
+  second.receive(key,first.B.get(key));await settle();
+  assert.deepEqual(second.sources.slice(-2).map(s=>s.offset),[6.5,6.5]);
+  first.B.acts.focusAudioReset();second.receive(key,first.B.get(key));
+  await second.B.acts.focusSound();await settle();
+  assert.deepEqual(second.sources.slice(-2).map(s=>s.offset),[0,0]);
 });
 test('new and legacy focus routes consistently expose exactly two tabs',()=>{
   const {B,page}=studio();

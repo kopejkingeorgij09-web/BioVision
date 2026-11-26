@@ -369,9 +369,9 @@ test('today board includes checkable slots, SHAD and live tasks in planner order
   B.shad.plan=[
     {n:1,t:'Линал',wp:true,hp:true,w:{date:day},h:{date:day,from:'09:30'}},
     {n:2,t:'Без дня',w:{date:day},wk:B.weekStart(day)}, {n:3,t:'Позже',w:{date:tomorrow},wp:true}];
-  B.phx.dl={normal:{id:'normal',due:day,title:'Только просмотр'},fix:{id:'fix',due:day,shad:1,fix:true,title:'Пересдача'}};
+  B.phx.dl={normal:{id:'normal',due:day,title:'Только просмотр'},mirror:{id:'mirror',due:day,shad:1,title:'Основное ДЗ'},elsewhere:{id:'elsewhere',due:day,shad:3,title:'Срок сдачи'},fix:{id:'fix',due:day,shad:1,fix:true,title:'Пересдача'}};
   const ids=()=>Array.from(B.boardData.all(),c=>c.id);
-  assert.deepEqual(ids(),['event:slot:single','task:Первая','task:Вторая','shad:web:1','phagi:fix','shad:hw:1','task:Обед','event:py:'+day]);
+  assert.deepEqual(ids(),['event:slot:single','task:Первая','task:Вторая','shad:web:1','phagi:elsewhere','phagi:fix','shad:hw:1','task:Обед','event:py:'+day]);
   B.boardData.move(B.boardData.get('event:py:'+day),'done');
   assert.equal(B.day(day).h.py,1);
   const py=Array.from(B.boardData.completed()).filter(c=>c.title==='Python');
@@ -394,6 +394,9 @@ test('completion archive uses actual marks, deduplicates and removes re-opened i
   B.put('w_cal_g_'+prev,{id:'cal_g_'+prev,calendarId:'g',date:prev,at:stamp},true,true);
   B.put('boardlog_legacy',{id:'legacy',card:'event:just-meeting:single',title:'Обычное событие',before:'active',lane:'done',at:stamp},true,true);
   B.put('boardlane_event:just-meeting:single',{card:'event:just-meeting:single',lane:'done'},true,true);
+  B.put('e_just-meeting',{id:'just-meeting',title:'Обычное событие',start:prev,end:B.add(prev,1)});
+  B.put('e_just-meeting',null);
+  assert(!B.list('boardlog_').some(x=>x.source==='event' && x.card==='event:just-meeting:single'));
   B.shad.plan=[{n:4,t:'Непрерывность',w:{date:day},h:{date:day}}];
   B.shad.marks[4]={s:3,at:stamp};
   const archive=()=>Array.from(B.boardData.completed(),x=>[x.title,x.day]);
@@ -410,6 +413,46 @@ test('completion archive uses actual marks, deduplicates and removes re-opened i
   const html=B.views.board.render();
   assert.match(html,/Завершённые дела/);
   assert.doesNotMatch(html,/Обычное событие|В планах|В работе|data-board-lane/);
+});
+
+test('overnight tasks use today’s visible time and completed exceptions survive series edits', () => {
+  const {B}=linkedPlanner(), day=B.today(), prev=B.add(day,-1);
+  const night={id:'night',type:'task',title:'Ночная задача',start:prev+'T23:55',end:day+'T00:20'};
+  B.put('e_night',night);B.saveTask(B.newTask({id:'lunch',title:'Обед',due:day,time:'12:00'}));
+  const [first,second]=B.boardData.all();
+  assert.equal(first.id,'event:night:single');assert.equal(first.time,'');assert.equal(first.context,'До 00:20');
+  assert.equal(second.id,'task:lunch');
+  const recurring={id:'series',title:'Решить задачи',type:'task',repeat:{freq:'daily'},start:prev,end:day};
+  B.put('e_series',recurring);B.calData.toggle({...recurring,on:day});
+  B.put('e_series',{...recurring,skip:[day]});
+  assert(!B.boardData.all().some(c=>c.ref==='series'));
+  assert.equal(B.boardData.completed().filter(c=>c.id==='event:series:'+day).length,1);
+  const habit={...recurring,id:'daily',title:'Английский',habitId:'lang'};
+  B.put('h_lang',{id:'lang',name:'Английский',kind:'daily',created:prev});B.put('e_daily',habit);
+  B.toggleHabitMark('lang',day);B.put('e_daily',{...habit,skip:[day]});
+  assert(B.boardData.completed().some(c=>c.id==='event:daily:'+day && c.title==='Английский'));
+  B.put('e_daily',null);
+  assert(B.boardData.completed().some(c=>c.id==='event:daily:'+day));
+  B.toggleHabitMark('lang',day);
+  assert(!B.boardData.completed().some(c=>c.id==='event:daily:'+day));
+});
+
+test('SHAD webinar and homework keep independent completion dates in both clients', async () => {
+  const {B,page}=linkedPlanner(), day=B.today(), next=B.add(day,1);
+  B.shad.plan=[{n:35,t:'Матанализ',wp:true,w:{date:day},hp:true,h:{date:next}}];
+  await B.setShadStage(35,2);
+  const w=B.shad.marks[35].at, h=+B.parse(next);
+  const ext=page.ShadStages.change(B.shad.marks[35],3,h);
+  assert.equal(page.ShadStages.completionTimes(ext).web,w);
+  assert.equal(page.ShadStages.completionTimes(ext).hw,h);
+  B.shad.marks[35]={...ext,note:'Решил заново'};
+  const dates=()=>Object.fromEntries(Array.from(B.boardData.completed(),c=>[c.part,c.day]));
+  assert.deepEqual(dates(),{hw:next,web:day});
+  const externalReset=page.ShadStages.change(ext,1,h+100);
+  assert(!externalReset.completed.web && !externalReset.completed.hw);
+  B.shad.marks[35]=externalReset;assert.deepEqual(dates(),{});
+  B.shad.marks[35]={...externalReset,s:3,at:h+200};
+  assert.deepEqual(dates(),{web:'',hw:''}); // Older app wrote a new stage without completion timestamps.
 });
 
 test('two devices completing the same Pomodoro phase contribute one session', () => {

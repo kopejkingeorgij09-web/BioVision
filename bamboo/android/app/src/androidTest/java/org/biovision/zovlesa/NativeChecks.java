@@ -29,6 +29,10 @@ public final class NativeChecks extends Instrumentation {
         return value.get();
     }
     private void check(boolean ok,String message){if(!ok)throw new AssertionError(message);}
+    private long visibleFocusDeadline() throws Exception {
+        // WebView can serialize epoch milliseconds in scientific notation.
+        return new java.math.BigDecimal(js("B.focus.current().timer.until")).longValueExact();
+    }
     private void expectFocusAlarm(Context context, long deadline) throws Exception {
         for (int attempt = 0; attempt < 50; attempt++) {
             JSONArray items = new JSONArray(context.getSharedPreferences("reminders", Context.MODE_PRIVATE)
@@ -51,14 +55,14 @@ public final class NativeChecks extends Instrumentation {
             js("document.querySelector('[data-act=focusMode][data-mode="+mode+"]').click();"
                     +"document.querySelector('[data-act=focusToggle]').click();true");
             check("true".equals(js("B.focus.current().timer.mode==='"+mode+"'")), "Timer mode selection");
-            expectFocusAlarm(context, Long.parseLong(js("B.focus.current().timer.until")));
+            expectFocusAlarm(context, visibleFocusDeadline());
             js("document.querySelector('[data-act=focusToggle]').click();true");
             expectFocusAlarm(context, 0);
             if ("timer".equals(mode)) {
                 js("document.querySelector('[data-act=focusReset]').click();true");
             } else {
                 js("document.querySelector('[data-act=focusToggle]').click();true");
-                expectFocusAlarm(context, Long.parseLong(js("B.focus.current().timer.until")));
+                expectFocusAlarm(context, visibleFocusDeadline());
             }
         }
     }

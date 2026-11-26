@@ -112,7 +112,7 @@ public final class NativeChecks extends Instrumentation {
             check("true".equals(js("!!window.B?.shad.plan.length && !!window.B?.alberts?.book")),"Bundled plan not loaded");
             check("true".equals(js("(()=>{const day=B.today(), start=day+'T10:00';"
                 +"const source={id:'nativeboard',type:'task',title:'Дело из календаря',start,end:day+'T11:00'};"
-                +"B.put('e_nativeboard',source);location.hash='#/calendar';B.render(true);"
+                +"B.put('e_nativeboard',source);B.calendarView.selectDate(day);location.hash='#/calendar';B.render(true);"
                 +"B.acts.acMode({dataset:{v:'day'}});B.$('.ac-item[data-id=nativeboard] .ac-card-menu').click();"
                 +"B.$('[data-act=acBoardCopy]').click();B.$('[data-board-choice=active]').click();"
                 +"location.hash='#/board';B.render(true);const card=B.$('[data-board-lane=active] .bd-card-title');"

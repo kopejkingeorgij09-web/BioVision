@@ -226,6 +226,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
           const $ = s => document.querySelector(s);
           const check = (ok, why) => { if (!ok) throw Error(why); };
           const date=B.today();
+          B.calendarView.selectDate(date);
           B.put('e_docktest',{id:'docktest',title:'Проверка календаря',start:date,end:B.add(date,1)});
           location.hash='#/tasks/week'; B.render(true);
           function drag(x,y) {
@@ -271,8 +272,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
           check($('.ac-toolbar [data-act="acSearch"]') && $('.ac-toolbar [data-act="plFull"]'),'calendar controls');
           $('.ac-toolbar [data-act="plFull"]').click(); check(B.plWide,'hide menu');
           $('.ac-toolbar [data-act="plFull"]').click();
-          const day=B.ymd(new Date());
-          B.put('e_keytest',{id:'keytest',type:'task',title:'Проверка Delete',start:day+'T10:00',end:day+'T11:00'});
+          B.put('e_keytest',{id:'keytest',type:'task',title:'Проверка Delete',start:date+'T10:00',end:date+'T11:00'});
           B.render(true);
           const card=$('.ac-item[data-id="keytest"] .ac-open');
           check(!!card,'keyboard test card');

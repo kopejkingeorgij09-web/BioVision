@@ -135,7 +135,7 @@ function row(t, o = {}){
 const shadMeter = s => `<span class="pl-st" title="${B.SHAD_STAGES[s]}" aria-label="${B.SHAD_STAGES[s]}">${[1, 2, 3, 4].map(i => `<i class="${s >= i ? 'on' : ''}"></i>`).join('')}</span>`;
 const shadRow = it => { const s = B.shadStage(it.p.n), ok = s >= it.need;
   return `<div class="pl-shad c-${it.p.c} ${ok ? 'ok' : ''} ${it.old ? 'old' : ''}" data-shn="${it.p.n}" data-kind="${it.kind}" data-plan-key="shad:${it.kind}:${it.p.n}" tabindex="-1">
-    <button class="pl-open" data-act="shadOpen" data-n="${it.p.n}" title="${esc(it.p.t)}">${it.old ? '<span class="pl-old">хвост</span>' : ''}${it.from ? `<span class="pl-time">${it.from}</span>` : ''}<b>${it.kind === 'web' ? '' : 'ДЗ · '}${esc(it.p.code || '')}</b> ${esc(it.p.t)}</button>${B.shadPending(it.p.n) ? '<small>Отправляется…</small>' : shadMeter(s)}
+    <button class="pl-open" data-act="acShadPick" data-id="${it.p.n}" data-part="${it.kind}" title="${esc(it.p.t)}">${it.old ? '<span class="pl-old">хвост</span>' : ''}${it.from ? `<span class="pl-time">${it.from}</span>` : ''}<b>${it.kind === 'web' ? '' : 'ДЗ · '}${esc(it.p.code || '')}</b> ${esc(it.p.t)}</button>${B.shadPending(it.p.n) ? '<small>Отправляется…</small>' : shadMeter(s)}
     <button class="pl-chk" data-act="shadChk" data-n="${it.p.n}" data-need="${it.need}" aria-label="${ok ? 'Вернуть' : 'Готово'}" title="${it.kind === 'web' ? 'Веб посмотрен' : 'ДЗ решено'}">${icon('check')}</button>
   </div>`; };
 B.acts.shadChk = async el => {
@@ -620,26 +620,20 @@ B.openTask = (id, keep) => {
   if (!keep){ pop = ''; }
   const files = B.list('f_').filter(f => f.task === t.id).sort((a, b) => (a.at || 0) - (b.at || 0));
   const subs = t.subs || [], showSubs = subs.length || pop === 'subs';
-  const proj = B.proj(t.proj || 'inbox');
-  const chips = [];
-  if (t.rep) chips.push(`<button class="tw-chip" data-act="twPop" data-p="rep" data-id="${t.id}">${icon('repeat')}${B.repLabel(t.rep)}</button>`);
-  if (t.remind && t.remind.at) chips.push(`<button class="tw-chip" data-act="twPop" data-p="bell" data-id="${t.id}">${icon('bell')}${fmtRemind(t.remind.at)}</button>`);
-  if (proj) chips.push(`<button class="tw-chip" data-act="twPop" data-p="cal" data-id="${t.id}"><i class="pdot c-${proj.color || 'ink'}"></i>${esc(B.projName(proj.id))}</button>`);
-  if (t.pri && t.pri < 4) chips.push(`<span class="tw-chip">${icon('flag')}${B.PRI[t.pri]}</span>`);
-  const pp = t.postpones || [];
-  B.sheet(`<div class="tw ${t.done ? 'is-done' : ''}" data-tid="${t.id}" ${B.taskColorStyle(t)}>
-    <div class="tw-top">
-      <label class="tw-date">${icon('cal')}<span>${t.due ? `${WDS[B.wd(t.due)]}, ${dLabel(t.due)} ${B.parse(t.due).getFullYear()}` : 'Когда-нибудь'}</span><input type="date" value="${t.due || ''}" data-in="twDue" data-id="${t.id}" aria-label="Дата"></label>
-      ${t.due ? `<label class="tw-time ${t.time ? 'on' : ''}">${icon('clock')}${t.time ? `<span>${t.time}</span>` : ''}<input type="time" value="${t.time || ''}" data-in="twTime" data-id="${t.id}" aria-label="Время"></label>` : ''}
-      <button class="tw-wide" data-act="twWide" data-id="${t.id}">${icon(wide ? 'shrink' : 'expand')}<span>${wide ? 'Свернуть' : 'Развернуть'}</span></button>
-    </div>
-    <div class="tw-head">
-      <textarea class="tw-title" rows="1" data-in="edTitle" data-id="${t.id}" placeholder="Что сделать">${esc(t.title)}</textarea>
-      <button class="tw-done ${t.done ? 'on' : ''}" data-act="edDone" data-id="${t.id}" title="${t.done ? 'Вернуть' : 'Готово'}" aria-label="Готово">${icon('check')}</button>
-    </div>
-    ${chips.length ? `<div class="tw-chips">${chips.join('')}</div>` : ''}
-    <textarea class="tw-note" rows="3" data-in="edField" data-k="notes" data-id="${t.id}" placeholder="Добавьте заметку…">${esc(t.notes || '')}</textarea>
-    ${showSubs ? `<div class="tw-subs">
+  const aid=esc(t.id), data=`data-id="${aid}"`, pp=t.postpones || [];
+  const form=B.entryEditor({
+    id:'taskEditor', live:true, classes:'tw'+(t.done?' is-done':''), attrs:`data-tid="${aid}" ${B.taskColorStyle(t)}`,
+    heading:t.remind?.at?'Напоминание':'Задача', title:t.title, project:t.proj, notes:t.notes,
+    titleAttrs:`class="tw-title" data-in="edTitle" ${data}`, noteAttrs:`data-in="edField" data-k="notes" ${data}`,
+    projectAttrs:`data-in="edField" data-k="proj" ${data}`,
+    complete:`<button type="button" class="tw-done ${t.done?'on':''}" data-act="edDone" ${data} aria-label="${t.done?'Вернуть в работу':'Отметить готовой'}" title="${t.done?'Вернуть':'Готово'}">${icon('check')}</button>`,
+    schedule:`<label class="field">Дата<input name="due" type="date" value="${esc(t.due || '')}" data-in="twDue" ${data}></label>
+      <label class="field">Время<input name="time" type="time" value="${esc(t.time || '')}" data-in="twTime" ${data} ${!t.due?'disabled':''}></label>`,
+    body:`<div class="tw-chips">
+      ${t.rep?`<button type="button" class="tw-chip" data-act="twPop" data-p="rep" ${data}>${icon('repeat')}${esc(B.repLabel(t.rep))}</button>`:''}
+      ${t.remind?.at?`<button type="button" class="tw-chip" data-act="twPop" data-p="bell" ${data}>${icon('bell')}${esc(fmtRemind(t.remind.at))}</button>`:''}
+      ${t.pri && t.pri<4?`<span class="tw-chip">${icon('flag')}${esc(B.PRI[t.pri])}</span>`:''}
+    </div>${showSubs ? `<div class="tw-subs">
       ${subs.map(s => `<div class="sub ${s.done ? 'is-done' : ''}"><button class="chk sm" data-act="subToggle" data-id="${t.id}" data-sid="${s.id}">${icon('check')}</button>
         <input value="${esc(s.t)}" data-in="subText" data-id="${t.id}" data-sid="${s.id}"><button class="icon-btn sm" data-act="subDel" data-id="${t.id}" data-sid="${s.id}" title="Удалить">${icon('x')}</button></div>`).join('')}
       <div class="sub add">${icon('plus')}<input id="subNew" placeholder="Подзадача" data-enter="subAdd" data-id="${t.id}" ${pop === 'subs' ? 'autofocus' : ''}></div>
@@ -653,16 +647,52 @@ B.openTask = (id, keep) => {
       <button class="${pop === 'bell' || (t.remind && t.remind.at) ? 'on' : ''}" data-act="twPop" data-p="bell" data-id="${t.id}" title="Напоминание">${icon('bell')}</button>
       <button class="${pop === 'more' ? 'on' : ''}" data-act="twPop" data-p="more" data-id="${t.id}" title="Ещё">${icon('dots')}</button>
     </div>
-    ${wide ? `<div class="tw-ext">
-      <label>Календарь<select data-in="edField" data-k="proj" data-id="${t.id}">${B.projects().map(p => `<option value="${p.id}" ${p.id === (t.proj || 'inbox') ? 'selected' : ''}>${esc(B.projName(p.id))}</option>`).join('')}</select></label>
+`,
+    expanded:wide,
+    details:`<div class="tw-ext"><label>Длительность, мин<input type="number" min="0" max="10080" name="estimate" value="${+(t.est || 0)}" data-in="edField" data-k="est" ${data}></label>
       <div class="ed-pri">Важность<div class="pri-seg">${[1, 2, 3, 4].map(p => `<button class="p${p} ${+(t.pri || 4) === p ? 'on' : ''}" data-act="twPri" data-id="${t.id}" data-p="${p}">${icon('flag')}<span>${B.PRI[p]}</span></button>`).join('')}</div></div>
       <label class="switch"><input type="checkbox" ${t.big ? 'checked' : ''} data-in="edBig" data-id="${t.id}"><span></span>Большое дело: разбить на шаги и делать по одному</label>
       <label class="switch"><input type="checkbox" ${t.dl ? 'checked' : ''} data-in="edDl" data-id="${t.id}"><span></span>Дедлайн: обратный отсчёт на главном экране</label>
       ${pp.length ? `<div class="sub-h">Переносы: ${pp.length}</div><ul class="pp-list">${pp.slice(-6).map(p => `<li><span class="mono">${p.from ? B.fmtS(p.from) : '—'} → ${p.to ? B.fmtS(p.to) : 'когда-нибудь'}</span> ${esc(p.why || '')}</li>`).join('')}</ul>` : ''}
-    </div>` : ''}
-  </div>`);
+</div>`
+  });
+  form.querySelector('.entry-extra').addEventListener('toggle', ev=>{ if(form.isConnected)wide=ev.currentTarget.open; });
+  form.addEventListener('input',ev=>{
+    if(ev.target.matches('[data-in=edTitle],[data-in=edField][data-k=notes],[data-in=subText]'))
+      form.querySelector('.entry-save-status').textContent='Изменения сохранены';
+  });
+  form.addEventListener('submit', ev=>{ ev.preventDefault(); B.closeSheet(); B.changed(); });
   const ta = B.$('.tw-title'); if (ta){ ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
   if (pop === 'subs'){ const i = B.$('#subNew'); if (i) setTimeout(() => i.focus(), 40); }
+};
+B.newTaskReminder=(start,end)=>{
+  const day=B.calData.dateOf(start), time=start.slice(11), at=day+'T'+(time || '09:00');
+  const form=B.entryEditor({
+    id:'taskEditor', heading:'Напоминание', titleAttrs:'maxlength="240" autofocus',
+    placeholder:'О чём напомнить?', project:'inbox',
+    schedule:`<label class="field">Дата<input type="date" name="due" value="${esc(day)}" required></label>
+      <label class="field">Время<input type="time" name="time" value="${esc(time)}"></label>
+      <label class="field">Напомнить<input type="datetime-local" name="remindAt" value="${esc(at)}" required></label>`
+  });
+  const f=form.elements;
+  let suggestedAt=at;
+  form.addEventListener('change',ev=>{
+    if(ev.target!==f.due && ev.target!==f.time)return;
+    const next=f.due.value+'T'+(f.time.value || '09:00');
+    if(f.remindAt.value===suggestedAt && B.calData.valid(next))f.remindAt.value=next;
+    suggestedAt=next;
+  });
+  form.addEventListener('submit',ev=>{
+    ev.preventDefault();
+    const title=f.title.value.trim();
+    if(!title){f.title.focus();return;}
+    if(!B.calData.validDate(f.due.value) || !B.calData.valid(f.remindAt.value))return;
+    const task=B.newTask({title,proj:f.project.value,due:f.due.value,time:f.time.value,
+      est:f.time.value && time?B.calData.span(start,end):0,notes:f.notes.value.trim(),remind:{at:f.remindAt.value}});
+    B.historyStep(()=>B.saveTask(task));
+    B.eventAlerts.enable();
+    B.closeSheet(); B.toast('Напоминание сохранено');
+  });
 };
 const fmtRemind = at => { const d = new Date(at), day = B.ymd(d); return `${day === B.today() ? 'сегодня' : day === B.add(B.today(), 1) ? 'завтра' : dLabel(day)} в ${B.pad(d.getHours())}:${B.pad(d.getMinutes())}`; };
 function popHTML(t){
@@ -707,7 +737,6 @@ function fileChip(f){
 B.twToggle = p => { const tw = B.$('.sheet .tw[data-tid]'); if (!tw) return false; pop = pop === p ? '' : p; B.openTask(tw.dataset.tid, true); return true; };
 B.twPopNow = () => pop;
 B.acts.twPop = el => { pop = pop === el.dataset.p ? '' : el.dataset.p; B.openTask(el.dataset.id, true); };
-B.acts.twWide = el => { wide = !wide; B.openTask(el.dataset.id, true); };
 B.acts.twPri = el => { B.updTask(el.dataset.id, {pri: +el.dataset.p}, true); B.openTask(el.dataset.id, true); };
 B.acts.twProj = el => { B.updTask(el.dataset.id, {proj: el.dataset.p}, true); pop = ''; B.openTask(el.dataset.id, true); };
 B.inputs.twDue = (el, e) => {

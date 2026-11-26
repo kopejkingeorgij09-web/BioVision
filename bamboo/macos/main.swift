@@ -321,8 +321,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             DispatchQueue.main.asyncAfter(deadline:.now()+0.5){self.web.takeSnapshot(with:nil){image,error in
                 if let image=image,let tiff=image.tiffRepresentation,let bitmap=NSBitmapImageRep(data:tiff),let png=bitmap.representation(using:.png,properties:[:]){try? png.write(to:URL(fileURLWithPath:NSTemporaryDirectory()+"Zov-Lesa-macOS-preview.png"))}
                 print("PASS: native macOS WKWebView, linked board, calendar search, bundled assets, Alberts reading log, Molbio habit, update bridge")
-                self.testFocusStudio()
+                self.testEntryEditor()
             }}
+        }
+    }
+    private func testEntryEditor() {
+        let checks = #"""
+        const $ = s => document.querySelector(s);
+        const wait = () => new Promise(resolve => setTimeout(resolve, 220));
+        const day = B.today();
+        location.hash = '#/calendar';
+        await wait();
+        B.calendarView.selectDate(day);
+        B.acts.acMode({dataset:{v:'day'}});
+        const cell = $('[data-all="'+day+'"]');
+        cell.dispatchEvent(new MouseEvent('contextmenu',{button:2,bubbles:true,cancelable:true}));
+        $('.ac-create-menu [data-kind=event]').click();
+        const form = $('form.entry-editor');
+        form.elements.title.value = 'Тест общей карточки';
+        form.querySelector('[type=submit]').click();
+        await wait();
+        const record = B.calData.events().find(e => e.title === 'Тест общей карточки');
+        if (!record || record.start !== day) throw Error('Incorrect calendar day');
+        location.hash = '#/tasks/week';
+        await wait();
+        $('.planner [data-act=acOpen][data-id="'+record.id+'"]').click();
+        const reopened = $('form.entry-editor');
+        if (reopened.elements.title.value !== record.title) throw Error('Different record in planner');
+        reopened.elements.notes.value = 'Изменено из задач';
+        reopened.querySelector('[type=submit]').click();
+        await wait();
+        if (B.get('e_'+record.id)?.notes !== 'Изменено из задач') throw Error('Lost planner edit');
+        return true;
+        """#
+        web.callAsyncJavaScript(checks, arguments:[:], in:nil, in:.page) { result in
+            guard case .success(let value) = result, value as? Bool == true else {
+                fputs("FAIL: macOS shared calendar editor \(result)\n", stderr);exit(1)
+            }
+            print("PASS: WKWebView calendar context menu, create event and edit from Tasks")
+            self.testFocusStudio()
         }
     }
     private func testFocusStudio() {

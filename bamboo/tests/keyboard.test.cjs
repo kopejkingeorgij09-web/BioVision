@@ -77,3 +77,22 @@ test('focus commands stay on the studio and keep Space activation on focused but
   press('Digit0');
   assert.equal(location.hash,'#/settings');
 });
+
+test('the primary Enter shortcut submits the shared event or task form while typing', () => {
+  for (const [platform, modifier] of [['MacIntel','metaKey'], ['Win32','ctrlKey']]) {
+    const {B, document, state, log, press} = client(platform, '#/calendar');
+    const originalQuery = B.$;
+    const form = {querySelector: () => ({click: () => log.push('submit')})};
+    B.$ = selector => selector === '.sheet form.entry-editor' ? form : originalQuery(selector);
+    state.modal = true;
+    document.activeElement = {closest: () => ({}), isContentEditable: false};
+    for (const isTask of [false, true]) {
+      state.editor = isTask;
+      assert.equal(press('Enter'), false);
+      assert.equal(press('Enter', {[modifier]:true}), true);
+    }
+    state.dialog = true;
+    assert.equal(press('Enter', {[modifier]:true}), false);
+    assert.deepEqual(log, ['submit','submit']);
+  }
+});

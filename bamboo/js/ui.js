@@ -6,6 +6,29 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 B.$ = $; B.$$ = $$;
 
+// Calendar alerts use the same offsets on the web and in both native shells.
+function eventField(e){
+  const current = e.alerts?.[0] ?? '';
+  const times = new Map([['','Без напоминания'], [0,'В момент начала'], [5,'За 5 минут'], [15,'За 15 минут'],
+    [30,'За 30 минут'], [60,'За час'], [1440,'За день']]);
+  if (!times.has(current) && Number.isInteger(current) && current >= 0 && current <= 525600) times.set(current, 'За ' + current + ' мин.');
+  return `<label class="field">Уведомление<select name="androidAlert" data-current="${esc(current)}">${[...times]
+    .map(([value, label]) => `<option value="${value}" ${value === current ? 'selected' : ''}>${label}</option>`).join('')}</select></label>`;
+}
+
+function eventAlerts(select, e){
+  return select.value === select.dataset.current ? e.alerts || [] : select.value === '' ? [] : [Number(select.value)];
+}
+
+B.eventAlerts = {
+  field: eventField,
+  read: eventAlerts,
+  enable() {
+    if (B.androidReminders) B.androidReminders.enable();
+    else if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
+  }
+};
+
 /* ---------- иконки (контур 24×24) ---------- */
 const P = {
   today: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
@@ -278,12 +301,50 @@ B.acts.toggleTask = el => {
   }
 };
 
+B.projectOptions = (project='inbox') => {
+  const choices = B.projects().map(p => [p.id, B.projName(p.id)]);
+  if (!choices.some(([id]) => id === project)) choices.push([project, B.projName(project) || project]);
+  return choices.map(([id, label]) => `<option value="${esc(id)}" ${id===project?'selected':''}>${esc(label)}</option>`).join('');
+};
+
+/* The calendar and planner share the same fields and layout. Each record keeps its
+   own backing document, recurrence semantics and source-specific actions. */
+B.entryEditor = (o, onClose) => {
+  const project = o.project || 'inbox';
+  const projectDot = id => 'pdot c-' + (B.proj(id)?.color || 'ink');
+  B.sheet(`<form id="${o.id}" class="entry-editor ${o.classes || ''}" ${o.attrs || ''}>
+    <header class="entry-head"><h2>${esc(o.heading)}</h2>${o.types || ''}</header>
+    <div class="entry-title-row"><label class="field entry-title">Название
+      <textarea rows="1" name="title" ${o.titleAttrs || ''} placeholder="${esc(o.placeholder || 'Название')}" required>${esc(o.title || '')}</textarea></label>${o.complete || ''}</div>
+    <div class="entry-grid">${o.schedule}</div>
+    <label class="field entry-project"><span><i class="${esc(projectDot(project))}" aria-hidden="true"></i> Календарь</span><select name="project" ${o.projectAttrs || ''}>${B.projectOptions(project)}</select></label>
+    ${o.scope || ''}
+    <label class="field entry-notes">Заметки<textarea name="notes" rows="2" ${o.noteAttrs || ''}>${esc(o.notes || '')}</textarea></label>
+    ${o.body || ''}
+    ${o.details ? `<details class="entry-extra ${o.extraClass || ''}" ${o.expanded?'open':''}><summary>Подробности</summary><div>${o.details}</div></details>` : ''}
+    <p class="ac-error" role="alert" hidden></p>
+    <footer class="entry-actions">${o.actions || ''}${o.live?'<small class="entry-save-status" role="status">Автосохранение</small>':''}
+      <button type="submit" class="btn primary">${o.live?'Готово':'Сохранить'}</button></footer>
+  </form>`, onClose);
+  const form = $('#'+o.id);
+  form.querySelectorAll('button:not([type])').forEach(button => { button.type = 'button'; });
+  form.addEventListener('change', ev => {
+    if (ev.target.name === 'project') form.querySelector('.entry-project .pdot').className=projectDot(ev.target.value);
+  });
+  return form;
+};
+
 /* ---------- общие помощники редактора задачи ---------- */
 B.acts.openTask = el => B.openTask(el.dataset.id);
 function autoGrow(ta){ ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
 const upd = (id, patch, quiet) => { const t = B.task(id); if (!t) return null; const n = Object.assign({}, t, patch); B.saveTask(n, quiet); return n; };
 B.updTask = upd;
-B.inputs.edTitle = el => { autoGrow(el); upd(el.dataset.id, {title: el.value}, true); };
+B.inputs.edTitle = el => {
+  const task = B.task(el.dataset.id);
+  if (!task || task.title === el.value) return;
+  autoGrow(el);
+  upd(task.id, {title: el.value}, true);
+};
 B.inputs.edField = (el, e) => {
   const k = el.dataset.k; let v = el.value;
   if (k === 'pri' || k === 'est') v = +v || (k === 'pri' ? 4 : 0);

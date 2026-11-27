@@ -376,3 +376,75 @@
 }
 .ac-create-menu button:is(:hover,:focus-visible) { background:var(--paper-2); outline:2px solid var(--accent); outline-offset:-2px }
 .ac-create-menu .ic { color:var(--accent) }
+
+.ac-item.timed {
+  container-type:size;
+  min-height:calc(var(--ac-hour) * var(--ac-min-card) - 1px);
+}
+@container (max-height: 40px) {
+  .ac-item.timed .ac-open { padding-block:1px;line-height:1.1 }
+  .ac-item.timed .ac-open .ac-title {
+    display:block;white-space:nowrap;text-overflow:ellipsis;
+  }
+}
+@container (max-height: 32px) {
+  .ac-item.timed .ac-open { justify-content:center;padding-block:0;line-height:1;font-size:min(1em,13px) }
+  .ac-item.timed .ac-open :is(small,.ac-shad-meta) { display:none }
+  .ac-item.timed .ac-check { height:100%;padding-block:0;align-self:center }
+  .ac-item.timed .ac-resize { height:3px }
+  .ac-item.timed .ac-card-menu .ic { width:13px;height:13px }
+  @media(pointer:fine) {
+    .ac-item.timed .ac-card-menu { flex-basis:18px;min-inline-size:18px }
+  }
+}
+@media(min-width:700px) {
+  .ac-anchor { outline:2px solid var(--cal-color,var(--accent));outline-offset:-2px }
+  .ac[data-cal-mode=day] .ac-anchor { max-width:calc(100% - min(478px,53%)) }
+  #scrim[data-ac-side] { background:transparent }
+  #scrim[data-ac-side] #sheet {
+    position:absolute;left:var(--ac-editor-x);top:var(--ac-editor-y);
+    width:var(--ac-editor-width);max-height:calc(100dvh - 24px);transform:none;
+    border:1px solid var(--rule-2);border-radius:16px;box-shadow:0 10px 36px #0003;
+  }
+  #scrim[data-ac-side]::after {
+    content:"";position:absolute;pointer-events:none;left:var(--ac-tip-x);top:var(--ac-tip-y);
+    width:12px;height:12px;background:var(--sheet);border:solid var(--rule-2);border-width:0 0 1px 1px;
+    transform:translate(-50%,-50%) rotate(45deg);
+  }
+  #scrim[data-ac-side=left]::after { transform:translate(-50%,-50%) rotate(225deg) }
+}
+
+/* The app bars and calendar tools take their natural height. Only the schedule scrolls. */
+body:has(#main > .ac) {
+  display:flex;flex-direction:column;height:100dvh;min-height:0;overflow:hidden;overscroll-behavior:none;
+}
+body:has(#main > .ac) :is(.topbar,.bottom) {position:static;flex:none}
+#main:has(> .ac) {flex:1;min-height:0;padding:0}
+#main > .ac {height:100%;max-width:none;padding:clamp(6px,1vw,16px)}
+.ac-shell {height:100%;grid-template-rows:minmax(0,1fr);box-shadow:0 2px 12px #12201509}
+.ac-main {min-height:0;display:flex;flex-direction:column}
+.ac-toolbar,.ac-heading {flex:none}
+.ac-toolbar {padding:8px 12px;background:var(--ac-bg)}
+.ac-heading {padding:5px 16px 10px}
+.ac-head {background:color-mix(in srgb,var(--paper-2) 45%,var(--ac-bg))}
+.ac-sticky {border-bottom:1px solid var(--ac-line)}
+.ac-side {min-height:0;overflow:auto;overscroll-behavior:contain}
+.ac-main > .ac-scroll {flex:1;min-height:0;max-height:none}
+.ac-main > .ac-shad-tray {max-height:24dvh;overflow:auto;flex:none}
+.ac-allday[inert] {contain:size}
+.ac[data-cal-mode=week] .ac-allday {max-height:min(100px,14dvh)}
+.ac-col {
+  background-image:linear-gradient(to bottom,transparent calc(50% - 1px),color-mix(in srgb,var(--ac-line) 36%,transparent) 50%,transparent 50%,transparent calc(100% - 1px),var(--ac-line) 100%);
+  background-size:100% var(--ac-hour);
+}
+.ac-month-labels {position:sticky;top:0;background:var(--ac-bg);z-index:2}
+.ac-create-menu p {font-variant-numeric:tabular-nums;font-weight:600;padding-bottom:6px;border-bottom:1px solid var(--rule)}
+.ac-create-menu button {min-height:36px}
+@media(max-width:850px){
+  .ac-shell.with-side {grid-template-rows:auto minmax(0,1fr)}
+  .ac-shell.with-side > .ac-side {max-height:24dvh}
+}
+@media(max-width:560px){
+  .ac-toolbar {padding:5px 7px}
+  .ac-heading {padding:4px 9px 7px}
+}

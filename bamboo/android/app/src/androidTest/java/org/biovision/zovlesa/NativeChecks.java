@@ -73,11 +73,12 @@ public final class NativeChecks extends Instrumentation {
                 +"B.calendarView.selectDate(day);location.hash='#/calendar';B.render(true);"
                 +"B.acts.acMode({dataset:{v:'day'}});"
                 +"const cell=B.$('[data-all=\"'+day+'\"]');"
-                +"cell.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2}));"
+                + "if(!cell.querySelector('.ac-all-new'))B.$('.ac-axis-label').click();"
+                +"B.$('[data-all=\"'+day+'\"] .ac-all-new').click();"
                 +"B.$('.ac-create-menu [data-kind=reminder]').click();"
                 +"const form=B.$('#taskEditor');form.elements.title.value=title;form.requestSubmit();"
                 +"const task=B.tasks().find(t=>t.title===title);return [task.id,day,task.due,task.time];})()");
-        check(created != null && created.startsWith("["), "Calendar context menu did not create a reminder");
+        check(created != null && created.startsWith("["), "All-day menu did not create a reminder");
         JSONArray result = new JSONArray(created);
         String id = result.getString(0), day = result.getString(1);
         String task = "B.get('t_'+" + JSONObject.quote(id) + ")";

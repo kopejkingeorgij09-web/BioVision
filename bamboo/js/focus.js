@@ -3,7 +3,7 @@
 (function(){
 const {esc,icon}=B, minute=60000;
 const scenes={amber_evening:'Янтарный вечер',forest:'Лес',lake_dawn:'Рассвет у озера',alpine_snow:'Альпийский снег',
-  lavender_dusk:'Лавандовые сумерки',pink_mist:'Розовый туман',polar_night:'Полярная ночь',sea_glass:'Морское стекло',
+  carina:'Космические скалы',quintet:'Квинтет Стефана',polar_night:'Полярная ночь',sea_glass:'Морское стекло',
   tea_garden:'Чайный сад',terracotta:'Терракота'};
 const channels={rain:'Дождь',fireplace:'Камин',forest:'Лес',brown:'Коричневый шум',white:'Белый шум',ocean:'Океан',wind:'Ветер',cafe:'Кофейня'};
 const defaults={mode:'timer',work:25,short:5,long:15,every:4,scene:'amber_evening',dayScene:'lake_dawn',
@@ -45,9 +45,20 @@ function sessions(now=Date.now()){
   ops.forEach((op,i)=>{
     const s=op.timer;
     if(s?.phase==='work' && expired(s,Math.min(now,ops[i+1]?.at ?? now)))
-      out.push({id:s.id,day:B.dayOf(s.until),at:s.until,minutes:s.total/minute,title:s.title});
+      out.push({id:s.id,day:B.dayOf(s.until),at:s.until,minutes:s.total/minute,title:s.title,card:s.card || ''});
   });
   return out;
+}
+// Charge each running work segment until the next command or its deadline.
+function timeByCard(now=Date.now()){
+  const ops=chain(), totals=new Map();
+  ops.forEach((op,i)=>{
+    const timer=op.timer;
+    if(!timer?.running || timer.phase!=='work' || !timer.card)return;
+    const end=Math.min(now,timer.until,ops[i+1]?.at ?? now);
+    if(end>op.at)totals.set(timer.card,(totals.get(timer.card) || 0)+end-op.at);
+  });
+  return totals;
 }
 function activity(day){
   return chain().flatMap((op,i,ops)=>{
@@ -57,7 +68,7 @@ function activity(day){
     return [{время:B.hm(op.at),действие:action,дело:(timer || previous)?.title || undefined}];
   });
 }
-function append(action){
+function append(action,selectedCard){
   const head=current(), now=Math.max(Date.now(),head?.at || 0), old=head?.timer, finished=expired(old,now);
   if(finished)tick();
   const id=B.uid(), mode=pref('mode');
@@ -67,10 +78,10 @@ function append(action){
   } else if(action==='reset')timer=null;
   else{
     const advance=finished && mode==='pomo' && old.mode==='pomo' && old.phase==='work' && action==='toggle';
-    const count=mode==='pomo' && old?.mode==='pomo' ? (old.count || 0)+(finished && old.phase==='work' ? 1 : 0) : 0;
+    const count=action!=='start' && mode==='pomo' && old?.mode==='pomo' ? (old.count || 0)+(finished && old.phase==='work' ? 1 : 0) : 0;
     const phase=action==='break'||advance ? 'break' : 'work';
     const total=duration(phase==='work'?'work':advance && count%pref('every')===0?'long':'short');
-    const card=activeCards().find(c=>c.id===pref('card'));
+    const card=selectedCard || activeCards().find(c=>c.id===pref('card'));
     timer={id,phase,count:mode==='pomo'?count:0,mode,card:card?.id || '',title:card?.title || '',
       total,left:total,running:true,until:now+total};
     if(card && phase==='work' && card.lane==='plan')B.boardData.move(card,'active');
@@ -246,7 +257,7 @@ function tick(){
   if(lastEnded===s.id)return;
   lastEnded=s.id;syncWidget();
   if(now-s.until<alertWindow)announceCompletion(s);
-  if(inFocus())B.render();
+  if(inFocus() || document.querySelector('.bd-focus-session'))B.render();
 }
 
 
@@ -287,7 +298,10 @@ function studio(){
   const phase=s?.phase==='break'?'Перерыв':pomo?'Помодоро':'Таймер';
   const status=done?'Завершён':s?.running?'Идёт отсчёт':s?'На паузе':'Готов к старту';
   const start=s&&!done?s.running?'Пауза':'Продолжить':done&&pomo&&s?.phase==='work'?'Начать перерыв':pomo?'Начать помодоро':'Запустить таймер';
-  const chosen=activeCards().find(c=>c.id===pref('card'));
+  const cards=activeCards(), linked=s?s.card:pref('card');
+  const chosen=cards.find(c=>c.id===linked);
+  const title=chosen?.title || s?.title;
+
   const cycle=pomo && s && s.mode==='pomo' ? (s.phase==='break'?Math.max(0,s.count-1):s.count)%pref('every')+1 : 1;
   return `<section class="fr-studio" aria-label="Таймер и атмосфера">
     <div class="fr-studio-tools"><div class="fr-modes" aria-label="Режим таймера">
@@ -295,7 +309,9 @@ function studio(){
       ${miniPlayer()}</div>
     <div class="fr-clock-panel"><p class="fr-state" data-running="${!!s?.running&&!done}"><i></i>${phase} · ${status}</p>
       <strong class="fr-clock" data-focus-clock>${format(s?remaining(s,now):duration('work'))}</strong>
-      <p class="fr-task-title">${esc((s && !done?s.title:chosen?.title)|| (pomo?'Интервал '+cycle+' из '+pref('every'):'Сеанс фокуса'))}</p>
+      ${title?`<div class="fr-task-title">${chosen?`<button type="button" data-act="boardEdit" data-id="${esc(chosen.id)}" title="Открыть карточку дела">${esc(title)} ${icon('arrow')}</button>`:esc(title)}</div>`:''}
+      <button type="button" class="fr-board-pick" data-act="focusPlan">${icon('board')}${title?'Сменить дело':'Выбрать дело с доски'}</button>
+      ${pomo?`<small class="fr-cycle">Интервал ${cycle} из ${pref('every')}</small>`:''}
       <progress class="fr-progress" data-focus-progress aria-label="Выполнено времени" max="1" value="${s?B.clamp(1-remaining(s,now)/s.total,0,1):0}"></progress>
       <div class="fr-transports">${act('focusToggle',start,s?.running&&!done?'pause':'play','fr-primary')}
         ${iconButton('focusReset','Сбросить таймер','repeat',s?'':'disabled')}
@@ -310,7 +326,7 @@ function custom(){
   return `<div class="fr-custom">
     <section class="fr-panel fr-look"><header class="fr-card-heading"><h2>Темы</h2>
       <button class="fr-text" type="button" data-act="focusSchedule" title="Смена темы по времени">${icon(pref('autoScene')?'sun':'clock')} ${pref('autoScene')?'По времени':'Вручную'}</button></header>
-      <div class="fr-gallery">${Object.entries(scenes).map(([k,name])=>`<button class="fr-scene" type="button" data-act="focusScene" data-scene="${k}" aria-pressed="${activeScene()===k}" style="--thumb:url('focus/scenes/${k}.jpg')"><span>${esc(name)}</span>${activeScene()===k?icon('check'):''}</button>`).join('')}</div>
+      <div class="fr-gallery">${Object.entries(scenes).map(([k,name])=>`<button class="fr-scene" type="button" data-act="focusScene" data-scene="${k}" aria-pressed="${activeScene()===k}" style="--thumb:url('focus/scenes/thumbs/${k}.jpg?v=1')"><span>${esc(name)}</span>${activeScene()===k?icon('check'):''}</button>`).join('')}</div>
       <button type="button" class="fr-credit" data-act="focusCredits">Авторы записей и фотографий</button>
     </section>
     <section class="fr-panel fr-mixer"><header class="fr-card-heading"><h2>Микшер</h2><div class="fr-small-controls">${act('focusSound',soundPlaying()?'Пауза':'Слушать',soundPlaying()?'pause':'play','fr-small-play')+iconButton('focusAudioReset','Сбросить воспроизведение фона','repeat')}</div></header>
@@ -331,7 +347,10 @@ function render(){
     legacyRoute=route;
     setTimeout(()=>{if(location.hash===route)(section==='week'?B.acts.focusWeek:B.acts.focusPlan)();},0);
   }else if(!['week','plan'].includes(section))legacyRoute='';
-  return `<section class="focus-room" aria-labelledby="focus-heading" data-scene="${scene}" data-view="${view}" style="--scene-image:url('focus/scenes/${scene}.jpg')">
+  const space=scene==='carina'||scene==='quintet';
+  const full=`url('focus/scenes/${scene}.jpg?v=1')`;
+  const previewImage=space?`url('focus/scenes/preview/${scene}.jpg?v=1')`:full;
+  return `<section class="focus-room" aria-labelledby="focus-heading" data-scene="${scene}" data-view="${view}" style="--scene-image:${full};--scene-preview:${previewImage}">
     <h1 id="focus-heading" class="fr-sr-only">${view==='studio'?'Студия фокуса':'Кастомизация фокуса'}</h1>
     <div class="fr-top"><nav class="fr-nav" aria-label="Разделы фокуса">
       <a href="#/board/focus/studio" ${view==='studio'?'aria-current="page"':''}>${icon('timer')} Фокус</a>
@@ -340,6 +359,39 @@ function render(){
     ${view==='studio'?studio():custom()}</section>`;
 }
 
+
+// Update the mounted room in place so a control change keeps the painted scene,
+// gallery, keyboard focus and an open quick mixer.
+function syncRoomNode(node,next){
+  if(node.nodeName!==next.nodeName){
+    node.replaceWith(next.cloneNode(true));
+    return;
+  }
+  if(node.nodeType!==Node.ELEMENT_NODE){
+    if(node.nodeValue!==next.nodeValue)node.nodeValue=next.nodeValue;
+    return;
+  }
+  if(node.matches('input[type=range]') && preview.has(node.dataset.key))return;
+  for(const name of node.getAttributeNames()){
+    if(!next.hasAttribute(name) && !(name==='open' && node.matches('details[data-fold]')))node.removeAttribute(name);
+  }
+  for(const name of next.getAttributeNames()){
+    const value=next.getAttribute(name);
+    if(node.getAttribute(name)!==value)node.setAttribute(name,value);
+  }
+  for(let i=0;i<next.childNodes.length;i++){
+    const child=next.childNodes[i];
+    if(node.childNodes[i])syncRoomNode(node.childNodes[i],child);
+    else node.append(child.cloneNode(true));
+  }
+  while(node.childNodes.length>next.childNodes.length)node.lastChild.remove();
+  if(node.matches('input,select') && node.value!==next.value)node.value=next.value;
+}
+function refresh(room){
+  const template=document.createElement('template');
+  template.innerHTML=render();
+  syncRoomNode(room,template.content.firstElementChild);
+}
 
 B.acts.focusToggle=()=>{void unlock();append('toggle');};
 B.acts.focusReset=()=>{if(current()?.timer)append('reset');};
@@ -406,11 +458,53 @@ B.acts.focusWeek=el=>{
     <h3>${esc(B.fmtW(chosen))}</h3>${forDay.map(s=>`<p>${esc(B.hm(s.at))} · ${esc(s.title||'Фокус')} · ${s.minutes} мин</p>`).join('')||'<p>Завершённых сеансов пока нет.</p>'}
     ${done.length?`<h3>Выполнено дел · ${done.length}</h3>${done.map(c=>`<p>✓ ${esc(c.title)}</p>`).join('')}`:''}`);
 };
+function boardSession(){
+  const s=current()?.timer;
+  if(!s)return '';
+  const left=remaining(s,Date.now()), done=expired(s,Date.now());
+  const status=done?'Сеанс завершён':!s.running?'На паузе':s.phase==='break'?'Перерыв':'В фокусе';
+  return `<section class="bd-focus-session" aria-label="Текущий сеанс фокуса">
+    <div class="bd-session-about">${icon('timer')}<div><small>${status}</small><strong>${esc(s.title || 'Свободный фокус')}</strong></div></div>
+    <strong class="bd-session-clock" data-focus-clock>${format(left)}</strong>
+    ${done?'':`<button type="button" class="btn sm" data-act="focusToggle">${icon(s.running?'pause':'play')}${s.running?'Пауза':'Продолжить'}</button>`}
+    <a class="btn sm" href="#/board/focus/studio">В студию ${icon('arrow')}</a>
+  </section>`;
+}
 B.acts.focusPlan=()=>{
-  const cards=activeCards();
-  B.sheet(`<h2>План на сегодня</h2>${cards.map(c=>`<button class="fr-plan-choice btn" data-act="focusPick" data-id="${esc(c.id)}">${esc(c.title)}${icon('right')}</button>`).join('')||'<p>На сегодня нет задач.</p>'}`);
+  const cards=activeCards(), timer=current()?.timer;
+  const linked=timer?.phase==='work' && !expired(timer,Date.now())?timer.card:'';
+  const groups=[['active','В работе'],['plan','В планах']].map(([lane,label])=>{
+    const rows=cards.filter(c=>c.lane===lane);
+    if(!rows.length)return '';
+    return `<section class="fr-plan-group"><h3>${label}</h3>${rows.map(c=>
+      `<button type="button" class="fr-plan-choice btn" data-act="focusStartCard" data-id="${esc(c.id)}" aria-label="${linked===c.id?'Открыть сеанс':'Начать фокус'} · ${esc(c.title)}">
+        <span><strong>${esc(c.title)}</strong>${c.context?`<small>${esc(c.context)}</small>`:''}</span>${icon(linked===c.id?'timer':'play')}</button>`).join('')}</section>`;
+  });
+  B.sheet(`<h2>Фокус на деле</h2>${cards.length?groups.join(''):'<p>На сегодня нет дел в планах или в работе.</p>'}
+    <a class="link" href="#/board">Перейти к делам на доске</a>`);
 };
-B.acts.focusPick=el=>{set('card',el.dataset.id);B.closeSheet();location.hash='#/board/focus/studio';};
+B.acts.focusStartCard=async el=>{
+  const id=el.dataset.id, fromPicker=!!el.closest?.('.fr-plan-group');
+  let card=activeCards().find(c=>c.id===id);
+  if(!card){B.toast('Дело уже выбыло из плана на сегодня');return;}
+  const head=current(), s=head?.timer;
+  const live=s && !expired(s,Date.now());
+  if(live && s.card===id && s.phase==='work'){
+    if(fromPicker)B.closeSheet();
+    location.hash='#/board/focus/studio';
+    return;
+  }
+  if(live){
+    if(!await B.confirm('Остановить текущий отсчёт и начать новый для дела «'+esc(card.title)+'»?', 'Начать новый'))return;
+    if(current()?.id!==head.id){B.toast('Сеанс уже изменился');return;}
+    card=activeCards().find(c=>c.id===id);
+    if(!card){B.toast('Дело уже выбыло из плана на сегодня');return;}
+  }
+  void unlock();
+  set('card',id);
+  append('start',card);
+  if(fromPicker){B.closeSheet();location.hash='#/board/focus/studio';}
+};
 B.acts.focusMixSheet=()=>{
   const mixes=B.list('focusmix_').filter(m=>m?.name);
   B.sheet(`<h2>Мои миксы</h2><div class="fr-sheet-fields fr-sheet-single"><label class="field">Название текущего микса<input id="focus-mix-name" maxlength="80" autocomplete="off"></label></div>
@@ -443,7 +537,7 @@ B.acts.focusMixDelete=el=>{B.historyToast('Микс удалён',()=>B.put('foc
 let creditRows;
 B.acts.focusCredits=async()=>{
   try{
-    if(!creditRows){const response=await fetch('focus/credits.json?v=1');if(!response.ok)throw Error();creditRows=await response.json();}
+    if(!creditRows){const response=await fetch('focus/credits.json?v=2');if(!response.ok)throw Error();creditRows=await response.json();}
     const ref=(name,url)=>/^https?:\/\//i.test(url)?`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(name)}</a>`:esc(name);
     B.sheet(`<section aria-labelledby="focus-media-credits"><h2 id="focus-media-credits">Авторы записей и фотографий</h2><p class="hint">Звуковые записи адаптированы для непрерывного воспроизведения. Фотографии кадрированы под формат сцен.</p><dl class="fr-credits">
       ${creditRows.map(c=>`<dt>${ref(c.title,c.url)}</dt><dd>${esc(c.work || c.title)} · ${esc(c.author)}${c.editor?' · монтаж — '+esc(c.editor):''} · ${ref(c.license,c.licenseUrl)}</dd>`).join('')}</dl></section>`);
@@ -483,7 +577,7 @@ document.addEventListener('keydown',e=>{
     e.preventDefault();e.stopImmediatePropagation();open.open=false;open.querySelector('summary')?.focus();
   }
 },true);
-B.focus={render,sessions,activity,current,remaining,append,widgetSnapshot,isStudio,notifications:()=>pref('notify')};
+B.focus={render,refresh,boardSession,sessions,timeByCard,activity,current,remaining,append,widgetSnapshot,isStudio,notifications:()=>pref('notify')};
 B.on('change',()=>{mix();tick();syncWidget();});
 addEventListener('zov-clock-resume',tick);
 setInterval(tick,500);

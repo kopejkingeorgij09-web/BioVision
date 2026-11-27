@@ -52,7 +52,8 @@ final class LocalWebServer {
                     connection.send(content: Data("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".utf8), completion: .contentProcessed { _ in connection.cancel() }); return
                 }
                 let mime = ["html":"text/html; charset=utf-8","js":"application/javascript; charset=utf-8","css":"text/css; charset=utf-8","json":"application/json","svg":"image/svg+xml","png":"image/png","jpg":"image/jpeg","m4a":"audio/mp4","webmanifest":"application/manifest+json"][file.pathExtension] ?? "application/octet-stream"
-                var response = Data("HTTP/1.1 200 OK\r\nContent-Type: \(mime)\r\nContent-Length: \(bytes.count)\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n".utf8)
+                let cache = path.hasPrefix("/bamboo/focus/scenes/") ? "private, max-age=86400" : "no-store"
+                var response = Data("HTTP/1.1 200 OK\r\nContent-Type: \(mime)\r\nContent-Length: \(bytes.count)\r\nCache-Control: \(cache)\r\nConnection: close\r\n\r\n".utf8)
                 if first[0] == "GET" { response.append(bytes) }
                 connection.send(content: response, completion: .contentProcessed { _ in connection.cancel() })
             }
@@ -334,6 +335,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         await wait();
         B.calendarView.selectDate(day);
         B.acts.acMode({dataset:{v:'day'}});
+        const col = $('[data-col="'+day+'"]');
+        col.closest('.ac-scroll').scrollTop = col.offsetHeight * 8/24;
+        const grid = col.getBoundingClientRect();
+        col.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,clientY:grid.top + grid.height * (10 + 59/60) / 24}));
+        const slot = $('#acEditor');
+        if (slot.elements.startAt.value !== day+'T10:00' || slot.elements.endAt.value !== day+'T11:00') throw Error('Hour slot');
+        const card = $('.ac-draft').getBoundingClientRect(), panel = $('#sheet').getBoundingClientRect();
+        if (!$('#scrim').dataset.acSide || (panel.left < card.right && panel.right > card.left)) throw Error('Calendar editor overlaps card');
+        B.closeSheet();
+        await wait();
+        const refreshedCol = $('[data-col="'+day+'"]'), bounds = refreshedCol.getBoundingClientRect();
+        refreshedCol.dispatchEvent(new MouseEvent('contextmenu',{button:2,bubbles:true,cancelable:true,clientY:bounds.top+bounds.height*(11+59/60)/24}));
+        $('.ac-create-menu [data-kind=task]').click();
+        const task = $('#acEditor');
+        if (task.elements.startAt.value !== day+'T11:00' || task.elements.endAt.value !== day+'T12:00' ||
+            !task.querySelector('[data-v=task][aria-pressed=true]') || !$('#scrim').dataset.acSide) throw Error('Task context slot');
+        B.closeSheet();
+        await wait();
         const cell = $('[data-all="'+day+'"]');
         cell.dispatchEvent(new MouseEvent('contextmenu',{button:2,bubbles:true,cancelable:true}));
         $('.ac-create-menu [data-kind=event]').click();
@@ -374,6 +393,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         location.hash = '#/board/focus/studio';
         B.render(true);
         check(document.querySelectorAll('.fr-nav a').length === 2, 'studio navigation');
+        B.saveTask(B.newTask({id:'focus-link-check',title:'Дело для фокуса',due:B.today()}));
+        location.hash='#/board'; B.render(true);
+        click('[data-act=focusStartCard][data-id="task:focus-link-check"]');
+        B.render(true);
+        const linked=B.focus.current().timer.id;
+        check($('.bd-active .bd-in-focus') && $('.bd-focus-session').textContent.includes('Дело для фокуса'),'linked board session');
+        click('.bd-focus-session [data-act=focusToggle]');
+        location.hash='#/board/focus/studio'; B.render(true);
+        check(B.focus.current().timer.id===linked && !B.focus.current().timer.running && $('.fr-task-title').textContent.includes('Дело для фокуса'),'linked studio session');
+        click('[data-act=focusReset]'); B.render(true);
         for (const mode of ['timer', 'pomo']) {
           click('[data-mode="' + mode + '"]');
           click('[data-act=focusToggle]');
@@ -389,6 +418,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         location.hash = '#/board/focus/customize';
         B.render(true);
         check(document.querySelectorAll('.fr-gallery [data-scene]').length === 10, 'all themes');
+        const gallery=$('.fr-gallery'), space=$('.fr-scene[data-scene=carina]');
+        space.click();
+        click('.fr-channel-grid [data-act=focusMute]');
+        B.render(true);
+        check(gallery===$('.fr-gallery') && space===$('.fr-scene[data-scene=carina]') && space.getAttribute('aria-pressed')==='true','persistent gallery');
         check(document.querySelectorAll('.fr-channel-grid input').length === 8, 'all audio channels');
         const ctx = new AudioContext();
         try {

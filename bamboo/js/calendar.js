@@ -8,6 +8,8 @@ const today = () => ymd(new Date());
 const days = (d,n) => Array.from({length:n}, (_,i) => add(d,i));
 const hour = 60;
 const dragStep = 5;
+// Reserve one readable line for tiny entries, including when assigning overlap lanes.
+const minCardMinutes = 15;
 const weekBuffer = 14;
 let dragging = false, redrawAfterInteraction = false, weekScrollTimer = 0, weekResize;
 const snap = n => Math.round(n / dragStep) * dragStep;
@@ -65,7 +67,7 @@ function taskItem(t,d,ghost=false){
   const start = t.time ? d+'T'+t.time : d;
   return {kind:'task', id:t.id, proj:projectOf(t), title:t.title, start, on:d, done:t.done, ghost,
     keepDay:protectedEntry({...t,kind:'task'}),
-    end:t.time ? C.at(d,C.minuteOf(start) + Math.max(dragStep,t.est || 30)) : add(d,1)};
+    end:t.time ? C.at(d,C.minuteOf(start) + Math.max(1,t.est || 30)) : add(d,1)};
 }
 const shadPart = part => part==='web' ? 'Вебинар' : 'ДЗ';
 const shadDuration = part => Math.max(dragStep, snap((B.shad.hours?.[part] || 1) * hour));
@@ -199,13 +201,14 @@ function chip(e,style='',segment=null){
   const timed = !!segment;
   const title = esc(e.title || 'Без названия');
   const interval = timed ? `${e.start.slice(11)}–${e.end.slice(11)}` : '';
+  const tooltip = timed ? title+' · '+interval : title;
   const task = e.kind==='task' && !e.ghost;
   const movable=task||e.kind==='event'||e.kind==='shad';
   const contents = `<span class="ac-title">${title}${e.repeat ? '<span aria-label="Повторяется"> ↻</span>' : ''}</span>${e.kind==='shad'?shadMeta(e):''}${timed ? `<small>${interval}${e.location ? ' · '+esc(e.location) : ''}</small>` : ''}`;
   return `<div class="ac-item c-${esc(color(e.proj))}${timed?' timed':''}${e.done?' done':''}${e.ghost?' ghost':''}" ${attrs} ${style? `style="${style}"` : ''}>
     ${e.calendarTask ? calendarCheck(e) : task ? `<button class="ac-check" data-act="toggleTask" data-id="${esc(e.id)}" aria-label="${e.done?'Вернуть задачу':'Выполнить задачу'}" aria-pressed="${!!e.done}">${e.done?'✓':'○'}</button>` : ''}
-    ${e.kind==='phagi' ? `<a class="ac-open" href="${esc(phagiHref(e.id))}" title="${title}">${contents}</a>` :
-      `<button class="ac-open" data-act="acOpen" ${attrs} title="${title}">${contents}</button>`}
+    ${e.kind==='phagi' ? `<a class="ac-open" href="${esc(phagiHref(e.id))}" title="${tooltip}">${contents}</a>` :
+      `<button class="ac-open" data-act="acOpen" ${attrs} title="${tooltip}">${contents}</button>`}
     ${timed && movable && segment.last ? '<span class="ac-resize end" data-resize="end" aria-hidden="true"></span>' : ''}
     ${timed && movable && segment.first ? '<span class="ac-resize start" data-resize="start" aria-hidden="true"></span>' : ''}
     ${movable && (!timed || segment.first) ? '<span class="ac-grab" title="Перенести запись" aria-hidden="true">⠿</span>' : ''}
@@ -261,12 +264,13 @@ function layoutTimed(items,d){
     if (!group || s.start >= group.until){ group={until:0,lanes:[],segments:[]}; groups.push(group); }
     let col=group.lanes.findIndex(t=>t<=s.start);
     if (col<0) col=group.lanes.length;
-    group.lanes[col]=s.end; group.until=Math.max(group.until,s.end); group.segments.push({...s,col});
+    const visibleEnd=Math.max(s.end,s.start+minCardMinutes);
+    group.lanes[col]=visibleEnd; group.until=Math.max(group.until,visibleEnd); group.segments.push({...s,col});
   }
   return groups.flatMap(g=>g.segments.map(s=>({...s,cols:g.lanes.length})));
 }
 function timeGrid(ds,byDay){
-  return `<div class="ac-time" style="--ac-days:${ds.length}">
+  return `<div class="ac-time" style="--ac-days:${ds.length};--ac-min-card:${minCardMinutes/60}">
     <div class="ac-sticky">
       <div class="ac-head"><span></span>${ds.map(d=>`<button data-act="acDay" data-d="${d}" class="${d===today()?'now ':''}${d===date?'selected':''}" ${d===date?'aria-current="date"':''}>
         <span>${labels[B.wd(d)]}</span> <b>${+d.slice(8)}</b></button>`).join('')}</div>
@@ -315,7 +319,7 @@ function render(arg){
       <div class="ac-main">
         <div class="ac-toolbar">
           <div class="ac-controls"><button class="icon-btn" data-act="acSidebar" aria-label="Список календарей" aria-pressed="${side}">${icon('list')}</button>
-            <button class="icon-btn ac-add" data-act="acAdd" aria-label="Добавить событие или напоминание" aria-haspopup="menu" title="Добавить (N)">${icon('plus')}</button>
+            <button class="icon-btn ac-add" data-act="acAdd" aria-label="Добавить запись в календарь" aria-haspopup="menu" title="Добавить (N)">${icon('plus')}</button>
             <button class="icon-btn" data-act="acGoto" aria-label="Перейти к дате" title="Перейти к дате">${icon('cal')}</button>
             <button class="icon-btn" data-act="acSearch" aria-label="Поиск по календарю" title="Поиск по календарю (/)">${icon('search')}</button></div>
           <div class="ac-modes" role="group" aria-label="Вид календаря">${Object.entries(MODES).map(([k,v])=>`<button data-act="acMode" data-v="${k}" aria-pressed="${mode===k}">${v}</button>`).join('')}</div>
@@ -398,6 +402,11 @@ function newDraft(start, end){
 function newTimed(d, minute=9*hour, endMinute=minute+hour){
   return newDraft(C.at(d,minute),C.at(d,endMinute));
 }
+function clickedHour(col,y){
+  const bounds=col.getBoundingClientRect();
+  const slot=B.clamp(Math.floor((y-bounds.top)*24/bounds.height),0,23);
+  return newTimed(col.dataset.col,slot*hour);
+}
 function newAll(d,end=add(d,1)){ return newDraft(d,end); }
 const allDayOf = e => e.start.length===10;
 const option=(v,label,selected)=>`<option value="${esc(v)}" ${String(v)===String(selected)?'selected':''}>${esc(label)}</option>`;
@@ -418,6 +427,65 @@ function markDraft(e,task){
   cell.append(mark);
 }
 const editorFields={title:'title',proj:'project',notes:'notes',location:'place',url:'url',alerts:'androidAlert'};
+// Keep the shared form beside the visible part of its calendar card.
+let refreshEditorAnchor, releaseEditorAnchor;
+function anchorEditor(selector){
+  releaseEditorAnchor?.();
+  const sheet=B.$('#sheet'), scrim=B.$('#scrim');
+  const form=sheet.querySelector('form');
+  if(!form || !B.$(selector))return;
+  const formSelector=form.id?'#'+CSS.escape(form.id):'.ac-shad-editor';
+  const margin=12, gap=12;
+  let selected;
+  function clear(){
+    selected?.classList.remove('ac-anchor');
+    delete scrim.dataset.acSide;
+  }
+  function position(){
+    if(scrim.hidden || !sheet.querySelector(formSelector)){
+      release();return;
+    }
+    const card=B.$(selector);
+    if(selected!==card)clear();
+    selected=card;
+    if(!card || innerWidth<700){clear();return;}
+    card.classList.add('ac-anchor');
+    const rect=card.getBoundingClientRect(), sc=card.closest('.ac-scroll');
+    const bounds=sc.getBoundingClientRect();
+    const top=Math.max(0,rect.top,bounds.top,card.closest('[data-col]')?sc.querySelector('.ac-sticky').getBoundingClientRect().bottom:0);
+    const bottom=Math.min(innerHeight,rect.bottom,bounds.bottom);
+    if(top>=bottom || rect.right<=Math.max(0,bounds.left) || rect.left>=Math.min(innerWidth,bounds.right)){clear();return;}
+    const right=innerWidth-rect.right-gap-margin, left=rect.left-gap-margin;
+    const side=right>=450 || right>=left?'right':'left';
+    const width=Math.min(450,side==='right'?right:left);
+    if(width<325){clear();return;}
+    scrim.dataset.acSide=side;
+    const x=side==='right'?rect.right+gap:rect.left-gap-width;
+    scrim.style.setProperty('--ac-editor-width',width+'px');
+    scrim.style.setProperty('--ac-editor-x',x+'px');
+    const center=(top+bottom)/2, height=sheet.offsetHeight;
+    const y=B.clamp(center-height/2,margin,innerHeight-margin-height);
+    scrim.style.setProperty('--ac-editor-y',y+'px');
+    scrim.style.setProperty('--ac-tip-x',(side==='right'?x:x+width)+'px');
+    scrim.style.setProperty('--ac-tip-y',B.clamp(center,y+18,y+height-18)+'px');
+  }
+  const resize=new ResizeObserver(position);
+  const changes=new MutationObserver(position);
+  function release(){
+    clear();resize.disconnect();changes.disconnect();
+    window.removeEventListener('resize',position);
+    document.removeEventListener('scroll',onScroll,true);
+    releaseEditorAnchor=refreshEditorAnchor=null;
+  }
+  function onScroll(ev){ if(!sheet.contains(ev.target))position(); }
+  releaseEditorAnchor=release;refreshEditorAnchor=position;
+  resize.observe(sheet);
+  changes.observe(sheet,{childList:true});
+  changes.observe(scrim,{attributes:true,attributeFilter:['hidden']});
+  window.addEventListener('resize',position);
+  document.addEventListener('scroll',onScroll,true);
+  position();
+}
 function editor(e, original=null, selected=false){
   const task=C.isTask(e);
   const keepDay=original&&protectedEntry(original);
@@ -468,7 +536,10 @@ function editor(e, original=null, selected=false){
     document.querySelectorAll('.ac-draft').forEach(el=>el.remove());
   });
   editContext.initialValues=Object.fromEntries(Object.entries(editorFields).map(([key,name])=>[key,form.elements[name].value]));
-  if(selected)markDraft(e,task);
+  if(selected){
+    markDraft(e,task);
+    anchorEditor('.ac .ac-draft');
+  }
   form.addEventListener('change',ev=>{
     const f=form.elements;
     if(ev.target===f.frequency||ev.target.closest('.ac-repeat')) editContext.repeatEdited=true;
@@ -622,20 +693,26 @@ B.acts.acType=el=>{
   form.querySelectorAll('[data-act="acType"]').forEach(btn=>btn.setAttribute('aria-pressed',btn===el));
   form.querySelector('.entry-head h2').textContent=editContext.task?'Задача':'Событие';
   form.elements.title.placeholder=editContext.task?'Новая задача':'Новое событие';
-  if(editContext.selected)markDraft({...editContext.e,title:form.elements.title.value},editContext.task);
+  if(editContext.selected){
+    markDraft({...editContext.e,title:form.elements.title.value},editContext.task);
+    refreshEditorAnchor?.();
+  }
 };
 // Only keep the transient menu while its calendar view is mounted.
 let dismissCreate;
-function createMenu(draft,anchor,point){
+function createMenu(draft,anchor,point,includeReminder=false){
   dismissCreate?.();
   const menu=document.createElement('div');
   menu.className='ac-create-menu';
   menu.setAttribute('role','menu');
   menu.setAttribute('aria-label','Добавить запись');
   const timed=draft.start.length>10;
-  menu.innerHTML=`<p>${esc(fmt(C.dateOf(draft.start)))} · ${timed?draft.start.slice(11):'Весь день'}</p>
+  const interval=timed?draft.start.slice(11)+'–'+draft.end.slice(11):'Весь день';
+  if(timed && anchor.matches('[data-col]'))markDraft({...draft,title:interval},false);
+  menu.innerHTML=`<p>${esc(fmt(C.dateOf(draft.start)))} · ${interval}</p>
     <button type="button" role="menuitem" data-kind="event">${icon('cal')}Событие</button>
-    <button type="button" role="menuitem" data-kind="reminder">${icon('bell')}Напоминание</button>`;
+    <button type="button" role="menuitem" data-kind="task">${icon('list')}Задача</button>
+    ${includeReminder?`<button type="button" role="menuitem" data-kind="reminder">${icon('bell')}Напоминание</button>`:''}`;
   document.body.append(menu);
   const rect=anchor.getBoundingClientRect(), x=point?.x??rect.left, y=point?.y??rect.bottom;
   menu.style.left=B.clamp(x,6,innerWidth-menu.offsetWidth-6)+'px';
@@ -644,6 +721,7 @@ function createMenu(draft,anchor,point){
   const listeners=new AbortController(), opts={capture:true,signal:listeners.signal};
   const dismiss=(restore=false)=>{
     listeners.abort();menu.remove();dismissCreate=null;
+    anchor.querySelector('.ac-draft')?.remove();
     if(restore && anchor.isConnected){
       const target=anchor.matches('button,[tabindex]')?anchor:anchor.closest('.ac')?.querySelector('.ac-add');
       target?.focus({preventScroll:true});
@@ -665,7 +743,8 @@ function createMenu(draft,anchor,point){
     if(['ArrowUp','ArrowDown','Home','End'].includes(ev.key)){
       ev.preventDefault();
       const index=items.indexOf(document.activeElement);
-      items[ev.key==='Home'?0:ev.key==='End'?1:1-index]?.focus();
+      const step=ev.key==='ArrowUp'?-1:1;
+      items[ev.key==='Home'?0:ev.key==='End'?items.length-1:(index+step+items.length)%items.length]?.focus();
     }
   });
   menu.addEventListener('click',ev=>{
@@ -673,21 +752,29 @@ function createMenu(draft,anchor,point){
     if(!choice)return;
     dismiss();
     if(choice.dataset.kind==='reminder')B.newTaskReminder(draft.start,draft.end);
-    else editor(draft,null,true);
+    else editor({...draft,type:choice.dataset.kind},null,true);
   });
   items[0].focus({preventScroll:true});
 }
-B.acts.acAdd=el=>createMenu(newTimed(date),el?.getBoundingClientRect?el:B.$('.ac-add'));
-B.acts.acNewDay=el=>createMenu(newAll(el.dataset.d),el);
+B.acts.acAdd=el=>createMenu(newTimed(date),el?.getBoundingClientRect?el:B.$('.ac-add'),null,true);
+B.acts.acNewDay=el=>createMenu(newAll(el.dataset.d),el,null,true);
 function fromNode(el){
   const {k,id,on,start,end,part}=el.dataset;
   return {kind:k,id,on,start,end,part};
 }
 B.acts.acOpen=el=>{
   const x=fromNode(el);
-  if(x.kind==='task') return B.openTask(x.id);
-  if(x.kind==='shad') return shadEditor(x.id,x.part);
-  const e=get(x.id); if(e) editor({...e,start:x.start,end:x.end,on:x.on},e);
+  const dayCell=el.closest?.('[data-col],[data-all]');
+  const daySelector=dayCell?.dataset.col ? `[data-col="${dayCell.dataset.col}"] ` :
+    dayCell?.dataset.all ? `[data-all="${dayCell.dataset.all}"] ` : '';
+  const anchor=`.ac ${daySelector}.ac-item[data-k="${CSS.escape(x.kind)}"][data-id="${CSS.escape(x.id)}"][data-on="${CSS.escape(x.on)}"][data-part="${CSS.escape(x.part || '')}"]`;
+  if(x.kind==='task') B.openTask(x.id);
+  else if(x.kind==='shad') shadEditor(x.id,x.part);
+  else {
+    const e=get(x.id);
+    if(e)editor({...e,start:x.start,end:x.end,on:x.on},e);
+  }
+  if(B.$(anchor))anchorEditor(anchor);
 };
 B.acts.acShadPick=el=>shadEditor(el.dataset.id,el.dataset.part);
 function shadEditor(id,part){
@@ -1067,7 +1154,7 @@ function contextAction(ev,keyboard=false){
   const anchor=col||cell||day;
   if(!anchor)return;
   ev.preventDefault();
-  const draft=col?newTimed(col.dataset.col,keyboard?9*hour:minuteAt(col,ev.clientY)):newAll((cell||day).dataset.all||day.dataset.d);
+  const draft=col?(keyboard?newTimed(col.dataset.col):clickedHour(col,ev.clientY)):newAll((cell||day).dataset.all||day.dataset.d);
   createMenu(draft,keyboard&&el.matches('button')?el:anchor,keyboard?null:{x:ev.clientX,y:ev.clientY});
 }
 document.addEventListener('contextmenu',ev=>contextAction(ev,ev.button!==2 && !ev.clientX && !ev.clientY));
@@ -1109,7 +1196,7 @@ function rangePointer(e,root){
     const dest=minute==null?(root.dataset.calMode==='month'?d+x.start.slice(10):d):
       C.at(d,B.clamp(minute-grab,0,C.DAY-dragStep));
     if((x.kind==='task'||x.kind==='shad') && x.start.length===10 && dest.length>10){
-      const length=x.kind==='shad'?shadDuration(x.part):Math.max(dragStep,B.task(x.id)?.est||30);
+      const length=x.kind==='shad'?shadDuration(x.part):Math.max(1,B.task(x.id)?.est||30);
       return {start:dest,end:C.at(d,C.minuteOf(dest)+length)};
     }
     return C.move(x,dest);
@@ -1322,6 +1409,7 @@ function mount(){
   }
   mountGestures(sc,mode==='week');
   if(editContext?.selected)markDraft(editContext.e,editContext.task);
+  refreshEditorAnchor?.();
   root.addEventListener('pointerdown',e=>rangePointer(e,root));
   root.addEventListener('click',e=>{
     if(Date.now()-draggedAt<350&&e.target.closest('[data-col],[data-all],.ac-shad-card')){e.stopImmediatePropagation();e.preventDefault();}
@@ -1329,7 +1417,7 @@ function mount(){
   root.addEventListener('dblclick',e=>{
     if(e.target.closest('.ac-item,button,a'))return;
     const col=e.target.closest('[data-col]'), all=e.target.closest('[data-all]');
-    if(col) editor(newTimed(col.dataset.col,minuteAt(col,e.clientY)),null,true);
+    if(col) editor(clickedHour(col,e.clientY),null,true);
     else if(all) editor(newAll(all.dataset.all),null,true);
   });
 }

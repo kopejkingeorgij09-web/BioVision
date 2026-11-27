@@ -8,7 +8,7 @@ const columns = [
 const lane = id => columns.find(c => c.id === id);
 const get = id => B.boardData.get(id);
 const laneLabel = c => icon(c.icon) + '<span>' + c.title + '</span>';
-let historyDate='', historyLimit=14;
+let historyDate='', historyMonth='';
 
 async function move(id,destination){
   const card=get(id);
@@ -27,10 +27,10 @@ B.acts.boardCheck=el=>{
   if(card)move(card.id,card.lane==='done'?'plan':'done');
 };
 
-function cardView(card){
+function cardView(card,focused){
   const id = esc(card.id), title = esc(card.title);
   const steps = card.steps || [];
-  return `<article class="bd-card" data-board-card="${id}">
+  return `<article class="bd-card${focused?' bd-in-focus':''}" data-board-card="${id}">
     <div class="bd-card-head">
       ${card.source==='phagi'?'':`<button type="button" class="bd-check" role="checkbox" aria-checked="${card.lane==='done'}"
         aria-label="${card.lane==='done'?'Снять отметку':'Завершить'} · ${title}" data-act="boardCheck" data-id="${id}">${icon('check')}</button>`}
@@ -43,46 +43,76 @@ function cardView(card){
     ${steps.length ? `<ul class="bd-steps" aria-label="Шаги">${steps.map(s => `<li>
       <label><input type="checkbox" data-in="boardStep" data-card="${id}" data-id="${esc(s.id)}" ${s.done?'checked':''}>
       <span>${esc(s.title)}</span></label></li>`).join('')}</ul>` : ''}
+    ${card.lane==='done'?'':`<button type="button" class="bd-start-focus" data-act="focusStartCard" data-id="${id}" aria-label="${focused?'Открыть фокус':'Запустить фокус'} · ${title}">
+      ${icon(focused?'timer':'play')}${focused?'К таймеру':'Начать фокус'}</button>`}
   </article>`;
 }
+function focusDuration(ms){
+  if(ms<60000)return ms<1000?'меньше секунды':Math.floor(ms/1000)+' с';
+  const minutes=Math.floor(ms/60000), hours=Math.floor(minutes/60);
+  return hours ? hours+' ч'+(minutes%60?' '+minutes%60+' мин':'') : minutes+' мин';
+}
+function historyRows(rows,focusTimes){
+  return `<ul>${rows.map(c=>`<li>${icon('check')}<span><b>${esc(c.title)}</b>${c.context?`<small>${esc(c.context)}</small>`:''}${focusTimes.has(c.id)?`<small>В фокусе · ${focusDuration(focusTimes.get(c.id))}</small>`:''}</span>
+    ${c.completedAt?`<time>${B.hm(c.completedAt)}</time>`:''}</li>`).join('')}</ul>`;
+}
+const completedCount=n=>n+' '+B.plural(n,'дело','дела','дел');
 function historyView(){
-  const days=new Map();
+  const today=B.today(), month=historyMonth || today.slice(0,7);
+  const first=month+'-01', next=B.addMonth(first,1), gridStart=B.weekStart(first);
+  const days=new Map(), focusTimes=B.focus.timeByCard();
   for(const row of B.boardData.completed()){
-    if(historyDate && historyDate!==row.day)continue;
     if(!days.has(row.day))days.set(row.day,[]);
     days.get(row.day).push(row);
   }
-  const list=[...days].slice(0,historyLimit);
+  const dated=[...days.keys()].filter(d=>d && d.startsWith(month));
+  const selected=historyDate || dated[0] || (month===today.slice(0,7)?today:first);
+  const count=dated.reduce((n,d)=>n+days.get(d).length,0);
+  const unknown=days.get('') || [];
+  const monthTitle=B.parse(first).toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
+  const cellCount=Math.ceil(B.diff(gridStart,next)/7)*7;
   return `<section class="bd-history">
-    <header class="bd-history-head"><h2>Завершённые дела</h2><label class="bd-history-filter">За день
-      <input aria-label="Дата выполнения" type="date" data-in="boardDate" value="${historyDate}" max="${B.today()}"></label>
-      ${historyDate?'<button class="btn ghost sm" data-act="boardHistoryAll">За всё время</button>':''}</header>
-    ${list.map(([day,rows],index)=>`<details class="bd-history-day" ${index===0?'open':''}>
-      <summary><span>${day?B.fmtW(day)+' '+day.slice(0,4):'Дата выполнения не сохранена'}</span>
-        <span class="bd-count">${rows.length}</span></summary>
-      <ul>${rows.map(c=>`<li>${icon('check')}<span><b>${esc(c.title)}</b>${c.context?`<small>${esc(c.context)}</small>`:''}</span>
-        ${c.completedAt?`<time>${B.hm(c.completedAt)}</time>`:''}</li>`).join('')}</ul></details>`).join('')
-    ||`<p class="bd-empty">${historyDate?'В этот день нет завершённых дел':'Здесь появятся дела с отметкой о выполнении'}</p>`}
-    ${days.size>list.length?'<button class="btn" data-act="boardHistoryMore">Показать ещё дни</button>':''}
+    <header class="bd-history-head"><div><h2>${esc(monthTitle)}</h2><p>${completedCount(count)} за месяц</p></div>
+      <div class="bd-history-nav">
+        <button class="icon-btn" data-act="boardHistoryMove" data-n="-1" aria-label="Предыдущий месяц">${icon('left')}</button>
+        <button class="btn ghost sm" data-act="boardHistoryToday">Сегодня</button>
+        <button class="icon-btn" data-act="boardHistoryMove" data-n="1" aria-label="Следующий месяц" ${month>=today.slice(0,7)?'disabled':''}>${icon('right')}</button>
+        <input type="date" aria-label="Перейти к дате выполнения" data-in="boardDate" value="${selected}" max="${today}"></div></header>
+    <div class="bd-month-layout"><div class="bd-month" role="group" aria-label="${esc(monthTitle)}">
+      ${B.WD.map(label=>`<span class="bd-weekday">${label}</span>`).join('')}
+      ${Array.from({length:cellCount},(_,i)=>{
+        const d=B.add(gridStart,i);
+        if(!d.startsWith(month))return '<span class="bd-pad" aria-hidden="true"></span>';
+        const n=days.get(d)?.length || 0;
+        return `<button class="bd-date" data-act="boardHistoryDay" data-day="${d}" aria-pressed="${d===selected}"
+          aria-label="${B.fmtW(d)}, ${completedCount(n)}" ${d===today?'aria-current="date"':''} ${d>today?'disabled':''}>
+          <strong>${Number(d.slice(8))}</strong>${n?`<span>${n}</span>`:''}</button>`;
+      }).join('')}</div>
+      <section class="bd-history-day" aria-live="polite"><h3>${B.fmtW(selected)}</h3>
+        ${days.has(selected)?historyRows(days.get(selected),focusTimes):'<p class="bd-empty">В этот день нет завершённых дел</p>'}</section>
+    </div>
+    ${unknown.length?`<details class="bd-history-day"><summary>Дата выполнения не сохранена <span class="bd-count">${unknown.length}</span></summary>${historyRows(unknown,focusTimes)}</details>`:''}
   </section>`;
 }
 function render(){
   const tab=location.hash.split('/')[2] || 'live', today=B.today();
   const cards=tab==='live'?B.boardData.all(today):[];
+  const session=tab==='live'?B.focus.current()?.timer:null;
+  const focused=session?.phase==='work' && B.focus.remaining(session,Date.now())>0?session.card:'';
   return `<div class="page bd-page ${tab==='focus'?'bd-focus-page':''}">
-    ${tab==='focus'?'':`<header class="bd-header"><div><h1>Доска дел</h1>
+    ${tab==='focus'?'':`<header class="bd-header"><div><h1>${tab==='history'?'Завершённые дела':'Доска дел'}</h1>
       ${tab==='live'?`<p>Сегодня · ${B.fmtW(today)}</p>`:''}</div>
       ${tab==='live'?`<div class="bd-actions"><a class="btn" href="#/calendar">${icon('cal')} К календарю</a>
       <button class="btn primary" data-act="boardAdd" data-lane="plan">${icon('plus')} Новое дело</button></div>`:''}</header>`}
     <nav class="toggle bd-tabs" aria-label="Доска">${[['live','Дела'],['history','История'],['focus','Фокус']].map(([id,title])=>
       `<a href="#/board${id==='live'?'':'/'+id}" class="${tab===id?'on':''}" ${tab===id?'aria-current="page"':''}>${title}</a>`).join('')}</nav>
-    ${tab==='focus' ? B.focus.render() : tab==='history' ? historyView() : `<div class="bd-grid">${columns.map(c=>{
+    ${tab==='focus' ? B.focus.render() : tab==='history' ? historyView() : `${B.focus.boardSession()}<div class="bd-grid">${columns.map(c=>{
       const items=cards.filter(item=>item.lane===c.id);
       return `<section class="bd-lane bd-${c.id}" data-board-lane="${c.id}" aria-labelledby="board-${c.id}">
         <header class="bd-lane-head"><div class="bd-lane-icon">${icon(c.icon)}</div>
           <h2 id="board-${c.id}">${c.title}</h2><span class="bd-count">${items.length}</span>
           <button class="icon-btn" data-act="boardAdd" data-lane="${c.id}" aria-label="Добавить дело · ${c.title}">${icon('plus')}</button></header>
-        <div class="bd-stack">${items.length?items.map(cardView).join(''):
+        <div class="bd-stack">${items.length?items.map(item=>cardView(item,item.id===focused)).join(''):
           `<p class="bd-empty">${({plan:'Нет запланированных дел',active:'Нет дел в работе',done:'Пока нет завершённых дел'})[c.id]}</p>`}</div></section>`;
     }).join('')}</div>`}</div>`;
 }
@@ -114,13 +144,22 @@ B.acts.boardEdit = el => {
   if(c.source==='event') return B.acts.acOpen({dataset:{k:'event',id:c.ref,on:c.on,start:c.start,end:c.end}});
 
 };
+function selectHistoryDate(date){
+  historyDate=date;historyMonth=date.slice(0,7);B.render(true);
+}
 B.inputs.boardDate=(el,ev)=>{
-  if(ev.type!=='change' || el.value && !B.calData.validDate(el.value))return;
-  historyDate=el.value>B.today()?B.today():el.value;
-  historyLimit=14;B.render(true);
+  if(ev.type==='change' && B.calData.validDate(el.value) && el.value<=B.today())selectHistoryDate(el.value);
 };
-B.acts.boardHistoryAll=()=>{historyDate='';historyLimit=14;B.render(true);};
-B.acts.boardHistoryMore=()=>{historyLimit+=14;B.render(true);};
+B.acts.boardHistoryDay=el=>{
+  selectHistoryDate(el.dataset.day);
+  B.$('.bd-date[aria-pressed=true]')?.focus({preventScroll:true});
+};
+B.acts.boardHistoryToday=()=>selectHistoryDate(B.today());
+B.acts.boardHistoryMove=el=>{
+  historyMonth=B.addMonth((historyMonth||B.today().slice(0,7))+'-01',Number(el.dataset.n)).slice(0,7);
+  historyDate='';B.render(true);
+  B.$('.bd-history-nav [data-n="'+el.dataset.n+'"]:not(:disabled)')?.focus({preventScroll:true});
+};
 B.inputs.boardStep = (el,ev)=>{
   if(ev.type!=='change')return;
   const c=get(el.dataset.card), t=c?.source==='task' && B.task(c.ref);
@@ -171,7 +210,7 @@ function mount(){
   }, true);
   page.addEventListener('pointerdown', ev => {
     const card = ev.target.closest('[data-board-card]');
-    if (!card || ev.button !== 0 || !ev.isPrimary || ev.target.closest('.bd-steps,.bd-check') ||
+    if (!card || ev.button !== 0 || !ev.isPrimary || ev.target.closest('.bd-steps,.bd-check,.bd-start-focus') ||
         ev.pointerType === 'touch' && !ev.target.closest('.bd-handle')) return;
     cancelDrag?.();
     const controller = new AbortController(), {signal} = controller;

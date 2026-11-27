@@ -73,11 +73,17 @@ let lastKey = '', pending = false;
 B.render = force => {
   if (force !== true && B.calendarView?.deferRender()) return;
   const main = document.getElementById('main');
+  const r = route(), key = r.v + '/' + r.arg, same = key === lastKey, y = scrollY;
+  const room = same && key==='board/focus' && main.querySelector('.focus-room');
+  if (room){
+    B.focus.refresh(room);
+    shell(r);
+    return;
+  }
   const a = document.activeElement;
   if (force === true && a && main.contains(a)) a.blur();
   else if (a && main.contains(a) && a.matches('input:not([type=checkbox]):not([type=radio]),textarea,select')) { pending = true; return; }
   pending = false;
-  const r = route(), key = r.v + '/' + r.arg, same = key === lastKey, y = scrollY;
   const openFolds = same ? new Set([...main.querySelectorAll('details[open][data-fold]')].map(el => el.dataset.fold)) : null;
   const view = B.views[r.v];
   B.calendarView?.unmount();

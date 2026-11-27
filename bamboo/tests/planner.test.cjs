@@ -416,10 +416,10 @@ test('completion archive uses actual marks, deduplicates and removes re-opened i
   B.put('e_just-meeting',{id:'just-meeting',title:'Обычное событие',start:prev,end:B.add(prev,1)});
   B.put('e_just-meeting',null);
   assert(!B.list('boardlog_').some(x=>x.source==='event' && x.card==='event:just-meeting:single'));
-  B.shad.plan=[{n:4,t:'Непрерывность',w:{date:day},h:{date:day}}];
+  B.shad.plan=[{n:4,t:'Непрерывность',wp:true,hp:true,w:{date:day},h:{date:day}}];
   B.shad.marks[4]={s:3,at:stamp};
   const archive=()=>Array.from(B.boardData.completed(),x=>[x.title,x.day]);
-  assert.deepEqual(archive(),[['Зал',prev],['Решено раньше',prev],['Непрерывность',''],['Непрерывность','']]);
+  assert.deepEqual(archive(),[['Зал',prev],['Непрерывность',''],['Непрерывность','']]);
   B.boardData.move(B.boardData.get('shad:hw:4'),'active');
   assert.equal(B.boardData.completed().filter(x=>x.title==='Непрерывность').length,1);
   B.setDone(B.task('arch'),false);
@@ -513,4 +513,30 @@ test('weekly export compares the same weekdays and preserves long notes and book
   assert.equal(past.дни[0].книжная_полка[0].заметки[0].текст,'Цитата недели');
   assert.equal(past.дни[0].задачи[0].завершена,undefined);
   assert.equal(now.дни[6].будущий_день,true);
+});
+
+
+test('board history only credits work scheduled for the day it was checked',()=>{
+  const {B,page}=linkedPlanner(), today=B.today(), past=B.add(today,-14), tomorrow=B.add(today,1);
+  const series={id:'seminar',title:'Семинар',type:'task',repeat:{freq:'weekly'},start:past+'T10:00',end:past+'T11:00'};
+  B.put('e_seminar',series);
+  const toggle=day=>B.calData.toggle({...series,on:day});
+  const rows=day=>Array.from(B.boardData.completed().filter(c=>c.day===day),c=>c.id);
+  const stats=day=>Array.from(B.boardData.history(day).done,c=>c.id);
+  page.Date.now=()=>+B.parse(past);toggle(past);
+  page.Date.now=()=>+B.parse(today);toggle(past);toggle(past);
+  B.saveTask(B.newTask({id:'late',title:'Прошлая задача',due:past}));
+  B.setDone(B.task('late'),true);
+  B.saveTask(B.newTask({id:'floating',title:'Без даты',due:''}));B.setDone(B.task('floating'),true);
+  toggle(B.add(today,-7)); // First checked a week after it was scheduled.
+  assert.deepEqual(rows(past),['event:seminar:'+past]);
+  assert.deepEqual(rows(B.add(today,-7)),[]);
+  toggle(today);
+  assert.deepEqual(rows(today),['event:seminar:'+today]);
+  assert.deepEqual(stats(today),['event:seminar:'+today]);
+  B.saveTask(B.newTask({id:'moved',title:'Перенесено',due:today}));
+  B.saveTask({...B.task('moved'),due:tomorrow});
+  page.Date.now=()=>+B.parse(tomorrow);B.setDone(B.task('moved'),true);
+  assert.deepEqual(rows(tomorrow),['task:moved']);
+  assert.deepEqual(stats(tomorrow),['task:moved']);
 });

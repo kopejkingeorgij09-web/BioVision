@@ -54,7 +54,7 @@ function study(p,part,stage=B.shadStage(p.n),meta=B.get('boardlane_shad:'+part+'
   const id='shad:'+part+':'+p.n, need=part==='web'?2:3;
   const lane=stage>=need?'done':part==='web'?(stage===1?'active':'plan'):meta?.lane==='active'?'active':'plan';
   const slot=part==='web'?p.w:p.h, time=slot?.from || '';
-  return {id,ref:p.n,source:'shad',part,need,lane,title:p.t,on:slot?.date,time,
+  return {id,ref:p.n,source:'shad',part,need,lane,title:p.t,on:(part==='web'?p.wp:p.hp)?slot?.date:'',time,
     context:[time || 'Весь день','ШАД',part==='web'?'Вебинар':'ДЗ'].join(' · ')};
 }
 function phagi(x,meta=B.get('boardlane_phagi:'+x.id)){
@@ -84,7 +84,7 @@ function log(before,after){
   if (!before && !after || before?.lane===after?.lane && before?.title===after?.title) return;
   const card = after || before, id = B.uid();
   lastStamp=Math.max(Date.now(),lastStamp+0.01);
-  B.put('boardlog_'+id,{id,card:card.id,source:card.source,on:card.on,habitId:card.habitId,time:card.time,context:card.context,completedAt:card.completedAt,at:lastStamp,title:card.title,beforeTitle:before?.title || '',before:before?.lane || '',lane:after?.lane || ''},true,true);
+  B.put('boardlog_'+id,{id,card:card.id,source:card.source,on:card.on,start:card.start,end:card.end,habitId:card.habitId,time:card.time,context:card.context,completedAt:card.completedAt,at:lastStamp,title:card.title,beforeTitle:before?.title || '',before:before?.lane || '',lane:after?.lane || ''},true,true);
 }
 function shadMark(n,before,after){
   if(before===after)return;
@@ -93,9 +93,9 @@ function shadMark(n,before,after){
   const p=B.shad.plan.find(p=>p.n===Number(n));
   if(p)for(const part of ['web','hw'])log(study(p,part,before),study(p,part,after));
 }
-function calendarMark(e,before,after){
+function calendarMark(e,before,after,completedAt){
   const card=event(e), open=B.get('boardlane_'+card.id)?.lane==='active'?'active':'plan';
-  log({...card,lane:before?'done':open},{...card,lane:after?'done':open});
+  log({...card,lane:before?'done':open},{...card,completedAt,lane:after?'done':open});
 }
 function track(key,before,after){
   if (key.startsWith('t_')) log(task(before),task(after));
@@ -112,7 +112,10 @@ function track(key,before,after){
   } else if(key.startsWith('ec_cal_') || key.startsWith('w_cal_')){
     const mark=after || before, e=mark && B.get('e_'+mark.calendarId);
     const other=B.get((key.startsWith('ec_')?'w_':'ec_')+mark?.id);
-    if(e && boardEvent(e) && !e.habitId && !other && B.calendarView.plannerOrigin(e)==='personal')calendarMark({...e,on:mark.date},!!before,!!after);
+    if(e && boardEvent(e) && !e.habitId && !other && B.calendarView.plannerOrigin(e)==='personal'){
+      const occ=C.occurrences(e,mark.date,mark.date).find(x=>x.on===mark.date);
+      if(occ)calendarMark(occ,!!before,!!after,after?.at);
+    }
   }
   else if (key.startsWith('e_')){
     const project = e => e && boardEvent(e) && !e.repeat && C?.valid(e.start) && C.valid(e.end) && B.calendarView?.plannerOrigin(e)==='personal'
@@ -145,22 +148,38 @@ function move(card,lane){
     saveLane();
   }
 }
-// Build the archive from completion marks. Old lane-only moves of ordinary events are not proof of completion.
+function scheduledOn(card,day){
+  if(!C.validDate(day))return false;
+  if(card.start && card.end){
+    return card.start<B.add(day,1) && card.end>(card.end.length===10?day:day+'T00:00');
+  }
+  return card.on===day;
+}
 function completed(){
-  const checked=new Map(), result=new Map();
+  const checked=new Map(), onTime=new Map(), result=new Map();
   const logs=B.list('boardlog_').slice().sort((a,b)=>a.at-b.at || a.id.localeCompare(b.id));
   for(const x of logs){
+    const stamp=x.completedAt || x.at;
+    if((x.before==='plan' || x.before==='active') && x.lane==='done' && scheduledOn(x,B.dayOf(stamp))){
+      onTime.set(x.card,stamp);
+    }
     if(x.lane==='done' && (x.before!=='done' || !checked.has(x.card)))checked.set(x.card,x);
     else if(!x.lane && x.before==='done' && x.completedAt && !checked.has(x.card))checked.set(x.card,{...x,at:x.completedAt});
     else if(x.lane && x.lane!=='done')checked.delete(x.card);
   }
   const add=(card,at,recordedDay='')=>{
     if(!card || !card.title)return;
-    const stamp=Number(at) || 0;
-    result.set(card.id,{...card,completedAt:stamp,day:stamp?B.dayOf(stamp):recordedDay});
+    let stamp=Number(at) || 0, day=stamp?B.dayOf(stamp):recordedDay;
+    if(day && !scheduledOn(card,day)){
+      // A late re-check may have replaced the mark's timestamp. Keep an earlier verified completion.
+      stamp=onTime.get(card.id);
+      if(!stamp || !scheduledOn(card,B.dayOf(stamp)))return;
+      day=B.dayOf(stamp);
+    }
+    result.set(card.id,{...card,completedAt:stamp,day});
   };
   function archived(x){
-    return {id:x.card,source:x.source || 'task',title:x.title,time:x.time || '',context:x.context || ''};
+    return {id:x.card,source:x.source || 'task',on:x.on,start:x.start,end:x.end,title:x.title,time:x.time || '',context:x.context || ''};
   }
   for(const [id,x] of checked){
     if(id.startsWith('task:') && !B.task(id.slice(5)))add(archived(x),x.at);
@@ -180,10 +199,10 @@ function completed(){
     const old=checked.get('event:'+mark.calendarId+':'+mark.date) || checked.get('event:'+mark.calendarId+':single');
     const occ=e && C.occurrences(e,mark.date,mark.date).find(x=>x.on===mark.date);
     const card=occ ? event(occ) : old ? {...archived(old),source:'event'} : {
-      id:e?eventId(e,mark.date):'event:'+mark.calendarId+':'+mark.date,
+      on:mark.date,id:e?eventId(e,mark.date):'event:'+mark.calendarId+':'+mark.date,
       title:e?.title || 'Архивная задача календаря',source:'event',time:e?.start.slice(11) || '',context:''
     };
-    add(card,mark.at || old?.at,mark.date);
+    add({...card,on:card.on || mark.date},mark.at || old?.at);
   }
   const byHabit=new Map();
   for(const e of events.filter(e=>e.habitId && boardEvent(e))){
@@ -195,11 +214,11 @@ function completed(){
       if(!value)continue;
       for(const e of byHabit.get(id) || []){
         const occ=C.occurrences(e,day,day).find(x=>x.on===day);
-        if(occ){const c=event(occ);add(c,checked.get(c.id)?.at,day);}
+        if(occ){const c=event(occ);add(c,checked.get(c.id)?.at);}
         else {
           const old=checked.get(eventId(e,day));
           if(old && (e.repeat || old.on===day || !old.on && C.dateOf(e.start)===day))
-            add({...archived(old),source:'event'},old.at,day);
+            add({...archived(old),source:'event'},old.at);
         }
       }
     }
@@ -221,7 +240,7 @@ function completed(){
     if(!x.shad || !x.done)continue;
     const date=C.validDate(x.doneAt)?x.doneAt:'';
     const hw=!x.fix && result.get('shad:hw:'+x.shad);
-    if(hw){if(!hw.day)hw.day=date;}
+    if(hw){if(!hw.day && scheduledOn(hw,date))hw.day=date;}
     else add(phagi(x),0,date);
   }
   return [...result.values()].sort((a,b)=>b.day.localeCompare(a.day) || bySchedule(a,b));
@@ -235,7 +254,7 @@ function history(day){
     if(B.dayOf(x.at)===day){
       if(x.before!=='done')show(x.before,x.card,x.beforeTitle || latest.get(x.card)?.title || x.title);
       if(x.lane!=='done')show(x.lane,x.card,x.title);
-      if(x.before!=='done' && x.lane==='done')completed.add(x.card);
+      if(x.before!=='done' && x.lane==='done' && B.dayOf(x.completedAt || x.at)===day && scheduledOn(x,day))completed.add(x.card);
       changed.add(x.card);
     }
     latest.set(x.card,x);
@@ -244,12 +263,16 @@ function history(day){
     const id=taskId(t.id);
     if(latest.has(id))continue;
     if(t.due===day)show('plan',id,t.title);
-    if(t.doneAt && B.dayOf(t.doneAt)===day)show('done',id,t.title);
+    if(t.due===day && t.done && t.doneAt && B.dayOf(t.doneAt)===day)show('done',id,t.title);
   }
   for(const e of C.events().filter(e=>boardEvent(e) && B.calendarView.plannerOrigin(e)==='personal')){
     for(const x of C.occurrences(e,day,day)){
       const c=event(x);
-      if(!latest.has(c.id)){show('plan',c.id,c.title);if(C.isTask(x)&&C.done(x))show('done',c.id,c.title);}
+      if(!latest.has(c.id)){
+        show('plan',c.id,c.title);
+        const mark=B.get('ec_cal_'+x.id+'_'+x.on) || C.workout(x);
+        if(!x.habitId && C.isTask(x) && mark?.at && B.dayOf(mark.at)===day)show('done',c.id,c.title);
+      }
     }
   }
   for(const {p,kind} of B.shadOn(day)){
@@ -261,7 +284,7 @@ function history(day){
     if(!latest.has(c.id))show('plan',c.id,c.title);
   }
   for(const x of Object.values(B.phx.dl)){
-    if(x.done && x.doneAt===day && x.shad && x.fix)show('done','phagi:'+x.id,x.title);
+    if(x.done && x.due===day && x.doneAt===day && x.shad && x.fix)show('done','phagi:'+x.id,x.title);
   }
   for(const [id,x] of latest){
     if(changed.has(id)){

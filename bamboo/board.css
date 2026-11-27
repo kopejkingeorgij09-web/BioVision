@@ -151,3 +151,15 @@
   .bd-month-layout {grid-template-columns:minmax(0,1fr);gap:12px}
   .bd-date {min-height:48px;padding:4px 6px}
 }
+
+.bd-start-focus {display:inline-flex;align-items:center;gap:5px;margin-top:8px;border:0;border-radius:6px;padding:4px 7px;background:var(--paper-2);color:var(--ink-2);font:600 12px/1.3 var(--f-body)}
+.bd-start-focus .ic {width:14px;height:14px}
+.bd-start-focus:hover,.bd-in-focus .bd-start-focus {background:var(--accent-soft);color:var(--accent)}
+.bd-in-focus {border-color:var(--accent)}
+.bd-focus-session {display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;margin:0 0 16px;border:1px solid var(--rule);border-inline-start:4px solid var(--accent);border-radius:12px;background:var(--sheet)}
+.bd-session-about {flex:1 1 180px;min-width:0;display:flex;align-items:center;gap:10px;color:var(--accent)}
+.bd-session-about div {min-width:0}
+.bd-session-about strong,.bd-session-about small {display:block}
+.bd-session-about strong {color:var(--ink);overflow-wrap:anywhere}
+.bd-session-clock {font-variant-numeric:tabular-nums;font-size:22px;letter-spacing:-.03em}
+@media(pointer:coarse){.bd-start-focus {min-height:36px}}

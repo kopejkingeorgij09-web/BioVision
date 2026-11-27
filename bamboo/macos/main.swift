@@ -393,6 +393,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         location.hash = '#/board/focus/studio';
         B.render(true);
         check(document.querySelectorAll('.fr-nav a').length === 2, 'studio navigation');
+        B.saveTask(B.newTask({id:'focus-link-check',title:'Дело для фокуса',due:B.today()}));
+        location.hash='#/board'; B.render(true);
+        click('[data-act=focusStartCard][data-id="task:focus-link-check"]');
+        B.render(true);
+        const linked=B.focus.current().timer.id;
+        check($('.bd-active .bd-in-focus') && $('.bd-focus-session').textContent.includes('Дело для фокуса'),'linked board session');
+        click('.bd-focus-session [data-act=focusToggle]');
+        location.hash='#/board/focus/studio'; B.render(true);
+        check(B.focus.current().timer.id===linked && !B.focus.current().timer.running && $('.fr-task-title').textContent.includes('Дело для фокуса'),'linked studio session');
+        click('[data-act=focusReset]'); B.render(true);
         for (const mode of ['timer', 'pomo']) {
           click('[data-mode="' + mode + '"]');
           click('[data-act=focusToggle]');

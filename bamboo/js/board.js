@@ -27,10 +27,10 @@ B.acts.boardCheck=el=>{
   if(card)move(card.id,card.lane==='done'?'plan':'done');
 };
 
-function cardView(card){
+function cardView(card,focused){
   const id = esc(card.id), title = esc(card.title);
   const steps = card.steps || [];
-  return `<article class="bd-card" data-board-card="${id}">
+  return `<article class="bd-card${focused?' bd-in-focus':''}" data-board-card="${id}">
     <div class="bd-card-head">
       ${card.source==='phagi'?'':`<button type="button" class="bd-check" role="checkbox" aria-checked="${card.lane==='done'}"
         aria-label="${card.lane==='done'?'Снять отметку':'Завершить'} · ${title}" data-act="boardCheck" data-id="${id}">${icon('check')}</button>`}
@@ -43,6 +43,8 @@ function cardView(card){
     ${steps.length ? `<ul class="bd-steps" aria-label="Шаги">${steps.map(s => `<li>
       <label><input type="checkbox" data-in="boardStep" data-card="${id}" data-id="${esc(s.id)}" ${s.done?'checked':''}>
       <span>${esc(s.title)}</span></label></li>`).join('')}</ul>` : ''}
+    ${card.lane==='done'?'':`<button type="button" class="bd-start-focus" data-act="focusStartCard" data-id="${id}" aria-label="${focused?'Открыть фокус':'Запустить фокус'} · ${title}">
+      ${icon(focused?'timer':'play')}${focused?'К таймеру':'Начать фокус'}</button>`}
   </article>`;
 }
 function historyRows(rows){
@@ -90,6 +92,8 @@ function historyView(){
 function render(){
   const tab=location.hash.split('/')[2] || 'live', today=B.today();
   const cards=tab==='live'?B.boardData.all(today):[];
+  const session=tab==='live'?B.focus.current()?.timer:null;
+  const focused=session?.phase==='work' && B.focus.remaining(session,Date.now())>0?session.card:'';
   return `<div class="page bd-page ${tab==='focus'?'bd-focus-page':''}">
     ${tab==='focus'?'':`<header class="bd-header"><div><h1>${tab==='history'?'Завершённые дела':'Доска дел'}</h1>
       ${tab==='live'?`<p>Сегодня · ${B.fmtW(today)}</p>`:''}</div>
@@ -97,13 +101,13 @@ function render(){
       <button class="btn primary" data-act="boardAdd" data-lane="plan">${icon('plus')} Новое дело</button></div>`:''}</header>`}
     <nav class="toggle bd-tabs" aria-label="Доска">${[['live','Дела'],['history','История'],['focus','Фокус']].map(([id,title])=>
       `<a href="#/board${id==='live'?'':'/'+id}" class="${tab===id?'on':''}" ${tab===id?'aria-current="page"':''}>${title}</a>`).join('')}</nav>
-    ${tab==='focus' ? B.focus.render() : tab==='history' ? historyView() : `<div class="bd-grid">${columns.map(c=>{
+    ${tab==='focus' ? B.focus.render() : tab==='history' ? historyView() : `${B.focus.boardSession()}<div class="bd-grid">${columns.map(c=>{
       const items=cards.filter(item=>item.lane===c.id);
       return `<section class="bd-lane bd-${c.id}" data-board-lane="${c.id}" aria-labelledby="board-${c.id}">
         <header class="bd-lane-head"><div class="bd-lane-icon">${icon(c.icon)}</div>
           <h2 id="board-${c.id}">${c.title}</h2><span class="bd-count">${items.length}</span>
           <button class="icon-btn" data-act="boardAdd" data-lane="${c.id}" aria-label="Добавить дело · ${c.title}">${icon('plus')}</button></header>
-        <div class="bd-stack">${items.length?items.map(cardView).join(''):
+        <div class="bd-stack">${items.length?items.map(item=>cardView(item,item.id===focused)).join(''):
           `<p class="bd-empty">${({plan:'Нет запланированных дел',active:'Нет дел в работе',done:'Пока нет завершённых дел'})[c.id]}</p>`}</div></section>`;
     }).join('')}</div>`}</div>`;
 }
@@ -201,7 +205,7 @@ function mount(){
   }, true);
   page.addEventListener('pointerdown', ev => {
     const card = ev.target.closest('[data-board-card]');
-    if (!card || ev.button !== 0 || !ev.isPrimary || ev.target.closest('.bd-steps,.bd-check') ||
+    if (!card || ev.button !== 0 || !ev.isPrimary || ev.target.closest('.bd-steps,.bd-check,.bd-start-focus') ||
         ev.pointerType === 'touch' && !ev.target.closest('.bd-handle')) return;
     cancelDrag?.();
     const controller = new AbortController(), {signal} = controller;

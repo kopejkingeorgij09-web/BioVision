@@ -178,3 +178,13 @@
   .bd-focus-page .fr-gallery {grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
   .bd-focus-page .fr-scene {height:clamp(72px,10dvh,130px)}
 }
+
+.fr-task-title button,.fr-board-pick {display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;color:inherit;font:inherit;background:none}
+.fr-task-title button {max-width:100%;white-space:normal;text-wrap:balance;line-height:1.2;text-shadow:inherit}
+.fr-task-title .ic,.fr-board-pick .ic {width:15px;height:15px;flex:none}
+.fr-board-pick {margin-top:5px;padding:6px 12px;border:1px solid var(--fr-line);border-radius:20px;background:var(--fr-glass);color:var(--fr-text);font-size:13px}
+.fr-board-pick:hover {background:var(--fr-panel)}
+.fr-cycle {margin-top:4px}
+.fr-plan-group h3 {margin:3px 0 7px;color:var(--ink-2);font:600 13px var(--f-body)}
+.fr-plan-choice>span {min-width:0;overflow-wrap:anywhere}
+.fr-plan-choice small {display:block;color:var(--ink-2);font-size:12px;font-weight:400}

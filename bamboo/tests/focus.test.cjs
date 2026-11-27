@@ -113,3 +113,26 @@ test('new and legacy focus routes consistently expose exactly two tabs',()=>{
     else{assert.equal((html.match(/class="fr-scene"/g)||[]).length,10);assert.match(html,/Теплота звука/);}
   }
 });
+
+test('board selection starts one linked work interval and rechecks the target when switching',async()=>{
+  const {B,advance}=studio();
+  const cards=[{id:'event:talk:2026-11-26',lane:'plan',title:'Занятие'},
+    {id:'task:study',lane:'active',title:'Занятие'}];
+  B.boardData.all=()=>cards;
+  B.boardData.move=(c,lane)=>{c.lane=lane;};
+  const pick=i=>B.acts.focusStartCard({dataset:{id:cards[i].id}});
+  await pick(0);
+  const first=B.focus.current().timer;
+  assert.equal(first.card,cards[0].id);assert.equal(cards[0].lane,'active');
+  advance(5000);B.focus.append('toggle');
+  const paused=B.focus.current();
+  await pick(0);assert.equal(B.focus.current(),paused);
+  B.confirm=async()=>false;
+  await pick(1);assert.equal(B.focus.current(),paused);
+  B.confirm=async()=>{cards[1].lane='done';return true;};
+  await pick(1);assert.equal(B.focus.current(),paused);
+  cards[1].lane='active';B.confirm=async()=>true;
+  await pick(1);advance(25*60000);
+  assert.deepEqual(Array.from(B.focus.sessions(),s=>s.card),[cards[1].id]);
+  assert.equal(cards[1].lane,'active');
+});

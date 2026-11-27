@@ -136,3 +136,17 @@ test('board selection starts one linked work interval and rechecks the target wh
   assert.deepEqual(Array.from(B.focus.sessions(),s=>s.card),[cards[1].id]);
   assert.equal(cards[1].lane,'active');
 });
+
+test('history attributes actual work across pauses, switches, restarts and deadlines to individual cards',()=>{
+  const {B,advance}=studio(), focus=B.focus;
+  const a={id:'event:e:2026-11-26',lane:'active',title:'Урок'};
+  const b={...a,id:'event:e:2026-11-27'};
+  focus.append('start',a);advance(10000);focus.append('toggle');advance(60000);
+  focus.append('toggle');advance(7000);focus.append('start',b);
+  advance(33000);focus.append('reset');advance(40000);
+  focus.append('start',a);advance(26*60000);focus.append('break',a);advance(4*60000);
+  const totals=focus.timeByCard();
+  assert.equal(totals.size,2);
+  assert.equal(totals.get(a.id),25*60000+17000);
+  assert.equal(totals.get(b.id),33000);
+});

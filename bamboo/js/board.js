@@ -47,15 +47,20 @@ function cardView(card,focused){
       ${icon(focused?'timer':'play')}${focused?'К таймеру':'Начать фокус'}</button>`}
   </article>`;
 }
-function historyRows(rows){
-  return `<ul>${rows.map(c=>`<li>${icon('check')}<span><b>${esc(c.title)}</b>${c.context?`<small>${esc(c.context)}</small>`:''}</span>
+function focusDuration(ms){
+  if(ms<60000)return ms<1000?'меньше секунды':Math.floor(ms/1000)+' с';
+  const minutes=Math.floor(ms/60000), hours=Math.floor(minutes/60);
+  return hours ? hours+' ч'+(minutes%60?' '+minutes%60+' мин':'') : minutes+' мин';
+}
+function historyRows(rows,focusTimes){
+  return `<ul>${rows.map(c=>`<li>${icon('check')}<span><b>${esc(c.title)}</b>${c.context?`<small>${esc(c.context)}</small>`:''}${focusTimes.has(c.id)?`<small>В фокусе · ${focusDuration(focusTimes.get(c.id))}</small>`:''}</span>
     ${c.completedAt?`<time>${B.hm(c.completedAt)}</time>`:''}</li>`).join('')}</ul>`;
 }
 const completedCount=n=>n+' '+B.plural(n,'дело','дела','дел');
 function historyView(){
   const today=B.today(), month=historyMonth || today.slice(0,7);
   const first=month+'-01', next=B.addMonth(first,1), gridStart=B.weekStart(first);
-  const days=new Map();
+  const days=new Map(), focusTimes=B.focus.timeByCard();
   for(const row of B.boardData.completed()){
     if(!days.has(row.day))days.set(row.day,[]);
     days.get(row.day).push(row);
@@ -84,9 +89,9 @@ function historyView(){
           <strong>${Number(d.slice(8))}</strong>${n?`<span>${n}</span>`:''}</button>`;
       }).join('')}</div>
       <section class="bd-history-day" aria-live="polite"><h3>${B.fmtW(selected)}</h3>
-        ${days.has(selected)?historyRows(days.get(selected)):'<p class="bd-empty">В этот день нет завершённых дел</p>'}</section>
+        ${days.has(selected)?historyRows(days.get(selected),focusTimes):'<p class="bd-empty">В этот день нет завершённых дел</p>'}</section>
     </div>
-    ${unknown.length?`<details class="bd-history-day"><summary>Дата выполнения не сохранена <span class="bd-count">${unknown.length}</span></summary>${historyRows(unknown)}</details>`:''}
+    ${unknown.length?`<details class="bd-history-day"><summary>Дата выполнения не сохранена <span class="bd-count">${unknown.length}</span></summary>${historyRows(unknown,focusTimes)}</details>`:''}
   </section>`;
 }
 function render(){

@@ -49,6 +49,17 @@ function sessions(now=Date.now()){
   });
   return out;
 }
+// Charge each running work segment until the next command or its deadline.
+function timeByCard(now=Date.now()){
+  const ops=chain(), totals=new Map();
+  ops.forEach((op,i)=>{
+    const timer=op.timer;
+    if(!timer?.running || timer.phase!=='work' || !timer.card)return;
+    const end=Math.min(now,timer.until,ops[i+1]?.at ?? now);
+    if(end>op.at)totals.set(timer.card,(totals.get(timer.card) || 0)+end-op.at);
+  });
+  return totals;
+}
 function activity(day){
   return chain().flatMap((op,i,ops)=>{
     if(B.dayOf(op.at)!==day)return [];
@@ -566,7 +577,7 @@ document.addEventListener('keydown',e=>{
     e.preventDefault();e.stopImmediatePropagation();open.open=false;open.querySelector('summary')?.focus();
   }
 },true);
-B.focus={render,refresh,boardSession,sessions,activity,current,remaining,append,widgetSnapshot,isStudio,notifications:()=>pref('notify')};
+B.focus={render,refresh,boardSession,sessions,timeByCard,activity,current,remaining,append,widgetSnapshot,isStudio,notifications:()=>pref('notify')};
 B.on('change',()=>{mix();tick();syncWidget();});
 addEventListener('zov-clock-resume',tick);
 setInterval(tick,500);

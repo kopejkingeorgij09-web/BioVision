@@ -319,7 +319,7 @@ function render(arg){
       <div class="ac-main">
         <div class="ac-toolbar">
           <div class="ac-controls"><button class="icon-btn" data-act="acSidebar" aria-label="Список календарей" aria-pressed="${side}">${icon('list')}</button>
-            <button class="icon-btn ac-add" data-act="acAdd" aria-label="Добавить событие или напоминание" aria-haspopup="menu" title="Добавить (N)">${icon('plus')}</button>
+            <button class="icon-btn ac-add" data-act="acAdd" aria-label="Добавить запись в календарь" aria-haspopup="menu" title="Добавить (N)">${icon('plus')}</button>
             <button class="icon-btn" data-act="acGoto" aria-label="Перейти к дате" title="Перейти к дате">${icon('cal')}</button>
             <button class="icon-btn" data-act="acSearch" aria-label="Поиск по календарю" title="Поиск по календарю (/)">${icon('search')}</button></div>
           <div class="ac-modes" role="group" aria-label="Вид календаря">${Object.entries(MODES).map(([k,v])=>`<button data-act="acMode" data-v="${k}" aria-pressed="${mode===k}">${v}</button>`).join('')}</div>
@@ -700,16 +700,19 @@ B.acts.acType=el=>{
 };
 // Only keep the transient menu while its calendar view is mounted.
 let dismissCreate;
-function createMenu(draft,anchor,point){
+function createMenu(draft,anchor,point,includeReminder=false){
   dismissCreate?.();
   const menu=document.createElement('div');
   menu.className='ac-create-menu';
   menu.setAttribute('role','menu');
   menu.setAttribute('aria-label','Добавить запись');
   const timed=draft.start.length>10;
-  menu.innerHTML=`<p>${esc(fmt(C.dateOf(draft.start)))} · ${timed?draft.start.slice(11):'Весь день'}</p>
+  const interval=timed?draft.start.slice(11)+'–'+draft.end.slice(11):'Весь день';
+  if(timed && anchor.matches('[data-col]'))markDraft({...draft,title:interval},false);
+  menu.innerHTML=`<p>${esc(fmt(C.dateOf(draft.start)))} · ${interval}</p>
     <button type="button" role="menuitem" data-kind="event">${icon('cal')}Событие</button>
-    <button type="button" role="menuitem" data-kind="reminder">${icon('bell')}Напоминание</button>`;
+    <button type="button" role="menuitem" data-kind="task">${icon('list')}Задача</button>
+    ${includeReminder?`<button type="button" role="menuitem" data-kind="reminder">${icon('bell')}Напоминание</button>`:''}`;
   document.body.append(menu);
   const rect=anchor.getBoundingClientRect(), x=point?.x??rect.left, y=point?.y??rect.bottom;
   menu.style.left=B.clamp(x,6,innerWidth-menu.offsetWidth-6)+'px';
@@ -718,6 +721,7 @@ function createMenu(draft,anchor,point){
   const listeners=new AbortController(), opts={capture:true,signal:listeners.signal};
   const dismiss=(restore=false)=>{
     listeners.abort();menu.remove();dismissCreate=null;
+    anchor.querySelector('.ac-draft')?.remove();
     if(restore && anchor.isConnected){
       const target=anchor.matches('button,[tabindex]')?anchor:anchor.closest('.ac')?.querySelector('.ac-add');
       target?.focus({preventScroll:true});
@@ -739,7 +743,8 @@ function createMenu(draft,anchor,point){
     if(['ArrowUp','ArrowDown','Home','End'].includes(ev.key)){
       ev.preventDefault();
       const index=items.indexOf(document.activeElement);
-      items[ev.key==='Home'?0:ev.key==='End'?1:1-index]?.focus();
+      const step=ev.key==='ArrowUp'?-1:1;
+      items[ev.key==='Home'?0:ev.key==='End'?items.length-1:(index+step+items.length)%items.length]?.focus();
     }
   });
   menu.addEventListener('click',ev=>{
@@ -747,19 +752,19 @@ function createMenu(draft,anchor,point){
     if(!choice)return;
     dismiss();
     if(choice.dataset.kind==='reminder')B.newTaskReminder(draft.start,draft.end);
-    else editor(draft,null,true);
+    else editor({...draft,type:choice.dataset.kind},null,true);
   });
   items[0].focus({preventScroll:true});
 }
-B.acts.acAdd=el=>createMenu(newTimed(date),el?.getBoundingClientRect?el:B.$('.ac-add'));
-B.acts.acNewDay=el=>createMenu(newAll(el.dataset.d),el);
+B.acts.acAdd=el=>createMenu(newTimed(date),el?.getBoundingClientRect?el:B.$('.ac-add'),null,true);
+B.acts.acNewDay=el=>createMenu(newAll(el.dataset.d),el,null,true);
 function fromNode(el){
   const {k,id,on,start,end,part}=el.dataset;
   return {kind:k,id,on,start,end,part};
 }
 B.acts.acOpen=el=>{
   const x=fromNode(el);
-  const dayCell=el.closest('[data-col],[data-all]');
+  const dayCell=el.closest?.('[data-col],[data-all]');
   const daySelector=dayCell?.dataset.col ? `[data-col="${dayCell.dataset.col}"] ` :
     dayCell?.dataset.all ? `[data-all="${dayCell.dataset.all}"] ` : '';
   const anchor=`.ac ${daySelector}.ac-item[data-k="${CSS.escape(x.kind)}"][data-id="${CSS.escape(x.id)}"][data-on="${CSS.escape(x.on)}"][data-part="${CSS.escape(x.part || '')}"]`;
@@ -1149,7 +1154,7 @@ function contextAction(ev,keyboard=false){
   const anchor=col||cell||day;
   if(!anchor)return;
   ev.preventDefault();
-  const draft=col?newTimed(col.dataset.col,keyboard?9*hour:minuteAt(col,ev.clientY)):newAll((cell||day).dataset.all||day.dataset.d);
+  const draft=col?(keyboard?newTimed(col.dataset.col):clickedHour(col,ev.clientY)):newAll((cell||day).dataset.all||day.dataset.d);
   createMenu(draft,keyboard&&el.matches('button')?el:anchor,keyboard?null:{x:ev.clientX,y:ev.clientY});
 }
 document.addEventListener('contextmenu',ev=>contextAction(ev,ev.button!==2 && !ev.clientX && !ev.clientY));

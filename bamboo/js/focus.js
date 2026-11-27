@@ -3,7 +3,7 @@
 (function(){
 const {esc,icon}=B, minute=60000;
 const scenes={amber_evening:'Янтарный вечер',forest:'Лес',lake_dawn:'Рассвет у озера',alpine_snow:'Альпийский снег',
-  lavender_dusk:'Лавандовые сумерки',pink_mist:'Розовый туман',polar_night:'Полярная ночь',sea_glass:'Морское стекло',
+  carina:'Космические скалы',quintet:'Квинтет Стефана',polar_night:'Полярная ночь',sea_glass:'Морское стекло',
   tea_garden:'Чайный сад',terracotta:'Терракота'};
 const channels={rain:'Дождь',fireplace:'Камин',forest:'Лес',brown:'Коричневый шум',white:'Белый шум',ocean:'Океан',wind:'Ветер',cafe:'Кофейня'};
 const defaults={mode:'timer',work:25,short:5,long:15,every:4,scene:'amber_evening',dayScene:'lake_dawn',
@@ -310,7 +310,7 @@ function custom(){
   return `<div class="fr-custom">
     <section class="fr-panel fr-look"><header class="fr-card-heading"><h2>Темы</h2>
       <button class="fr-text" type="button" data-act="focusSchedule" title="Смена темы по времени">${icon(pref('autoScene')?'sun':'clock')} ${pref('autoScene')?'По времени':'Вручную'}</button></header>
-      <div class="fr-gallery">${Object.entries(scenes).map(([k,name])=>`<button class="fr-scene" type="button" data-act="focusScene" data-scene="${k}" aria-pressed="${activeScene()===k}" style="--thumb:url('focus/scenes/${k}.jpg')"><span>${esc(name)}</span>${activeScene()===k?icon('check'):''}</button>`).join('')}</div>
+      <div class="fr-gallery">${Object.entries(scenes).map(([k,name])=>`<button class="fr-scene" type="button" data-act="focusScene" data-scene="${k}" aria-pressed="${activeScene()===k}" style="--thumb:url('focus/scenes/thumbs/${k}.jpg?v=1')"><span>${esc(name)}</span>${activeScene()===k?icon('check'):''}</button>`).join('')}</div>
       <button type="button" class="fr-credit" data-act="focusCredits">Авторы записей и фотографий</button>
     </section>
     <section class="fr-panel fr-mixer"><header class="fr-card-heading"><h2>Микшер</h2><div class="fr-small-controls">${act('focusSound',soundPlaying()?'Пауза':'Слушать',soundPlaying()?'pause':'play','fr-small-play')+iconButton('focusAudioReset','Сбросить воспроизведение фона','repeat')}</div></header>
@@ -331,7 +331,10 @@ function render(){
     legacyRoute=route;
     setTimeout(()=>{if(location.hash===route)(section==='week'?B.acts.focusWeek:B.acts.focusPlan)();},0);
   }else if(!['week','plan'].includes(section))legacyRoute='';
-  return `<section class="focus-room" aria-labelledby="focus-heading" data-scene="${scene}" data-view="${view}" style="--scene-image:url('focus/scenes/${scene}.jpg')">
+  const space=scene==='carina'||scene==='quintet';
+  const full=`url('focus/scenes/${scene}.jpg?v=1')`;
+  const previewImage=space?`url('focus/scenes/preview/${scene}.jpg?v=1')`:full;
+  return `<section class="focus-room" aria-labelledby="focus-heading" data-scene="${scene}" data-view="${view}" style="--scene-image:${full};--scene-preview:${previewImage}">
     <h1 id="focus-heading" class="fr-sr-only">${view==='studio'?'Студия фокуса':'Кастомизация фокуса'}</h1>
     <div class="fr-top"><nav class="fr-nav" aria-label="Разделы фокуса">
       <a href="#/board/focus/studio" ${view==='studio'?'aria-current="page"':''}>${icon('timer')} Фокус</a>
@@ -340,6 +343,39 @@ function render(){
     ${view==='studio'?studio():custom()}</section>`;
 }
 
+
+// Update the mounted room in place so a control change keeps the painted scene,
+// gallery, keyboard focus and an open quick mixer.
+function syncRoomNode(node,next){
+  if(node.nodeName!==next.nodeName){
+    node.replaceWith(next.cloneNode(true));
+    return;
+  }
+  if(node.nodeType!==Node.ELEMENT_NODE){
+    if(node.nodeValue!==next.nodeValue)node.nodeValue=next.nodeValue;
+    return;
+  }
+  if(node.matches('input[type=range]') && preview.has(node.dataset.key))return;
+  for(const name of node.getAttributeNames()){
+    if(!next.hasAttribute(name) && !(name==='open' && node.matches('details[data-fold]')))node.removeAttribute(name);
+  }
+  for(const name of next.getAttributeNames()){
+    const value=next.getAttribute(name);
+    if(node.getAttribute(name)!==value)node.setAttribute(name,value);
+  }
+  for(let i=0;i<next.childNodes.length;i++){
+    const child=next.childNodes[i];
+    if(node.childNodes[i])syncRoomNode(node.childNodes[i],child);
+    else node.append(child.cloneNode(true));
+  }
+  while(node.childNodes.length>next.childNodes.length)node.lastChild.remove();
+  if(node.matches('input,select') && node.value!==next.value)node.value=next.value;
+}
+function refresh(room){
+  const template=document.createElement('template');
+  template.innerHTML=render();
+  syncRoomNode(room,template.content.firstElementChild);
+}
 
 B.acts.focusToggle=()=>{void unlock();append('toggle');};
 B.acts.focusReset=()=>{if(current()?.timer)append('reset');};
@@ -443,7 +479,7 @@ B.acts.focusMixDelete=el=>{B.historyToast('Микс удалён',()=>B.put('foc
 let creditRows;
 B.acts.focusCredits=async()=>{
   try{
-    if(!creditRows){const response=await fetch('focus/credits.json?v=1');if(!response.ok)throw Error();creditRows=await response.json();}
+    if(!creditRows){const response=await fetch('focus/credits.json?v=2');if(!response.ok)throw Error();creditRows=await response.json();}
     const ref=(name,url)=>/^https?:\/\//i.test(url)?`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(name)}</a>`:esc(name);
     B.sheet(`<section aria-labelledby="focus-media-credits"><h2 id="focus-media-credits">Авторы записей и фотографий</h2><p class="hint">Звуковые записи адаптированы для непрерывного воспроизведения. Фотографии кадрированы под формат сцен.</p><dl class="fr-credits">
       ${creditRows.map(c=>`<dt>${ref(c.title,c.url)}</dt><dd>${esc(c.work || c.title)} · ${esc(c.author)}${c.editor?' · монтаж — '+esc(c.editor):''} · ${ref(c.license,c.licenseUrl)}</dd>`).join('')}</dl></section>`);
@@ -483,7 +519,7 @@ document.addEventListener('keydown',e=>{
     e.preventDefault();e.stopImmediatePropagation();open.open=false;open.querySelector('summary')?.focus();
   }
 },true);
-B.focus={render,sessions,activity,current,remaining,append,widgetSnapshot,isStudio,notifications:()=>pref('notify')};
+B.focus={render,refresh,sessions,activity,current,remaining,append,widgetSnapshot,isStudio,notifications:()=>pref('notify')};
 B.on('change',()=>{mix();tick();syncWidget();});
 addEventListener('zov-clock-resume',tick);
 setInterval(tick,500);

@@ -8,7 +8,7 @@ const columns = [
 const lane = id => columns.find(c => c.id === id);
 const get = id => B.boardData.get(id);
 const laneLabel = c => icon(c.icon) + '<span>' + c.title + '</span>';
-let historyDate='', historyLimit=14;
+let historyDate='', historyMonth='';
 
 async function move(id,destination){
   const card=get(id);
@@ -45,32 +45,53 @@ function cardView(card){
       <span>${esc(s.title)}</span></label></li>`).join('')}</ul>` : ''}
   </article>`;
 }
+function historyRows(rows){
+  return `<ul>${rows.map(c=>`<li>${icon('check')}<span><b>${esc(c.title)}</b>${c.context?`<small>${esc(c.context)}</small>`:''}</span>
+    ${c.completedAt?`<time>${B.hm(c.completedAt)}</time>`:''}</li>`).join('')}</ul>`;
+}
+const completedCount=n=>n+' '+B.plural(n,'дело','дела','дел');
 function historyView(){
+  const today=B.today(), month=historyMonth || today.slice(0,7);
+  const first=month+'-01', next=B.addMonth(first,1), gridStart=B.weekStart(first);
   const days=new Map();
   for(const row of B.boardData.completed()){
-    if(historyDate && historyDate!==row.day)continue;
     if(!days.has(row.day))days.set(row.day,[]);
     days.get(row.day).push(row);
   }
-  const list=[...days].slice(0,historyLimit);
+  const dated=[...days.keys()].filter(d=>d && d.startsWith(month));
+  const selected=historyDate || dated[0] || (month===today.slice(0,7)?today:first);
+  const count=dated.reduce((n,d)=>n+days.get(d).length,0);
+  const unknown=days.get('') || [];
+  const monthTitle=B.parse(first).toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
+  const cellCount=Math.ceil(B.diff(gridStart,next)/7)*7;
   return `<section class="bd-history">
-    <header class="bd-history-head"><h2>Завершённые дела</h2><label class="bd-history-filter">За день
-      <input aria-label="Дата выполнения" type="date" data-in="boardDate" value="${historyDate}" max="${B.today()}"></label>
-      ${historyDate?'<button class="btn ghost sm" data-act="boardHistoryAll">За всё время</button>':''}</header>
-    ${list.map(([day,rows],index)=>`<details class="bd-history-day" ${index===0?'open':''}>
-      <summary><span>${day?B.fmtW(day)+' '+day.slice(0,4):'Дата выполнения не сохранена'}</span>
-        <span class="bd-count">${rows.length}</span></summary>
-      <ul>${rows.map(c=>`<li>${icon('check')}<span><b>${esc(c.title)}</b>${c.context?`<small>${esc(c.context)}</small>`:''}</span>
-        ${c.completedAt?`<time>${B.hm(c.completedAt)}</time>`:''}</li>`).join('')}</ul></details>`).join('')
-    ||`<p class="bd-empty">${historyDate?'В этот день нет завершённых дел':'Здесь появятся дела с отметкой о выполнении'}</p>`}
-    ${days.size>list.length?'<button class="btn" data-act="boardHistoryMore">Показать ещё дни</button>':''}
+    <header class="bd-history-head"><div><h2>${esc(monthTitle)}</h2><p>${completedCount(count)} за месяц</p></div>
+      <div class="bd-history-nav">
+        <button class="icon-btn" data-act="boardHistoryMove" data-n="-1" aria-label="Предыдущий месяц">${icon('left')}</button>
+        <button class="btn ghost sm" data-act="boardHistoryToday">Сегодня</button>
+        <button class="icon-btn" data-act="boardHistoryMove" data-n="1" aria-label="Следующий месяц" ${month>=today.slice(0,7)?'disabled':''}>${icon('right')}</button>
+        <input type="date" aria-label="Перейти к дате выполнения" data-in="boardDate" value="${selected}" max="${today}"></div></header>
+    <div class="bd-month-layout"><div class="bd-month" role="group" aria-label="${esc(monthTitle)}">
+      ${B.WD.map(label=>`<span class="bd-weekday">${label}</span>`).join('')}
+      ${Array.from({length:cellCount},(_,i)=>{
+        const d=B.add(gridStart,i);
+        if(!d.startsWith(month))return '<span class="bd-pad" aria-hidden="true"></span>';
+        const n=days.get(d)?.length || 0;
+        return `<button class="bd-date" data-act="boardHistoryDay" data-day="${d}" aria-pressed="${d===selected}"
+          aria-label="${B.fmtW(d)}, ${completedCount(n)}" ${d===today?'aria-current="date"':''} ${d>today?'disabled':''}>
+          <strong>${Number(d.slice(8))}</strong>${n?`<span>${n}</span>`:''}</button>`;
+      }).join('')}</div>
+      <section class="bd-history-day" aria-live="polite"><h3>${B.fmtW(selected)}</h3>
+        ${days.has(selected)?historyRows(days.get(selected)):'<p class="bd-empty">В этот день нет завершённых дел</p>'}</section>
+    </div>
+    ${unknown.length?`<details class="bd-history-day"><summary>Дата выполнения не сохранена <span class="bd-count">${unknown.length}</span></summary>${historyRows(unknown)}</details>`:''}
   </section>`;
 }
 function render(){
   const tab=location.hash.split('/')[2] || 'live', today=B.today();
   const cards=tab==='live'?B.boardData.all(today):[];
   return `<div class="page bd-page ${tab==='focus'?'bd-focus-page':''}">
-    ${tab==='focus'?'':`<header class="bd-header"><div><h1>Доска дел</h1>
+    ${tab==='focus'?'':`<header class="bd-header"><div><h1>${tab==='history'?'Завершённые дела':'Доска дел'}</h1>
       ${tab==='live'?`<p>Сегодня · ${B.fmtW(today)}</p>`:''}</div>
       ${tab==='live'?`<div class="bd-actions"><a class="btn" href="#/calendar">${icon('cal')} К календарю</a>
       <button class="btn primary" data-act="boardAdd" data-lane="plan">${icon('plus')} Новое дело</button></div>`:''}</header>`}
@@ -114,13 +135,22 @@ B.acts.boardEdit = el => {
   if(c.source==='event') return B.acts.acOpen({dataset:{k:'event',id:c.ref,on:c.on,start:c.start,end:c.end}});
 
 };
+function selectHistoryDate(date){
+  historyDate=date;historyMonth=date.slice(0,7);B.render(true);
+}
 B.inputs.boardDate=(el,ev)=>{
-  if(ev.type!=='change' || el.value && !B.calData.validDate(el.value))return;
-  historyDate=el.value>B.today()?B.today():el.value;
-  historyLimit=14;B.render(true);
+  if(ev.type==='change' && B.calData.validDate(el.value) && el.value<=B.today())selectHistoryDate(el.value);
 };
-B.acts.boardHistoryAll=()=>{historyDate='';historyLimit=14;B.render(true);};
-B.acts.boardHistoryMore=()=>{historyLimit+=14;B.render(true);};
+B.acts.boardHistoryDay=el=>{
+  selectHistoryDate(el.dataset.day);
+  B.$('.bd-date[aria-pressed=true]')?.focus({preventScroll:true});
+};
+B.acts.boardHistoryToday=()=>selectHistoryDate(B.today());
+B.acts.boardHistoryMove=el=>{
+  historyMonth=B.addMonth((historyMonth||B.today().slice(0,7))+'-01',Number(el.dataset.n)).slice(0,7);
+  historyDate='';B.render(true);
+  B.$('.bd-history-nav [data-n="'+el.dataset.n+'"]:not(:disabled)')?.focus({preventScroll:true});
+};
 B.inputs.boardStep = (el,ev)=>{
   if(ev.type!=='change')return;
   const c=get(el.dataset.card), t=c?.source==='task' && B.task(c.ref);

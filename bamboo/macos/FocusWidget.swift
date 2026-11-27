@@ -37,7 +37,7 @@ struct FocusFace: View {
     var background: Color {
         switch entry.scene {
         case "amber_evening", "terracotta": return Color(red: 0.30, green: 0.18, blue: 0.11)
-        case "pink_mist", "lavender_dusk": return Color(red: 0.33, green: 0.21, blue: 0.34)
+        case "carina", "quintet": return Color(red: 0.33, green: 0.21, blue: 0.34)
         case "sea_glass", "lake_dawn", "polar_night", "alpine_snow": return Color(red: 0.12, green: 0.23, blue: 0.33)
         default: return Color(red: 0.12, green: 0.26, blue: 0.20)
         }

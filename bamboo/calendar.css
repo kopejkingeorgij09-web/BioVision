@@ -376,3 +376,40 @@
 }
 .ac-create-menu button:is(:hover,:focus-visible) { background:var(--paper-2); outline:2px solid var(--accent); outline-offset:-2px }
 .ac-create-menu .ic { color:var(--accent) }
+
+.ac-item.timed {
+  container-type:size;
+  min-height:calc(var(--ac-hour) * var(--ac-min-card) - 1px);
+}
+@container (max-height: 40px) {
+  .ac-item.timed .ac-open { padding-block:1px;line-height:1.1 }
+  .ac-item.timed .ac-open .ac-title {
+    display:block;white-space:nowrap;text-overflow:ellipsis;
+  }
+}
+@container (max-height: 32px) {
+  .ac-item.timed .ac-open { justify-content:center;padding-block:0;line-height:1;font-size:min(1em,13px) }
+  .ac-item.timed .ac-open :is(small,.ac-shad-meta) { display:none }
+  .ac-item.timed .ac-check { height:100%;padding-block:0;align-self:center }
+  .ac-item.timed .ac-resize { height:3px }
+  .ac-item.timed .ac-card-menu .ic { width:13px;height:13px }
+  @media(pointer:fine) {
+    .ac-item.timed .ac-card-menu { flex-basis:18px;min-inline-size:18px }
+  }
+}
+@media(min-width:700px) {
+  .ac-anchor { outline:2px solid var(--cal-color,var(--accent));outline-offset:-2px }
+  .ac[data-cal-mode=day] .ac-anchor { max-width:calc(100% - min(478px,53%)) }
+  #scrim[data-ac-side] { background:transparent }
+  #scrim[data-ac-side] #sheet {
+    position:absolute;left:var(--ac-editor-x);top:var(--ac-editor-y);
+    width:var(--ac-editor-width);max-height:calc(100dvh - 24px);transform:none;
+    border:1px solid var(--rule-2);border-radius:16px;box-shadow:0 10px 36px #0003;
+  }
+  #scrim[data-ac-side]::after {
+    content:"";position:absolute;pointer-events:none;left:var(--ac-tip-x);top:var(--ac-tip-y);
+    width:12px;height:12px;background:var(--sheet);border:solid var(--rule-2);border-width:0 0 1px 1px;
+    transform:translate(-50%,-50%) rotate(45deg);
+  }
+  #scrim[data-ac-side=left]::after { transform:translate(-50%,-50%) rotate(225deg) }
+}

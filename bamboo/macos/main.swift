@@ -334,6 +334,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         await wait();
         B.calendarView.selectDate(day);
         B.acts.acMode({dataset:{v:'day'}});
+        const col = $('[data-col="'+day+'"]');
+        col.closest('.ac-scroll').scrollTop = col.offsetHeight * 8/24;
+        const grid = col.getBoundingClientRect();
+        col.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,clientY:grid.top + grid.height * (10 + 59/60) / 24}));
+        const slot = $('#acEditor');
+        if (slot.elements.startAt.value !== day+'T10:00' || slot.elements.endAt.value !== day+'T11:00') throw Error('Hour slot');
+        const card = $('.ac-draft').getBoundingClientRect(), panel = $('#sheet').getBoundingClientRect();
+        if (!$('#scrim').dataset.acSide || (panel.left < card.right && panel.right > card.left)) throw Error('Calendar editor overlaps card');
+        B.closeSheet();
+        await wait();
         const cell = $('[data-all="'+day+'"]');
         cell.dispatchEvent(new MouseEvent('contextmenu',{button:2,bubbles:true,cancelable:true}));
         $('.ac-create-menu [data-kind=event]').click();

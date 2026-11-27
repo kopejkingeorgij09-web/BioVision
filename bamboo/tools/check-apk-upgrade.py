@@ -61,6 +61,14 @@ def contents(rows):
 
 
 def run():
+    feed = "https://kopejkingeorgij09-web.github.io/BioVision/releases/zov-lesa/manifest.json"
+    for attempt in range(75):
+        with urllib.request.urlopen(feed + "?test=" + str(time.time_ns()), timeout=25) as response:
+            if json.load(response)["android"]["build"] == 27:
+                break
+        time.sleep(10)
+    else:
+        raise AssertionError("Android 1.5.19 not available in the public feed")
     shell("input", "keyevent", "82")
     shell("wm", "size", "1800x1700")
     shell("wm", "density", "240")

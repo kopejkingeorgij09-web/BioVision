@@ -20,7 +20,7 @@ for name in ['bamboo','bioviz/x','shad']:
   shutil.copy2(repo/'bamboo/android/web/app-updates.js',dst/'app-updates.js')
  elif name=='shad':shutil.copy2(repo/name/'plan.json',dst/'plan.json')
  else:shutil.copy2(repo/name/'cloud.js',dst/'cloud.js')
-info={'CFBundleIdentifier':'org.biovision.zovlesa.mac','CFBundleName':'Зов леса','CFBundleDisplayName':'Зов леса','CFBundleExecutable':'ZovLesa','CFBundleURLTypes':[{'CFBundleURLSchemes':['zovfocus'],'CFBundleURLName':'org.biovision.zovlesa.mac.focus'}],'CFBundlePackageType':'APPL','CFBundleShortVersionString':'1.1.21','CFBundleVersion':'26','CFBundleIconFile':'AppIcon.icns','LSMinimumSystemVersion':'12.0','NSHighResolutionCapable':True,'NSAppTransportSecurity':{'NSAllowsLocalNetworking':True}}
+info={'CFBundleIdentifier':'org.biovision.zovlesa.mac','CFBundleName':'Зов леса','CFBundleDisplayName':'Зов леса','CFBundleExecutable':'ZovLesa','CFBundleURLTypes':[{'CFBundleURLSchemes':['zovfocus'],'CFBundleURLName':'org.biovision.zovlesa.mac.focus'}],'CFBundlePackageType':'APPL','CFBundleShortVersionString':'1.1.22','CFBundleVersion':'27','CFBundleIconFile':'AppIcon.icns','LSMinimumSystemVersion':'12.0','NSHighResolutionCapable':True,'NSAppTransportSecurity':{'NSAllowsLocalNetworking':True}}
 shutil.copy2(repo/'bamboo/macos/AppIcon.icns',resources.parent/'AppIcon.icns')
 (out/'Contents/Info.plist').write_bytes(plistlib.dumps(info))
 scratch_dir=TemporaryDirectory()

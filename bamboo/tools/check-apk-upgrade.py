@@ -80,8 +80,14 @@ def run():
     first_install = re.search(r"firstInstallTime=(.+)", info)[1].strip()
     shell("pm", "grant", package, "android.permission.POST_NOTIFICATIONS")
     shell("am", "start", "-W", "-n", package + "/.MainActivity")
-    for _ in range(15):
+    for _ in range(30):
         rows = nodes()
+        if any("Quickstep isn't responding" in text for node in rows for text in label(node)):
+            button=control(rows,"Close app")
+            if button is not None:
+                click(button,"Close stalled emulator launcher")
+            shell("am","start","-W","-n",package+"/.MainActivity")
+            continue
         settings = control(rows, "Настройки")
         if settings is not None:
             click(settings, "Настройки")
